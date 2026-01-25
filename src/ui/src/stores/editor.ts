@@ -7,14 +7,23 @@ export interface TileSelection {
   w: number
   h: number
   tilesetId: string
+  isAutotile: boolean
 }
 
 export type ZTool = 'brush' | 'eraser'
 export type ZLayer = 'ground' | 'decoration' | 'events'
 
 export const useEditorStore = defineStore('editor', () => {
-  const tileSize = ref(48)
-  const selection = ref<TileSelection>({ x: 0, y: 0, w: 1, h: 1, tilesetId: 'A1' })
+  const mapSize = ref<{ width: number; height: number }>({ width: 40, height: 30 })
+  const tileSize = ref(24)
+  const selection = ref<TileSelection>({
+    x: 0,
+    y: 0,
+    w: 1,
+    h: 1,
+    tilesetId: 'A1',
+    isAutotile: false
+  })
   const mapData = ref<(TileSelection | null)[][]>([])
   const activeLayer = ref<ZLayer>('ground')
   const layers: ZLayer[] = ['ground', 'decoration', 'events']
@@ -27,7 +36,7 @@ export const useEditorStore = defineStore('editor', () => {
 
   function setTool(tool: ZTool): void {
     if (currentTool.value === 'eraser') {
-      selection.value = { x: 0, y: 0, w: 1, h: 1, tilesetId: 'A1' }
+      selection.value = { x: 0, y: 0, w: 1, h: 1, tilesetId: 'A1', isAutotile: false }
     }
     currentTool.value = tool
   }
@@ -47,6 +56,7 @@ export const useEditorStore = defineStore('editor', () => {
   }
 
   return {
+    mapSize,
     tileSize,
     selection,
     mapData,

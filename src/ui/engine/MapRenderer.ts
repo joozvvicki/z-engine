@@ -1,8 +1,6 @@
-import { TileSelection } from '@ui/stores/editor'
+import { TileSelection, ZLayer } from '@ui/stores/editor'
 import * as PIXI from 'pixi.js'
 import 'pixi.js/unsafe-eval'
-
-export type ZLayer = 'ground' | 'decoration' | 'events'
 
 export class MapRenderer {
   public app: PIXI.Application
@@ -13,14 +11,12 @@ export class MapRenderer {
   private mapContainer: PIXI.Container
   private gridGraphics: PIXI.Graphics
   private layers: Record<ZLayer, PIXI.Container>
-
-  // NOWOŚĆ: Mapa tekstur zamiast pojedynczego pliku
   private tilesetTextures: Map<string, PIXI.Texture> = new Map()
 
   private tileSprites: Record<ZLayer, (PIXI.Sprite | null)[][]>
   private ghostContainer: PIXI.Container = new PIXI.Container()
 
-  constructor(tileSize: number = 32, width: number = 20, height: number = 15) {
+  constructor(tileSize: number = 24, width: number = 60, height: number = 30) {
     this.tileSize = tileSize
     this.mapWidth = width
     this.mapHeight = height
@@ -36,11 +32,10 @@ export class MapRenderer {
       decoration: new PIXI.Container(),
       events: new PIXI.Container()
     }
-
     this.tileSprites = {
-      ground: this.createEmptySpriteArray(),
-      decoration: this.createEmptySpriteArray(),
-      events: this.createEmptySpriteArray()
+      ground: this.createEmptyArray(),
+      decoration: this.createEmptyArray(),
+      events: this.createEmptyArray()
     }
   }
 
@@ -49,141 +44,50 @@ export class MapRenderer {
       resizeTo: container,
       backgroundColor: 0xffffff,
       autoDensity: true,
-      antialias: false,
       resolution: window.devicePixelRatio || 1
     })
-
     container.appendChild(this.app.canvas)
     this.app.stage.eventMode = 'static'
     this.app.stage.hitArea = this.app.screen
-
     this.setupScene()
   }
 
   private setupScene(): void {
-    const mapBg = new PIXI.Graphics()
-      .rect(0, 0, this.mapWidth * this.tileSize, this.mapHeight * this.tileSize)
-      .fill(0x121212, 0.2)
-
-    this.mapContainer.addChild(mapBg)
-    this.mapContainer.addChild(this.layers.ground)
-    this.mapContainer.addChild(this.layers.decoration)
-    this.mapContainer.addChild(this.layers.events)
-
-    this.ghostContainer.alpha = 0.5
-    this.ghostContainer.visible = false
-    this.mapContainer.addChild(this.ghostContainer)
-
-    this.mapContainer.addChild(this.gridGraphics)
+    this.mapContainer.addChild(
+      this.layers.ground,
+      this.layers.decoration,
+      this.layers.events,
+      this.ghostContainer,
+      this.gridGraphics
+    )
     this.app.stage.addChild(this.mapContainer)
-
     this.drawGrid()
   }
 
-  /**
-   * Ładowanie konkretnego arkusza pod kluczem (np. 'A1', 'B')
-   */
   public async loadTileset(id: string, url: string): Promise<void> {
-    try {
-      const texture = await PIXI.Assets.load(url)
-      this.tilesetTextures.set(id, texture)
-      console.log(`[Z Engine] Tileset ${id} loaded.`)
-    } catch (error) {
-      console.error(`[Z Engine] Error loading tileset ${id}:`, error)
-    }
+    const texture = await PIXI.Assets.load(url)
+    this.tilesetTextures.set(id, texture)
   }
 
-  /**
-   * Tworzy sprite kafelka pobierając teksturę z konkretnego arkusza
-   */
-  private createTileSprite(sx: number, sy: number, tilesetId: string): PIXI.Sprite | null {
-    const baseTex = this.tilesetTextures.get(tilesetId)
-    if (!baseTex) return null
-
-    const frame = new PIXI.Rectangle(
-      sx * this.tileSize,
-      sy * this.tileSize,
-      this.tileSize,
-      this.tileSize
-    )
-
-    const tex = new PIXI.Texture({
-      source: baseTex.source,
-      frame: frame
-    })
-    return new PIXI.Sprite(tex)
-  }
-
-  public updateGhost(
-    targetX: number,
-    targetY: number,
-    selection: TileSelection,
-    isEraser: boolean
-  ): void {
-    this.ghostContainer.removeChildren()
-
-    if (isEraser) {
-      const rect = new PIXI.Graphics()
-        .rect(0, 0, selection.w * this.tileSize, selection.h * this.tileSize)
-        .fill({ color: 0xff0000, alpha: 0.3 })
-        .stroke({ width: 2, color: 0xff0000, alpha: 0.8 })
-      this.ghostContainer.addChild(rect)
-    } else {
-      for (let ox = 0; ox < selection.w; ox++) {
-        for (let oy = 0; oy < selection.h; oy++) {
-          // Używamy tilesetId z obiektu zaznaczenia
-          const sprite = this.createTileSprite(
-            selection.x + ox,
-            selection.y + oy,
-            selection.tilesetId
-          )
-          if (sprite) {
-            sprite.x = ox * this.tileSize
-            sprite.y = oy * this.tileSize
-            this.ghostContainer.addChild(sprite)
-          }
-        }
-      }
-    }
-
-    this.ghostContainer.x = targetX * this.tileSize
-    this.ghostContainer.y = targetY * this.tileSize
-    this.ghostContainer.visible = true
-  }
-
-  public hideGhost(): void {
-    this.ghostContainer.visible = false
-  }
-
-  public placeSelection(mapX: number, mapY: number, selection: TileSelection, layer: ZLayer): void {
-    for (let ox = 0; ox < selection.w; ox++) {
-      for (let oy = 0; oy < selection.h; oy++) {
-        this.drawTile(
-          mapX + ox,
-          mapY + oy,
-          selection.x + ox,
-          selection.y + oy,
-          layer,
-          selection.tilesetId
-        )
-      }
-    }
-  }
-
-  public drawTile(
-    x: number,
-    y: number,
-    sx: number,
-    sy: number,
-    layer: ZLayer,
-    tilesetId: string // NOWOŚĆ: musimy wiedzieć co rysujemy
-  ): void {
+  public drawTile(x: number, y: number, selection: TileSelection, layer: ZLayer): void {
     if (x < 0 || x >= this.mapWidth || y < 0 || y >= this.mapHeight) return
 
     this.clearTileAt(x, y, layer)
 
-    const sprite = this.createTileSprite(sx, sy, tilesetId)
-    if (!sprite) return
+    const tex = this.tilesetTextures.get(selection.tilesetId)
+    if (!tex) return
+
+    const sprite = new PIXI.Sprite(
+      new PIXI.Texture({
+        source: tex.source,
+        frame: new PIXI.Rectangle(
+          selection.x * this.tileSize, // x * 24
+          selection.y * this.tileSize, // y * 24
+          this.tileSize, // 24
+          this.tileSize // 24
+        )
+      })
+    )
 
     sprite.x = x * this.tileSize
     sprite.y = y * this.tileSize
@@ -196,53 +100,112 @@ export class MapRenderer {
     const existing = this.tileSprites[layer][y][x]
     if (existing) {
       this.layers[layer].removeChild(existing)
-      existing.destroy({ texture: false })
+      existing.destroy()
       this.tileSprites[layer][y][x] = null
     }
   }
 
-  public getTileCoordsFromEvent(
-    event: PIXI.FederatedPointerEvent
-  ): { x: number; y: number } | null {
-    const local = this.mapContainer.toLocal(event.global)
-    const x = Math.floor(local.x / this.tileSize)
-    const y = Math.floor(local.y / this.tileSize)
+  // --- STANDARDOWE METODY ---
 
-    if (x < 0 || x >= this.mapWidth || y < 0 || y >= this.mapHeight) return null
-    return { x, y }
+  public drawGrid(): void {
+    this.gridGraphics.clear()
+
+    // Rysujemy siatkę 24px (cienka)
+    this.gridGraphics.rect(0, 0, this.mapWidth * this.tileSize, this.mapHeight * this.tileSize)
+
+    // Linie pionowe
+    for (let x = 0; x <= this.mapWidth; x++) {
+      const isMajor = x % 2 === 0 // Co 2 kratki (czyli co 48px) grubsza linia
+      this.gridGraphics
+        .moveTo(x * this.tileSize, 0)
+        .lineTo(x * this.tileSize, this.mapHeight * this.tileSize)
+        .stroke({
+          width: isMajor ? 1 : 0.5,
+          color: 0x000000,
+          alpha: isMajor ? 0.2 : 0.05
+        })
+    }
+
+    // Linie poziome
+    for (let y = 0; y <= this.mapHeight; y++) {
+      const isMajor = y % 2 === 0
+      this.gridGraphics
+        .moveTo(0, y * this.tileSize)
+        .lineTo(this.mapWidth * this.tileSize, y * this.tileSize)
+        .stroke({
+          width: isMajor ? 1 : 0.5,
+          color: 0x000000,
+          alpha: isMajor ? 0.2 : 0.05
+        })
+    }
   }
 
-  public clearSelection(mapX: number, mapY: number, selection: TileSelection, layer: ZLayer): void {
-    for (let ox = 0; ox < selection.w; ox++) {
-      for (let oy = 0; oy < selection.h; oy++) {
-        this.clearTileAt(mapX + ox, mapY + oy, layer)
+  public getTileCoordsFromEvent(e: PIXI.FederatedPointerEvent) {
+    const l = this.mapContainer.toLocal(e.global)
+    const x = Math.floor(l.x / this.tileSize)
+    const y = Math.floor(l.y / this.tileSize)
+    return x >= 0 && x < this.mapWidth && y >= 0 && y < this.mapHeight ? { x, y } : null
+  }
+
+  public placeSelection(mx: number, my: number, sel: TileSelection, l: ZLayer) {
+    for (let ox = 0; ox < sel.w; ox++) {
+      for (let oy = 0; oy < sel.h; oy++) {
+        // Przesuwamy wybór wewnątrz source texture
+        const currentSel = { ...sel, x: sel.x + ox, y: sel.y + oy }
+        this.drawTile(mx + ox, my + oy, currentSel, l)
       }
     }
   }
 
-  public drawGrid(): void {
-    this.gridGraphics.clear()
-    const w = this.mapWidth * this.tileSize
-    const h = this.mapHeight * this.tileSize
-    for (let x = 0; x <= this.mapWidth; x++) {
-      this.gridGraphics
-        .moveTo(x * this.tileSize, 0)
-        .lineTo(x * this.tileSize, h)
-        .stroke({ width: 1, color: 0x000000, alpha: 0.1 })
-    }
-    for (let y = 0; y <= this.mapHeight; y++) {
-      this.gridGraphics
-        .moveTo(0, y * this.tileSize)
-        .lineTo(w, y * this.tileSize)
-        .stroke({ width: 1, color: 0x000000, alpha: 0.1 })
+  public clearSelection(mx: number, my: number, sel: TileSelection, l: ZLayer) {
+    for (let ox = 0; ox < sel.w; ox++) {
+      for (let oy = 0; oy < sel.h; oy++) {
+        this.clearTileAt(mx + ox, my + oy, l)
+      }
     }
   }
 
-  private createEmptySpriteArray(): (PIXI.Sprite | null)[][] {
+  public updateGhost(tx: number, ty: number, sel: TileSelection, eraser: boolean) {
+    this.ghostContainer.removeChildren()
+    this.ghostContainer.x = tx * this.tileSize
+    this.ghostContainer.y = ty * this.tileSize
+
+    if (eraser) {
+      this.ghostContainer.addChild(
+        new PIXI.Graphics()
+          .rect(0, 0, sel.w * this.tileSize, sel.h * this.tileSize)
+          .fill({ color: 0xff0000, alpha: 0.3 })
+      )
+    } else {
+      const t = this.tilesetTextures.get(sel.tilesetId)
+      if (t) {
+        const s = new PIXI.Sprite(
+          new PIXI.Texture({
+            source: t.source,
+            frame: new PIXI.Rectangle(
+              sel.x * this.tileSize,
+              sel.y * this.tileSize,
+              sel.w * this.tileSize,
+              sel.h * this.tileSize
+            )
+          })
+        )
+        s.alpha = 0.6
+        this.ghostContainer.addChild(s)
+      }
+    }
+    this.ghostContainer.visible = true
+  }
+
+  public hideGhost() {
+    this.ghostContainer.visible = false
+  }
+
+  private createEmptyArray() {
     return Array.from({ length: this.mapHeight }, () => Array(this.mapWidth).fill(null))
   }
 
-  public destroy(): void {
-    this.app.destroy({})
+  public destroy() {
+    this.app.destroy({ removeView: true })
   }
 }

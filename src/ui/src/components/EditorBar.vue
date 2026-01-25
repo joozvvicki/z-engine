@@ -31,7 +31,7 @@
       <div class="relative group">
         <select
           v-model="store.activeLayer"
-          class="appearance-none bg-[#1a1d25] text-[0.75rem] text-slate-300 px-3 py-1.5 pr-8 rounded-lg border border-white/10 focus:border-blue-500 outline-none cursor-pointer transition-all hover:border-white/20 uppercase tracking-widest font-semibold"
+          class="appearance-none text-[0.75rem] text-slate-500 px-3 py-1.5 pr-8 rounded-lg border border-white/10 focus:border-blue-500 outline-none cursor-pointer transition-all hover:border-white/20 uppercase tracking-widest font-semibold"
         >
           <option value="ground">Warstwa 1: Podłoże</option>
           <option value="decoration">Warstwa 2: Dekoracje</option>

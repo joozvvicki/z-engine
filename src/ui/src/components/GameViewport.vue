@@ -8,6 +8,7 @@ import EditorBar from './EditorBar.vue'
 import tilesetA1 from '@ui/assets/img/tilesets/World_A1.png'
 import tilesetA2 from '@ui/assets/img/tilesets/World_A2.png'
 import tilesetB from '@ui/assets/img/tilesets/World_B.png'
+import tilesetC from '@ui/assets/img/tilesets/World_C.png'
 
 // --- REFS & STATE ---
 const viewportContainer = ref<HTMLElement | null>(null)
@@ -65,21 +66,17 @@ const onPointerUp = (): void => {
   isPointerDown.value = false
 }
 
-// --- CYKL ŻYCIA ---
-
 onMounted(async () => {
   if (!viewportContainer.value) return
 
-  // 1. Inicjalizacja Renderera (Pixi v8)
-  renderer = new MapRenderer(store.tileSize, 20, 15)
+  renderer = new MapRenderer(store.tileSize, store.mapSize.width, store.mapSize.height)
   await renderer.init(viewportContainer.value)
 
-  // 2. Ładowanie manifestu arkuszy
-  // Tutaj rejestrujemy wszystkie arkusze pod ich kluczami (A1, B, etc.)
   await Promise.all([
     renderer.loadTileset('A1', tilesetA1),
     renderer.loadTileset('A2', tilesetA2),
-    renderer.loadTileset('B', tilesetB)
+    renderer.loadTileset('B', tilesetB),
+    renderer.loadTileset('C', tilesetC)
   ])
 
   // 3. Podpięcie zdarzeń PixiJS
@@ -91,7 +88,7 @@ onMounted(async () => {
   renderer.app.stage.on('pointerleave', () => renderer?.hideGhost())
 
   // Inicjalizacja pustej mapy w store
-  store.initMap(20, 15)
+  store.initMap(store.mapSize.width, store.mapSize.height)
 
   console.log('Z Engine: Viewport Ready with Multi-Tileset support')
 })
@@ -106,7 +103,7 @@ onUnmounted(() => {
 <template>
   <div
     ref="viewportContainer"
-    class="w-full h-full overflow-hidden relative outline-none bg-[#0b0e14]"
+    class="w-full h-full overflow-hidden relative outline-none"
     tabindex="0"
   >
     <EditorBar />
