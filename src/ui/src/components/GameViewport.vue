@@ -5,11 +5,6 @@ import { useEditorStore } from '@ui/stores/editor'
 import { type FederatedPointerEvent } from 'pixi.js'
 import EditorBar from './EditorBar.vue'
 
-import tilesetA1 from '@ui/assets/img/tilesets/World_A1.png'
-import tilesetA2 from '@ui/assets/img/tilesets/World_A2.png'
-import tilesetB from '@ui/assets/img/tilesets/World_B.png'
-import tilesetC from '@ui/assets/img/tilesets/World_C.png'
-
 // --- REFS & STATE ---
 const viewportContainer = ref<HTMLElement | null>(null)
 const isPointerDown = ref(false)
@@ -72,12 +67,7 @@ onMounted(async () => {
   renderer = new MapRenderer(store.tileSize, store.mapSize.width, store.mapSize.height)
   await renderer.init(viewportContainer.value)
 
-  await Promise.all([
-    renderer.loadTileset('A1', tilesetA1),
-    renderer.loadTileset('A2', tilesetA2),
-    renderer.loadTileset('B', tilesetB),
-    renderer.loadTileset('C', tilesetC)
-  ])
+  await Promise.all([...store.tilesets.map((ts) => renderer!.loadTileset(ts.id, ts.url))])
 
   // 3. Podpięcie zdarzeń PixiJS
   renderer.app.stage.on('pointerdown', onPointerDown)

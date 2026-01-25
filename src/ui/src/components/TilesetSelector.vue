@@ -1,26 +1,16 @@
 <script setup lang="ts">
-import { computed, ref, onMounted } from 'vue'
+import { computed, ref } from 'vue'
 import { useEditorStore } from '@ui/stores/editor'
 
-// Importuj swoje tilesety
-import imgA1 from '@ui/assets/img/tilesets/World_A1.png'
-import imgA2 from '@ui/assets/img/tilesets/World_A2.png'
-import imgB from '@ui/assets/img/tilesets/World_B.png'
-import imgC from '@ui/assets/img/tilesets/World_C.png'
-
 const store = useEditorStore()
-const activeTab = ref<'A1' | 'A2' | 'B'>('A1')
-
-const tilesets = {
-  A1: imgA1,
-  A2: imgA2,
-  B: imgB,
-  C: imgC
-}
+const activeTab = ref<'A1' | 'A2' | 'A3' | 'A4' | 'B' | 'C' | 'D' | 'Roofs'>('A1')
 
 const SELECTION_GRID = 24
 
-const currentTilesetUrl = computed(() => tilesets[activeTab.value])
+const currentTilesetUrl = computed(() => {
+  const ts = store.tilesets.find((t) => t.id === activeTab.value)
+  return ts ? ts.url : ''
+})
 
 const isSelecting = ref(false)
 const startPos = ref({ x: 0, y: 0 })
@@ -71,16 +61,16 @@ const handleMouseUp = (): void => {
 </script>
 
 <template>
-  <div class="flex flex-col h-full bg-[#1a1d25] border-l border-white/5 select-none">
-    <div class="flex bg-black/40 p-1 gap-1 border-b border-white/5">
+  <div class="flex flex-col h-full border-l border-white/5 select-none">
+    <div class="flex p-1 gap-1 border-b border-white/5">
       <button
-        v-for="(_, id) in tilesets"
-        :key="id"
-        :class="activeTab === id ? 'bg-blue-600 text-white' : 'hover:bg-white/5 text-slate-500'"
-        class="flex-1 py-1.5 text-[10px] font-bold rounded uppercase transition-colors"
-        @click="activeTab = id as any"
+        v-for="ts in store.tilesets"
+        :key="ts.id"
+        :class="activeTab === ts.id ? 'bg-blue-600 text-white' : 'hover:bg-white/5 text-slate-500'"
+        class="flex-1 py-1.5 text-[10px] font-bold rounded uppercase transition-colors cursor-pointer"
+        @click="activeTab = ts.id as any"
       >
-        {{ id }}
+        {{ ts.id }}
       </button>
     </div>
 
