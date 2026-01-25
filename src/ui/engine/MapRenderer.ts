@@ -140,24 +140,23 @@ export class MapRenderer {
     }
   }
 
-  public getTileCoordsFromEvent(e: PIXI.FederatedPointerEvent) {
+  public getTileCoordsFromEvent(e: PIXI.FederatedPointerEvent): { x: number; y: number } | null {
     const l = this.mapContainer.toLocal(e.global)
     const x = Math.floor(l.x / this.tileSize)
     const y = Math.floor(l.y / this.tileSize)
     return x >= 0 && x < this.mapWidth && y >= 0 && y < this.mapHeight ? { x, y } : null
   }
 
-  public placeSelection(mx: number, my: number, sel: TileSelection, l: ZLayer) {
+  public placeSelection(mx: number, my: number, sel: TileSelection, l: ZLayer): void {
     for (let ox = 0; ox < sel.w; ox++) {
       for (let oy = 0; oy < sel.h; oy++) {
-        // Przesuwamy wybór wewnątrz source texture
         const currentSel = { ...sel, x: sel.x + ox, y: sel.y + oy }
         this.drawTile(mx + ox, my + oy, currentSel, l)
       }
     }
   }
 
-  public clearSelection(mx: number, my: number, sel: TileSelection, l: ZLayer) {
+  public clearSelection(mx: number, my: number, sel: TileSelection, l: ZLayer): void {
     for (let ox = 0; ox < sel.w; ox++) {
       for (let oy = 0; oy < sel.h; oy++) {
         this.clearTileAt(mx + ox, my + oy, l)
@@ -165,7 +164,7 @@ export class MapRenderer {
     }
   }
 
-  public updateGhost(tx: number, ty: number, sel: TileSelection, eraser: boolean) {
+  public updateGhost(tx: number, ty: number, sel: TileSelection, eraser: boolean): void {
     this.ghostContainer.removeChildren()
     this.ghostContainer.x = tx * this.tileSize
     this.ghostContainer.y = ty * this.tileSize
@@ -197,15 +196,15 @@ export class MapRenderer {
     this.ghostContainer.visible = true
   }
 
-  public hideGhost() {
+  public hideGhost(): void {
     this.ghostContainer.visible = false
   }
 
-  private createEmptyArray() {
+  private createEmptyArray(): (PIXI.Sprite | null)[][] {
     return Array.from({ length: this.mapHeight }, () => Array(this.mapWidth).fill(null))
   }
 
-  public destroy() {
+  public destroy(): void {
     this.app.destroy({ removeView: true })
   }
 }
