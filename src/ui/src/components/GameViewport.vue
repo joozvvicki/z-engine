@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { MapRenderer } from '@engine/MapRenderer'
 import { useEditorStore } from '@ui/stores/editor'
 import { type FederatedPointerEvent } from 'pixi.js'
@@ -11,30 +11,61 @@ const isPointerDown = ref(false)
 let renderer: MapRenderer | null = null
 const store = useEditorStore()
 
-// --- LOGIKA INTERAKCJI ---
+// Pobieramy aktualną mapę z tablicy w store
+const activeMap = computed(() => store.maps.find((m) => m.id === store.activeMapID))
 
 /**
- * Główna funkcja wykonawcza dla narzędzi (Pędzel/Gumka)
+ * Główna funkcja interakcji.
+ * Odpowiada za:
+ * 1. Rysowanie wizualne (Renderer)
+ * 2. Zapisywanie danych (Store)
  */
 const handleInteraction = (event: FederatedPointerEvent): void => {
-  if (!renderer || !store.selection) return
+  if (!renderer || !store.selection || !activeMap.value) return
 
+  // Pobieramy współrzędne kafelka pod myszką
   const target = renderer.getTileCoordsFromEvent(event)
   if (!target) return
 
+  // --- LOGIKA PĘDZLA (BRUSH) ---
   if (store.currentTool === 'brush') {
-    // Malowanie blokiem kafelków z konkretnego arkusza (tilesetId jest wewnątrz store.selection)
+    // 1. Wizualne narysowanie (dla płynności)
     renderer.placeSelection(target.x, target.y, store.selection, store.activeLayer)
-  } else if (store.currentTool === 'eraser') {
-    // Usuwanie obszaru o wielkości aktualnego zaznaczenia (gumka blokowa)
+
+    // 2. Zapis danych do Store (dla persystencji)
+    // Musimy zapisać każdy kafelek z zaznaczenia osobno
+    for (let ox = 0; ox < store.selection.w; ox++) {
+      for (let oy = 0; oy < store.selection.h; oy++) {
+        store.setTileAt(target.x + ox, target.y + oy, {
+          ...store.selection,
+          // Przesuwamy sourceX/Y, żeby zapisać poprawny fragment tilesetu
+          x: store.selection.x + ox,
+          y: store.selection.y + oy,
+          // Resetujemy wymiary pojedynczego kafelka w danych (1x1)
+          w: 1,
+          h: 1
+        })
+      }
+    }
+  }
+  // --- LOGIKA GUMKI (ERASER) ---
+  else if (store.currentTool === 'eraser') {
+    // 1. Wizualne usunięcie
     renderer.clearSelection(target.x, target.y, store.selection, store.activeLayer)
+
+    // 2. Usunięcie danych ze Store
+    for (let ox = 0; ox < store.selection.w; ox++) {
+      for (let oy = 0; oy < store.selection.h; oy++) {
+        store.setTileAt(target.x + ox, target.y + oy, null)
+      }
+    }
   }
 }
 
 // --- HANDLERY EVENTÓW PIXI ---
 
 const onPointerDown = (event: FederatedPointerEvent): void => {
-  if (event.button !== 0) return // Tylko lewy przycisk myszy
+  if (event.button !== 0) return // Tylko LPM
   isPointerDown.value = true
   handleInteraction(event)
 }
@@ -45,10 +76,10 @@ const onPointerMove = (event: FederatedPointerEvent): void => {
   const target = renderer.getTileCoordsFromEvent(event)
 
   if (target && store.selection) {
-    // 1. Aktualizacja podglądu (Ghost) - renderer sam wie, jakiego arkusza użyć
+    // Aktualizacja ducha (podglądu)
     renderer.updateGhost(target.x, target.y, store.selection, store.currentTool === 'eraser')
 
-    // 2. Jeśli mysz jest wciśnięta - maluj/maż w locie
+    // Jeśli mysz wciśnięta -> maluj ciągle
     if (isPointerDown.value) {
       handleInteraction(event)
     }
@@ -61,26 +92,56 @@ const onPointerUp = (): void => {
   isPointerDown.value = false
 }
 
-onMounted(async () => {
-  if (!viewportContainer.value) return
+// --- INITIALIZATION & MAP SWITCHING ---
 
-  renderer = new MapRenderer(store.tileSize, store.mapSize.width, store.mapSize.height)
+/**
+ * Inicjalizuje Renderer i ładuje aktualną mapę
+ */
+const initRenderer = async (): Promise<void> => {
+  if (!viewportContainer.value || !activeMap.value) return
+
+  // Sprzątamy poprzedni renderer (ważne przy przełączaniu map)
+  if (renderer) {
+    renderer.destroy()
+    renderer = null
+  }
+
+  // Tworzymy nowy renderer z wymiarami aktywnej mapy
+  renderer = new MapRenderer(store.tileSize, activeMap.value.width, activeMap.value.height)
+
   await renderer.init(viewportContainer.value)
 
-  await Promise.all([...store.tilesets.map((ts) => renderer!.loadTileset(ts.id, ts.url))])
+  // Ładujemy wszystkie tekstury zdefiniowane w Store
+  await Promise.all(store.tilesets.map((ts) => renderer!.loadTileset(ts.id, ts.url)))
 
-  // 3. Podpięcie zdarzeń PixiJS
+  // Podpinamy eventy
   renderer.app.stage.on('pointerdown', onPointerDown)
   renderer.app.stage.on('pointermove', onPointerMove)
-
-  // 4. Obsługa puszczenia przycisku i wyjścia kursora
-  window.addEventListener('pointerup', onPointerUp)
   renderer.app.stage.on('pointerleave', () => renderer?.hideGhost())
 
-  // Inicjalizacja pustej mapy w store
-  store.initMap(store.mapSize.width, store.mapSize.height)
+  // --- KLUCZOWE: RYSOWANIE STANU ZAPISANEGO W STORE ---
+  // Jeśli zaimplementowałeś metodę renderMapFromStore w MapRenderer (jak w poprzednim kroku):
+  if (renderer && 'renderMapFromStore' in renderer) {
+    // @ts-ignore - Metoda dodana w poprzednim kroku
+    renderer.renderMapFromStore(activeMap.value)
+  }
 
-  console.log('Z Engine: Viewport Ready with Multi-Tileset support')
+  console.log(`[Z Engine] Map "${activeMap.value.name}" loaded.`)
+}
+
+// Obserwujemy zmianę ID mapy, aby przeładować edytor
+watch(
+  () => store.activeMapID,
+  () => {
+    initRenderer()
+  },
+  { immediate: false } // Wywołamy ręcznie w onMounted, żeby mieć pewność że DOM jest gotowy
+)
+
+onMounted(async () => {
+  window.addEventListener('pointerup', onPointerUp)
+  // Inicjalizacja przy starcie komponentu
+  await initRenderer()
 })
 
 onUnmounted(() => {
@@ -99,10 +160,13 @@ onUnmounted(() => {
     <EditorBar />
 
     <div
-      class="absolute bottom-4 right-4 pointer-events-none text-[10px] text-white/20 font-mono flex flex-col items-end"
+      class="absolute bottom-4 right-4 pointer-events-none text-[10px] text-white/20 font-mono flex flex-col items-end z-10"
     >
-      <span>Z ENGINE RENDERER V8</span>
-      <span>GRID: {{ store.tileSize }}px | LAYER: {{ store.activeLayer.toUpperCase() }}</span>
+      <span>Z ENGINE RENDERER V8 (MANUAL MODE)</span>
+      <span
+        >MAP: {{ activeMap?.width }}x{{ activeMap?.height }} | GRID: {{ store.tileSize }}px</span
+      >
+      <span>LAYER: {{ store.activeLayer.toUpperCase() }}</span>
       <span>TILESET: {{ store.selection?.tilesetId || 'NONE' }}</span>
     </div>
   </div>
@@ -112,5 +176,6 @@ onUnmounted(() => {
 canvas {
   touch-action: none;
   -webkit-user-drag: none;
+  display: block; /* Usuwa dziwne marginesy canvasa */
 }
 </style>

@@ -1,5 +1,7 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { reactive, ref, watch } from 'vue'
+
+// Importy obrazków (bez zmian)
 import imgA1 from '@ui/assets/img/tilesets/World_A1.png'
 import imgA2 from '@ui/assets/img/tilesets/World_A2.png'
 import imgA3 from '@ui/assets/img/tilesets/World_A3.png'
@@ -18,46 +20,26 @@ export interface TileSelection {
   isAutotile: boolean
 }
 
+// Typ mapy - teraz zawiera warstwy!
+export interface ZMap {
+  id: number
+  name: string
+  width: number
+  height: number
+  // Kluczowa zmiana: dane są teraz podzielone na warstwy
+  layers: Record<ZLayer, (TileSelection | null)[][]>
+}
+
 export type ZTool = 'brush' | 'eraser'
 export type ZLayer = 'ground' | 'decoration' | 'events'
 
 export const useEditorStore = defineStore('editor', () => {
-  const tilesets = [
-    {
-      id: 'A1',
-      url: imgA1
-    },
-    {
-      id: 'A2',
-      url: imgA2
-    },
-    {
-      id: 'A3',
-      url: imgA3
-    },
-    {
-      id: 'A4',
-      url: imgA4
-    },
-    {
-      id: 'B',
-      url: imgB
-    },
-    {
-      id: 'C',
-      url: imgC
-    },
-    {
-      id: 'D',
-      url: imgD
-    },
-    {
-      id: 'Roofs',
-      url: roofs
-    }
-  ]
-  const mapSize = ref<{ width: number; height: number }>({ width: 40, height: 30 })
-  const tileSize = ref(24)
+  // --- STATE ---
+  const activeMapID = ref<number | null>(1)
+  const tileSize = ref(24) // Ważne: Sub-tile size (ćwiartka)
+  const activeLayer = ref<ZLayer>('ground')
+  const currentTool = ref<ZTool>('brush')
+
   const selection = ref<TileSelection>({
     x: 0,
     y: 0,
@@ -66,20 +48,37 @@ export const useEditorStore = defineStore('editor', () => {
     tilesetId: 'A1',
     isAutotile: false
   })
-  const mapData = ref<(TileSelection | null)[][]>([])
-  const activeLayer = ref<ZLayer>('ground')
-  const layers: ZLayer[] = ['ground', 'decoration', 'events']
+
+  // Definicja dostępnych tilesetów
+  const tilesets = [
+    { id: 'A1', url: imgA1 },
+    { id: 'A2', url: imgA2 },
+    { id: 'A3', url: imgA3 },
+    { id: 'A4', url: imgA4 },
+    { id: 'B', url: imgB },
+    { id: 'C', url: imgC },
+    { id: 'D', url: imgD },
+    { id: 'Roofs', url: roofs }
+  ]
+
+  // --- MAPS DATA ---
+  // Próbujemy wczytać z localStorage przy starcie, jeśli nie ma - używamy domyślnych
+  const storedMaps = localStorage.getItem('z_engine_maps')
+  const defaultMaps: ZMap[] = [
+    { id: 1, name: 'Starting Forest', width: 40, height: 30, layers: createEmptyLayers(40, 30) },
+    { id: 2, name: 'Tavern "Z"', width: 40, height: 20, layers: createEmptyLayers(40, 20) },
+    { id: 3, name: 'Dungeons Lvl 1', width: 50, height: 25, layers: createEmptyLayers(50, 25) }
+  ]
+
+  const maps = reactive<ZMap[]>(storedMaps ? JSON.parse(storedMaps) : defaultMaps)
+
+  // --- ACTIONS ---
 
   function setLayer(layer: ZLayer): void {
     activeLayer.value = layer
   }
 
-  const currentTool = ref<ZTool>('brush')
-
   function setTool(tool: ZTool): void {
-    if (currentTool.value === 'eraser') {
-      selection.value = { x: 0, y: 0, w: 1, h: 1, tilesetId: 'A1', isAutotile: false }
-    }
     currentTool.value = tool
   }
 
@@ -87,29 +86,116 @@ export const useEditorStore = defineStore('editor', () => {
     selection.value = newSelection
   }
 
-  function initMap(width: number, height: number): void {
-    mapData.value = Array.from({ length: height }, () => Array.from({ length: width }, () => null))
+  function setActiveMap(id: number): void {
+    if (activeMapID.value === id) return
+    activeMapID.value = id
   }
 
-  function setTileAt(x: number, y: number, selection: TileSelection | null): void {
-    if (mapData.value[y] && mapData.value[y][x] !== undefined) {
-      mapData.value[y][x] = selection
+  /**
+   * Helper do tworzenia pustej struktury warstw
+   */
+  function createEmptyLayers(
+    width: number,
+    height: number
+  ): Record<ZLayer, (TileSelection | null)[][]> {
+    const createGrid = (): (TileSelection | null)[][] =>
+      Array.from({ length: height }, () => Array(width).fill(null))
+
+    return {
+      ground: createGrid(),
+      decoration: createGrid(),
+      events: createGrid()
     }
   }
 
+  /**
+   * Resetuje lub inicjalizuje mapę o zadanych wymiarach
+   */
+  function initMap(width: number, height: number): void {
+    const map = maps.find((m) => m.id === activeMapID.value)
+    if (!map) return
+
+    map.width = width
+    map.height = height
+    map.layers = createEmptyLayers(width, height)
+
+    saveProject() // Auto-save po zmianie rozmiaru
+  }
+
+  /**
+   * Główna funkcja edycji - zapisuje kafelek w konkretnej warstwie
+   */
+  function setTileAt(x: number, y: number, tile: TileSelection | null): void {
+    const map = maps.find((m) => m.id === activeMapID.value)
+    if (!map) return
+
+    // Sprawdź czy mieścimy się w mapie
+    if (x < 0 || x >= map.width || y < 0 || y >= map.height) return
+
+    // Zapisz na AKTYWNEJ warstwie
+    map.layers[activeLayer.value][y][x] = tile
+
+    // Opcjonalnie: Debounce save
+    saveProject()
+  }
+
+  /**
+   * Zapisuje stan całego projektu do LocalStorage przeglądarki
+   */
+  function saveProject(): void {
+    try {
+      localStorage.setItem('z_engine_maps', JSON.stringify(maps))
+      console.log(' [Z Engine] Project Autosaved.')
+    } catch (e) {
+      console.error('Save failed (quota exceeded?)', e)
+    }
+  }
+
+  /**
+   * Pobiera plik JSON z aktualną mapą (do wrzucenia do gry)
+   */
+  function exportMapAsJSON(): void {
+    const map = maps.find((m) => m.id === activeMapID.value)
+    if (!map) return
+
+    const dataStr = JSON.stringify(map, null, 2)
+    const blob = new Blob([dataStr], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `Map${map.id}_${map.name.replace(/\s+/g, '_')}.json`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
+  watch(
+    maps,
+    () => {
+      // saveProject() // Odkomentuj jeśli chcesz save przy każdej zmianie (może być kosztowne przy dużych mapach)
+    },
+    { deep: true }
+  )
+
   return {
-    mapSize,
+    // State
+    activeMapID,
+    maps,
     tilesets,
     tileSize,
     selection,
-    mapData,
     activeLayer,
     currentTool,
-    layers,
+
+    // Actions
     setLayer,
     setTool,
     initMap,
     setTileAt,
-    setSelection
+    setSelection,
+    setActiveMap,
+    saveProject,
+    exportMapAsJSON
   }
 })
