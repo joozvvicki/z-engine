@@ -13,17 +13,14 @@ export class MapRenderer {
   private layers: Record<ZLayer, PIXI.Container>
   private tilesetTextures: Map<string, PIXI.Texture> = new Map()
 
-  // Tablica sprite'ów [layer][y][x] -> przechowuje referencje do obiektów graficznych
   private tileSprites: Record<ZLayer, (PIXI.Sprite | null)[][]>
   private ghostContainer: PIXI.Container = new PIXI.Container()
 
-  // Domyślne ustawienia dla trybu manualnego (24px)
   constructor(tileSize: number = 24, width: number = 60, height: number = 30) {
     this.tileSize = tileSize
     this.mapWidth = width
     this.mapHeight = height
 
-    // Ważne dla pixel-artu: brak antyaliasingu przy skalowaniu
     PIXI.TextureSource.defaultOptions.scaleMode = 'nearest'
 
     this.app = new PIXI.Application()
@@ -46,7 +43,7 @@ export class MapRenderer {
   public async init(container: HTMLElement): Promise<void> {
     await this.app.init({
       resizeTo: container,
-      backgroundColor: 0xffffff, // Białe tło canvasa (możesz zmienić na ciemne)
+      backgroundColor: 0xffffff,
       autoDensity: true,
       resolution: window.devicePixelRatio || 1
     })
@@ -59,13 +56,12 @@ export class MapRenderer {
   }
 
   private setupScene(): void {
-    // Kolejność dodawania ma znaczenie (Z-Index)
     this.mapContainer.addChild(
       this.layers.ground,
       this.layers.decoration,
       this.layers.events,
-      this.ghostContainer, // Podgląd pędzla nad warstwami
-      this.gridGraphics // Siatka na samym wierzchu
+      this.ghostContainer,
+      this.gridGraphics
     )
     this.app.stage.addChild(this.mapContainer)
     this.drawGrid()
@@ -80,26 +76,22 @@ export class MapRenderer {
     }
   }
 
-  // --- RYSOWANIE POJEDYNCZEGO KAFELKA ---
-
   public drawTile(x: number, y: number, selection: TileSelection, layer: ZLayer): void {
     if (x < 0 || x >= this.mapWidth || y < 0 || y >= this.mapHeight) return
 
-    // Najpierw usuwamy stary kafelek w tym miejscu
     this.clearTileAt(x, y, layer)
 
     const tex = this.tilesetTextures.get(selection.tilesetId)
     if (!tex) return
 
-    // Tworzymy sprite wycinając fragment 24x24 z tilesetu
     const sprite = new PIXI.Sprite(
       new PIXI.Texture({
         source: tex.source,
         frame: new PIXI.Rectangle(
-          selection.x * this.tileSize, // x * 24
-          selection.y * this.tileSize, // y * 24
-          this.tileSize, // 24
-          this.tileSize // 24
+          selection.x * this.tileSize,
+          selection.y * this.tileSize,
+          this.tileSize,
+          this.tileSize
         )
       })
     )
@@ -115,25 +107,20 @@ export class MapRenderer {
     const existing = this.tileSprites[layer][y][x]
     if (existing) {
       this.layers[layer].removeChild(existing)
-      existing.destroy() // Sprzątamy pamięć
+      existing.destroy()
       this.tileSprites[layer][y][x] = null
     }
   }
 
-  // --- RYSOWANIE CAŁEJ MAPY ZE STORE ---
-
   public renderMapFromStore(mapData: ZMap): void {
-    // 1. Czyścimy wszystkie warstwy wizualnie
     this.layers.ground.removeChildren()
     this.layers.decoration.removeChildren()
     this.layers.events.removeChildren()
 
-    // 2. Resetujemy tablice referencji sprite'ów
     this.tileSprites.ground = this.createEmptyArray()
     this.tileSprites.decoration = this.createEmptyArray()
     this.tileSprites.events = this.createEmptyArray()
 
-    // 3. Iterujemy po warstwach i rysujemy kafelki
     const layers: ZLayer[] = ['ground', 'decoration', 'events']
 
     layers.forEach((layer) => {
@@ -143,7 +130,6 @@ export class MapRenderer {
       for (let y = 0; y < mapData.height; y++) {
         for (let x = 0; x < mapData.width; x++) {
           const tile = grid[y][x]
-          // Jeśli w danych jest kafelek, rysujemy go
           if (tile) {
             this.drawTile(x, y, tile, layer)
           }
@@ -151,8 +137,6 @@ export class MapRenderer {
       }
     })
   }
-
-  // --- NARZĘDZIA INTERAKCJI ---
 
   public getTileCoordsFromEvent(e: PIXI.FederatedPointerEvent): { x: number; y: number } | null {
     const l = this.mapContainer.toLocal(e.global)
@@ -162,12 +146,11 @@ export class MapRenderer {
   }
 
   public placeSelection(mx: number, my: number, sel: TileSelection, l: ZLayer): void {
-    // Rysuje cały blok zaznaczenia (np. 2x2 kafelki)
     for (let ox = 0; ox < sel.w; ox++) {
       for (let oy = 0; oy < sel.h; oy++) {
         const currentSel = {
           ...sel,
-          x: sel.x + ox, // Przesunięcie w źródle (tileset)
+          x: sel.x + ox,
           y: sel.y + oy
         }
         this.drawTile(mx + ox, my + oy, currentSel, l)
@@ -183,15 +166,12 @@ export class MapRenderer {
     }
   }
 
-  // --- PODGLĄD (GHOST) ---
-
   public updateGhost(tx: number, ty: number, sel: TileSelection, eraser: boolean): void {
     this.ghostContainer.removeChildren()
     this.ghostContainer.x = tx * this.tileSize
     this.ghostContainer.y = ty * this.tileSize
 
     if (eraser) {
-      // Czerwony kwadrat dla gumki
       this.ghostContainer.addChild(
         new PIXI.Graphics()
           .rect(0, 0, sel.w * this.tileSize, sel.h * this.tileSize)
@@ -201,15 +181,14 @@ export class MapRenderer {
     } else {
       const t = this.tilesetTextures.get(sel.tilesetId)
       if (t) {
-        // Półprzezroczysty podgląd tego, co będziemy rysować
         const s = new PIXI.Sprite(
           new PIXI.Texture({
             source: t.source,
             frame: new PIXI.Rectangle(
               sel.x * this.tileSize,
               sel.y * this.tileSize,
-              sel.w * this.tileSize, // Cała szerokość zaznaczenia
-              sel.h * this.tileSize // Cała wysokość zaznaczenia
+              sel.w * this.tileSize,
+              sel.h * this.tileSize
             )
           })
         )
@@ -224,17 +203,13 @@ export class MapRenderer {
     this.ghostContainer.visible = false
   }
 
-  // --- SIATKA I UTILS ---
-
   public drawGrid(): void {
     this.gridGraphics.clear()
 
-    // Rysujemy siatkę 24px (cienka)
     this.gridGraphics.rect(0, 0, this.mapWidth * this.tileSize, this.mapHeight * this.tileSize)
 
-    // Linie pionowe
     for (let x = 0; x <= this.mapWidth; x++) {
-      const isMajor = x % 2 === 0 // Co 2 kratki (czyli co 48px) grubsza linia
+      const isMajor = x % 2 === 0
       this.gridGraphics
         .moveTo(x * this.tileSize, 0)
         .lineTo(x * this.tileSize, this.mapHeight * this.tileSize)
@@ -245,7 +220,6 @@ export class MapRenderer {
         })
     }
 
-    // Linie poziome
     for (let y = 0; y <= this.mapHeight; y++) {
       const isMajor = y % 2 === 0
       this.gridGraphics

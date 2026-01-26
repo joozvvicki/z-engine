@@ -11,37 +11,23 @@ const isPointerDown = ref(false)
 let renderer: MapRenderer | null = null
 const store = useEditorStore()
 
-// Pobieramy aktualną mapę z tablicy w store
 const activeMap = computed(() => store.maps.find((m) => m.id === store.activeMapID))
 
-/**
- * Główna funkcja interakcji.
- * Odpowiada za:
- * 1. Rysowanie wizualne (Renderer)
- * 2. Zapisywanie danych (Store)
- */
 const handleInteraction = (event: FederatedPointerEvent): void => {
   if (!renderer || !store.selection || !activeMap.value) return
 
-  // Pobieramy współrzędne kafelka pod myszką
   const target = renderer.getTileCoordsFromEvent(event)
   if (!target) return
 
-  // --- LOGIKA PĘDZLA (BRUSH) ---
   if (store.currentTool === 'brush') {
-    // 1. Wizualne narysowanie (dla płynności)
     renderer.placeSelection(target.x, target.y, store.selection, store.activeLayer)
 
-    // 2. Zapis danych do Store (dla persystencji)
-    // Musimy zapisać każdy kafelek z zaznaczenia osobno
     for (let ox = 0; ox < store.selection.w; ox++) {
       for (let oy = 0; oy < store.selection.h; oy++) {
         store.setTileAt(target.x + ox, target.y + oy, {
           ...store.selection,
-          // Przesuwamy sourceX/Y, żeby zapisać poprawny fragment tilesetu
           x: store.selection.x + ox,
           y: store.selection.y + oy,
-          // Resetujemy wymiary pojedynczego kafelka w danych (1x1)
           w: 1,
           h: 1
         })
@@ -50,10 +36,8 @@ const handleInteraction = (event: FederatedPointerEvent): void => {
   }
   // --- LOGIKA GUMKI (ERASER) ---
   else if (store.currentTool === 'eraser') {
-    // 1. Wizualne usunięcie
     renderer.clearSelection(target.x, target.y, store.selection, store.activeLayer)
 
-    // 2. Usunięcie danych ze Store
     for (let ox = 0; ox < store.selection.w; ox++) {
       for (let oy = 0; oy < store.selection.h; oy++) {
         store.setTileAt(target.x + ox, target.y + oy, null)
@@ -62,11 +46,11 @@ const handleInteraction = (event: FederatedPointerEvent): void => {
   }
 }
 
-// --- HANDLERY EVENTÓW PIXI ---
-
 const onPointerDown = (event: FederatedPointerEvent): void => {
-  if (event.button !== 0) return // Tylko LPM
+  if (event.button !== 0) return
   isPointerDown.value = true
+
+  store.recordHistory()
   handleInteraction(event)
 }
 
@@ -76,10 +60,8 @@ const onPointerMove = (event: FederatedPointerEvent): void => {
   const target = renderer.getTileCoordsFromEvent(event)
 
   if (target && store.selection) {
-    // Aktualizacja ducha (podglądu)
     renderer.updateGhost(target.x, target.y, store.selection, store.currentTool === 'eraser')
 
-    // Jeśli mysz wciśnięta -> maluj ciągle
     if (isPointerDown.value) {
       handleInteraction(event)
     }
@@ -89,14 +71,10 @@ const onPointerMove = (event: FederatedPointerEvent): void => {
 }
 
 const onPointerUp = (): void => {
+  store.recordHistory()
   isPointerDown.value = false
 }
 
-// --- INITIALIZATION & MAP SWITCHING ---
-
-/**
- * Inicjalizuje Renderer i ładuje aktualną mapę
- */
 const initRenderer = async (): Promise<void> => {
   if (!viewportContainer.value || !activeMap.value) return
 
@@ -106,46 +84,71 @@ const initRenderer = async (): Promise<void> => {
     renderer = null
   }
 
-  // Tworzymy nowy renderer z wymiarami aktywnej mapy
   renderer = new MapRenderer(store.tileSize, activeMap.value.width, activeMap.value.height)
 
   await renderer.init(viewportContainer.value)
 
-  // Ładujemy wszystkie tekstury zdefiniowane w Store
   await Promise.all(store.tilesets.map((ts) => renderer!.loadTileset(ts.id, ts.url)))
 
-  // Podpinamy eventy
   renderer.app.stage.on('pointerdown', onPointerDown)
   renderer.app.stage.on('pointermove', onPointerMove)
   renderer.app.stage.on('pointerleave', () => renderer?.hideGhost())
 
-  // --- KLUCZOWE: RYSOWANIE STANU ZAPISANEGO W STORE ---
-  // Jeśli zaimplementowałeś metodę renderMapFromStore w MapRenderer (jak w poprzednim kroku):
   if (renderer && 'renderMapFromStore' in renderer) {
-    // @ts-ignore - Metoda dodana w poprzednim kroku
     renderer.renderMapFromStore(activeMap.value)
   }
 
   console.log(`[Z Engine] Map "${activeMap.value.name}" loaded.`)
 }
 
-// Obserwujemy zmianę ID mapy, aby przeładować edytor
+/**
+ * KEYBOARD SHORTCUTS
+ */
+const handleKeyDown = (event: KeyboardEvent): void => {
+  const isCtrl = event.ctrlKey || event.metaKey // Support Mac (Cmd)
+
+  if (isCtrl && event.key.toLowerCase() === 'z') {
+    event.preventDefault()
+    if (event.shiftKey) {
+      store.redo()
+    } else {
+      store.undo()
+    }
+  }
+
+  if (isCtrl && event.key.toLowerCase() === 'y') {
+    event.preventDefault()
+    store.redo()
+  }
+}
+
 watch(
   () => store.activeMapID,
   () => {
     initRenderer()
   },
-  { immediate: false } // Wywołamy ręcznie w onMounted, żeby mieć pewność że DOM jest gotowy
+  { immediate: false }
+)
+
+watch(
+  () => store.historyIndex,
+  () => {
+    if (renderer && activeMap.value) {
+      renderer.renderMapFromStore(activeMap.value)
+    }
+  }
 )
 
 onMounted(async () => {
   window.addEventListener('pointerup', onPointerUp)
-  // Inicjalizacja przy starcie komponentu
+  window.addEventListener('keydown', handleKeyDown)
+
   await initRenderer()
 })
 
 onUnmounted(() => {
   window.removeEventListener('pointerup', onPointerUp)
+  window.removeEventListener('keydown', handleKeyDown)
   renderer?.destroy()
   renderer = null
 })

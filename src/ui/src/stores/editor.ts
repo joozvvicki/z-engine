@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { reactive, ref, watch } from 'vue'
+import { computed, nextTick, reactive, ref, watch } from 'vue'
 
 // Importy obrazków (bez zmian)
 import imgA1 from '@ui/assets/img/tilesets/World_A1.png'
@@ -39,6 +39,10 @@ export const useEditorStore = defineStore('editor', () => {
   const tileSize = ref(24) // Ważne: Sub-tile size (ćwiartka)
   const activeLayer = ref<ZLayer>('ground')
   const currentTool = ref<ZTool>('brush')
+
+  const history = ref<string[]>([]) // Storing as JSON strings to save memory and ensure deep copies
+  const historyIndex = ref(-1)
+  const MAX_HISTORY = 50
 
   const selection = ref<TileSelection>({
     x: 0,
@@ -122,6 +126,46 @@ export const useEditorStore = defineStore('editor', () => {
     saveProject() // Auto-save po zmianie rozmiaru
   }
 
+  function recordHistory(): void {
+    // If we are in the middle of an undo/redo chain and perform a new action,
+    // we must remove all "future" states.
+    if (historyIndex.value < history.value.length - 1) {
+      history.value = history.value.slice(0, historyIndex.value + 1)
+    }
+
+    // Add current state
+    history.value.push(JSON.stringify(maps))
+
+    // Limit history size
+    if (history.value.length > MAX_HISTORY) {
+      history.value.shift()
+    } else {
+      historyIndex.value++
+    }
+  }
+
+  function undo(): void {
+    if (historyIndex.value <= 0) return
+
+    historyIndex.value--
+    const previousState = JSON.parse(history.value[historyIndex.value])
+
+    // Object.assign doesn't work well for deep nested arrays in reactive objects,
+    // so we replace the contents of the reactive array.
+    maps.splice(0, maps.length, ...previousState)
+    saveProject()
+  }
+
+  function redo(): void {
+    if (historyIndex.value >= history.value.length - 1) return
+
+    historyIndex.value++
+    const nextState = JSON.parse(history.value[historyIndex.value])
+
+    maps.splice(0, maps.length, ...nextState)
+    saveProject()
+  }
+
   /**
    * Główna funkcja edycji - zapisuje kafelek w konkretnej warstwie
    */
@@ -178,6 +222,13 @@ export const useEditorStore = defineStore('editor', () => {
     { deep: true }
   )
 
+  nextTick(() => {
+    if (history.value.length === 0) {
+      history.value.push(JSON.stringify(maps))
+      historyIndex.value = 0
+    }
+  })
+
   return {
     // State
     activeMapID,
@@ -187,8 +238,14 @@ export const useEditorStore = defineStore('editor', () => {
     selection,
     activeLayer,
     currentTool,
+    historyIndex,
+    canUndo: computed(() => historyIndex.value > 0),
+    canRedo: computed(() => historyIndex.value < history.value.length - 1),
 
     // Actions
+    undo,
+    redo,
+    recordHistory,
     setLayer,
     setTool,
     initMap,
