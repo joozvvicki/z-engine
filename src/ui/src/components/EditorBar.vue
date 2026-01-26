@@ -9,7 +9,8 @@ import {
   IconArrowBackUp,
   IconArrowForwardUp,
   IconDownload,
-  IconBox
+  IconBox,
+  IconPlayerPlay
 } from '@tabler/icons-vue'
 import DynamicIcon from './DynamicIcon.vue'
 import { computed, onMounted } from 'vue'
@@ -33,6 +34,12 @@ const actions = [
     icon: IconDownload,
     shortcut: 'Ctrl + D',
     action: () => store.exportMapAsJSON()
+  },
+  {
+    name: 'Test',
+    icon: IconPlayerPlay,
+    shortcut: 'Ctrl + Shift + P',
+    action: () => store.toggleTestMode()
   }
 ]
 
@@ -41,6 +48,14 @@ const activeMap = computed(() => store.maps.find((map) => map.id === store.activ
 onMounted(() => {
   const handleKeydown = (e: KeyboardEvent): void => {
     if (e.ctrlKey || e.metaKey) {
+      if (e.shiftKey) {
+        switch (e.key) {
+          case 'P':
+            store.toggleTestMode()
+            break
+        }
+      }
+
       switch (e.key) {
         case 'D':
           store.exportMapAsJSON()

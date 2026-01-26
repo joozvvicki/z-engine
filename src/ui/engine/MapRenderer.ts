@@ -82,6 +82,43 @@ export class MapRenderer {
     }
   }
 
+  // Dodaj do klasy MapRenderer
+  private playerSprite: PIXI.Sprite | null = null
+
+  public setupPlayer(pos: { x: number; y: number }): void {
+    // Jeśli gracz już istnieje, usuwamy go
+    if (this.playerSprite) {
+      this.layers.events.removeChild(this.playerSprite)
+      this.playerSprite.destroy()
+    }
+
+    // Tworzymy tymczasowy sprite gracza (np. biały kwadrat lub kafelek)
+    const graphics = new PIXI.Graphics()
+      .rect(0, 0, this.tileSize, this.tileSize)
+      .fill({ color: 0x3b82f6 }) // Niebieski kolor gracza
+      .stroke({ width: 2, color: 0xffffff })
+
+    // Generujemy teksturę z grafiki (v8 way)
+    const texture = this.app.renderer.generateTexture(graphics)
+    this.playerSprite = new PIXI.Sprite(texture)
+
+    this.layers.events.addChild(this.playerSprite)
+    this.updatePlayerPosition(pos.x, pos.y)
+  }
+
+  public updatePlayerPosition(x: number, y: number): void {
+    if (this.playerSprite) {
+      this.playerSprite.x = x * this.tileSize
+      this.playerSprite.y = y * this.tileSize
+    }
+  }
+
+  public removePlayer(): void {
+    if (this.playerSprite) {
+      this.layers.events.removeChild(this.playerSprite)
+      this.playerSprite = null
+    }
+  }
   /**
    * Oblicza przesunięcie (offset) wewnątrz bloku autotile dla konkretnej ćwiartki.
    * Obsługuje specyficzne układy A1, A2, A3 oraz nieregularne rzędy A4.

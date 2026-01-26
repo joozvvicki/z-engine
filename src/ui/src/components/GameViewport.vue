@@ -38,10 +38,29 @@ const refreshAutotileNeighbors = (tx: number, ty: number, layer: ZLayer): void =
   }
 }
 
+const handleGameInput = (e: KeyboardEvent): void => {
+  if (!store.isTestMode || !activeMap.value) return
+
+  const key = e.key.toLowerCase()
+  let dx = 0
+  let dy = 0
+
+  if (key === 'w') dy = -1
+  if (key === 's') dy = 1
+  if (key === 'a') dx = -1
+  if (key === 'd') dx = 1
+
+  if (dx !== 0 || dy !== 0) {
+    store.movePlayer(dx, dy, activeMap.value.width, activeMap.value.height)
+    renderer?.updatePlayerPosition(store.playerPos.x, store.playerPos.y)
+  }
+}
+
 /**
  * Główna logika interakcji z narzędziami
  */
 const handleInteraction = (event: FederatedPointerEvent, isCommit = false): void => {
+  if (store.isTestMode) return
   if (!renderer || !store.selection || !activeMap.value) return
 
   const target = renderer.getTileCoordsFromEvent(event)
@@ -216,7 +235,19 @@ const initRenderer = async (): Promise<void> => {
 
 watch(() => store.activeMapID, initRenderer)
 
-// Reakcja na Undo/Redo
+watch(
+  () => store.isTestMode,
+  (enabled) => {
+    if (!renderer) return
+    if (enabled) {
+      renderer.setupPlayer(store.playerPos)
+      renderer.hideGhost()
+    } else {
+      renderer.removePlayer()
+    }
+  }
+)
+
 watch(
   () => store.historyIndex,
   () => {
@@ -226,11 +257,13 @@ watch(
 
 onMounted(async () => {
   window.addEventListener('keydown', handleKeyDown)
+  window.addEventListener('keydown', handleGameInput)
   await initRenderer()
 })
 
 onUnmounted(() => {
   window.removeEventListener('keydown', handleKeyDown)
+  window.removeEventListener('keydown', handleGameInput)
   renderer?.destroy()
 })
 
@@ -250,6 +283,7 @@ const handleKeyDown = (e: KeyboardEvent): void => {
 <template>
   <div
     class="w-full h-full overflow-hidden relative outline-none flex items-center justify-center"
+    :class="{ 'bg-black/10': store.isTestMode }"
     tabindex="0"
   >
     <div v-if="!activeMap">

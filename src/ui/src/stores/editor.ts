@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { computed, nextTick, ref } from 'vue'
+import { computed, nextTick, reactive, ref } from 'vue'
 
 import imgA1 from '@ui/assets/img/tilesets/World_A1.png'
 import imgA2 from '@ui/assets/img/tilesets/World_A2.png'
@@ -66,6 +66,10 @@ export enum ZLayer {
 }
 
 export const useEditorStore = defineStore('editor', () => {
+  const isTestMode = ref(false)
+  const playerPos = ref({ x: 0, y: 0 })
+  const spawnPos = ref({ x: 5, y: 5 })
+
   const activeTab = useLocalStorage('Z_ActiveTab', 'A')
   const activeMapID = useLocalStorage<number | null>('Z_ActiveMapID', 1)
   const tileSize = ref(48)
@@ -113,6 +117,22 @@ export const useEditorStore = defineStore('editor', () => {
   function setActiveMap(id: number): void {
     if (activeMapID.value === id) return
     activeMapID.value = id
+  }
+
+  const toggleTestMode = (): void => {
+    isTestMode.value = !isTestMode.value
+    if (isTestMode.value) {
+      playerPos.value = { ...spawnPos.value }
+    }
+  }
+  const movePlayer = (dx: number, dy: number, mapWidth: number, mapHeight: number): void => {
+    const newX = playerPos.value.x + dx
+    const newY = playerPos.value.y + dy
+
+    // Prosta blokada krawędzi mapy
+    if (newX >= 0 && newX < mapWidth && newY >= 0 && newY < mapHeight) {
+      playerPos.value = { x: newX, y: newY }
+    }
   }
 
   /**
@@ -313,6 +333,9 @@ export const useEditorStore = defineStore('editor', () => {
 
   return {
     // State
+    isTestMode,
+    playerPos,
+    spawnPos,
     activeTab,
     activeMapID,
     maps: storedMaps,
@@ -324,6 +347,9 @@ export const useEditorStore = defineStore('editor', () => {
     historyIndex,
     canUndo: computed(() => historyIndex.value > 0),
     canRedo: computed(() => historyIndex.value < history.value.length - 1),
+
+    toggleTestMode,
+    movePlayer,
 
     // Actions
     undo,
