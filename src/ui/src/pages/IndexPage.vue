@@ -6,11 +6,8 @@ import TilesetSelector from '@ui/components/TilesetSelector.vue'
 
 <template>
   <div class="flex h-screen overflow-hidden w-full text-slate-300 font-sans">
-    <aside class="w-[20vw] flex flex-col border-r border-white/5">
+    <aside class="w-[400px] flex flex-col border-r border-white/5">
       <div class="flex-1 flex flex-col min-h-0">
-        <div class="px-4 py-2 text-xs font-semibold uppercase tracking-widest text-slate-500">
-          Tileset
-        </div>
         <TilesetSelector />
       </div>
 

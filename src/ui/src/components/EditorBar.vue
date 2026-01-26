@@ -1,6 +1,13 @@
+<script setup lang="ts">
+import { useEditorStore } from '@ui/stores/editor'
+import { IconPencil, IconEraser, IconBucketDroplet } from '@tabler/icons-vue'
+
+const store = useEditorStore()
+</script>
+
 <template>
-  <div class="flex items-center gap-4 p-2 border-b border-white/5 shadow-lg">
-    <div class="flex gap-1 bg-black/20 p-1 rounded-xl border border-white/5">
+  <div class="flex items-center gap-4 p-1 border-b border-white/5 shadow-lg rounded-xl">
+    <div class="flex gap-1 bg-black/20 rounded-xl border border-white/5">
       <button
         :class="
           store.currentTool === 'brush'
@@ -12,6 +19,18 @@
         @click="store.setTool('brush')"
       >
         <IconPencil :size="18" />
+      </button>
+      <button
+        :class="
+          store.currentTool === 'bucket'
+            ? 'bg-blue-600 shadow-[0_0_10px_rgba(37,99,235,0.4)]'
+            : 'bg-transparent text-slate-500 hover:text-slate-200'
+        "
+        class="p-2 rounded-lg transition-all duration-200 cursor-pointer"
+        title="Pędzel (B)"
+        @click="store.setTool('bucket')"
+      >
+        <IconBucketDroplet :size="18" />
       </button>
       <button
         :class="
@@ -28,29 +47,18 @@
     </div>
 
     <div class="flex items-center gap-2">
-      <div class="relative group">
-        <select
-          v-model="store.activeLayer"
-          class="appearance-none text-[0.75rem] text-slate-500 px-3 py-1.5 pr-8 rounded-lg border border-white/10 focus:border-blue-500 outline-none cursor-pointer transition-all hover:border-white/20 uppercase tracking-widest font-semibold"
-        >
-          <option value="ground">Warstwa 1: Podłoże</option>
-          <option value="walls">Warstwa 2: Ściany</option>
-          <option value="trees">Warstwa 3: Drzewa</option>
-          <option value="decoration">Warstwa 4: Dekoracje</option>
-          <option value="events">Warstwa 5: Zdarzenia</option>
-          <option value="roofs">Warstwa 6: Dachy</option>
-        </select>
-        <div class="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500">
-          <IconChevronDown :size="14" />
-        </div>
-      </div>
+      <button
+        v-for="(layer, id) in store.maps.find((map) => map.id === store.activeMapID)?.layers"
+        :key="id"
+        :value="id"
+        class="cursor-pointer text-slate-500 hover:text-black transition-colors duration-200"
+        :class="{
+          'text-black': store.activeLayer === id
+        }"
+        @click="store.setLayer(id)"
+      >
+        <component :is="layer.icon" :size="`1.5rem`" />
+      </button>
     </div>
   </div>
 </template>
-
-<script setup lang="ts">
-import { useEditorStore } from '@ui/stores/editor'
-import { IconPencil, IconEraser, IconChevronDown } from '@tabler/icons-vue'
-
-const store = useEditorStore()
-</script>

@@ -32,18 +32,18 @@ export class MapRenderer {
     this.layers = {
       ground: new PIXI.Container(),
       walls: new PIXI.Container(),
-      trees: new PIXI.Container(),
       decoration: new PIXI.Container(),
       events: new PIXI.Container(),
+      trees: new PIXI.Container(),
       roofs: new PIXI.Container()
     }
 
     this.tileSprites = {
       ground: this.createEmptyArray(),
       walls: this.createEmptyArray(),
-      trees: this.createEmptyArray(),
       decoration: this.createEmptyArray(),
       events: this.createEmptyArray(),
+      trees: this.createEmptyArray(),
       roofs: this.createEmptyArray()
     }
   }
@@ -65,9 +65,7 @@ export class MapRenderer {
 
   private setupScene(): void {
     this.mapContainer.addChild(
-      this.layers.ground,
-      this.layers.decoration,
-      this.layers.events,
+      ...Object.values(this.layers).sort((a, b) => a.zIndex - b.zIndex),
       this.ghostContainer,
       this.gridGraphics
     )
@@ -117,11 +115,14 @@ export class MapRenderer {
         return { x: hasH ? this.tileSize : this.tileSize * 1.5, y: hasV ? this.tileSize / 2 : 0 }
 
       if (qx === 0 && qy === 1) {
-        return { x: hasH ? this.tileSize / 2 : 0, y: this.tileSize * 1.5 }
+        return { x: hasH ? this.tileSize / 2 : 0, y: !hasV ? this.tileSize * 1.5 : 24 }
       }
 
       if (qx === 1 && qy === 1) {
-        return { x: hasH ? this.tileSize : this.tileSize * 1.5, y: this.tileSize * 1.5 }
+        return {
+          x: hasH ? this.tileSize : this.tileSize * 1.5,
+          y: !hasV ? this.tileSize * 1.5 : 24
+        }
       }
     }
 
@@ -174,7 +175,7 @@ export class MapRenderer {
     if (!this.currentMapData) return false
     if (x < 0 || x >= this.mapWidth || y < 0 || y >= this.mapHeight) return true
 
-    const tile = this.currentMapData.layers[layer][y][x]
+    const tile = this.currentMapData.layers[layer].data[y][x]
     return tile !== null && tile.tilesetId === sel.tilesetId && tile.x === sel.x && tile.y === sel.y
   }
 
@@ -281,9 +282,9 @@ export class MapRenderer {
       this.tileSprites[key as ZLayer] = this.createEmptyArray()
     })
 
-    const layersOrder: ZLayer[] = ['ground', 'walls', 'trees', 'decoration', 'roofs', 'events']
+    const layersOrder: ZLayer[] = ['ground', 'walls', 'trees', 'decoration', 'events', 'roofs']
     layersOrder.forEach((layer) => {
-      const grid = mapData.layers[layer]
+      const grid = mapData.layers[layer].data
       for (let y = 0; y < mapData.height; y++) {
         for (let x = 0; x < mapData.width; x++) {
           const tile = grid[y][x]

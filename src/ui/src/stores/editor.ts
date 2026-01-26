@@ -11,6 +11,15 @@ import imgC from '@ui/assets/img/tilesets/World_C.png'
 import imgD from '@ui/assets/img/tilesets/World_D.png'
 import roofs from '@ui/assets/img/tilesets/Roofs.png'
 import { useLocalStorage } from '@vueuse/core'
+import {
+  Icon,
+  IconBackground,
+  IconBox,
+  IconCactus,
+  IconHome,
+  IconTree,
+  IconWall
+} from '@tabler/icons-vue'
 
 export interface TileSelection {
   x: number
@@ -29,15 +38,22 @@ export interface ZMap {
   width: number
   height: number
   // Kluczowa zmiana: dane są teraz podzielone na warstwy
-  layers: Record<ZLayer, (TileSelection | null)[][]>
+  layers: Record<
+    ZLayer,
+    {
+      icon: Icon
+      data: (TileSelection | null)[][]
+      index: number
+    }
+  >
 }
 
-export type ZTool = 'brush' | 'eraser'
-export type ZLayer = 'ground' | 'walls' | 'trees' | 'decoration' | 'roofs' | 'events'
+export type ZTool = 'brush' | 'eraser' | 'bucket' | 'event' | 'circle' | 'rectangle'
+export type ZLayer = 'ground' | 'walls' | 'decoration' | 'trees' | 'events' | 'roofs'
 
 export const useEditorStore = defineStore('editor', () => {
   // --- STATE ---
-  const activeTab = useLocalStorage('z_engine_active_tileset_tab', 'A1')
+  const activeTab = useLocalStorage('z_engine_active_tileset_tab', 'A')
   const activeMapID = ref<number | null>(1)
   const tileSize = ref(48)
   const activeLayer = ref<ZLayer>('ground')
@@ -103,17 +119,17 @@ export const useEditorStore = defineStore('editor', () => {
   function createEmptyLayers(
     width: number,
     height: number
-  ): Record<ZLayer, (TileSelection | null)[][]> {
+  ): Record<ZLayer, { data: (TileSelection | null)[][]; index: number; icon: Icon }> {
     const createGrid = (): (TileSelection | null)[][] =>
       Array.from({ length: height }, () => Array(width).fill(null))
 
     return {
-      ground: createGrid(),
-      walls: createGrid(),
-      trees: createGrid(),
-      decoration: createGrid(),
-      events: createGrid(),
-      roofs: createGrid()
+      ground: { data: createGrid(), index: 0, icon: IconBackground },
+      walls: { data: createGrid(), index: 1, icon: IconWall },
+      decoration: { data: createGrid(), index: 2, icon: IconCactus },
+      events: { data: createGrid(), index: 3, icon: IconBox },
+      trees: { data: createGrid(), index: 4, icon: IconTree },
+      roofs: { data: createGrid(), index: 5, icon: IconHome }
     }
   }
 
@@ -182,7 +198,7 @@ export const useEditorStore = defineStore('editor', () => {
     if (x < 0 || x >= map.width || y < 0 || y >= map.height) return
 
     // Zapisz na AKTYWNEJ warstwie
-    map.layers[activeLayer.value][y][x] = tile
+    map.layers[activeLayer.value].data[y][x] = tile
 
     // Opcjonalnie: Debounce save
     saveProject()
