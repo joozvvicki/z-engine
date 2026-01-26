@@ -36,7 +36,7 @@ export type ZLayer = 'ground' | 'decoration' | 'events'
 export const useEditorStore = defineStore('editor', () => {
   // --- STATE ---
   const activeMapID = ref<number | null>(1)
-  const tileSize = ref(24) // Ważne: Sub-tile size (ćwiartka)
+  const tileSize = ref(48) // Ważne: Sub-tile size (ćwiartka)
   const activeLayer = ref<ZLayer>('ground')
   const currentTool = ref<ZTool>('brush')
 
@@ -65,13 +65,11 @@ export const useEditorStore = defineStore('editor', () => {
     { id: 'Roofs', url: roofs }
   ]
 
-  // --- MAPS DATA ---
-  // Próbujemy wczytać z localStorage przy starcie, jeśli nie ma - używamy domyślnych
   const storedMaps = localStorage.getItem('z_engine_maps')
   const defaultMaps: ZMap[] = [
-    { id: 1, name: 'Starting Forest', width: 40, height: 30, layers: createEmptyLayers(40, 30) },
-    { id: 2, name: 'Tavern "Z"', width: 40, height: 20, layers: createEmptyLayers(40, 20) },
-    { id: 3, name: 'Dungeons Lvl 1', width: 50, height: 25, layers: createEmptyLayers(50, 25) }
+    { id: 1, name: 'Starting Forest', width: 20, height: 16, layers: createEmptyLayers(20, 16) },
+    { id: 2, name: 'Tavern "Z"', width: 20, height: 10, layers: createEmptyLayers(20, 10) },
+    { id: 3, name: 'Dungeons Lvl 1', width: 26, height: 16, layers: createEmptyLayers(26, 16) }
   ]
 
   const maps = reactive<ZMap[]>(storedMaps ? JSON.parse(storedMaps) : defaultMaps)

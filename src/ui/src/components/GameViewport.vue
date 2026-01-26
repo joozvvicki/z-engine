@@ -20,17 +20,35 @@ const handleInteraction = (event: FederatedPointerEvent): void => {
   if (!target) return
 
   if (store.currentTool === 'brush') {
-    renderer.placeSelection(target.x, target.y, store.selection, store.activeLayer)
+    if (store.selection.isAutotile) {
+      renderer.drawTile(target.x, target.y, store.selection, store.activeLayer)
+      store.setTileAt(target.x, target.y, store.selection)
 
-    for (let ox = 0; ox < store.selection.w; ox++) {
-      for (let oy = 0; oy < store.selection.h; oy++) {
-        store.setTileAt(target.x + ox, target.y + oy, {
-          ...store.selection,
-          x: store.selection.x + ox,
-          y: store.selection.y + oy,
-          w: 1,
-          h: 1
-        })
+      for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          const nx = target.x + dx
+          const ny = target.y + dy
+
+          const neighborTile = activeMap.value?.layers[store.activeLayer][ny]?.[nx]
+
+          if (neighborTile) {
+            renderer.drawTile(nx, ny, neighborTile, store.activeLayer)
+          }
+        }
+      }
+    } else {
+      for (let ox = 0; ox < store.selection.w; ox++) {
+        for (let oy = 0; oy < store.selection.h; oy++) {
+          const tile = {
+            ...store.selection,
+            x: store.selection.x + ox,
+            y: store.selection.y + oy,
+            w: 1,
+            h: 1
+          }
+          renderer.drawTile(target.x + ox, target.y + oy, tile, store.activeLayer)
+          store.setTileAt(target.x + ox, target.y + oy, tile)
+        }
       }
     }
   }

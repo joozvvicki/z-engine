@@ -5,7 +5,9 @@ import { useEditorStore } from '@ui/stores/editor'
 const store = useEditorStore()
 const activeTab = ref<'A1' | 'A2' | 'A3' | 'A4' | 'B' | 'C' | 'D' | 'Roofs'>('A1')
 
-const SELECTION_GRID = 24
+const SELECTION_GRID = 48
+
+const isA1 = computed(() => activeTab.value === 'A1')
 
 const currentTilesetUrl = computed(() => {
   const ts = store.tilesets.find((t) => t.id === activeTab.value)
@@ -21,20 +23,34 @@ const handleMouseDown = (e: MouseEvent): void => {
   const ty = Math.floor((e.clientY - rect.top) / SELECTION_GRID)
 
   isSelecting.value = true
-  startPos.value = { x: tx, y: ty }
 
-  store.setSelection({
-    x: tx,
-    y: ty,
-    w: 1,
-    h: 1,
-    tilesetId: activeTab.value,
-    isAutotile: false
-  })
+  if (activeTab.value === 'A1') {
+    // Logika A1: Klikasz w kwadrat 48x48
+    // Ale silnik dostaje info: "To jest autotile, weź dane z obszaru 2x3 (sub-tiles)"
+    store.setSelection({
+      x: tx, // Pozycja klikniętego kwadratu
+      y: ty,
+      w: 2, // Szerokość logiczna dla Renderera (2 sub-tiles = 48px)
+      h: 3, // Wysokość logiczna dla Renderera (3 sub-tiles = 72px)
+      tilesetId: activeTab.value,
+      isAutotile: true
+    })
+  } else {
+    // Normalna logika dla B, C, D...
+    startPos.value = { x: tx, y: ty }
+    store.setSelection({
+      x: tx,
+      y: ty,
+      w: 1,
+      h: 1,
+      tilesetId: activeTab.value,
+      isAutotile: false
+    })
+  }
 }
 
 const handleMouseMove = (e: MouseEvent): void => {
-  if (!isSelecting.value) return
+  if (!isSelecting.value || isA1.value) return
 
   const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
   const tx = Math.floor((e.clientX - rect.left) / SELECTION_GRID)
@@ -106,8 +122,9 @@ const handleMouseUp = (): void => {
           :style="{
             left: store.selection.x * SELECTION_GRID + 'px',
             top: store.selection.y * SELECTION_GRID + 'px',
-            width: store.selection.w * SELECTION_GRID + 'px',
-            height: store.selection.h * SELECTION_GRID + 'px'
+            /* TUTAJA ZMIANA: Wizualna szerokość/wysokość */
+            width: (isA1 ? 1 : store.selection.w) * SELECTION_GRID + 'px',
+            height: (isA1 ? 1 : store.selection.h) * SELECTION_GRID + 'px'
           }"
         ></div>
       </div>
