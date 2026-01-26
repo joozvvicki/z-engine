@@ -1,71 +1,141 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useEditorStore } from '@ui/stores/editor'
 
 const store = useEditorStore()
-const activeTab = ref<'A1' | 'A2' | 'A3' | 'A4' | 'B' | 'C' | 'D' | 'Roofs'>('A1')
 
-const SELECTION_GRID = 48
+const iconMapping = ref<
+  { uiX: number; uiY: number; ox: number; oy: number; w: number; h: number }[]
+>([])
+const processedImageUrl = ref('')
+const isProcessing = ref(false)
 
-const isAutotile = computed(() => ['A1', 'A2'].includes(activeTab.value))
+// Struktura rzędów A4 (Dachy/Ściany)
+const A4_LAYOUT = [
+  { yStart: 0, h: 3 },
+  { yStart: 3, h: 2 },
+  { yStart: 5, h: 3 },
+  { yStart: 8, h: 2 },
+  { yStart: 10, h: 3 },
+  { yStart: 13, h: 2 }
+]
 
-const currentTilesetUrl = computed(() => {
-  const ts = store.tilesets.find((t) => t.id === activeTab.value)
+const isAutotileTab = computed(() => ['A1', 'A2', 'A3', 'A4'].includes(store.activeTab))
+
+const rawTilesetUrl = computed(() => {
+  const ts = store.tilesets.find((t) => t.id === store.activeTab)
   return ts ? ts.url : ''
 })
+
+const processTilesetImage = async (): Promise<void> => {
+  if (!rawTilesetUrl.value) return
+  isProcessing.value = true
+  iconMapping.value = []
+
+  const img = new Image()
+  img.src = rawTilesetUrl.value
+  await new Promise((resolve) => (img.onload = resolve))
+
+  const canvas = document.createElement('canvas')
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return
+
+  const rawCols = img.width / store.tileSize
+  const rawRows = img.height / store.tileSize
+  const tilesToExtract: { ox: number; oy: number; w: number; h: number }[] = []
+
+  if (store.activeTab === 'A1') {
+    const a1IconsX = [0, 6, 8, 14]
+    for (let y = 0; y < rawRows; y += 3) {
+      for (const x of a1IconsX) {
+        if (x < rawCols) tilesToExtract.push({ ox: x, oy: y, w: 2, h: 3 })
+      }
+    }
+  } else if (store.activeTab === 'A2') {
+    // W A2 każdy blok 2x3 jest unikalny.
+    for (let y = 0; y < rawRows; y += 3) {
+      for (let x = 0; x < rawCols; x += 2) tilesToExtract.push({ ox: x, oy: y, w: 2, h: 3 })
+    }
+  } else if (store.activeTab === 'A3') {
+    // A3 to bloki 2x2.
+    for (let y = 0; y < rawRows; y += 2) {
+      for (let x = 0; x < rawCols; x += 2) tilesToExtract.push({ ox: x, oy: y, w: 2, h: 2 })
+    }
+  } else if (store.activeTab === 'A4') {
+    // A4 używa Twojego specyficznego layoutu.
+    for (const l of A4_LAYOUT) {
+      if (l.yStart >= rawRows) continue
+      for (let x = 0; x < rawCols; x += 2)
+        tilesToExtract.push({ ox: x, oy: l.yStart, w: 2, h: l.h })
+    }
+  }
+
+  if (isAutotileTab.value) {
+    const iconsPerRow = 8
+    canvas.width = Math.min(tilesToExtract.length, iconsPerRow) * store.tileSize
+    canvas.height = Math.ceil(tilesToExtract.length / iconsPerRow) * store.tileSize
+
+    tilesToExtract.forEach((tile, index) => {
+      const uiX = index % iconsPerRow
+      const uiY = Math.floor(index / iconsPerRow)
+      ctx.drawImage(
+        img,
+        tile.ox * store.tileSize,
+        tile.oy * store.tileSize,
+        store.tileSize,
+        store.tileSize,
+        uiX * store.tileSize,
+        uiY * store.tileSize,
+        store.tileSize,
+        store.tileSize
+      )
+      iconMapping.value.push({ uiX, uiY, ...tile })
+    })
+  } else {
+    canvas.width = img.width
+    canvas.height = img.height
+    ctx.drawImage(img, 0, 0)
+  }
+
+  processedImageUrl.value = canvas.toDataURL()
+  isProcessing.value = false
+}
+
+watch(rawTilesetUrl, processTilesetImage, { immediate: true })
+
+const handleMouseDown = (e: MouseEvent): void => {
+  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+  const tx = Math.floor((e.clientX - rect.left) / store.tileSize)
+  const ty = Math.floor((e.clientY - rect.top) / store.tileSize)
+
+  if (isAutotileTab.value) {
+    const found = iconMapping.value.find((m) => m.uiX === tx && m.uiY === ty)
+    if (found) {
+      store.setSelection({
+        x: found.ox,
+        y: found.oy,
+        w: found.w,
+        h: found.h,
+        tilesetId: store.activeTab,
+        isAutotile: true
+      })
+    }
+  } else {
+    isSelecting.value = true
+    startPos.value = { x: tx, y: ty }
+    store.setSelection({ x: tx, y: ty, w: 1, h: 1, tilesetId: store.activeTab, isAutotile: false })
+  }
+}
 
 const isSelecting = ref(false)
 const startPos = ref({ x: 0, y: 0 })
 
-const handleMouseDown = (e: MouseEvent): void => {
-  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-  const tx = Math.floor((e.clientX - rect.left) / SELECTION_GRID)
-  const ty = Math.floor((e.clientY - rect.top) / SELECTION_GRID)
-
-  isSelecting.value = true
-
-  if (['A1', 'A2'].includes(activeTab.value)) {
-    store.setSelection({
-      x: tx, // Pozycja klikniętego kwadratu
-      y: ty,
-      w: 2, // Szerokość logiczna dla Renderera (2 sub-tiles = 48px)
-      h: 3, // Wysokość logiczna dla Renderera (3 sub-tiles = 72px)
-      tilesetId: activeTab.value,
-      isAutotile: true
-    })
-  } else if (activeTab.value === 'A3') {
-    // Snapping do bloków 2x2
-    const snapX = Math.floor(tx / 2) * 2
-    const snapY = Math.floor(ty / 2) * 2
-
-    store.setSelection({
-      x: snapX,
-      y: snapY,
-      w: 2,
-      h: 2,
-      tilesetId: 'A3',
-      isAutotile: true
-    })
-  } else {
-    // Normalna logika dla B, C, D...
-    startPos.value = { x: tx, y: ty }
-    store.setSelection({
-      x: tx,
-      y: ty,
-      w: 1,
-      h: 1,
-      tilesetId: activeTab.value,
-      isAutotile: false
-    })
-  }
-}
-
 const handleMouseMove = (e: MouseEvent): void => {
-  if (!isSelecting.value || isAutotile.value) return
+  if (!isSelecting.value) return
 
   const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-  const tx = Math.floor((e.clientX - rect.left) / SELECTION_GRID)
-  const ty = Math.floor((e.clientY - rect.top) / SELECTION_GRID)
+  const tx = Math.floor((e.clientX - rect.left) / store.tileSize)
+  const ty = Math.floor((e.clientY - rect.top) / store.tileSize)
 
   const x = Math.min(startPos.value.x, tx)
   const y = Math.min(startPos.value.y, ty)
@@ -77,68 +147,106 @@ const handleMouseMove = (e: MouseEvent): void => {
     y,
     w,
     h,
-    tilesetId: activeTab.value,
+    tilesetId: store.activeTab,
     isAutotile: false
   })
 }
+const handleMouseUp = (): boolean => (isSelecting.value = false)
 
-const handleMouseUp = (): void => {
-  isSelecting.value = false
-}
+const selectionStyle = computed(() => {
+  if (!store.selection || store.selection.tilesetId !== store.activeTab) return null
+  const sel = store.selection
+  let x = sel.x,
+    y = sel.y,
+    w = sel.w,
+    h = sel.h
+
+  if (isAutotileTab.value) {
+    const map = iconMapping.value.find((m) => m.ox === sel.x && m.oy === sel.y)
+    if (map) {
+      x = map.uiX
+      y = map.uiY
+      w = 1
+      h = 1
+    }
+  }
+
+  return {
+    left: x * store.tileSize + 'px',
+    top: y * store.tileSize + 'px',
+    width: w * store.tileSize + 'px',
+    height: h * store.tileSize + 'px'
+  }
+})
 </script>
 
 <template>
   <div class="flex flex-col h-full border-l border-white/5 select-none">
     <div class="flex p-1 gap-1 border-b border-white/5">
       <button
-        v-for="ts in store.tilesets"
-        :key="ts.id"
-        :class="activeTab === ts.id ? 'bg-blue-600 text-white' : 'hover:bg-white/5 text-slate-500'"
-        class="flex-1 py-1.5 text-[10px] font-bold rounded uppercase transition-colors cursor-pointer"
-        @click="activeTab = ts.id as any"
+        v-for="ts in store.tilesets.map((t) => t.id)"
+        :key="ts"
+        :class="
+          store.activeTab === ts ? 'bg-blue-600 text-white' : 'text-slate-500 hover:bg-white/5'
+        "
+        class="flex-1 py-1.5 text-[10px] font-bold rounded uppercase transition-colors"
+        @click="store.activeTab = ts"
       >
-        {{ ts.id }}
+        {{ ts }}
       </button>
     </div>
 
-    <div class="flex-1 overflow-auto p-4 scrollbar-thin bg-[#121212]">
+    <div class="flex-1 overflow-auto p-4 relative scrollbar-thin">
       <div
-        class="relative cursor-crosshair w-max border border-white/10 shadow-lg"
+        v-if="isProcessing"
+        class="absolute inset-0 flex items-center justify-center text-white/40 text-[10px] uppercase tracking-widest animate-pulse"
+      >
+        Przetwarzanie...
+      </div>
+
+      <div
+        v-else
+        class="relative w-max border border-white/10 shadow-2xl bg-[#1a1a1a] cursor-crosshair"
         @mousedown="handleMouseDown"
         @mousemove="handleMouseMove"
         @mouseup="handleMouseUp"
         @mouseleave="handleMouseUp"
       >
-        <img
-          :src="currentTilesetUrl"
-          class="block"
-          style="image-rendering: pixelated; pointer-events: none"
-          draggable="false"
-        />
-
+        <img :src="processedImageUrl" class="block pixelated pointer-events-none" />
+        <div class="absolute inset-0 pointer-events-none opacity-5 grid-bg"></div>
         <div
-          class="absolute inset-0 pointer-events-none opacity-20"
-          :style="{
-            backgroundImage: `
-              linear-gradient(to right, #ffffff 1px, transparent 1px),
-              linear-gradient(to bottom, #ffffff 1px, transparent 1px)
-            `,
-            backgroundSize: `${SELECTION_GRID}px ${SELECTION_GRID}px`
-          }"
-        ></div>
-
-        <div
-          v-if="store.selection"
-          class="absolute border-2 border-yellow-400 z-10 pointer-events-none mix-blend-difference"
-          :style="{
-            left: store.selection.x * SELECTION_GRID + 'px',
-            top: store.selection.y * SELECTION_GRID + 'px',
-            /* TUTAJA ZMIANA: Wizualna szerokość/wysokość */
-            width: (isA1 ? 1 : store.selection.w) * SELECTION_GRID + 'px',
-            height: (isA1 ? 1 : store.selection.h) * SELECTION_GRID + 'px'
-          }"
-        ></div>
+          v-if="selectionStyle"
+          :style="selectionStyle"
+          class="absolute border-2 border-yellow-400 z-10 mix-blend-difference shadow-lg"
+        >
+          <div
+            v-if="isAutotileTab"
+            class="absolute -top-4 left-[-2px] bg-yellow-400 text-[8px] text-black px-1 font-bold"
+          >
+            AUTO
+          </div>
+        </div>
       </div>
     </div>
   </div>
 </template>
+
+<style scoped>
+.pixelated {
+  image-rendering: pixelated;
+}
+.grid-bg {
+  background-image:
+    linear-gradient(to right, #fff 1px, transparent 1px),
+    linear-gradient(to bottom, #fff 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+}
+</style>

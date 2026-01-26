@@ -5,7 +5,6 @@ import { useEditorStore } from '@ui/stores/editor'
 import { type FederatedPointerEvent } from 'pixi.js'
 import EditorBar from './EditorBar.vue'
 
-// --- REFS & STATE ---
 const viewportContainer = ref<HTMLElement | null>(null)
 const isPointerDown = ref(false)
 let renderer: MapRenderer | null = null
@@ -39,8 +38,7 @@ const handleInteraction = (event: FederatedPointerEvent): void => {
       }
     }
   } else if (store.currentTool === 'eraser') {
-    renderer.clearSelection(target.x, target.y, store.selection, store.activeLayer)
-
+    renderer.clearTileAt(target.x, target.y, store.activeLayer)
     store.setTileAt(target.x, target.y, null)
   }
 

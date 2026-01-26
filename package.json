@@ -25,6 +25,7 @@
     "@electron-toolkit/utils": "^4.0.0",
     "@tabler/icons-vue": "^3.36.1",
     "@tailwindcss/vite": "^4.1.18",
+    "@vueuse/core": "^14.1.0",
     "electron-updater": "^6.3.9",
     "pinia": "^3.0.4",
     "pixi.js": "^8.15.0",

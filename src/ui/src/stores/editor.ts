@@ -10,6 +10,7 @@ import imgB from '@ui/assets/img/tilesets/World_B.png'
 import imgC from '@ui/assets/img/tilesets/World_C.png'
 import imgD from '@ui/assets/img/tilesets/World_D.png'
 import roofs from '@ui/assets/img/tilesets/Roofs.png'
+import { useLocalStorage } from '@vueuse/core'
 
 export interface TileSelection {
   x: number
@@ -18,6 +19,7 @@ export interface TileSelection {
   h: number
   tilesetId: string
   isAutotile: boolean
+  isWall?: boolean
 }
 
 // Typ mapy - teraz zawiera warstwy!
@@ -31,20 +33,21 @@ export interface ZMap {
 }
 
 export type ZTool = 'brush' | 'eraser'
-export type ZLayer = 'ground' | 'decoration' | 'events'
+export type ZLayer = 'ground' | 'walls' | 'trees' | 'decoration' | 'roofs' | 'events'
 
 export const useEditorStore = defineStore('editor', () => {
   // --- STATE ---
+  const activeTab = useLocalStorage('z_engine_active_tileset_tab', 'A1')
   const activeMapID = ref<number | null>(1)
-  const tileSize = ref(48) // Ważne: Sub-tile size (ćwiartka)
+  const tileSize = ref(48)
   const activeLayer = ref<ZLayer>('ground')
   const currentTool = ref<ZTool>('brush')
 
-  const history = ref<string[]>([]) // Storing as JSON strings to save memory and ensure deep copies
+  const history = ref<string[]>([])
   const historyIndex = ref(-1)
   const MAX_HISTORY = 50
 
-  const selection = ref<TileSelection>({
+  const selection = useLocalStorage<TileSelection>('z_engine_current_selection', {
     x: 0,
     y: 0,
     w: 1,
@@ -106,8 +109,11 @@ export const useEditorStore = defineStore('editor', () => {
 
     return {
       ground: createGrid(),
+      walls: createGrid(),
+      trees: createGrid(),
       decoration: createGrid(),
-      events: createGrid()
+      events: createGrid(),
+      roofs: createGrid()
     }
   }
 
@@ -230,6 +236,7 @@ export const useEditorStore = defineStore('editor', () => {
 
   return {
     // State
+    activeTab,
     activeMapID,
     maps,
     tilesets,

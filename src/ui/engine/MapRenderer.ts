@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import type { TileSelection, ZLayer, ZMap } from '@ui/stores/editor'
 import * as PIXI from 'pixi.js'
 import 'pixi.js/unsafe-eval'
@@ -32,14 +31,20 @@ export class MapRenderer {
 
     this.layers = {
       ground: new PIXI.Container(),
+      walls: new PIXI.Container(),
+      trees: new PIXI.Container(),
       decoration: new PIXI.Container(),
-      events: new PIXI.Container()
+      events: new PIXI.Container(),
+      roofs: new PIXI.Container()
     }
 
     this.tileSprites = {
       ground: this.createEmptyArray(),
+      walls: this.createEmptyArray(),
+      trees: this.createEmptyArray(),
       decoration: this.createEmptyArray(),
-      events: this.createEmptyArray()
+      events: this.createEmptyArray(),
+      roofs: this.createEmptyArray()
     }
   }
 
@@ -79,6 +84,10 @@ export class MapRenderer {
     }
   }
 
+  /**
+   * Oblicza przesunięcie (offset) wewnątrz bloku autotile dla konkretnej ćwiartki.
+   * Obsługuje specyficzne układy A1, A2, A3 oraz nieregularne rzędy A4.
+   */
   private getQuadrantOffset(
     x: number,
     y: number,
@@ -87,7 +96,7 @@ export class MapRenderer {
     sel: TileSelection,
     layer: ZLayer
   ): { x: number; y: number } {
-    // 1. Określamy kierunki sprawdzenia sąsiadów dla konkretnej ćwiartki
+    // 1. Kierunki sprawdzenia sąsiadów dla konkretnej ćwiartki
     const dx = qx === 0 ? -1 : 1 // Lewo dla ćwiartek lewych, prawo dla prawych
     const dy = qy === 0 ? -1 : 1 // Góra dla ćwiartek górnych, dół dla dolnych
 
@@ -95,90 +104,80 @@ export class MapRenderer {
     const hasV = this.isSameTile(x, y + dy, layer, sel) // Sąsiad Pionowy
     const hasD = this.isSameTile(x + dx, y + dy, layer, sel) // Sąsiad po skosie (Diagonal)
 
-    // 2. MATRYCA WSPÓŁRZĘDNYCH (Pixel-Perfect RM MV Map)
-    // Każda ćwiartka ma 5 stanów połączeń.
+    // 2. ROZPOZNANIE TYPU AUTOTILE
+    // W A4 rzędy o wysokości 2 i 4 to ŚCIANY. Rzędy o wysokości 3 to SUFITY.
+    const isA3 = sel.tilesetId === 'A3'
+    const isA4Wall = sel.tilesetId === 'A4' && (sel.h === 2 || sel.h === 4)
 
-    if (sel.tilesetId === 'A3') {
-      /**
-       * A3 to blok 2x2 kafelki (4x4 sub-tiles).
-       * Każda ćwiartka sprawdza tylko sąsiada poziomego i pionowego.
-       */
-      let ox = 0
-      let oy = 0
+    // --- LOGIKA DLA ŚCIAN (A3 oraz rzędy 2x2 / 2x4 w A4) ---
+    if (isA3 || isA4Wall) {
+      if (qx === 0 && qy === 0)
+        return { x: hasH ? this.tileSize / 2 : 0, y: hasV ? this.tileSize / 2 : 0 }
+      if (qx === 1 && qy === 0)
+        return { x: hasH ? this.tileSize : this.tileSize * 1.5, y: hasV ? this.tileSize / 2 : 0 }
 
-      // Logika X: krawędź zewnętrzna jest na zewnątrz bloku 2x2
-      if (qx === 0) {
-        // Lewa ćwiartka
-        ox = hasH ? 24 : 0
-      } else {
-        // Prawa ćwiartka
-        ox = hasH ? 24 : 48 + 24 // RM A3: Prawa krawędź jest w 4. kolumnie sub-tiles
+      if (qx === 0 && qy === 1) {
+        return { x: hasH ? this.tileSize / 2 : 0, y: this.tileSize * 1.5 }
       }
 
-      // Logika Y: krawędź górna/dolna
-      if (qy === 0) {
-        // Górna ćwiartka
-        oy = hasV ? 24 : 0
-      } else {
-        // Dolna ćwiartka
-        oy = hasV ? 48 + 24 : 24 // RM A3: Dolna krawędź jest niżej w bloku
+      if (qx === 1 && qy === 1) {
+        return { x: hasH ? this.tileSize : this.tileSize * 1.5, y: this.tileSize * 1.5 }
       }
-
-      // Dla uproszczenia zastosujmy precyzyjne mapowanie współrzędnych:
-      if (qx === 0 && qy === 0) return { x: hasH ? 24 : 0, y: hasV ? 24 : 0 }
-      if (qx === 1 && qy === 0) return { x: hasH ? 48 : 72, y: hasV ? 24 : 0 }
-      if (qx === 0 && qy === 1) return { x: hasH ? 24 : 0, y: hasV ? 48 : 72 }
-      if (qx === 1 && qy === 1) return { x: hasH ? 48 : 72, y: hasV ? 48 : 72 }
     }
 
-    // --- TOP-LEFT (qx: 0, qy: 0) ---
+    // --- LOGIKA DLA SUFITÓW/ANIMACJI (A1, A2 oraz rzędy 2x3 w A4) ---
+    /**
+     * Używamy pełnej matrycy 5-stanowej RPG Maker (Corner, H-Edge, V-Edge, Inner, Fill).
+     * Współrzędne są relatywne do bloku autotile wybranego w selektorze.
+     */
+
+    // TOP-LEFT (qx: 0, qy: 0)
     if (qx === 0 && qy === 0) {
-      if (!hasH && !hasV) return { x: 0, y: 48 } // Narożnik zewnętrzny
-      if (hasH && !hasV) return { x: 48, y: 48 } // Krawędź pozioma
-      if (!hasH && hasV) return { x: 0, y: 96 } // Krawędź pionowa
-      if (hasH && hasV && !hasD) return { x: 48, y: 0 } // Narożnik wewnętrzny
-      return { x: 24, y: 72 } // Środek (Fill)
+      if (!hasH && !hasV) return { x: 0, y: this.tileSize } // Narożnik zewnętrzny
+      if (hasH && !hasV) return { x: this.tileSize, y: this.tileSize } // Krawędź pozioma
+      if (!hasH && hasV) return { x: 0, y: this.tileSize * 2 } // Krawędź pionowa
+      if (hasH && hasV && !hasD) return { x: this.tileSize, y: 0 } // Narożnik wewnętrzny
+      return { x: this.tileSize, y: this.tileSize * 2 } // Środek (Fill)
     }
 
-    // --- TOP-RIGHT (qx: 1, qy: 0) ---
+    // TOP-RIGHT (qx: 1, qy: 0)
     if (qx === 1 && qy === 0) {
-      if (!hasH && !hasV) return { x: 72, y: 48 } // Narożnik zewnętrzny
-      if (hasH && !hasV) return { x: 24, y: 48 } // Krawędź pozioma
-      if (!hasH && hasV) return { x: 72, y: 96 } // Krawędź pionowa
-      if (hasH && hasV && !hasD) return { x: 72, y: 0 } // Narożnik wewnętrzny
-      return { x: 48, y: 72 } // Środek (Fill)
+      if (!hasH && !hasV) return { x: this.tileSize * 1.5, y: this.tileSize }
+      if (hasH && !hasV) return { x: this.tileSize / 2, y: this.tileSize }
+      if (!hasH && hasV) return { x: this.tileSize * 1.5, y: this.tileSize * 2 }
+      if (hasH && hasV && !hasD) return { x: this.tileSize * 1.5, y: 0 }
+      return { x: this.tileSize / 2, y: this.tileSize * 2 }
     }
 
-    // --- BOTTOM-LEFT (qx: 0, qy: 1) ---
+    // BOTTOM-LEFT (qx: 0, qy: 1)
     if (qx === 0 && qy === 1) {
-      if (!hasH && !hasV) return { x: 0, y: 120 } // Narożnik zewnętrzny
-      if (hasH && !hasV) return { x: 48, y: 120 } // Krawędź pozioma
-      if (!hasH && hasV) return { x: 0, y: 72 } // Krawędź pionowa
-      if (hasH && hasV && !hasD) return { x: 48, y: 24 } // Narożnik wewnętrzny
-      return { x: 24, y: 96 } // Środek (Fill) - Specyfika A1
+      if (!hasH && !hasV) return { x: 0, y: this.tileSize * 2.5 }
+      if (hasH && !hasV) return { x: this.tileSize, y: this.tileSize * 2.5 }
+      if (!hasH && hasV) return { x: 0, y: this.tileSize * 1.5 }
+      if (hasH && hasV && !hasD) return { x: this.tileSize, y: this.tileSize / 2 }
+      return { x: this.tileSize, y: this.tileSize * 1.5 }
     }
 
-    // --- BOTTOM-RIGHT (qx: 1, qy: 1) ---
+    // BOTTOM-RIGHT (qx: 1, qy: 1)
     if (qx === 1 && qy === 1) {
-      if (!hasH && !hasV) return { x: 72, y: 120 } // Narożnik zewnętrzny
-      if (hasH && !hasV) return { x: 24, y: 120 } // Krawędź pozioma
-      if (!hasH && hasV) return { x: 72, y: 72 } // Krawędź pionowa
-      if (hasH && hasV && !hasD) return { x: 72, y: 24 } // Narożnik wewnętrzny
-      return { x: 48, y: 96 } // Środek (Fill)
+      if (!hasH && !hasV) return { x: this.tileSize * 1.5, y: this.tileSize * 2.5 }
+      if (hasH && !hasV) return { x: this.tileSize / 2, y: this.tileSize * 2.5 }
+      if (!hasH && hasV) return { x: this.tileSize * 1.5, y: this.tileSize * 1.5 }
+      if (hasH && hasV && !hasD) return { x: this.tileSize * 1.5, y: this.tileSize / 2 }
+      return { x: this.tileSize / 2, y: this.tileSize * 1.5 }
     }
 
-    return { x: 48, y: 72 }
+    return { x: 0, y: 0 } // Default fill
   }
 
   private isSameTile(x: number, y: number, layer: ZLayer, sel: TileSelection): boolean {
     if (!this.currentMapData) return false
-    if (x < 0 || x >= this.mapWidth || y < 0 || y >= this.mapHeight) return true // Poza mapą = połączone
+    if (x < 0 || x >= this.mapWidth || y < 0 || y >= this.mapHeight) return true
 
     const tile = this.currentMapData.layers[layer][y][x]
-    // Sprawdzamy czy to ten sam tileset i ten sam bazowy kafelek (id)
     return tile !== null && tile.tilesetId === sel.tilesetId && tile.x === sel.x && tile.y === sel.y
   }
-  // --- Wewnątrz klasy MapRenderer ---
+
   public drawTile(x: number, y: number, selection: TileSelection, layer: ZLayer): void {
     if (x < 0 || x >= this.mapWidth || y < 0 || y >= this.mapHeight) return
     this.clearTileAt(x, y, layer)
@@ -187,11 +186,9 @@ export class MapRenderer {
     if (!tex) return
 
     const container = new PIXI.Container()
-    const isAutotile = selection.isAutotile
     const tsId = selection.tilesetId
 
-    // Obsługa autotile dla A1 i A2
-    if (isAutotile && ['A1', 'A2', 'A3'].includes(tsId)) {
+    if (selection.isAutotile && ['A1', 'A2', 'A3', 'A4'].includes(tsId)) {
       const isA1 = tsId === 'A1'
       let frameCount = 1
 
@@ -206,39 +203,43 @@ export class MapRenderer {
           const textures: PIXI.Texture[] = []
 
           for (let i = 0; i < frameCount; i++) {
-            const animOffset = isA1 ? i * 96 : 0
-            const frameX = selection.x * 48 + animOffset + offset.x
-            const frameY = selection.y * 48 + offset.y
+            const animOffset = isA1 ? i * (this.tileSize * 2) : 0
+            const frameX = selection.x * this.tileSize + animOffset + offset.x
+            const frameY = selection.y * this.tileSize + offset.y
 
             textures.push(
               new PIXI.Texture({
                 source: tex.source,
-                frame: new PIXI.Rectangle(frameX, frameY, 24, 24)
+                frame: new PIXI.Rectangle(frameX, frameY, this.tileSize / 2, this.tileSize / 2)
               })
             )
           }
 
           if (textures.length > 1) {
             const anim = new PIXI.AnimatedSprite(textures)
-            anim.x = qx * 24
-            anim.y = qy * 24
-            anim.animationSpeed = 0.15
+            anim.x = qx * (this.tileSize / 2)
+            anim.y = qy * (this.tileSize / 2)
+            anim.animationSpeed = 0.025
             anim.play()
             container.addChild(anim)
           } else {
             const sprite = new PIXI.Sprite(textures[0])
-            sprite.x = qx * 24
-            sprite.y = qy * 24
+            sprite.x = qx * (this.tileSize / 2)
+            sprite.y = qy * (this.tileSize / 2)
             container.addChild(sprite)
           }
         }
       }
     } else {
-      // Statyczne kafelki (B, C, D...)
       const sprite = new PIXI.Sprite(
         new PIXI.Texture({
           source: tex.source,
-          frame: new PIXI.Rectangle(selection.x * 48, selection.y * 48, 48, 48)
+          frame: new PIXI.Rectangle(
+            selection.x * this.tileSize,
+            selection.y * this.tileSize,
+            selection.w * this.tileSize,
+            selection.h * this.tileSize
+          )
         })
       )
       container.addChild(sprite)
@@ -247,7 +248,7 @@ export class MapRenderer {
     container.x = x * this.tileSize
     container.y = y * this.tileSize
     this.layers[layer].addChild(container)
-    this.tileSprites[layer][y][x] = container as any
+    this.tileSprites[layer][y][x] = container as PIXI.Sprite
   }
 
   public placeSelection(mx: number, my: number, sel: TileSelection, l: ZLayer): void {
@@ -275,27 +276,18 @@ export class MapRenderer {
 
   public renderMapFromStore(mapData: ZMap): void {
     this.currentMapData = mapData
+    Object.keys(this.layers).forEach((key) => {
+      this.layers[key as ZLayer].removeChildren()
+      this.tileSprites[key as ZLayer] = this.createEmptyArray()
+    })
 
-    this.layers.ground.removeChildren()
-    this.layers.decoration.removeChildren()
-    this.layers.events.removeChildren()
-
-    this.tileSprites.ground = this.createEmptyArray()
-    this.tileSprites.decoration = this.createEmptyArray()
-    this.tileSprites.events = this.createEmptyArray()
-
-    const layers: ZLayer[] = ['ground', 'decoration', 'events']
-
-    layers.forEach((layer) => {
+    const layersOrder: ZLayer[] = ['ground', 'walls', 'trees', 'decoration', 'roofs', 'events']
+    layersOrder.forEach((layer) => {
       const grid = mapData.layers[layer]
-      if (!grid) return
-
       for (let y = 0; y < mapData.height; y++) {
         for (let x = 0; x < mapData.width; x++) {
           const tile = grid[y][x]
-          if (tile) {
-            this.drawTile(x, y, tile, layer)
-          }
+          if (tile) this.drawTile(x, y, tile, layer)
         }
       }
     })
@@ -328,23 +320,6 @@ export class MapRenderer {
           .fill({ color: 0xff0000, alpha: 0.3 })
           .stroke({ width: 1, color: 0xff0000, alpha: 0.5 })
       )
-    } else if (sel.isAutotile && ['A1', 'A2', 'A3'].includes(sel.tilesetId)) {
-      const t = this.tilesetTextures.get(sel.tilesetId)
-      if (t) {
-        const s = new PIXI.Sprite(
-          new PIXI.Texture({
-            source: t.source,
-            frame: new PIXI.Rectangle(
-              sel.x * this.tileSize,
-              sel.y * this.tileSize,
-              this.tileSize, // 48px
-              this.tileSize // 72px
-            )
-          })
-        )
-        s.alpha = 0.5
-        this.ghostContainer.addChild(s)
-      }
     } else {
       const t = this.tilesetTextures.get(sel.tilesetId)
       if (t) {
@@ -354,8 +329,8 @@ export class MapRenderer {
             frame: new PIXI.Rectangle(
               sel.x * this.tileSize,
               sel.y * this.tileSize,
-              sel.w * this.tileSize,
-              sel.h * this.tileSize
+              !sel.isAutotile ? sel.w * this.tileSize : this.tileSize,
+              !sel.isAutotile ? sel.h * this.tileSize : this.tileSize
             )
           })
         )
@@ -372,31 +347,18 @@ export class MapRenderer {
 
   public drawGrid(): void {
     this.gridGraphics.clear()
-
     this.gridGraphics.rect(0, 0, this.mapWidth * this.tileSize, this.mapHeight * this.tileSize)
-
     for (let x = 0; x <= this.mapWidth; x++) {
-      const isMajor = x % 2 === 0
       this.gridGraphics
         .moveTo(x * this.tileSize, 0)
         .lineTo(x * this.tileSize, this.mapHeight * this.tileSize)
-        .stroke({
-          width: isMajor ? 1 : 0.5,
-          color: 0x000000,
-          alpha: isMajor ? 0.2 : 0.05
-        })
+        .stroke({ width: 1, color: 0x000000, alpha: 0.2 })
     }
-
     for (let y = 0; y <= this.mapHeight; y++) {
-      const isMajor = y % 2 === 0
       this.gridGraphics
         .moveTo(0, y * this.tileSize)
         .lineTo(this.mapWidth * this.tileSize, y * this.tileSize)
-        .stroke({
-          width: isMajor ? 1 : 0.5,
-          color: 0x000000,
-          alpha: isMajor ? 0.2 : 0.05
-        })
+        .stroke({ width: 1, color: 0x000000, alpha: 0.2 })
     }
   }
 

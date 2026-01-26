@@ -34,8 +34,11 @@
           class="appearance-none text-[0.75rem] text-slate-500 px-3 py-1.5 pr-8 rounded-lg border border-white/10 focus:border-blue-500 outline-none cursor-pointer transition-all hover:border-white/20 uppercase tracking-widest font-semibold"
         >
           <option value="ground">Warstwa 1: Podłoże</option>
-          <option value="decoration">Warstwa 2: Dekoracje</option>
-          <option value="events">Warstwa 3: Zdarzenia</option>
+          <option value="walls">Warstwa 2: Ściany</option>
+          <option value="trees">Warstwa 3: Drzewa</option>
+          <option value="decoration">Warstwa 4: Dekoracje</option>
+          <option value="events">Warstwa 5: Zdarzenia</option>
+          <option value="roofs">Warstwa 6: Dachy</option>
         </select>
         <div class="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500">
           <IconChevronDown :size="14" />
