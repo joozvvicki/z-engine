@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { IconMap, IconPlus } from '@tabler/icons-vue'
+import { IconMap, IconPlus, IconUpload } from '@tabler/icons-vue'
 import { useEditorStore } from '@ui/stores/editor'
 import NewMap from './modal/NewMap.vue'
 import { ref } from 'vue'
@@ -36,6 +36,15 @@ const isNewMapOpen = ref(false)
     >
       <IconPlus :size="24" />
       <span class="text-sm word-wrap">Nowa mapa</span>
+    </button>
+    <button
+      :class="[
+        'flex flex-col items-center gap-2 px-3 py-1.5 rounded-md mb-1 cursor-pointer transition-colors hover:text-black/100 hover:bg-gray-100'
+      ]"
+      @click="store.importMapFromJSON"
+    >
+      <IconUpload :size="24" />
+      <span class="text-sm word-wrap">Importuj mapę </span>
     </button>
   </div>
 

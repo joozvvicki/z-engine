@@ -4,6 +4,7 @@ import { MapRenderer } from '@engine/MapRenderer'
 import { useEditorStore, type ZLayer } from '@ui/stores/editor'
 import { type FederatedPointerEvent } from 'pixi.js'
 import { IconAlertTriangle } from '@tabler/icons-vue'
+import EventEditor from './modal/EventEditor.vue'
 
 const viewportContainer = ref<HTMLElement | null>(null)
 const isPointerDown = ref(false)
@@ -12,6 +13,15 @@ let renderer: MapRenderer | null = null
 const store = useEditorStore()
 
 const activeMap = computed(() => store.maps.find((m) => m.id === store.activeMapID))
+
+const activeEventCoords = ref<{ x: number; y: number } | null>(null)
+const activeEventId = ref<string | null>(null)
+
+const handleClose = (): void => {
+  activeEventCoords.value = null
+  activeEventId.value = null
+  renderer?.renderMapFromStore(activeMap.value!)
+}
 
 /**
  * Odświeża kafelki autotile wokół podanych współrzędnych
@@ -86,8 +96,13 @@ const handleInteraction = (event: FederatedPointerEvent, isCommit = false): void
 
   // 3. NARZĘDZIE: EVENT (Kliknięcie stawia zdarzenie)
   if (tool === 'event' && isCommit) {
-    console.log(`[Z Engine] Opening Event Editor at ${target.x}, ${target.y}`)
-    // store.openEventEditor(target.x, target.y)
+    const target = renderer.getTileCoordsFromEvent(event)
+    if (!target) return
+
+    const existing = activeMap.value?.events?.find((e) => e.x === target.x && e.y === target.y)
+
+    activeEventCoords.value = { x: target.x, y: target.y }
+    activeEventId.value = existing?.id || null
     return
   }
 
@@ -158,7 +173,7 @@ const onPointerMove = (event: FederatedPointerEvent): void => {
     }
     // Podgląd standardowy (duch kafelka / gumka)
     else {
-      renderer.updateGhost(target.x, target.y, store.selection, tool === 'eraser')
+      renderer.updateGhost(target.x, target.y, store.selection, tool)
       if (isPointerDown.value && (tool === 'brush' || tool === 'eraser')) {
         handleInteraction(event)
       }
@@ -259,6 +274,14 @@ const handleKeyDown = (e: KeyboardEvent): void => {
       <span>LAYER: {{ store.activeLayer.toUpperCase() }}</span>
       <span>POS: {{ store.selection?.x }}, {{ store.selection?.y }}</span>
     </div>
+
+    <EventEditor
+      v-if="activeEventCoords"
+      :event-id="activeEventId"
+      :x="activeEventCoords.x"
+      :y="activeEventCoords.y"
+      @close="handleClose"
+    />
   </div>
 </template>
 

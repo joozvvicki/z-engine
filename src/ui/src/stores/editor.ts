@@ -22,6 +22,15 @@ export interface TileSelection {
   isWall?: boolean
 }
 
+export interface ZEvent {
+  id: string
+  name: string
+  x: number
+  y: number
+  graphic: TileSelection | null // Grafika z tilesetu lub puste
+  pages: any[] // Tu w przyszłości trafi logika
+}
+
 export interface ZMap {
   id: number
   name: string
@@ -35,6 +44,7 @@ export interface ZMap {
       index: number
     }
   >
+  events: ZEvent[]
 }
 
 export enum ZTool {
@@ -227,6 +237,26 @@ export const useEditorStore = defineStore('editor', () => {
     document.body.removeChild(link)
   }
 
+  const importMapFromJSON = async (): Promise<void> => {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = 'application/json'
+    input.style.display = 'hidden'
+
+    document.body.appendChild(input)
+    input.click()
+
+    const json = await input?.files?.[0]?.text()
+
+    if (json?.length) {
+      const importedMap = JSON.parse(json)
+
+      storedMaps.value.push({
+        ...importedMap
+      })
+    }
+  }
+
   const createMap = (name: string, width: number, height: number): void => {
     const createEmptyGrid = (w: number, h: number): (TileSelection | null)[][] =>
       Array.from({ length: h }, () => Array(w).fill(null))
@@ -243,7 +273,8 @@ export const useEditorStore = defineStore('editor', () => {
         events: { index: 3, icon: 'box', data: createEmptyGrid(width, height) },
         trees: { index: 4, icon: 'tree', data: createEmptyGrid(width, height) },
         roofs: { index: 5, icon: 'home', data: createEmptyGrid(width, height) }
-      }
+      },
+      events: []
     }
 
     storedMaps.value.push(newMap)
@@ -256,6 +287,29 @@ export const useEditorStore = defineStore('editor', () => {
       historyIndex.value = 0
     }
   })
+
+  const addEvent = (x: number, y: number, eventData: Partial<ZEvent>): void => {
+    const activeMap = storedMaps.value.find((m) => m.id === activeMapID.value)
+    if (!activeMap) return
+
+    const newEvent: ZEvent = {
+      id: `event_${Date.now()}`,
+      name: eventData.name || `EV${activeMap.events.length + 1}`,
+      x,
+      y,
+      graphic: eventData.graphic || null,
+      pages: []
+    }
+
+    activeMap.events.push(newEvent)
+  }
+
+  const updateEvent = (eventId: string, updates: Partial<ZEvent>): void => {
+    const activeMap = storedMaps.value.find((m) => m.id === activeMapID.value)
+    if (!activeMap) return
+    const ev = activeMap.events.find((e) => e.id === eventId)
+    if (ev) Object.assign(ev, updates)
+  }
 
   return {
     // State
@@ -283,6 +337,9 @@ export const useEditorStore = defineStore('editor', () => {
     setActiveMap,
     saveProject,
     exportMapAsJSON,
-    createMap
+    importMapFromJSON,
+    createMap,
+    addEvent,
+    updateEvent
   }
 })

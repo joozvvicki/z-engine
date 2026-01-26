@@ -5,7 +5,11 @@ import {
   IconEraser,
   IconBucketDroplet,
   IconRectangle,
-  IconCircle
+  IconCircle,
+  IconArrowBackUp,
+  IconArrowForwardUp,
+  IconDownload,
+  IconBox
 } from '@tabler/icons-vue'
 import DynamicIcon from './DynamicIcon.vue'
 import { computed, onMounted } from 'vue'
@@ -17,7 +21,19 @@ const tools = [
   { tool: ZTool.bucket, icon: IconBucketDroplet, tooltip: 'Wypełniacz (Ctrl + 2)' },
   { tool: ZTool.rectangle, icon: IconRectangle, tooltip: 'Prostokąt (Ctrl + 3)' },
   { tool: ZTool.circle, icon: IconCircle, tooltip: 'Okrąg (Ctrl + 4)' },
-  { tool: ZTool.eraser, icon: IconEraser, tooltip: 'Gumka (Ctrl + 5)', isCritical: true }
+  { tool: ZTool.event, icon: IconBox, tooltip: 'Zdarzenie (Ctrl + 5)' },
+  { tool: ZTool.eraser, icon: IconEraser, tooltip: 'Gumka (Ctrl + 6)', isCritical: true }
+]
+
+const actions = [
+  { name: 'Undo', icon: IconArrowBackUp, shortcut: 'Ctrl + Z', action: () => store.undo() },
+  { name: 'Redo', icon: IconArrowForwardUp, shortcut: 'Ctrl + Y', action: () => store.redo() },
+  {
+    name: 'export',
+    icon: IconDownload,
+    shortcut: 'Ctrl + D',
+    action: () => store.exportMapAsJSON()
+  }
 ]
 
 const activeMap = computed(() => store.maps.find((map) => map.id === store.activeMapID))
@@ -26,6 +42,9 @@ onMounted(() => {
   const handleKeydown = (e: KeyboardEvent): void => {
     if (e.ctrlKey || e.metaKey) {
       switch (e.key) {
+        case 'D':
+          store.exportMapAsJSON()
+          break
         case 'ArrowUp':
           const currentLayerID = activeMap.value?.layers[store.activeLayer]
             ? store.activeLayer
@@ -63,6 +82,10 @@ onMounted(() => {
           e.preventDefault()
           break
         case '5':
+          store.setTool(ZTool.event)
+          e.preventDefault()
+          break
+        case '6':
           store.setTool(ZTool.eraser)
           e.preventDefault()
           break
@@ -115,7 +138,6 @@ const sortedLayers = computed(() => {
       <button
         v-for="[key, data] in sortedLayers"
         :key="key"
-        :value="key"
         class="p-1 rounded-lg transition-all duration-200 cursor-pointer"
         :class="
           store.activeLayer === key
@@ -125,6 +147,18 @@ const sortedLayers = computed(() => {
         @click="store.setLayer(key as ZLayer)"
       >
         <DynamicIcon :icon="data.icon" :tooltip="key.charAt(0).toUpperCase() + key.slice(1)" />
+      </button>
+    </div>
+
+    <div class="flex flex-col gap-1 bg-black/10 rounded-xl border border-white/5">
+      <button
+        v-for="action in actions"
+        :key="action.name"
+        class="p-1 rounded-lg transition-all duration-200 cursor-pointer"
+        :class="'bg-transparent text-gray-400 hover:text-black'"
+        @click="action.action"
+      >
+        <component :is="action.icon" />
       </button>
     </div>
   </div>

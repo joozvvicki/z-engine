@@ -64,13 +64,13 @@ export class MapRenderer {
   }
 
   private setupScene(): void {
+    this.drawGrid()
     this.mapContainer.addChild(
       ...Object.values(this.layers).sort((a, b) => a.zIndex - b.zIndex),
       this.ghostContainer,
       this.gridGraphics
     )
     this.app.stage.addChild(this.mapContainer)
-    this.drawGrid()
   }
 
   public async loadTileset(id: string, url: string): Promise<void> {
@@ -326,13 +326,13 @@ export class MapRenderer {
       this.gridGraphics
         .moveTo(x * this.tileSize, 0)
         .lineTo(x * this.tileSize, this.mapHeight * this.tileSize)
-        .stroke({ width: 1, color: 0x000000, alpha: 0.2 })
+        .stroke({ width: 1, color: 0x000000, alpha: 0.05 })
     }
     for (let y = 0; y <= this.mapHeight; y++) {
       this.gridGraphics
         .moveTo(0, y * this.tileSize)
         .lineTo(this.mapWidth * this.tileSize, y * this.tileSize)
-        .stroke({ width: 1, color: 0x000000, alpha: 0.2 })
+        .stroke({ width: 1, color: 0x000000, alpha: 0.05 })
     }
   }
 
@@ -380,7 +380,7 @@ export class MapRenderer {
   }
   // --- Wewnątrz MapRenderer.ts ---
 
-  public updateGhost(tx: number, ty: number, sel: TileSelection, eraser: boolean): void {
+  public updateGhost(tx: number, ty: number, sel: TileSelection, special?: ZTool): void {
     this.ghostContainer.removeChildren()
     this.ghostContainer.visible = true
 
@@ -388,11 +388,17 @@ export class MapRenderer {
     this.ghostContainer.x = tx * this.tileSize
     this.ghostContainer.y = ty * this.tileSize
 
-    if (eraser) {
+    if (special === ZTool.eraser) {
       const g = new PIXI.Graphics()
         .rect(0, 0, this.tileSize, this.tileSize)
         .fill({ color: 0xff0000, alpha: 0.3 })
         .stroke({ width: 1, color: 0xff0000, alpha: 0.5 })
+      this.ghostContainer.addChild(g)
+    } else if (special === ZTool.event) {
+      const g = new PIXI.Graphics()
+        .rect(0, 0, this.tileSize, this.tileSize)
+        .fill({ color: 0x0000ff, alpha: 0.3 })
+        .stroke({ width: 1, color: 0x0000ff, alpha: 0.5 })
       this.ghostContainer.addChild(g)
     } else {
       const t = this.tilesetTextures.get(sel.tilesetId)
