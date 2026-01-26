@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import type { TileSelection, ZLayer, ZMap } from '@ui/stores/editor'
 import * as PIXI from 'pixi.js'
 import 'pixi.js/unsafe-eval'
@@ -97,6 +98,39 @@ export class MapRenderer {
     // 2. MATRYCA WSPÓŁRZĘDNYCH (Pixel-Perfect RM MV Map)
     // Każda ćwiartka ma 5 stanów połączeń.
 
+    if (sel.tilesetId === 'A3') {
+      /**
+       * A3 to blok 2x2 kafelki (4x4 sub-tiles).
+       * Każda ćwiartka sprawdza tylko sąsiada poziomego i pionowego.
+       */
+      let ox = 0
+      let oy = 0
+
+      // Logika X: krawędź zewnętrzna jest na zewnątrz bloku 2x2
+      if (qx === 0) {
+        // Lewa ćwiartka
+        ox = hasH ? 24 : 0
+      } else {
+        // Prawa ćwiartka
+        ox = hasH ? 24 : 48 + 24 // RM A3: Prawa krawędź jest w 4. kolumnie sub-tiles
+      }
+
+      // Logika Y: krawędź górna/dolna
+      if (qy === 0) {
+        // Górna ćwiartka
+        oy = hasV ? 24 : 0
+      } else {
+        // Dolna ćwiartka
+        oy = hasV ? 48 + 24 : 24 // RM A3: Dolna krawędź jest niżej w bloku
+      }
+
+      // Dla uproszczenia zastosujmy precyzyjne mapowanie współrzędnych:
+      if (qx === 0 && qy === 0) return { x: hasH ? 24 : 0, y: hasV ? 24 : 0 }
+      if (qx === 1 && qy === 0) return { x: hasH ? 48 : 72, y: hasV ? 24 : 0 }
+      if (qx === 0 && qy === 1) return { x: hasH ? 24 : 0, y: hasV ? 48 : 72 }
+      if (qx === 1 && qy === 1) return { x: hasH ? 48 : 72, y: hasV ? 48 : 72 }
+    }
+
     // --- TOP-LEFT (qx: 0, qy: 0) ---
     if (qx === 0 && qy === 0) {
       if (!hasH && !hasV) return { x: 0, y: 48 } // Narożnik zewnętrzny
@@ -153,30 +187,25 @@ export class MapRenderer {
     if (!tex) return
 
     const container = new PIXI.Container()
+    const isAutotile = selection.isAutotile
+    const tsId = selection.tilesetId
 
     // Obsługa autotile dla A1 i A2
-    if (selection.isAutotile && (selection.tilesetId === 'A1' || selection.tilesetId === 'A2')) {
-      const isA1 = selection.tilesetId === 'A1'
+    if (isAutotile && ['A1', 'A2', 'A3'].includes(tsId)) {
+      const isA1 = tsId === 'A1'
       let frameCount = 1
 
       if (isA1) {
         const blockXIndex = Math.floor(selection.x / 2)
-        // Logika klatek dla A1 (Twoja poprzednia sekcja)
         if (blockXIndex !== 3) frameCount = 3
-        // Wodospady (index 7) pomijamy w tej pętli quadrantów, jeśli mają inną logikę
       }
 
-      // Rysujemy 4 ćwiartki (sub-tiles 24x24)
       for (let qy = 0; qy < 2; qy++) {
         for (let qx = 0; qx < 2; qx++) {
           const offset = this.getQuadrantOffset(x, y, qx, qy, selection, layer)
           const textures: PIXI.Texture[] = []
 
           for (let i = 0; i < frameCount; i++) {
-            /**
-             * frameX dla A1: selection.x * 48 + i * 96 + offset.x
-             * frameX dla A2: selection.x * 48 + offset.x (brak skoku animacji)
-             */
             const animOffset = isA1 ? i * 96 : 0
             const frameX = selection.x * 48 + animOffset + offset.x
             const frameY = selection.y * 48 + offset.y
@@ -299,7 +328,7 @@ export class MapRenderer {
           .fill({ color: 0xff0000, alpha: 0.3 })
           .stroke({ width: 1, color: 0xff0000, alpha: 0.5 })
       )
-    } else if (sel.isAutotile && ['A1', 'A2'].includes(sel.tilesetId)) {
+    } else if (sel.isAutotile && ['A1', 'A2', 'A3'].includes(sel.tilesetId)) {
       const t = this.tilesetTextures.get(sel.tilesetId)
       if (t) {
         const s = new PIXI.Sprite(

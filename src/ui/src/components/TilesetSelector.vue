@@ -33,6 +33,19 @@ const handleMouseDown = (e: MouseEvent): void => {
       tilesetId: activeTab.value,
       isAutotile: true
     })
+  } else if (activeTab.value === 'A3') {
+    // Snapping do bloków 2x2
+    const snapX = Math.floor(tx / 2) * 2
+    const snapY = Math.floor(ty / 2) * 2
+
+    store.setSelection({
+      x: snapX,
+      y: snapY,
+      w: 2,
+      h: 2,
+      tilesetId: 'A3',
+      isAutotile: true
+    })
   } else {
     // Normalna logika dla B, C, D...
     startPos.value = { x: tx, y: ty }
