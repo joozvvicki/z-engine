@@ -3,6 +3,7 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { MapRenderer } from '@engine/MapRenderer'
 import { useEditorStore, type ZLayer } from '@ui/stores/editor'
 import { type FederatedPointerEvent } from 'pixi.js'
+import { IconAlertTriangle } from '@tabler/icons-vue'
 
 const viewportContainer = ref<HTMLElement | null>(null)
 const isPointerDown = ref(false)
@@ -235,6 +236,18 @@ const handleKeyDown = (e: KeyboardEvent): void => {
     class="w-full h-full overflow-hidden relative outline-none"
     tabindex="0"
   >
+    <div v-if="!activeMap">
+      <div
+        class="absolute inset-0 flex flex-col items-center justify-center text-black pointer-events-none select-none"
+      >
+        <IconAlertTriangle class="w-12 h-12 mb-4" />
+        <p class="text-lg font-bold mb-2">No map selected</p>
+        <p class="text-center px-4">
+          Please create or select a map from the map list to start editing.
+        </p>
+      </div>
+    </div>
+
     <div
       class="absolute bottom-4 right-4 pointer-events-none !text-black text-[10px] text-white/20 font-mono flex flex-col items-end z-10"
     >

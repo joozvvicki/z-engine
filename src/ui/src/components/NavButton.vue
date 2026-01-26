@@ -14,7 +14,7 @@ defineProps<{
       class="rounded-md focus:bg-white/10 hover:bg-white/10 duration-300 hover:cursor-pointer px-2 py-2 text-slate-600 hover:text-slate-300"
       :aria-label="tooltip"
       :class="{
-        'bg-white/10 !text-black': $route.path === path
+        '!bg-black/10 !text-black': $route.path === path
       }"
       @click="$router.push({ path })"
     >
