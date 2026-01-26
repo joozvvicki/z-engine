@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useEditorStore, ZTool } from '@ui/stores/editor'
+import { useEditorStore, ZLayer, ZTool } from '@ui/stores/editor'
 import {
   IconPencil,
   IconEraser,
@@ -8,19 +8,75 @@ import {
   IconCircle
 } from '@tabler/icons-vue'
 import DynamicIcon from './DynamicIcon.vue'
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 
 const store = useEditorStore()
 
 const tools = [
-  { tool: ZTool.brush, icon: IconPencil, tooltip: 'Pędzel (1)' },
-  { tool: ZTool.bucket, icon: IconBucketDroplet, tooltip: 'Wypełniacz (2)' },
-  { tool: ZTool.rectangle, icon: IconRectangle, tooltip: 'Prostokąt (3)' },
-  { tool: ZTool.circle, icon: IconCircle, tooltip: 'Okrąg (4)' },
-  { tool: ZTool.eraser, icon: IconEraser, tooltip: 'Gumka (5)', isCritical: true }
+  { tool: ZTool.brush, icon: IconPencil, tooltip: 'Pędzel (Ctrl + 1)' },
+  { tool: ZTool.bucket, icon: IconBucketDroplet, tooltip: 'Wypełniacz (Ctrl + 2)' },
+  { tool: ZTool.rectangle, icon: IconRectangle, tooltip: 'Prostokąt (Ctrl + 3)' },
+  { tool: ZTool.circle, icon: IconCircle, tooltip: 'Okrąg (Ctrl + 4)' },
+  { tool: ZTool.eraser, icon: IconEraser, tooltip: 'Gumka (Ctrl + 5)', isCritical: true }
 ]
 
 const activeMap = computed(() => store.maps.find((map) => map.id === store.activeMapID))
+
+onMounted(() => {
+  const handleKeydown = (e: KeyboardEvent): void => {
+    if (e.ctrlKey || e.metaKey) {
+      switch (e.key) {
+        case 'ArrowUp':
+          const currentLayerID = activeMap.value?.layers[store.activeLayer]
+            ? store.activeLayer
+            : null
+          if (!currentLayerID) return
+          const layerKeys = Object.keys(activeMap.value!.layers)
+          const currentIndex = layerKeys.indexOf(currentLayerID)
+          const nextIndex = (currentIndex + 1) % layerKeys.length
+          store.setLayer(layerKeys[nextIndex] as ZLayer)
+          e.preventDefault()
+          break
+        case 'ArrowDown':
+          const currLayerID = activeMap.value?.layers[store.activeLayer] ? store.activeLayer : null
+          if (!currLayerID) return
+          const lKeys = Object.keys(activeMap.value!.layers)
+          const currIndex = lKeys.indexOf(currLayerID)
+          const prevIndex = (currIndex - 1 + lKeys.length) % lKeys.length
+          store.setLayer(lKeys[prevIndex] as ZLayer)
+          e.preventDefault()
+          break
+        case '1':
+          store.setTool(ZTool.brush)
+          e.preventDefault()
+          break
+        case '2':
+          store.setTool(ZTool.bucket)
+          e.preventDefault()
+          break
+        case '3':
+          store.setTool(ZTool.rectangle)
+          e.preventDefault()
+          break
+        case '4':
+          store.setTool(ZTool.circle)
+          e.preventDefault()
+          break
+        case '5':
+          store.setTool(ZTool.eraser)
+          e.preventDefault()
+          break
+      }
+    }
+  }
+
+  window.addEventListener('keydown', handleKeydown)
+})
+
+const sortedLayers = computed(() => {
+  if (!activeMap.value) return []
+  return Object.entries(activeMap.value.layers).sort((a, b) => b[1].index - a[1].index)
+})
 </script>
 
 <template>
@@ -52,20 +108,23 @@ const activeMap = computed(() => store.maps.find((map) => map.id === store.activ
       </button>
     </div>
 
-    <div v-if="activeMap" class="flex flex-col gap-1 bg-black/10 rounded-xl border border-white/5">
+    <div
+      v-if="sortedLayers.length"
+      class="flex flex-col gap-1 bg-black/10 rounded-xl border border-white/5"
+    >
       <button
-        v-for="(layer, id) in activeMap.layers"
-        :key="id"
-        :value="id"
+        v-for="[key, data] in sortedLayers"
+        :key="key"
+        :value="key"
         class="p-1 rounded-lg transition-all duration-200 cursor-pointer"
         :class="
-          store.activeLayer === id
+          store.activeLayer === key
             ? 'bg-black shadow-[0_0_10px_rgba(0,0,0,0.4)]'
             : 'bg-transparent text-gray-400 hover:text-black'
         "
-        @click="store.setLayer(id)"
+        @click="store.setLayer(key as ZLayer)"
       >
-        <DynamicIcon :icon="layer.icon" :tooltip="id.charAt(0).toUpperCase() + id.slice(1)" />
+        <DynamicIcon :icon="data.icon" :tooltip="key.charAt(0).toUpperCase() + key.slice(1)" />
       </button>
     </div>
   </div>

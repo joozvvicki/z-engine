@@ -227,7 +227,7 @@ const selectionStyle = computed(() => {
 </script>
 
 <template>
-  <div class="flex flex-col h-full border-l border-white/5 select-none rounded-xl overflow-hidden">
+  <div class="flex flex-col h-full border-l border-white/5 select-none rounded-xl">
     <div class="flex-1 overflow-auto relative scrollbar-thin">
       <div
         v-if="isProcessing"
@@ -267,13 +267,17 @@ const selectionStyle = computed(() => {
     </div>
 
     <div
-      class="flex m-1 gap-1 border-b border-white/5 bg-black/10 text-white rounded-xl border border-white/5 overflow-hidden"
+      class="flex m-1 gap-1 border-b border-white/5 bg-black/10 text-white rounded-xl border border-white/5"
     >
       <button
         v-for="tab in ['A', 'B', 'C', 'D']"
         :key="tab"
-        :class="store.activeTab === tab ? 'bg-black text-white' : 'text-gray-400 hover:bg-white/10'"
-        class="flex-1 py-1.5 text-[10px] font-bold rounded uppercase transition-colors cursor-pointer"
+        :class="
+          store.activeTab === tab
+            ? 'bg-black text-white shadow-[0_0_10px_rgba(0,0,0,0.3)]'
+            : 'text-gray-400 hover:bg-white/10'
+        "
+        class="flex-1 py-1.5 text-[10px] font-bold rounded uppercase transition-colors cursor-pointer rounded-xl"
         @click="store.activeTab = tab"
       >
         {{ tab }}

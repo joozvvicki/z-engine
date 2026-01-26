@@ -227,6 +227,29 @@ export const useEditorStore = defineStore('editor', () => {
     document.body.removeChild(link)
   }
 
+  const createMap = (name: string, width: number, height: number): void => {
+    const createEmptyGrid = (w: number, h: number): (TileSelection | null)[][] =>
+      Array.from({ length: h }, () => Array(w).fill(null))
+
+    const newMap: ZMap = {
+      id: storedMaps.value.length > 0 ? Math.max(...storedMaps.value.map((m) => m.id)) + 1 : 1,
+      name,
+      width,
+      height,
+      layers: {
+        ground: { index: 0, icon: 'background', data: createEmptyGrid(width, height) },
+        walls: { index: 1, icon: 'wall', data: createEmptyGrid(width, height) },
+        decoration: { index: 2, icon: 'cactus', data: createEmptyGrid(width, height) },
+        events: { index: 3, icon: 'box', data: createEmptyGrid(width, height) },
+        trees: { index: 4, icon: 'tree', data: createEmptyGrid(width, height) },
+        roofs: { index: 5, icon: 'home', data: createEmptyGrid(width, height) }
+      }
+    }
+
+    storedMaps.value.push(newMap)
+    activeMapID.value = newMap.id
+  }
+
   nextTick(() => {
     if (history.value.length === 0) {
       history.value.push(JSON.stringify(storedMaps))
@@ -259,6 +282,7 @@ export const useEditorStore = defineStore('editor', () => {
     setSelection,
     setActiveMap,
     saveProject,
-    exportMapAsJSON
+    exportMapAsJSON,
+    createMap
   }
 })

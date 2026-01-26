@@ -13,9 +13,6 @@ import TilesetSelector from '@ui/components/TilesetSelector.vue'
       </div>
 
       <div class="h-1/3 border-t border-white/5 flex flex-col min-h-0">
-        <div class="px-4 py-2 text-xs font-semibold uppercase tracking-widest text-slate-500">
-          Projekt
-        </div>
         <MapTree />
       </div>
     </aside>

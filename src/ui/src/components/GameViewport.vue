@@ -186,6 +186,8 @@ const initRenderer = async (): Promise<void> => {
   if (renderer) renderer.destroy()
 
   renderer = new MapRenderer(store.tileSize, activeMap.value.width, activeMap.value.height)
+  viewportContainer.value.style.width = `${activeMap.value.width * store.tileSize}px`
+  viewportContainer.value.style.height = `${activeMap.value.height * store.tileSize}px`
   await renderer.init(viewportContainer.value)
   await Promise.all(store.tilesets.map((ts) => renderer!.loadTileset(ts.id, ts.url)))
 
@@ -232,8 +234,7 @@ const handleKeyDown = (e: KeyboardEvent): void => {
 
 <template>
   <div
-    ref="viewportContainer"
-    class="w-full h-full overflow-hidden relative outline-none"
+    class="w-full h-full overflow-hidden relative outline-none flex items-center justify-center"
     tabindex="0"
   >
     <div v-if="!activeMap">
@@ -247,6 +248,8 @@ const handleKeyDown = (e: KeyboardEvent): void => {
         </p>
       </div>
     </div>
+
+    <div v-else ref="viewportContainer" class="border border-black border-box"></div>
 
     <div
       class="absolute bottom-4 right-4 pointer-events-none !text-black text-[10px] text-white/20 font-mono flex flex-col items-end z-10"

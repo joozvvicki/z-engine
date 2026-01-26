@@ -1,31 +1,43 @@
 <script setup lang="ts">
-import { IconMap } from '@tabler/icons-vue'
+import { IconMap, IconPlus } from '@tabler/icons-vue'
 import { useEditorStore } from '@ui/stores/editor'
+import NewMap from './modal/NewMap.vue'
+import { ref } from 'vue'
 
 const store = useEditorStore()
+
+const isNewMapOpen = ref(false)
 </script>
 
 <template>
-  <div class="flex-1 overflow-y-auto px-2 pb-2">
+  <div class="overflow-y-auto p-2 grid grid-cols-4 gap-2">
     <div
       v-for="map in store.maps"
       :key="map.id"
       :class="[
-        'flex items-center gap-2 px-3 py-1.5 rounded-md mb-1 cursor-pointer transition-colors',
+        'flex flex-col items-center gap-2 px-3 py-1.5 rounded-md mb-1 cursor-pointer transition-colors ',
         map.id === store.activeMapID
-          ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30'
-          : 'hover:bg-white/5'
+          ? 'bg-black text-white hover:bg-black/100 hover:text-white shadow-[0_0_10px_rgba(0,0,0,0.3)]'
+          : 'hover:text-black/100 hover:bg-gray-100'
       ]"
       @click="store.setActiveMap(map.id)"
     >
-      <IconMap :size="16" />
+      <IconMap :size="24" />
       <span class="text-sm truncate">{{ map.name }}</span>
+      <div class="flex justify-between items-center w-full">
+        <span class="text-sm truncate text-center w-full">{{ map.width }} x {{ map.height }}</span>
+      </div>
     </div>
-
     <button
-      class="w-full mt-2 py-2 border border-dashed border-white/10 rounded-md text-xs hover:border-white/30 transition-all"
+      :class="[
+        'flex flex-col items-center gap-2 px-3 py-1.5 rounded-md mb-1 cursor-pointer transition-colors hover:text-black/100 hover:bg-gray-100'
+      ]"
+      @click="isNewMapOpen = true"
     >
-      + Nowa Mapa
+      <IconPlus :size="24" />
+      <span class="text-sm word-wrap">Nowa mapa</span>
     </button>
   </div>
+
+  <NewMap :is-open="isNewMapOpen" @close="isNewMapOpen = false" />
 </template>
