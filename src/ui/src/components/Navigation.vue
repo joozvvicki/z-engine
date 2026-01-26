@@ -47,18 +47,20 @@ const options = [
 const settings = [
   {
     icon: IconSettings,
-    label: 'Settings'
+    label: 'Settings',
+    path: '/settings'
   },
   {
     icon: IconLogout,
-    label: 'Logout'
+    label: 'Logout',
+    path: '/logout'
   }
 ]
 </script>
 
 <template>
   <div
-    class="w-16 h-full bg-white backdrop-blur-2xl flex flex-col items-center border-r border-gray-200 py-2"
+    class="w-16 relative z-1000 h-full bg-white backdrop-blur-2xl flex flex-col items-center border-r border-gray-200 py-2"
   >
     <div class="mb-3 text-pink-400 bg-pink-100 px-3 py-2 rounded-md">Z</div>
 
@@ -68,6 +70,7 @@ const settings = [
         :key="option.label"
         :icon="option.icon"
         :tooltip="option.label"
+        :path="option.path"
       />
     </nav>
 
@@ -77,6 +80,7 @@ const settings = [
         :key="setting.label"
         :icon="setting.icon"
         :tooltip="setting.label"
+        :path="setting.path"
       />
     </div>
   </div>

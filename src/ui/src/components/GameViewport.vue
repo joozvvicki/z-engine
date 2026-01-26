@@ -3,7 +3,6 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { MapRenderer } from '@engine/MapRenderer'
 import { useEditorStore, type ZLayer } from '@ui/stores/editor'
 import { type FederatedPointerEvent } from 'pixi.js'
-import EditorBar from './EditorBar.vue'
 
 const viewportContainer = ref<HTMLElement | null>(null)
 const isPointerDown = ref(false)
@@ -236,10 +235,8 @@ const handleKeyDown = (e: KeyboardEvent): void => {
     class="w-full h-full overflow-hidden relative outline-none"
     tabindex="0"
   >
-    <EditorBar />
-
     <div
-      class="absolute bottom-4 right-4 pointer-events-none text-black text-[10px] text-white/20 font-mono flex flex-col items-end z-10"
+      class="absolute bottom-4 right-4 pointer-events-none !text-black text-[10px] text-white/20 font-mono flex flex-col items-end z-10"
     >
       <span class="font-bold italic">Z ENGINE CORE</span>
       <span>TOOL: {{ store.currentTool.toUpperCase() }}</span>

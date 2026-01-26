@@ -1,7 +1,6 @@
 import { defineStore } from 'pinia'
-import { computed, nextTick, reactive, ref, watch } from 'vue'
+import { computed, nextTick, ref } from 'vue'
 
-// Importy obrazków (bez zmian)
 import imgA1 from '@ui/assets/img/tilesets/World_A1.png'
 import imgA2 from '@ui/assets/img/tilesets/World_A2.png'
 import imgA3 from '@ui/assets/img/tilesets/World_A3.png'
@@ -10,16 +9,8 @@ import imgB from '@ui/assets/img/tilesets/World_B.png'
 import imgC from '@ui/assets/img/tilesets/World_C.png'
 import imgD from '@ui/assets/img/tilesets/World_D.png'
 import roofs from '@ui/assets/img/tilesets/Roofs.png'
+
 import { useLocalStorage } from '@vueuse/core'
-import {
-  Icon,
-  IconBackground,
-  IconBox,
-  IconCactus,
-  IconHome,
-  IconTree,
-  IconWall
-} from '@tabler/icons-vue'
 
 export interface TileSelection {
   x: number
@@ -31,39 +22,51 @@ export interface TileSelection {
   isWall?: boolean
 }
 
-// Typ mapy - teraz zawiera warstwy!
 export interface ZMap {
   id: number
   name: string
   width: number
   height: number
-  // Kluczowa zmiana: dane są teraz podzielone na warstwy
   layers: Record<
     ZLayer,
     {
-      icon: Icon
+      icon: string
       data: (TileSelection | null)[][]
       index: number
     }
   >
 }
 
-export type ZTool = 'brush' | 'eraser' | 'bucket' | 'event' | 'circle' | 'rectangle'
-export type ZLayer = 'ground' | 'walls' | 'decoration' | 'trees' | 'events' | 'roofs'
+export enum ZTool {
+  brush = 'brush',
+  eraser = 'eraser',
+  bucket = 'bucket',
+  event = 'event',
+  circle = 'circle',
+  rectangle = 'rectangle'
+}
+
+export enum ZLayer {
+  ground = 'ground',
+  walls = 'walls',
+  decoration = 'decoration',
+  trees = 'trees',
+  events = 'events',
+  roofs = 'roofs'
+}
 
 export const useEditorStore = defineStore('editor', () => {
-  // --- STATE ---
-  const activeTab = useLocalStorage('z_engine_active_tileset_tab', 'A')
-  const activeMapID = ref<number | null>(1)
+  const activeTab = useLocalStorage('Z_ActiveTab', 'A')
+  const activeMapID = useLocalStorage<number | null>('Z_ActiveMapID', 1)
   const tileSize = ref(48)
-  const activeLayer = ref<ZLayer>('ground')
-  const currentTool = ref<ZTool>('brush')
+  const activeLayer = useLocalStorage<ZLayer>('ZLayer', ZLayer.ground)
+  const currentTool = useLocalStorage<ZTool>('ZTool', ZTool.brush)
 
   const history = ref<string[]>([])
   const historyIndex = ref(-1)
   const MAX_HISTORY = 50
 
-  const selection = useLocalStorage<TileSelection>('z_engine_current_selection', {
+  const selection = useLocalStorage<TileSelection>('Z_Location', {
     x: 0,
     y: 0,
     w: 1,
@@ -72,7 +75,6 @@ export const useEditorStore = defineStore('editor', () => {
     isAutotile: false
   })
 
-  // Definicja dostępnych tilesetów
   const tilesets = [
     { id: 'A1', url: imgA1 },
     { id: 'A2', url: imgA2 },
@@ -84,17 +86,7 @@ export const useEditorStore = defineStore('editor', () => {
     { id: 'Roofs', url: roofs }
   ]
 
-  // Próbujemy wczytać z localStorage przy starcie, jeśli nie ma - używamy domyślnych
-  const storedMaps = localStorage.getItem('z_engine_maps')
-  const defaultMaps: ZMap[] = [
-    { id: 1, name: 'Starting Forest', width: 20, height: 16, layers: createEmptyLayers(20, 16) },
-    { id: 2, name: 'Tavern "Z"', width: 20, height: 10, layers: createEmptyLayers(20, 10) },
-    { id: 3, name: 'Dungeons Lvl 1', width: 26, height: 16, layers: createEmptyLayers(26, 16) }
-  ]
-
-  const maps = reactive<ZMap[]>(storedMaps ? JSON.parse(storedMaps) : defaultMaps)
-
-  // --- ACTIONS ---
+  const storedMaps = useLocalStorage<ZMap[]>('Z_Maps', [])
 
   function setLayer(layer: ZLayer): void {
     activeLayer.value = layer
@@ -119,17 +111,17 @@ export const useEditorStore = defineStore('editor', () => {
   function createEmptyLayers(
     width: number,
     height: number
-  ): Record<ZLayer, { data: (TileSelection | null)[][]; index: number; icon: Icon }> {
+  ): Record<ZLayer, { data: (TileSelection | null)[][]; index: number; icon: string }> {
     const createGrid = (): (TileSelection | null)[][] =>
       Array.from({ length: height }, () => Array(width).fill(null))
 
     return {
-      ground: { data: createGrid(), index: 0, icon: IconBackground },
-      walls: { data: createGrid(), index: 1, icon: IconWall },
-      decoration: { data: createGrid(), index: 2, icon: IconCactus },
-      events: { data: createGrid(), index: 3, icon: IconBox },
-      trees: { data: createGrid(), index: 4, icon: IconTree },
-      roofs: { data: createGrid(), index: 5, icon: IconHome }
+      ground: { data: createGrid(), index: 0, icon: 'background' },
+      walls: { data: createGrid(), index: 1, icon: 'wall' },
+      decoration: { data: createGrid(), index: 2, icon: 'cactus' },
+      events: { data: createGrid(), index: 3, icon: 'box' },
+      trees: { data: createGrid(), index: 4, icon: 'tree' },
+      roofs: { data: createGrid(), index: 5, icon: 'home' }
     }
   }
 
@@ -137,7 +129,7 @@ export const useEditorStore = defineStore('editor', () => {
    * Resetuje lub inicjalizuje mapę o zadanych wymiarach
    */
   function initMap(width: number, height: number): void {
-    const map = maps.find((m) => m.id === activeMapID.value)
+    const map = storedMaps.value.find((m) => m.id === activeMapID.value)
     if (!map) return
 
     map.width = width
@@ -155,7 +147,7 @@ export const useEditorStore = defineStore('editor', () => {
     }
 
     // Add current state
-    history.value.push(JSON.stringify(maps))
+    history.value.push(JSON.stringify(storedMaps.value))
 
     // Limit history size
     if (history.value.length > MAX_HISTORY) {
@@ -173,7 +165,7 @@ export const useEditorStore = defineStore('editor', () => {
 
     // Object.assign doesn't work well for deep nested arrays in reactive objects,
     // so we replace the contents of the reactive array.
-    maps.splice(0, maps.length, ...previousState)
+    storedMaps.value.splice(0, storedMaps.value.length, ...previousState)
     saveProject()
   }
 
@@ -183,7 +175,7 @@ export const useEditorStore = defineStore('editor', () => {
     historyIndex.value++
     const nextState = JSON.parse(history.value[historyIndex.value])
 
-    maps.splice(0, maps.length, ...nextState)
+    storedMaps.value.splice(0, storedMaps.value.length, ...nextState)
     saveProject()
   }
 
@@ -191,7 +183,7 @@ export const useEditorStore = defineStore('editor', () => {
    * Główna funkcja edycji - zapisuje kafelek w konkretnej warstwie
    */
   function setTileAt(x: number, y: number, tile: TileSelection | null): void {
-    const map = maps.find((m) => m.id === activeMapID.value)
+    const map = storedMaps.value.find((m) => m.id === activeMapID.value)
     if (!map) return
 
     // Sprawdź czy mieścimy się w mapie
@@ -209,7 +201,7 @@ export const useEditorStore = defineStore('editor', () => {
    */
   function saveProject(): void {
     try {
-      localStorage.setItem('z_engine_maps', JSON.stringify(maps))
+      localStorage.setItem('Z_Maps', JSON.stringify(storedMaps.value))
       console.log(' [Z Engine] Project Autosaved.')
     } catch (e) {
       console.error('Save failed (quota exceeded?)', e)
@@ -220,7 +212,7 @@ export const useEditorStore = defineStore('editor', () => {
    * Pobiera plik JSON z aktualną mapą (do wrzucenia do gry)
    */
   function exportMapAsJSON(): void {
-    const map = maps.find((m) => m.id === activeMapID.value)
+    const map = storedMaps.value.find((m) => m.id === activeMapID.value)
     if (!map) return
 
     const dataStr = JSON.stringify(map, null, 2)
@@ -235,17 +227,9 @@ export const useEditorStore = defineStore('editor', () => {
     document.body.removeChild(link)
   }
 
-  watch(
-    maps,
-    () => {
-      // saveProject() // Odkomentuj jeśli chcesz save przy każdej zmianie (może być kosztowne przy dużych mapach)
-    },
-    { deep: true }
-  )
-
   nextTick(() => {
     if (history.value.length === 0) {
-      history.value.push(JSON.stringify(maps))
+      history.value.push(JSON.stringify(storedMaps))
       historyIndex.value = 0
     }
   })
@@ -254,7 +238,7 @@ export const useEditorStore = defineStore('editor', () => {
     // State
     activeTab,
     activeMapID,
-    maps,
+    maps: storedMaps,
     tilesets,
     tileSize,
     selection,

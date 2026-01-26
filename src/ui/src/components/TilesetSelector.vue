@@ -268,11 +268,11 @@ const selectionStyle = computed(() => {
         <div
           v-if="selectionStyle"
           :style="selectionStyle"
-          class="absolute border-2 border-yellow-400 z-10 mix-blend-difference shadow-lg"
+          class="absolute border-2 border-yellow-400 z-10 shadow-lg"
         >
           <div
             v-if="store.activeTab === 'A'"
-            class="absolute -top-4 left-[-2px] bg-yellow-400 text-[8px] text-black px-1 font-bold"
+            class="absolute top-0 left-[-2px] bg-yellow-400 text-[8px] text-black px-1 font-bold"
           >
             AUTO
           </div>
@@ -288,8 +288,8 @@ const selectionStyle = computed(() => {
 }
 .grid-bg {
   background-image:
-    linear-gradient(to right, #fff 1px, transparent 1px),
-    linear-gradient(to bottom, #fff 1px, transparent 1px);
+    linear-gradient(to right, #000 1px, transparent 1px),
+    linear-gradient(to bottom, #000 1px, transparent 1px);
   background-size: 48px 48px;
 }
 .shadow-selection {

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import EditorBar from '@ui/components/EditorBar.vue'
 import GameViewport from '@ui/components/GameViewport.vue'
 import MapTree from '@ui/components/MapTree.vue'
 import TilesetSelector from '@ui/components/TilesetSelector.vue'
@@ -20,7 +21,9 @@ import TilesetSelector from '@ui/components/TilesetSelector.vue'
     </aside>
 
     <main class="flex-1 relative">
-      <div class="absolute inset-0 flex items-center justify-center">
+      <div class="absolute inset-0 flex gap-1">
+        <EditorBar />
+
         <GameViewport />
       </div>
     </main>

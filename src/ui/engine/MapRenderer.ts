@@ -1,4 +1,4 @@
-import type { TileSelection, ZLayer, ZMap, ZTool } from '@ui/stores/editor'
+import { TileSelection, ZLayer, ZMap, ZTool } from '@ui/stores/editor'
 import * as PIXI from 'pixi.js'
 import 'pixi.js/unsafe-eval'
 
@@ -30,21 +30,21 @@ export class MapRenderer {
     this.gridGraphics = new PIXI.Graphics()
 
     this.layers = {
-      ground: new PIXI.Container(),
-      walls: new PIXI.Container(),
-      decoration: new PIXI.Container(),
-      events: new PIXI.Container(),
-      trees: new PIXI.Container(),
-      roofs: new PIXI.Container()
+      [ZLayer.ground]: new PIXI.Container(),
+      [ZLayer.walls]: new PIXI.Container(),
+      [ZLayer.decoration]: new PIXI.Container(),
+      [ZLayer.events]: new PIXI.Container(),
+      [ZLayer.trees]: new PIXI.Container(),
+      [ZLayer.roofs]: new PIXI.Container()
     }
 
     this.tileSprites = {
-      ground: this.createEmptyArray(),
-      walls: this.createEmptyArray(),
-      decoration: this.createEmptyArray(),
-      events: this.createEmptyArray(),
-      trees: this.createEmptyArray(),
-      roofs: this.createEmptyArray()
+      [ZLayer.ground]: this.createEmptyArray(),
+      [ZLayer.walls]: this.createEmptyArray(),
+      [ZLayer.decoration]: this.createEmptyArray(),
+      [ZLayer.events]: this.createEmptyArray(),
+      [ZLayer.trees]: this.createEmptyArray(),
+      [ZLayer.roofs]: this.createEmptyArray()
     }
   }
 
@@ -281,7 +281,14 @@ export class MapRenderer {
       this.tileSprites[key as ZLayer] = this.createEmptyArray()
     })
 
-    const layersOrder: ZLayer[] = ['ground', 'walls', 'trees', 'decoration', 'events', 'roofs']
+    const layersOrder: ZLayer[] = [
+      ZLayer.ground,
+      ZLayer.walls,
+      ZLayer.decoration,
+      ZLayer.events,
+      ZLayer.trees,
+      ZLayer.roofs
+    ]
     layersOrder.forEach((layer) => {
       const grid = mapData.layers[layer].data
       for (let y = 0; y < mapData.height; y++) {
