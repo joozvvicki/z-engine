@@ -1,6 +1,12 @@
 <script setup lang="ts">
 import { useEditorStore } from '@ui/stores/editor'
-import { IconPencil, IconEraser, IconBucketDroplet } from '@tabler/icons-vue'
+import {
+  IconPencil,
+  IconEraser,
+  IconBucketDroplet,
+  IconRectangle,
+  IconCircle
+} from '@tabler/icons-vue'
 
 const store = useEditorStore()
 </script>
@@ -31,6 +37,30 @@ const store = useEditorStore()
         @click="store.setTool('bucket')"
       >
         <IconBucketDroplet :size="18" />
+      </button>
+      <button
+        :class="
+          store.currentTool === 'rectangle'
+            ? 'bg-blue-600 shadow-[0_0_10px_rgba(37,99,235,0.4)]'
+            : 'bg-transparent text-slate-500 hover:text-slate-200'
+        "
+        class="p-2 rounded-lg transition-all duration-200 cursor-pointer"
+        title="Pędzel (B)"
+        @click="store.setTool('rectangle')"
+      >
+        <IconRectangle :size="18" />
+      </button>
+      <button
+        :class="
+          store.currentTool === 'circle'
+            ? 'bg-blue-600 shadow-[0_0_10px_rgba(37,99,235,0.4)]'
+            : 'bg-transparent text-slate-500 hover:text-slate-200'
+        "
+        class="p-2 rounded-lg transition-all duration-200 cursor-pointer"
+        title="Pędzel (B)"
+        @click="store.setTool('circle')"
+      >
+        <IconCircle :size="18" />
       </button>
       <button
         :class="

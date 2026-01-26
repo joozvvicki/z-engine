@@ -1,4 +1,4 @@
-import type { TileSelection, ZLayer, ZMap } from '@ui/stores/editor'
+import type { TileSelection, ZLayer, ZMap, ZTool } from '@ui/stores/editor'
 import * as PIXI from 'pixi.js'
 import 'pixi.js/unsafe-eval'
 
@@ -309,39 +309,6 @@ export class MapRenderer {
     }
   }
 
-  public updateGhost(tx: number, ty: number, sel: TileSelection, eraser: boolean): void {
-    this.ghostContainer.removeChildren()
-    this.ghostContainer.x = tx * this.tileSize
-    this.ghostContainer.y = ty * this.tileSize
-
-    if (eraser) {
-      this.ghostContainer.addChild(
-        new PIXI.Graphics()
-          .rect(0, 0, this.tileSize, this.tileSize)
-          .fill({ color: 0xff0000, alpha: 0.3 })
-          .stroke({ width: 1, color: 0xff0000, alpha: 0.5 })
-      )
-    } else {
-      const t = this.tilesetTextures.get(sel.tilesetId)
-      if (t) {
-        const s = new PIXI.Sprite(
-          new PIXI.Texture({
-            source: t.source,
-            frame: new PIXI.Rectangle(
-              sel.x * this.tileSize,
-              sel.y * this.tileSize,
-              !sel.isAutotile ? sel.w * this.tileSize : this.tileSize,
-              !sel.isAutotile ? sel.h * this.tileSize : this.tileSize
-            )
-          })
-        )
-        s.alpha = 0.5
-        this.ghostContainer.addChild(s)
-      }
-    }
-    this.ghostContainer.visible = true
-  }
-
   public hideGhost(): void {
     this.ghostContainer.visible = false
   }
@@ -361,6 +328,116 @@ export class MapRenderer {
         .lineTo(this.mapWidth * this.tileSize, y * this.tileSize)
         .stroke({ width: 1, color: 0x000000, alpha: 0.2 })
     }
+  }
+
+  // --- Wewnątrz MapRenderer.ts ---
+
+  // Pomocnicza funkcja do sprawdzania, czy dwa kafelki są identyczne
+  private tilesMatch(t1: TileSelection | null, t2: TileSelection | null): boolean {
+    if (!t1 && !t2) return true
+    if (!t1 || !t2) return false
+    return t1.tilesetId === t2.tilesetId && t1.x === t2.x && t1.y === t2.y
+  }
+
+  public floodFill(
+    startX: number,
+    startY: number,
+    newTile: TileSelection,
+    layer: ZLayer,
+    store: ReturnType<typeof import('@ui/stores/editor').useEditorStore>
+  ): void {
+    const grid = this.currentMapData?.layers[layer].data
+    if (!grid) return
+
+    const targetTile = grid[startY][startX]
+    if (targetTile && this.tilesMatch(targetTile, newTile)) return
+
+    const queue: [number, number][] = [[startX, startY]]
+    const visited = new Set<string>()
+
+    while (queue.length > 0) {
+      const [x, y] = queue.shift()!
+      const key = `${x},${y}`
+
+      if (x < 0 || x >= this.mapWidth || y < 0 || y >= this.mapHeight) continue
+      if (visited.has(key)) continue
+      if (!this.tilesMatch(grid[y][x], targetTile)) continue
+
+      visited.add(key)
+
+      // Aktualizacja renderer i store
+      this.drawTile(x, y, newTile, layer)
+      store.setTileAt(x, y, newTile)
+
+      queue.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1])
+    }
+  }
+  // --- Wewnątrz MapRenderer.ts ---
+
+  public updateGhost(tx: number, ty: number, sel: TileSelection, eraser: boolean): void {
+    this.ghostContainer.removeChildren()
+    this.ghostContainer.visible = true
+
+    // Ważne: Standardowy duszek przesuwa CAŁY kontener do kafelka
+    this.ghostContainer.x = tx * this.tileSize
+    this.ghostContainer.y = ty * this.tileSize
+
+    if (eraser) {
+      const g = new PIXI.Graphics()
+        .rect(0, 0, this.tileSize, this.tileSize)
+        .fill({ color: 0xff0000, alpha: 0.3 })
+        .stroke({ width: 1, color: 0xff0000, alpha: 0.5 })
+      this.ghostContainer.addChild(g)
+    } else {
+      const t = this.tilesetTextures.get(sel.tilesetId)
+      if (t) {
+        const s = new PIXI.Sprite(
+          new PIXI.Texture({
+            source: t.source,
+            frame: new PIXI.Rectangle(
+              sel.x * this.tileSize,
+              sel.y * this.tileSize,
+              !sel.isAutotile ? sel.w * this.tileSize : this.tileSize,
+              !sel.isAutotile ? sel.h * this.tileSize : this.tileSize
+            )
+          })
+        )
+        s.alpha = 0.5
+        this.ghostContainer.addChild(s)
+      }
+    }
+  }
+
+  public updateShapeGhost(
+    start: { x: number; y: number },
+    end: { x: number; y: number },
+    tool: ZTool
+  ): void {
+    this.ghostContainer.removeChildren()
+
+    // Ważne: Przy kształtach resetujemy X/Y kontenera, bo rysujemy
+    // Graphics na absolutnych współrzędnych mapy
+    this.ghostContainer.x = 0
+    this.ghostContainer.y = 0
+
+    const graphics = new PIXI.Graphics()
+
+    const x = Math.min(start.x, end.x) * this.tileSize
+    const y = Math.min(start.y, end.y) * this.tileSize
+    const w = (Math.abs(start.x - end.x) + 1) * this.tileSize
+    const h = (Math.abs(start.y - end.y) + 1) * this.tileSize
+
+    // Składnia PIXI v8: Rysujemy kształt, a potem nakładamy wypełnienie i obrys
+    if (tool === 'rectangle') {
+      graphics.rect(x, y, w, h)
+    } else if (tool === 'circle') {
+      graphics.ellipse(x + w / 2, y + h / 2, w / 2, h / 2)
+    }
+
+    graphics.fill({ color: 0x00ff00, alpha: 0.2 }).stroke({ width: 2, color: 0x00ff00, alpha: 0.6 })
+
+    this.ghostContainer.addChild(graphics)
+    this.ghostContainer.visible = true
   }
 
   private createEmptyArray(): (PIXI.Sprite | null)[][] {

@@ -1,3 +1,4 @@
+<!-- eslint-disable @typescript-eslint/no-explicit-any -->
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useEditorStore } from '@ui/stores/editor'
