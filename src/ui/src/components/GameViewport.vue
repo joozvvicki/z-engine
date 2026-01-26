@@ -23,19 +23,6 @@ const handleInteraction = (event: FederatedPointerEvent): void => {
     if (store.selection.isAutotile) {
       renderer.drawTile(target.x, target.y, store.selection, store.activeLayer)
       store.setTileAt(target.x, target.y, store.selection)
-
-      for (let dy = -1; dy <= 1; dy++) {
-        for (let dx = -1; dx <= 1; dx++) {
-          const nx = target.x + dx
-          const ny = target.y + dy
-
-          const neighborTile = activeMap.value?.layers[store.activeLayer][ny]?.[nx]
-
-          if (neighborTile) {
-            renderer.drawTile(nx, ny, neighborTile, store.activeLayer)
-          }
-        }
-      }
     } else {
       for (let ox = 0; ox < store.selection.w; ox++) {
         for (let oy = 0; oy < store.selection.h; oy++) {
@@ -51,14 +38,21 @@ const handleInteraction = (event: FederatedPointerEvent): void => {
         }
       }
     }
-  }
-  // --- LOGIKA GUMKI (ERASER) ---
-  else if (store.currentTool === 'eraser') {
+  } else if (store.currentTool === 'eraser') {
     renderer.clearSelection(target.x, target.y, store.selection, store.activeLayer)
 
-    for (let ox = 0; ox < store.selection.w; ox++) {
-      for (let oy = 0; oy < store.selection.h; oy++) {
-        store.setTileAt(target.x + ox, target.y + oy, null)
+    store.setTileAt(target.x, target.y, null)
+  }
+
+  for (let dy = -1; dy <= 1; dy++) {
+    for (let dx = -1; dx <= 1; dx++) {
+      const nx = target.x + dx
+      const ny = target.y + dy
+
+      const neighborTile = activeMap.value?.layers[store.activeLayer][ny]?.[nx]
+
+      if (neighborTile) {
+        renderer.drawTile(nx, ny, neighborTile, store.activeLayer)
       }
     }
   }

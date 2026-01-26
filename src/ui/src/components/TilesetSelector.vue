@@ -7,7 +7,7 @@ const activeTab = ref<'A1' | 'A2' | 'A3' | 'A4' | 'B' | 'C' | 'D' | 'Roofs'>('A1
 
 const SELECTION_GRID = 48
 
-const isA1 = computed(() => activeTab.value === 'A1')
+const isAutotile = computed(() => ['A1', 'A2'].includes(activeTab.value))
 
 const currentTilesetUrl = computed(() => {
   const ts = store.tilesets.find((t) => t.id === activeTab.value)
@@ -24,9 +24,7 @@ const handleMouseDown = (e: MouseEvent): void => {
 
   isSelecting.value = true
 
-  if (activeTab.value === 'A1') {
-    // Logika A1: Klikasz w kwadrat 48x48
-    // Ale silnik dostaje info: "To jest autotile, weź dane z obszaru 2x3 (sub-tiles)"
+  if (['A1', 'A2'].includes(activeTab.value)) {
     store.setSelection({
       x: tx, // Pozycja klikniętego kwadratu
       y: ty,
@@ -50,7 +48,7 @@ const handleMouseDown = (e: MouseEvent): void => {
 }
 
 const handleMouseMove = (e: MouseEvent): void => {
-  if (!isSelecting.value || isA1.value) return
+  if (!isSelecting.value || isAutotile.value) return
 
   const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
   const tx = Math.floor((e.clientX - rect.left) / SELECTION_GRID)

@@ -65,6 +65,7 @@ export const useEditorStore = defineStore('editor', () => {
     { id: 'Roofs', url: roofs }
   ]
 
+  // Próbujemy wczytać z localStorage przy starcie, jeśli nie ma - używamy domyślnych
   const storedMaps = localStorage.getItem('z_engine_maps')
   const defaultMaps: ZMap[] = [
     { id: 1, name: 'Starting Forest', width: 20, height: 16, layers: createEmptyLayers(20, 16) },

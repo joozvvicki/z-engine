@@ -77,6 +77,7 @@ export class MapRenderer {
       console.error(`Failed to load tileset ${id}`, e)
     }
   }
+
   private getQuadrantOffset(
     x: number,
     y: number,
@@ -98,16 +99,16 @@ export class MapRenderer {
 
     // --- TOP-LEFT (qx: 0, qy: 0) ---
     if (qx === 0 && qy === 0) {
-      if (!hasH && !hasV) return { x: 0, y: 0 } // Narożnik zewnętrzny
+      if (!hasH && !hasV) return { x: 0, y: 48 } // Narożnik zewnętrzny
       if (hasH && !hasV) return { x: 48, y: 48 } // Krawędź pozioma
       if (!hasH && hasV) return { x: 0, y: 96 } // Krawędź pionowa
       if (hasH && hasV && !hasD) return { x: 48, y: 0 } // Narożnik wewnętrzny
-      return { x: 48, y: 72 } // Środek (Fill)
+      return { x: 24, y: 72 } // Środek (Fill)
     }
 
     // --- TOP-RIGHT (qx: 1, qy: 0) ---
     if (qx === 1 && qy === 0) {
-      if (!hasH && !hasV) return { x: 24, y: 0 } // Narożnik zewnętrzny
+      if (!hasH && !hasV) return { x: 72, y: 48 } // Narożnik zewnętrzny
       if (hasH && !hasV) return { x: 24, y: 48 } // Krawędź pozioma
       if (!hasH && hasV) return { x: 72, y: 96 } // Krawędź pionowa
       if (hasH && hasV && !hasD) return { x: 72, y: 0 } // Narożnik wewnętrzny
@@ -120,16 +121,16 @@ export class MapRenderer {
       if (hasH && !hasV) return { x: 48, y: 120 } // Krawędź pozioma
       if (!hasH && hasV) return { x: 0, y: 72 } // Krawędź pionowa
       if (hasH && hasV && !hasD) return { x: 48, y: 24 } // Narożnik wewnętrzny
-      return { x: 48, y: 72 } // Środek (Fill) - Specyfika A1
+      return { x: 24, y: 96 } // Środek (Fill) - Specyfika A1
     }
 
     // --- BOTTOM-RIGHT (qx: 1, qy: 1) ---
     if (qx === 1 && qy === 1) {
-      if (!hasH && !hasV) return { x: 24, y: 24 } // Narożnik zewnętrzny
+      if (!hasH && !hasV) return { x: 72, y: 120 } // Narożnik zewnętrzny
       if (hasH && !hasV) return { x: 24, y: 120 } // Krawędź pozioma
       if (!hasH && hasV) return { x: 72, y: 72 } // Krawędź pionowa
       if (hasH && hasV && !hasD) return { x: 72, y: 24 } // Narożnik wewnętrzny
-      return { x: 48, y: 72 } // Środek (Fill)
+      return { x: 48, y: 96 } // Środek (Fill)
     }
 
     return { x: 48, y: 72 }
@@ -143,35 +144,44 @@ export class MapRenderer {
     // Sprawdzamy czy to ten sam tileset i ten sam bazowy kafelek (id)
     return tile !== null && tile.tilesetId === sel.tilesetId && tile.x === sel.x && tile.y === sel.y
   }
-
+  // --- Wewnątrz klasy MapRenderer ---
   public drawTile(x: number, y: number, selection: TileSelection, layer: ZLayer): void {
-    if (x < 0 || x >= this.mapWidth || y < 0 || y >= this.mapHeight) return
     if (x < 0 || x >= this.mapWidth || y < 0 || y >= this.mapHeight) return
     this.clearTileAt(x, y, layer)
 
     const tex = this.tilesetTextures.get(selection.tilesetId)
     if (!tex) return
 
-    let container = new PIXI.Container()
+    const container = new PIXI.Container()
 
-    if (selection.isAutotile && selection.tilesetId === 'A1') {
-      // Rysujemy 4 ćwiartki niezależnie
+    // Obsługa autotile dla A1 i A2
+    if (selection.isAutotile && (selection.tilesetId === 'A1' || selection.tilesetId === 'A2')) {
+      const isA1 = selection.tilesetId === 'A1'
+      let frameCount = 1
+
+      if (isA1) {
+        const blockXIndex = Math.floor(selection.x / 2)
+        // Logika klatek dla A1 (Twoja poprzednia sekcja)
+        if (blockXIndex !== 3) frameCount = 3
+        // Wodospady (index 7) pomijamy w tej pętli quadrantów, jeśli mają inną logikę
+      }
+
+      // Rysujemy 4 ćwiartki (sub-tiles 24x24)
       for (let qy = 0; qy < 2; qy++) {
         for (let qx = 0; qx < 2; qx++) {
           const offset = this.getQuadrantOffset(x, y, qx, qy, selection, layer)
-          const frames: PIXI.Texture[] = []
+          const textures: PIXI.Texture[] = []
 
-          for (let i = 0; i < 3; i++) {
+          for (let i = 0; i < frameCount; i++) {
             /**
-             * frameX logic:
-             * selection.x * 48 -> Start bloku w tilesecie
-             * i * 96 -> Skok do kolejnej klatki animacji (blok 2x3 ma 96px szerokości)
-             * offset.x -> Precyzyjny sub-tile 24px wyliczony przez getQuadrantOffset
+             * frameX dla A1: selection.x * 48 + i * 96 + offset.x
+             * frameX dla A2: selection.x * 48 + offset.x (brak skoku animacji)
              */
-            const frameX = selection.x * 48 + i * 96 + offset.x
+            const animOffset = isA1 ? i * 96 : 0
+            const frameX = selection.x * 48 + animOffset + offset.x
             const frameY = selection.y * 48 + offset.y
 
-            frames.push(
+            textures.push(
               new PIXI.Texture({
                 source: tex.source,
                 frame: new PIXI.Rectangle(frameX, frameY, 24, 24)
@@ -179,26 +189,30 @@ export class MapRenderer {
             )
           }
 
-          const anim = new PIXI.AnimatedSprite(frames)
-          anim.x = qx * 24 // Pozycja wewnątrz kafelka 48x48
-          anim.y = qy * 24
-          anim.animationSpeed = 0.15
-          anim.play()
-          container.addChild(anim)
+          if (textures.length > 1) {
+            const anim = new PIXI.AnimatedSprite(textures)
+            anim.x = qx * 24
+            anim.y = qy * 24
+            anim.animationSpeed = 0.15
+            anim.play()
+            container.addChild(anim)
+          } else {
+            const sprite = new PIXI.Sprite(textures[0])
+            sprite.x = qx * 24
+            sprite.y = qy * 24
+            container.addChild(sprite)
+          }
         }
       }
     } else {
-      container = new PIXI.Sprite(
+      // Statyczne kafelki (B, C, D...)
+      const sprite = new PIXI.Sprite(
         new PIXI.Texture({
           source: tex.source,
-          frame: new PIXI.Rectangle(
-            selection.x * this.tileSize,
-            selection.y * this.tileSize,
-            this.tileSize,
-            this.tileSize
-          )
+          frame: new PIXI.Rectangle(selection.x * 48, selection.y * 48, 48, 48)
         })
       )
+      container.addChild(sprite)
     }
 
     container.x = x * this.tileSize
@@ -281,11 +295,11 @@ export class MapRenderer {
     if (eraser) {
       this.ghostContainer.addChild(
         new PIXI.Graphics()
-          .rect(0, 0, sel.w * this.tileSize, sel.h * this.tileSize)
+          .rect(0, 0, this.tileSize, this.tileSize)
           .fill({ color: 0xff0000, alpha: 0.3 })
           .stroke({ width: 1, color: 0xff0000, alpha: 0.5 })
       )
-    } else if (sel.isAutotile && sel.tilesetId === 'A1') {
+    } else if (sel.isAutotile && ['A1', 'A2'].includes(sel.tilesetId)) {
       const t = this.tilesetTextures.get(sel.tilesetId)
       if (t) {
         const s = new PIXI.Sprite(
