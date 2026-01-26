@@ -105,9 +105,8 @@ export class MapRenderer {
     // 2. ROZPOZNANIE TYPU AUTOTILE
     // W A4 rzędy o wysokości 2 i 4 to ŚCIANY. Rzędy o wysokości 3 to SUFITY.
     const isA3 = sel.tilesetId === 'A3'
-    const isA4Wall = sel.tilesetId === 'A4' && (sel.h === 2 || sel.h === 4)
+    const isA4Wall = sel.tilesetId === 'A4' && (sel.y === 3 || sel.y === 8 || sel.y === 13)
 
-    // --- LOGIKA DLA ŚCIAN (A3 oraz rzędy 2x2 / 2x4 w A4) ---
     if (isA3 || isA4Wall) {
       if (qx === 0 && qy === 0)
         return { x: hasH ? this.tileSize / 2 : 0, y: hasV ? this.tileSize / 2 : 0 }
