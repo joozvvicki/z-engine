@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { computed, nextTick, reactive, ref } from 'vue'
+import { computed, nextTick, ref } from 'vue'
 
 import imgA1 from '@ui/assets/img/tilesets/World_A1.png'
 import imgA2 from '@ui/assets/img/tilesets/World_A2.png'
@@ -40,7 +40,7 @@ export interface ZMap {
     ZLayer,
     {
       icon: string
-      data: (TileSelection | null)[][]
+      data: (TileSelection[] | null)[][]
       index: number
     }
   >
@@ -102,6 +102,8 @@ export const useEditorStore = defineStore('editor', () => {
 
   const storedMaps = useLocalStorage<ZMap[]>('Z_Maps', [])
 
+  const activeMap = computed(() => storedMaps.value.find((m) => m.id === activeMapID.value))
+
   function setLayer(layer: ZLayer): void {
     activeLayer.value = layer
   }
@@ -141,8 +143,8 @@ export const useEditorStore = defineStore('editor', () => {
   function createEmptyLayers(
     width: number,
     height: number
-  ): Record<ZLayer, { data: (TileSelection | null)[][]; index: number; icon: string }> {
-    const createGrid = (): (TileSelection | null)[][] =>
+  ): Record<ZLayer, { data: (TileSelection[] | null)[][]; index: number; icon: string }> {
+    const createGrid = (): (TileSelection[] | null)[][] =>
       Array.from({ length: height }, () => Array(width).fill(null))
 
     return {
@@ -212,17 +214,26 @@ export const useEditorStore = defineStore('editor', () => {
   /**
    * Główna funkcja edycji - zapisuje kafelek w konkretnej warstwie
    */
-  function setTileAt(x: number, y: number, tile: TileSelection | null): void {
+  function setTileAt(x: number, y: number, tile: TileSelection | null, stack = false): void {
     const map = storedMaps.value.find((m) => m.id === activeMapID.value)
-    if (!map) return
+    if (!map || x < 0 || x >= map.width || y < 0 || y >= map.height) return
 
-    // Sprawdź czy mieścimy się w mapie
-    if (x < 0 || x >= map.width || y < 0 || y >= map.height) return
+    const currentCell = map.layers[activeLayer.value].data[y][x]
 
-    // Zapisz na AKTYWNEJ warstwie
-    map.layers[activeLayer.value].data[y][x] = tile
+    if (tile === null) {
+      map.layers[activeLayer.value].data[y][x] = null // Gumka czyści wszystko
+    } else {
+      if (stack && currentCell) {
+        // Dodaj nowy kafelek na górę stosu, jeśli nie jest identyczny
+        const isDuplicate = currentCell.some(
+          (t) => t.x === tile.x && t.y === tile.y && t.tilesetId === tile.tilesetId
+        )
+        if (!isDuplicate) currentCell.push(tile)
+      } else {
+        map.layers[activeLayer.value].data[y][x] = [tile]
+      }
+    }
 
-    // Opcjonalnie: Debounce save
     saveProject()
   }
 
@@ -331,8 +342,40 @@ export const useEditorStore = defineStore('editor', () => {
     if (ev) Object.assign(ev, updates)
   }
 
+  function pickTile(x: number, y: number): void {
+    if (!activeMap.value) return
+
+    // Pobieramy stos z aktualnej warstwy
+    const stack = activeMap.value.layers[activeLayer.value].data[y]?.[x]
+    if (!stack || stack.length === 0) return
+
+    // Wybieramy ostatni (górny) kafelek ze stosu
+    const topTile = stack[stack.length - 1]
+
+    // 1. Ustawiamy nową selekcję
+    selection.value = { ...topTile }
+
+    // 2. Automatyczna zmiana zakładki (Tab Switching)
+    // Logika mapowania TilesetID na Twoje zakładki w UI
+    const id = topTile.tilesetId
+    if (['A1', 'A2', 'A3', 'A4'].includes(id)) {
+      activeTab.value = 'A'
+    } else if (id === 'B') {
+      activeTab.value = 'B'
+    } else if (id === 'C') {
+      activeTab.value = 'C'
+    } else if (id === 'D') {
+      activeTab.value = 'D'
+    } else if (id === 'Roofs') {
+      activeTab.value = 'Roofs'
+    }
+
+    console.log(`[Z Engine] Picked tile: ${id} at ${topTile.x},${topTile.y}`)
+  }
+
   return {
     // State
+    activeMap,
     isTestMode,
     playerPos,
     spawnPos,
@@ -350,6 +393,7 @@ export const useEditorStore = defineStore('editor', () => {
 
     toggleTestMode,
     movePlayer,
+    pickTile,
 
     // Actions
     undo,

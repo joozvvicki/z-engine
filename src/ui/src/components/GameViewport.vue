@@ -1,67 +1,30 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { onMounted, onUnmounted, ref, watch } from 'vue'
 import { MapRenderer } from '@engine/MapRenderer'
-import { useEditorStore, type ZLayer } from '@ui/stores/editor'
+import { useEditorStore, ZLayer, ZTool } from '@ui/stores/editor'
 import { type FederatedPointerEvent } from 'pixi.js'
 import { IconAlertTriangle } from '@tabler/icons-vue'
 import EventEditor from './modal/EventEditor.vue'
 
+// --- REFS ---
 const viewportContainer = ref<HTMLElement | null>(null)
 const isPointerDown = ref(false)
 const shapeStartPos = ref<{ x: number; y: number } | null>(null)
 let renderer: MapRenderer | null = null
+
 const store = useEditorStore()
 
-const activeMap = computed(() => store.maps.find((m) => m.id === store.activeMapID))
-
+// --- STATE DLA EVENTÓW ---
 const activeEventCoords = ref<{ x: number; y: number } | null>(null)
 const activeEventId = ref<string | null>(null)
 
-const handleClose = (): void => {
-  activeEventCoords.value = null
-  activeEventId.value = null
-  renderer?.renderMapFromStore(activeMap.value!)
-}
+// --- LOGIKA INTERAKCJI ---
 
 /**
- * Odświeża kafelki autotile wokół podanych współrzędnych
- */
-const refreshAutotileNeighbors = (tx: number, ty: number, layer: ZLayer): void => {
-  if (!activeMap.value || !renderer) return
-  for (let dy = -1; dy <= 1; dy++) {
-    for (let dx = -1; dx <= 1; dx++) {
-      const nx = tx + dx
-      const ny = ty + dy
-      const neighbor = activeMap.value.layers[layer].data[ny]?.[nx]
-      if (neighbor) renderer.drawTile(nx, ny, neighbor, layer)
-    }
-  }
-}
-
-const handleGameInput = (e: KeyboardEvent): void => {
-  if (!store.isTestMode || !activeMap.value) return
-
-  const key = e.key.toLowerCase()
-  let dx = 0
-  let dy = 0
-
-  if (key === 'w') dy = -1
-  if (key === 's') dy = 1
-  if (key === 'a') dx = -1
-  if (key === 'd') dx = 1
-
-  if (dx !== 0 || dy !== 0) {
-    store.movePlayer(dx, dy, activeMap.value.width, activeMap.value.height)
-    renderer?.updatePlayerPosition(store.playerPos.x, store.playerPos.y)
-  }
-}
-
-/**
- * Główna logika interakcji z narzędziami
+ * Główna funkcja procesująca kliknięcia i ruchy myszy
  */
 const handleInteraction = (event: FederatedPointerEvent, isCommit = false): void => {
-  if (store.isTestMode) return
-  if (!renderer || !store.selection || !activeMap.value) return
+  if (store.isTestMode || !renderer || !store.selection || !store.activeMap) return
 
   const target = renderer.getTileCoordsFromEvent(event)
   if (!target) return
@@ -69,110 +32,77 @@ const handleInteraction = (event: FederatedPointerEvent, isCommit = false): void
   const tool = store.currentTool
   const layer = store.activeLayer
 
-  // 1. NARZĘDZIE: WIADRO (Flood Fill)
-  if (tool === 'bucket') {
-    // Implementacja floodFill musi być w MapRenderer, by mieć dostęp do gridu
-    if ('floodFill' in renderer) {
-      renderer.floodFill(target.x, target.y, store.selection, layer, store)
-    }
+  const isStacking = event.shiftKey
+
+  // 1. WIADRO (Flood Fill)
+  if (tool === ZTool.bucket) {
+    renderer.floodFill(target.x, target.y, store.selection, layer, store)
     return
   }
 
-  // 2. NARZĘDZIE: KSZTAŁTY (Prostokąt / Koło) - wykonanie tylko przy "Commit" (onPointerUp)
-  if ((tool === 'rectangle' || tool === 'circle') && isCommit && shapeStartPos.value) {
-    const start = shapeStartPos.value
-    const xMin = Math.min(start.x, target.x)
-    const xMax = Math.max(start.x, target.x)
-    const yMin = Math.min(start.y, target.y)
-    const yMax = Math.max(start.y, target.y)
-
-    for (let y = yMin; y <= yMax; y++) {
-      for (let x = xMin; x <= xMax; x++) {
-        let shouldDraw = true
-
-        if (tool === 'circle') {
-          const rx = (xMax - xMin) / 2
-          const ry = (yMax - yMin) / 2
-          const cx = xMin + rx
-          const cy = yMin + ry
-          const dx = x - cx
-          const dy = y - cy
-          // Algorytm elipsy
-          if ((dx * dx) / (rx * rx || 1) + (dy * dy) / (ry * ry || 1) > 1.1) shouldDraw = false
-        }
-
-        if (shouldDraw) {
-          const tileToPlace = { ...store.selection, w: 1, h: 1 }
-          renderer.drawTile(x, y, tileToPlace, layer)
-          store.setTileAt(x, y, tileToPlace)
-        }
-      }
-    }
-    // Po narysowaniu kształtu odświeżamy widok, by autotile się połączyły
-    renderer.renderMapFromStore(activeMap.value)
-    return
-  }
-
-  // 3. NARZĘDZIE: EVENT (Kliknięcie stawia zdarzenie)
-  if (tool === 'event' && isCommit) {
-    const target = renderer.getTileCoordsFromEvent(event)
-    if (!target) return
-
-    const existing = activeMap.value?.events?.find((e) => e.x === target.x && e.y === target.y)
-
+  // 2. NARZĘDZIE EVENTÓW
+  if (tool === ZTool.event && isCommit) {
+    const existing = store.activeMap.events?.find((e) => e.x === target.x && e.y === target.y)
     activeEventCoords.value = { x: target.x, y: target.y }
     activeEventId.value = existing?.id || null
     return
   }
 
-  // 4. NARZĘDZIE: PĘDZEL / GUMKA
-  if (tool === 'brush' || tool === 'eraser') {
-    const isEraser = tool === 'eraser'
+  // 3. PĘDZEL / GUMKAif (tool === ZTool.brush || tool === ZTool.eraser) {
+  const isEraser = tool === ZTool.eraser
+  const isAutotile = store.selection.isAutotile
 
-    if (store.selection.isAutotile && !isEraser) {
-      renderer.drawTile(target.x, target.y, store.selection, layer)
-      store.setTileAt(target.x, target.y, store.selection)
-    } else {
-      // Dla gumki lub statycznych kafelków (obsługa multi-select)
-      const w = isEraser ? 1 : store.selection.w
-      const h = isEraser ? 1 : store.selection.h
+  // FIX: Jeśli to autotile lub gumka, wymuszamy rozmiar 1x1
+  const w = isEraser || isAutotile ? 1 : store.selection.w
+  const h = isEraser || isAutotile ? 1 : store.selection.h
 
-      for (let ox = 0; ox < w; ox++) {
-        for (let oy = 0; oy < h; oy++) {
-          const nx = target.x + ox
-          const ny = target.y + oy
-          if (isEraser) {
-            renderer.clearTileAt(nx, ny, layer)
-            store.setTileAt(nx, ny, null)
-          } else {
-            const tile = {
-              ...store.selection,
-              x: store.selection.x + ox,
-              y: store.selection.y + oy,
-              w: 1,
-              h: 1
-            }
-            renderer.drawTile(nx, ny, tile, layer)
-            store.setTileAt(nx, ny, tile)
-          }
+  for (let ox = 0; ox < w; ox++) {
+    for (let oy = 0; oy < h; oy++) {
+      const nx = target.x + ox
+      const ny = target.y + oy
+
+      if (isEraser) {
+        store.setTileAt(nx, ny, null)
+        renderer.clearTileAt(nx, ny, layer)
+      } else {
+        const tile = {
+          ...store.selection,
+          // Jeśli to autotile, zawsze bierzemy bazowe x/y selekcji,
+          // nie przesuwamy ich o ox/oy
+          x: isAutotile ? store.selection.x : store.selection.x + ox,
+          y: isAutotile ? store.selection.y : store.selection.y + oy,
+          w: 1,
+          h: 1
         }
+        store.setTileAt(nx, ny, tile, isStacking)
+
+        const updatedStack = store.activeMap.layers[layer].data[ny]?.[nx]
+        if (updatedStack) renderer.drawTile(nx, ny, updatedStack, layer)
       }
+
+      // Odświeżamy sąsiadów dla każdego postawionego kafelka
+      refreshAutotileNeighbors(nx, ny, layer)
     }
-    // Zawsze odświeżamy sąsiadów dla pędzla/gumki (ważne dla autotili)
-    refreshAutotileNeighbors(target.x, target.y, layer)
   }
 }
 
+// --- PIXI EVENT HANDLERS ---
+
 const onPointerDown = (event: FederatedPointerEvent): void => {
-  if (event.button !== 0) return // Tylko LPM
-  isPointerDown.value = true
-
   const target = renderer?.getTileCoordsFromEvent(event)
-  if (target) shapeStartPos.value = target
+  if (!target) return
 
+  if (event.button !== 0) return
+
+  if (event.metaKey) {
+    store.pickTile(target.x, target.y)
+    return
+  }
+  isPointerDown.value = true
+  shapeStartPos.value = target
   store.recordHistory()
 
-  if (['brush', 'eraser', 'bucket'].includes(store.currentTool)) {
+  if ([ZTool.brush, ZTool.eraser, ZTool.bucket].includes(store.currentTool)) {
     handleInteraction(event)
   }
 }
@@ -184,16 +114,19 @@ const onPointerMove = (event: FederatedPointerEvent): void => {
   if (target && store.selection) {
     const tool = store.currentTool
 
-    // Podgląd dla kształtów
-    if (['rectangle', 'circle'].includes(tool) && isPointerDown.value && shapeStartPos.value) {
-      if ('updateShapeGhost' in renderer) {
-        renderer.updateShapeGhost(shapeStartPos.value, target, tool)
-      }
-    }
-    // Podgląd standardowy (duch kafelka / gumka)
-    else {
+    // Podgląd kształtów
+    if (
+      [ZTool.rectangle, ZTool.circle].includes(tool) &&
+      isPointerDown.value &&
+      shapeStartPos.value
+    ) {
+      renderer.updateShapeGhost(shapeStartPos.value, target, tool)
+    } else {
+      // Standardowy podgląd pędzla (Ghost)
       renderer.updateGhost(target.x, target.y, store.selection, tool)
-      if (isPointerDown.value && (tool === 'brush' || tool === 'eraser')) {
+
+      // Jeśli przycisk myszy jest wciśnięty - maluj (brush/eraser)
+      if (isPointerDown.value && (tool === ZTool.brush || tool === ZTool.eraser)) {
         handleInteraction(event)
       }
     }
@@ -204,8 +137,8 @@ const onPointerMove = (event: FederatedPointerEvent): void => {
 
 const onPointerUp = (event: FederatedPointerEvent): void => {
   if (isPointerDown.value) {
-    // Zatwierdzenie kształtów lub zdarzeń
-    if (['rectangle', 'circle', 'event'].includes(store.currentTool)) {
+    // Zatwierdzanie kształtów/eventów odbywa się przy puszczeniu myszy
+    if ([ZTool.rectangle, ZTool.circle, ZTool.event].includes(store.currentTool)) {
       handleInteraction(event, true)
     }
   }
@@ -213,57 +146,64 @@ const onPointerUp = (event: FederatedPointerEvent): void => {
   shapeStartPos.value = null
 }
 
-// --- Inicjalizacja i Watchery ---
+// --- HELPERY ---
+
+const refreshAutotileNeighbors = (tx: number, ty: number, layer: ZLayer): void => {
+  if (!store.activeMap || !renderer) return
+  // Odświeżamy pole i 8 pól wokół niego dla poprawnego łączenia krawędzi
+  for (let dy = -1; dy <= 1; dy++) {
+    for (let dx = -1; dx <= 1; dx++) {
+      const nx = tx + dx,
+        ny = ty + dy
+      const stack = store.activeMap.layers[layer].data[ny]?.[nx]
+      if (stack?.length) renderer.drawTile(nx, ny, stack, layer)
+    }
+  }
+}
+
+// --- LIFECYCLE & RENDERER INIT ---
 
 const initRenderer = async (): Promise<void> => {
-  if (!viewportContainer.value || !activeMap.value) return
+  if (!viewportContainer.value || !store.activeMap) return
   if (renderer) renderer.destroy()
 
-  renderer = new MapRenderer(store.tileSize, activeMap.value.width, activeMap.value.height)
-  viewportContainer.value.style.width = `${activeMap.value.width * store.tileSize}px`
-  viewportContainer.value.style.height = `${activeMap.value.height * store.tileSize}px`
+  renderer = new MapRenderer(store.tileSize, store.activeMap.width, store.activeMap.height)
+
+  // Ustawienie wymiarów kontenera pod mapę
+  viewportContainer.value.style.width = `${store.activeMap.width * store.tileSize}px`
+  viewportContainer.value.style.height = `${store.activeMap.height * store.tileSize}px`
+
   await renderer.init(viewportContainer.value)
+
+  // Ładowanie wszystkich tekstur z tilesetów zdefiniowanych w store
   await Promise.all(store.tilesets.map((ts) => renderer!.loadTileset(ts.id, ts.url)))
 
+  // Podpięcie eventów PIXI
   renderer.app.stage.on('pointerdown', onPointerDown)
   renderer.app.stage.on('pointermove', onPointerMove)
   renderer.app.stage.on('pointerup', onPointerUp)
   renderer.app.stage.on('pointerleave', () => renderer?.hideGhost())
 
-  renderer.renderMapFromStore(activeMap.value)
+  // Pierwsze pełne rysowanie mapy
+  renderer.renderMapFromStore(store.activeMap)
 }
 
+// Watchery dla reaktywnego UI
 watch(() => store.activeMapID, initRenderer)
-
-watch(
-  () => store.isTestMode,
-  (enabled) => {
-    if (!renderer) return
-    if (enabled) {
-      renderer.setupPlayer(store.playerPos)
-      renderer.hideGhost()
-    } else {
-      renderer.removePlayer()
-    }
-  }
-)
-
 watch(
   () => store.historyIndex,
   () => {
-    if (renderer && activeMap.value) renderer.renderMapFromStore(activeMap.value)
+    if (store.activeMap) renderer?.renderMapFromStore(store.activeMap)
   }
 )
 
 onMounted(async () => {
   window.addEventListener('keydown', handleKeyDown)
-  window.addEventListener('keydown', handleGameInput)
   await initRenderer()
 })
 
 onUnmounted(() => {
   window.removeEventListener('keydown', handleKeyDown)
-  window.removeEventListener('keydown', handleGameInput)
   renderer?.destroy()
 })
 
@@ -278,35 +218,36 @@ const handleKeyDown = (e: KeyboardEvent): void => {
     store.redo()
   }
 }
+
+const handleCloseEventEditor = (): void => {
+  activeEventCoords.value = null
+  activeEventId.value = null
+}
 </script>
 
 <template>
   <div
-    class="w-full h-full overflow-hidden relative outline-none flex items-center justify-center"
-    :class="{ 'bg-black/10': store.isTestMode }"
+    class="w-full h-full overflow-hidden relative bg-neutral-900 flex items-center justify-center"
     tabindex="0"
   >
-    <div v-if="!activeMap">
-      <div
-        class="absolute inset-0 flex flex-col items-center justify-center text-black pointer-events-none select-none"
-      >
-        <IconAlertTriangle class="w-12 h-12 mb-4" />
-        <p class="text-lg font-bold mb-2">No map selected</p>
-        <p class="text-center px-4">
-          Please create or select a map from the map list to start editing.
-        </p>
-      </div>
+    <div v-if="!store.activeMap" class="text-white/20 flex flex-col items-center select-none">
+      <IconAlertTriangle class="w-16 h-16 mb-4" />
+      <p class="text-xl font-bold">No Map Active</p>
     </div>
 
-    <div v-else ref="viewportContainer" class="border border-black border-box"></div>
+    <div
+      v-else
+      ref="viewportContainer"
+      class="shadow-2xl bg-white border border-black shadow-black/50"
+    ></div>
 
     <div
-      class="absolute bottom-4 right-4 pointer-events-none !text-black text-[10px] text-white/20 font-mono flex flex-col items-end z-10"
+      class="absolute bottom-6 right-6 pointer-events-none flex flex-col items-end font-mono text-[10px] text-white/40 tracking-widest uppercase"
     >
-      <span class="font-bold italic">Z ENGINE CORE</span>
-      <span>TOOL: {{ store.currentTool.toUpperCase() }}</span>
-      <span>LAYER: {{ store.activeLayer.toUpperCase() }}</span>
-      <span>POS: {{ store.selection?.x }}, {{ store.selection?.y }}</span>
+      <span class="text-white/60 font-black italic mb-1">Z-Engine Viewport v8</span>
+      <span>Layer: {{ store.activeLayer }}</span>
+      <span>Tool: {{ store.currentTool }}</span>
+      <span class="text-blue-400 mt-1">Hold SHIFT to stack tiles</span>
     </div>
 
     <EventEditor
@@ -314,14 +255,16 @@ const handleKeyDown = (e: KeyboardEvent): void => {
       :event-id="activeEventId"
       :x="activeEventCoords.x"
       :y="activeEventCoords.y"
-      @close="handleClose"
+      @close="handleCloseEventEditor"
     />
   </div>
 </template>
 
 <style scoped>
+/* Zapobiega scrollowaniu strony podczas interakcji z canvasem */
 canvas {
   touch-action: none;
   display: block;
+  image-rendering: pixelated;
 }
 </style>
