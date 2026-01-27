@@ -1,4 +1,5 @@
 import * as PIXI from 'pixi.js'
+import 'pixi.js/unsafe-eval'
 import { ZLayer, TileSelection, ZMap } from '@ui/stores/editor'
 import { TextureManager } from '../managers/TextureManager'
 import { AutotileSolver } from '@engine/utils/AutotileSolver'
@@ -140,7 +141,6 @@ export class MapRenderSystem {
 
     for (let qy = 0; qy < 2; qy++) {
       for (let qx = 0; qx < 2; qx++) {
-        // Użycie UTILS
         const offset = AutotileSolver.getQuadrantOffset(
           x,
           y,

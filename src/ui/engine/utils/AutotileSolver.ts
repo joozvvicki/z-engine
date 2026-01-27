@@ -51,12 +51,11 @@ export class AutotileSolver {
       if (qx === 1 && qy === 0)
         return { x: hasH ? tileSize : tileSize * 1.5, y: hasV ? tileSize / 2 : 0 }
       if (qx === 0 && qy === 1)
-        return { x: hasH ? tileSize / 2 : 0, y: !hasV ? tileSize * 1.5 : tileSize / 2 } // Fix na dole dla 48px to 24
+        return { x: hasH ? tileSize / 2 : 0, y: !hasV ? tileSize * 1.5 : tileSize / 2 }
       if (qx === 1 && qy === 1)
         return { x: hasH ? tileSize : tileSize * 1.5, y: !hasV ? tileSize * 1.5 : tileSize / 2 }
     }
 
-    // Standardowa logika RPG Maker (A1, A2, A4-Ground, A5)
     // TOP-LEFT
     if (qx === 0 && qy === 0) {
       if (!hasH && !hasV) return { x: 0, y: tileSize }

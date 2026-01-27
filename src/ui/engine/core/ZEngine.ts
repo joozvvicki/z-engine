@@ -1,4 +1,5 @@
 import * as PIXI from 'pixi.js'
+import 'pixi.js/unsafe-eval'
 import { TextureManager } from '../managers/TextureManager'
 import { MapRenderSystem } from '../systems/MapRenderSystem'
 import { GhostSystem } from '../systems/GhostSystem'
@@ -25,7 +26,7 @@ export class ZEngine {
 
     await this.app.init({
       resizeTo: container,
-      backgroundColor: 0x1e1e1e,
+      backgroundColor: 0xffffff,
       autoDensity: true,
       resolution: window.devicePixelRatio || 1,
       eventMode: 'static'
@@ -50,9 +51,10 @@ export class ZEngine {
     await this.textureManager.loadTileset(id, url)
   }
 
-  public renderMap(mapData: ZMap): void {
+  public renderMap(mapData: ZMap, isEventTool: boolean): void {
+    if (!this.mapSystem) return
     this.mapSystem.renderFullMap(mapData)
-    this.drawGrid(mapData.width, mapData.height)
+    this.drawGrid(mapData.width, mapData.height, isEventTool)
   }
 
   public drawTile(
@@ -94,13 +96,12 @@ export class ZEngine {
     }
   }
 
-  // Prosty Grid (można wydzielić do GridSystem)
-  private drawGrid(w: number, h: number): void {
+  private drawGrid(w: number, h: number, isEventTool: boolean): void {
     const g = this.gridGraphics
     g.clear()
     g.zIndex = 100
 
-    // Rysowanie...
+    if (!isEventTool) return
     for (let x = 0; x <= w; x++) {
       g.moveTo(x * this.tileSize, 0)
         .lineTo(x * this.tileSize, h * this.tileSize)

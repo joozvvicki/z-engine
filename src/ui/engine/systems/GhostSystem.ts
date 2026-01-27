@@ -1,4 +1,5 @@
 import * as PIXI from 'pixi.js'
+import 'pixi.js/unsafe-eval'
 import { TileSelection, ZTool } from '@ui/stores/editor'
 import { TextureManager } from '../managers/TextureManager'
 
@@ -17,7 +18,7 @@ export class GhostSystem {
     this.tileSize = tileSize
   }
 
-  public update(x: number, y: number, sel: TileSelection, tool: ZTool) {
+  public update(x: number, y: number, sel: TileSelection, tool: ZTool): void {
     this.container.removeChildren()
     this.container.visible = true
     this.container.x = x * this.tileSize
@@ -28,6 +29,12 @@ export class GhostSystem {
         .rect(0, 0, this.tileSize, this.tileSize)
         .fill({ color: 0xff0000, alpha: 0.3 })
         .stroke({ width: 1, color: 0xff0000, alpha: 0.8 })
+      this.container.addChild(g)
+    } else if (tool === ZTool.event) {
+      const g = new PIXI.Graphics()
+        .rect(0, 0, this.tileSize, this.tileSize)
+        .fill({ color: 0x00ffff, alpha: 0.3 })
+        .stroke({ width: 1, color: 0x00ffff, alpha: 0.8 })
       this.container.addChild(g)
     } else if (tool === ZTool.brush || tool === ZTool.bucket) {
       const tex = this.textureManager.get(sel.tilesetId)
@@ -49,7 +56,11 @@ export class GhostSystem {
     }
   }
 
-  public updateShape(start: { x: number; y: number }, end: { x: number; y: number }, tool: ZTool) {
+  public updateShape(
+    start: { x: number; y: number },
+    end: { x: number; y: number },
+    tool: ZTool
+  ): void {
     this.container.removeChildren()
     this.container.visible = true
     this.container.x = 0
@@ -72,7 +83,7 @@ export class GhostSystem {
     this.container.addChild(g)
   }
 
-  public hide() {
+  public hide(): void {
     this.container.visible = false
   }
 }

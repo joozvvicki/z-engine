@@ -1,10 +1,9 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { ZEngine } from '@engine/core/ZEngine'
 import { useEditorStore, ZLayer, ZTool } from '@ui/stores/editor'
 import { type FederatedPointerEvent } from 'pixi.js'
 import { IconAlertTriangle } from '@tabler/icons-vue'
-import { useMagicKeys } from '@vueuse/core'
 import EventEditor from './modal/EventEditor.vue'
 
 const canvasContainer = ref<HTMLElement | null>(null)
@@ -19,7 +18,6 @@ const scale = ref(1)
 const pan = ref({ x: 0, y: 0 })
 const activeEventCoords = ref<{ x: number; y: number } | null>(null)
 const activeEventId = ref<string | null>(null)
-const { space } = useMagicKeys()
 
 const handleInteraction = (event: FederatedPointerEvent, isCommit = false): void => {
   if (!engine || !store.selection || !store.activeMap) return
@@ -161,7 +159,7 @@ const refreshNeighbors = (tx: number, ty: number, layer: ZLayer): void => {
 }
 
 const onPointerDown = (event: FederatedPointerEvent): void => {
-  if (event.button === 1 || (event.button === 0 && space.value)) {
+  if (event.button === 1 || (event.button === 0 && event.shiftKey)) {
     isPanning.value = true
     lastPanPos.value = { x: event.global.x, y: event.global.y }
     return
@@ -228,15 +226,34 @@ const onPointerUp = (event: FederatedPointerEvent): void => {
   shapeStartPos.value = null
   engine?.hideGhost()
 }
-
 const onWheel = (event: WheelEvent): void => {
-  const delta = event.deltaY > 0 ? -0.1 : 0.1
-  scale.value = Math.min(Math.max(0.2, scale.value + delta), 4)
+  if (!canvasContainer.value) return
+
+  if (event.ctrlKey) {
+    const zoomSensitivity = 0.005
+    const delta = -event.deltaY * zoomSensitivity
+    const prevScale = scale.value
+    const newScale = Math.min(Math.max(0.2, prevScale + delta), 4)
+
+    const rect = canvasContainer.value.getBoundingClientRect()
+    const mouseX = (event.clientX - rect.left) / prevScale
+    const mouseY = (event.clientY - rect.top) / prevScale
+
+    scale.value = newScale
+    pan.value.x -= mouseX * (newScale - prevScale)
+    pan.value.y -= mouseY * (newScale - prevScale)
+  } else {
+    pan.value.x -= event.deltaX
+    pan.value.y -= event.deltaY
+  }
+
   updateTransform()
 }
 
 const updateTransform = (): void => {
   if (canvasContainer.value) {
+    // Ważne: transform-origin musi być ustawiony na 0 0
+    canvasContainer.value.style.transformOrigin = '0 0'
     canvasContainer.value.style.transform = `translate(${pan.value.x}px, ${pan.value.y}px) scale(${scale.value})`
   }
 }
@@ -264,14 +281,23 @@ const initEngine = async (): Promise<void> => {
   engine.app.stage.on('pointerup', onPointerUp)
   engine.app.stage.on('pointerleave', () => engine?.hideGhost())
 
-  engine.renderMap(store.activeMap)
+  engine.renderMap(store.activeMap, isEventTool.value)
 }
 
 watch(() => store.activeMapID, initEngine)
 watch(
   () => store.historyIndex,
   () => {
-    if (store.activeMap && engine) engine.renderMap(store.activeMap)
+    if (store.activeMap && engine) engine.renderMap(store.activeMap, isEventTool.value)
+  }
+)
+
+const isEventTool = computed(() => store.currentTool === ZTool.event)
+
+watch(
+  () => store.currentTool,
+  () => {
+    if (engine && store.activeMap) engine.renderMap(store.activeMap, isEventTool.value)
   }
 )
 
@@ -295,7 +321,7 @@ const handleCloseEventEditor = (): void => {
 
 <template>
   <div
-    class="w-full h-full overflow-hidden relative bg-[#121212] flex items-center justify-center outline-none"
+    class="w-full h-full overflow-hidden relative bg-white flex items-center justify-center outline-none"
     tabindex="0"
     @wheel.prevent="onWheel"
   >
@@ -310,11 +336,11 @@ const handleCloseEventEditor = (): void => {
     <div v-else ref="canvasContainer" class="shadow-2xl bg-white border border-black/50"></div>
 
     <div
-      class="absolute bottom-4 right-4 pointer-events-none flex flex-col items-end text-[10px] text-white/40 font-mono uppercase z-10"
+      class="absolute bottom-4 right-4 pointer-events-none flex flex-col items-end text-[10px] text-black/40 font-mono uppercase z-10"
     >
-      <span class="text-white/60 font-black italic">Z-Engine Modular v9.1</span>
       <span>Zoom: {{ Math.round(scale * 100) }}%</span>
       <span>Tool: {{ store.currentTool }}</span>
+      <span class="text-black/60 font-black italic">Z-Engine Modular v0.1.0</span>
     </div>
 
     <EventEditor
@@ -331,5 +357,7 @@ const handleCloseEventEditor = (): void => {
 canvas {
   display: block;
   image-rendering: pixelated;
+  will-change: transform;
+  transition: none;
 }
 </style>

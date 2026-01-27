@@ -1,4 +1,6 @@
+import ZLogger from '@engine/core/ZLogger'
 import * as PIXI from 'pixi.js'
+import 'pixi.js/unsafe-eval'
 
 export class TextureManager {
   private textures: Map<string, PIXI.Texture> = new Map()
@@ -8,9 +10,9 @@ export class TextureManager {
     try {
       const texture = await PIXI.Assets.load(url)
       this.textures.set(id, texture)
-      console.log(`[TextureManager] Loaded ${id}`)
+      ZLogger.with('TextureManager').info(`Loaded ${id}`)
     } catch (e) {
-      console.error(`[TextureManager] Failed to load ${id}`, e)
+      ZLogger.with('TextureManager').error(`Failed to load ${id}`, (e as Error).toString())
     }
   }
 

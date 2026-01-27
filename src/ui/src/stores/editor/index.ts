@@ -154,7 +154,7 @@ export const useEditorStore = defineStore('editor', () => {
     if (!stack || stack.length === 0) return
 
     const topTile = stack[stack.length - 1]
-    selection.value = { ...topTile }
+    selection.value = { ...topTile, w: 1, h: 1 }
 
     // Automatyczna zmiana zakładki w zależności od ID tilesetu
     const id = topTile.tilesetId
