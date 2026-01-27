@@ -3,7 +3,7 @@ import { type Icon } from '@tabler/icons-vue'
 
 defineProps<{
   icon: Icon
-  path: string
+  path?: string
   tooltip?: string
 }>()
 </script>

@@ -7,7 +7,7 @@ import TilesetSelector from '@ui/components/TilesetSelector.vue'
 
 <template>
   <div class="flex h-screen overflow-hidden w-full text-slate-300 font-sans">
-    <aside class="w-[400px] flex flex-col border-r border-white/5">
+    <aside class="max-w-[calc(8*48px+8px)] flex flex-col border-white/5">
       <div class="flex-1 flex flex-col min-h-0">
         <TilesetSelector />
       </div>
