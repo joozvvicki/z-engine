@@ -129,22 +129,30 @@ export const useEditorStore = defineStore('editor', () => {
     const map = activeMap.value
     if (!map || x < 0 || x >= map.width || y < 0 || y >= map.height) return
 
+    // Pobieramy referencję do stosu na danej pozycji
     const currentCell = map.layers[activeLayer.value].data[y][x]
 
     if (tile === null) {
-      map.layers[activeLayer.value].data[y][x] = null // Gumka
+      // Gumka: czyścimy stos całkowicie
+      map.layers[activeLayer.value].data[y][x] = []
     } else {
       if (stack && currentCell) {
-        // Sprawdź duplikaty przed dodaniem na stos
+        // Sprawdź duplikaty
         const isDuplicate = currentCell.some(
           (t) => t.x === tile.x && t.y === tile.y && t.tilesetId === tile.tilesetId
         )
-        if (!isDuplicate) currentCell.push(tile)
+
+        if (!isDuplicate) {
+          // ZAMIAST .push(tile), robimy nadpisanie nową tablicą (spread operator).
+          // To gwarantuje, że Vue "zauważy" zmianę i przerysuje kafelki.
+          map.layers[activeLayer.value].data[y][x] = [...currentCell, tile]
+        }
       } else {
-        // Zastąpienie
+        // Tryb bez Shifta: zastępujemy wszystko nowym kafelkiem
         map.layers[activeLayer.value].data[y][x] = [tile]
       }
     }
+
     saveProject()
   }
 

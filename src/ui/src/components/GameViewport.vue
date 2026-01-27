@@ -157,17 +157,20 @@ const refreshNeighbors = (tx: number, ty: number, layer: ZLayer): void => {
     }
   }
 }
-
 const onPointerDown = (event: FederatedPointerEvent): void => {
-  if (event.button === 1 || (event.button === 0 && event.shiftKey)) {
+  // Zostawiamy tylko przycisk 1 (środkowy/scroll) dla panningu
+  // Jeśli chcesz przesuwać klawiszem, lepiej użyć np. event.ctrlKey lub spacji
+  if (event.button === 1) {
     isPanning.value = true
     lastPanPos.value = { x: event.global.x, y: event.global.y }
     return
   }
+
   if (event.button !== 0 || !engine) return
 
   const target = engine.getTileCoords(event)
 
+  // Pipeta pod Alt
   if (event.altKey) {
     store.pickTile(target.x, target.y)
     return
@@ -176,13 +179,13 @@ const onPointerDown = (event: FederatedPointerEvent): void => {
   isPointerDown.value = true
   store.recordHistory()
 
+  // Teraz Shift przejdzie tutaj i trafi do handleInteraction
   if ([ZTool.rectangle, ZTool.circle].includes(store.currentTool)) {
     shapeStartPos.value = target
   } else {
     handleInteraction(event)
   }
 }
-
 const onPointerMove = (event: FederatedPointerEvent): void => {
   if (isPanning.value && lastPanPos.value) {
     pan.value.x += event.global.x - lastPanPos.value.x

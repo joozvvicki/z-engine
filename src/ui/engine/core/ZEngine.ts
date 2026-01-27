@@ -35,6 +35,7 @@ export class ZEngine {
 
     // Konfiguracja PIXI
     PIXI.TextureSource.defaultOptions.scaleMode = 'nearest'
+    this.app.stage.hitArea = this.app.screen
 
     // Inicjalizacja systemów
     this.mapSystem = new MapRenderSystem(this.app.stage, this.textureManager, tileSize)
