@@ -289,7 +289,7 @@ export const useEditorStore = defineStore('editor', () => {
   }
 
   const createMap = (name: string, width: number, height: number): void => {
-    const createEmptyGrid = (w: number, h: number): (TileSelection | null)[][] =>
+    const createEmptyGrid = (w: number, h: number): (TileSelection[] | null)[][] =>
       Array.from({ length: h }, () => Array(w).fill(null))
 
     const newMap: ZMap = {
