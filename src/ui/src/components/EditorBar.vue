@@ -172,11 +172,29 @@ const sortedLayers = computed(() => {
       <button
         v-for="action in actions"
         :key="action.name"
-        class="p-1 rounded-lg transition-all duration-200 cursor-pointer"
+        class="relative p-1 rounded-lg transition-all duration-200 cursor-pointer"
         :class="'bg-transparent text-gray-400 hover:text-black'"
         @click="action.action"
       >
         <component :is="action.icon" />
+        <div
+          v-if="['Undo', 'Redo'].includes(action.name)"
+          class="text-white text-[0.5rem] absolute -top-1 -right-1 flex items-center justify-center"
+        >
+          <span
+            v-if="action.name === 'Undo' && store.currentHistory!.index !== 0"
+            class="w-3 h-3 bg-red-500 rounded-full"
+            >{{ store.currentHistory?.index }}</span
+          >
+          <span
+            v-if="
+              action.name === 'Redo' &&
+              store.currentHistory!.stack!.length - store.currentHistory!.index - 1 !== 0
+            "
+            class="w-3 h-3 bg-red-500 rounded-full"
+            >{{ store.currentHistory!.stack!.length - store.currentHistory!.index - 1 }}</span
+          >
+        </div>
       </button>
     </div>
   </div>

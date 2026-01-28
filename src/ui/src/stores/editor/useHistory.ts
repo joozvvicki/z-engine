@@ -7,6 +7,7 @@ export const useHistory = (
   activeMapID: Ref<number | null>,
   saveCallback: () => void
 ): {
+  currentHistory: ComputedRef<{ stack: string[]; index: number } | null>
   historyIndex: ComputedRef<number>
   canUndo: ComputedRef<boolean>
   canRedo: ComputedRef<boolean>
@@ -20,7 +21,7 @@ export const useHistory = (
   const currentHistory = computed(() => {
     if (!activeMapID.value) return null
     if (!historyMap.value[activeMapID.value]) {
-      historyMap.value[activeMapID.value] = { stack: [], index: -1 }
+      historyMap.value[activeMapID.value] = { stack: [], index: 0 }
     }
     return historyMap.value[activeMapID.value]
   })
@@ -28,7 +29,9 @@ export const useHistory = (
   const historyIndex = computed(() => currentHistory.value?.index ?? -1)
   const canUndo = computed(() => (currentHistory.value?.index ?? -1) > 0)
   const canRedo = computed(
-    () => (currentHistory.value?.index ?? -1) < (currentHistory.value?.stack.length ?? 0) - 1
+    () =>
+      (currentHistory.value?.index ?? -1) < (currentHistory.value?.stack.length ?? 0) - 1 ||
+      (currentHistory.value?.index ?? -1) < (currentHistory.value?.stack.length ?? 0)
   )
 
   // Pomocnicza funkcja przywracania stanu
@@ -64,9 +67,9 @@ export const useHistory = (
 
     if (hist.stack.length > MAX_HISTORY) {
       hist.stack.shift()
-    } else {
-      hist.index++
     }
+
+    hist.index = hist.stack.length - 1
   }
 
   const undo = (): void => {
@@ -74,7 +77,6 @@ export const useHistory = (
     const map = activeMap.value
     if (!hist || !map) return
 
-    // Snapshot "teraz" przed cofnięciem (fix dla skakania o 2 kroki)
     const currentSnapshot = JSON.stringify({
       layers: map.layers,
       events: map.events,
@@ -118,6 +120,7 @@ export const useHistory = (
   )
 
   return {
+    currentHistory,
     historyIndex,
     canUndo,
     canRedo,

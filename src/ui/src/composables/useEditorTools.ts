@@ -37,7 +37,7 @@ export const useEditorTools = (): {
 
     if (isEraser) {
       store.setTileAt(x, y, null)
-      engine.mapSystem?.clearTileAt(x, y, layer)
+      engine.renderSystem?.clearTileAt(x, y, layer)
     } else {
       const isAutotile = store.selection.isAutotile
       const tile = {
@@ -49,7 +49,7 @@ export const useEditorTools = (): {
       }
       store.setTileAt(x, y, tile, isStacking)
       const stack = store.activeMap.layers[layer].data[y]?.[x]
-      if (stack) engine.mapSystem?.requestTileUpdate(x, y, stack, layer)
+      if (stack) engine.renderSystem?.requestTileUpdate(x, y, stack, layer)
     }
     refreshNeighbors(x, y, layer, engine)
   }
@@ -63,7 +63,7 @@ export const useEditorTools = (): {
         if (nx >= 0 && nx < store.activeMap.width && ny >= 0 && ny < store.activeMap.height) {
           const stack = store.activeMap.layers[layer].data[ny]?.[nx]
           if (stack && stack.length > 0) {
-            engine.mapSystem?.requestTileUpdate(nx, ny, stack, layer)
+            engine.renderSystem?.requestTileUpdate(nx, ny, stack, layer)
           }
         }
       }

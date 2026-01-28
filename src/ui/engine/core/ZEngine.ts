@@ -14,8 +14,6 @@ export class ZEngine {
   public app: PIXIApplication
   public textureManager: TextureManager
 
-  public static DEBUGGING: boolean = import.meta.env.DEV
-
   public get renderSystem(): RenderSystem | undefined {
     return this.getSystem(RenderSystem)
   }
@@ -55,8 +53,14 @@ export class ZEngine {
       resolution: window.devicePixelRatio || 1,
       eventMode: 'static'
     })
+    this.app.canvas.tabIndex = 1
+    this.app.canvas.style.outline = 'none'
+    this.app.canvas.addEventListener('mouseenter', () => {
+      this.app.canvas.focus()
+    })
     container.appendChild(this.app.canvas)
 
+    this.app.stage.eventMode = 'static'
     this.app.stage.hitArea = this.app.screen
     this.app.stage.sortableChildren = true
 

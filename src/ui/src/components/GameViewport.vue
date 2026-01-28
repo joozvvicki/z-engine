@@ -39,10 +39,10 @@ const onPointerDown = (event: FederatedPointerEvent): void => {
   }
 
   isPointerDown.value = true
-  store.recordHistory()
 
   if (store.currentTool === ZTool.bucket) {
     handleInteraction(event, engine, true)
+    store.recordHistory()
     return
   }
 
@@ -89,6 +89,7 @@ const onPointerUp = (event: FederatedPointerEvent): void => {
     if ([ZTool.rectangle, ZTool.circle, ZTool.event].includes(store.currentTool)) {
       handleInteraction(event, engine, true)
     }
+    store.recordHistory() // Save history after interaction loop ends
   }
   isPointerDown.value = false
   shapeStartPos.value = null
