@@ -11,10 +11,46 @@ const { handleMouseDown, handleMouseMove, handleMouseUp, selectionStyle } = useT
   iconMapping,
   GRID_SIZE
 )
+
+import { ref, watch, onMounted, nextTick } from 'vue'
+
+const TABS = ['A', 'B', 'C', 'D', 'Roofs']
+const tabRefs = ref<HTMLElement[]>([])
+const highlightStyle = ref({
+  left: '0px',
+  width: '0px'
+})
+
+const updateHighlight = (): void => {
+  const activeIndex = TABS.indexOf(store.activeTab)
+  const el = tabRefs.value[activeIndex]
+
+  if (el) {
+    highlightStyle.value = {
+      left: `${el.offsetLeft}px`,
+      width: `${el.offsetWidth}px`
+    }
+  }
+}
+
+watch(
+  () => store.activeTab,
+  () => {
+    nextTick(updateHighlight)
+  },
+  { immediate: true }
+)
+
+onMounted(() => {
+  nextTick(updateHighlight)
+  window.addEventListener('resize', updateHighlight)
+})
 </script>
 
 <template>
-  <div class="flex flex-col h-full border-l border-white/5 select-none rounded-xl">
+  <div
+    class="flex relative flex-col h-full border-l border-white/5 select-none rounded-xl overflow-hidden"
+  >
     <div class="flex-1 overflow-auto relative scrollbar-thin bg-white">
       <div v-if="isProcessing" class="absolute inset-0 flex items-center justify-center">
         <span class="text-white/20 text-xs animate-pulse">GENERATING ATLAS...</span>
@@ -51,18 +87,27 @@ const { handleMouseDown, handleMouseMove, handleMouseUp, selectionStyle } = useT
       </div>
     </div>
 
-    <div class="flex p-1 gap-1 border-t border-white/5 bg-white">
-      <button
-        v-for="tab in ['A', 'B', 'C', 'D', 'Roofs']"
-        :key="tab"
-        :class="[
-          'flex-1 py-2 text-xs font-bold rounded-xl cursor-pointer',
-          store.activeTab === tab ? 'bg-black text-white' : 'text-gray-500 hover:bg-white/5'
-        ]"
-        @click="store.activeTab = tab"
+    <div class="absolute bottom-0 left-0 w-full flex p-2 max-w-[calc(100%-8px)]">
+      <div
+        class="relative flex gap-2 w-full bg-white/20 backdrop-blur-lg rounded-xl overflow-hidden py-1"
       >
-        {{ tab }}
-      </button>
+        <div
+          class="absolute top-0 bottom-0 bg-black rounded-xl transition-all duration-300 ease-out z-0"
+          :style="highlightStyle"
+        ></div>
+        <button
+          v-for="tab in TABS"
+          :key="tab"
+          ref="tabRefs"
+          :class="[
+            'relative flex-1 py-1 text-xs font-bold rounded-xl cursor-pointer z-10 transition-colors duration-200',
+            store.activeTab === tab ? 'text-white' : 'text-black/50 hover:text-black/80'
+          ]"
+          @click="store.activeTab = tab"
+        >
+          {{ tab }}
+        </button>
+      </div>
     </div>
   </div>
 </template>

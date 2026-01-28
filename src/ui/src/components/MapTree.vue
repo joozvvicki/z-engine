@@ -1,5 +1,12 @@
 <script setup lang="ts">
-import { IconMap, IconPlus, IconUpload } from '@tabler/icons-vue'
+import {
+  IconDotsVertical,
+  IconDownload,
+  IconMap,
+  IconPlus,
+  IconTrash,
+  IconUpload
+} from '@tabler/icons-vue'
 import { useEditorStore } from '@ui/stores/editor'
 import NewMap from './modal/NewMap.vue'
 import { ref } from 'vue'
@@ -28,68 +35,103 @@ const showContextMenu = (mapId: number, event: MouseEvent): void => {
 </script>
 
 <template>
-  <div class="overflow-y-auto p-2 grid grid-cols-4 gap-2">
+  <div class="overflow-y-auto p-2 flex flex-col gap-2 px-3">
+    <div class="flex gap-2 justify-between items-center px-1">
+      <h1 class="text-xl font-bold">Mapy</h1>
+
+      <div class="flex gap-2">
+        <button
+          :class="[
+            'flex items-center justify-center gap-2 p-1 rounded-md  cursor-pointer transition-colors hover:text-black hover:bg-gray-100'
+          ]"
+          @click="isNewMapOpen = true"
+        >
+          <IconPlus :size="24" />
+        </button>
+        <button
+          :class="[
+            'flex items-center justify-center gap-2 p-1 rounded-md cursor-pointer transition-colors hover:text-black hover:bg-gray-100'
+          ]"
+          @click="store.importMapFromJSON"
+        >
+          <IconUpload :size="24" />
+        </button>
+      </div>
+    </div>
+
     <div
       v-for="map in store.maps"
       :key="map.id"
       :class="[
-        'flex flex-col items-center gap-2 px-3 py-3 rounded-md mb-1 cursor-pointer transition-colors ',
+        'flex items-center gap-2 px-3 py-2 rounded-md  cursor-pointer transition-colors',
         map.id === store.activeMapID
           ? 'bg-black text-white hover:bg-black hover:text-white shadow-[0_0_10px_rgba(0,0,0,0.3)]'
           : 'hover:text-black hover:bg-gray-100'
       ]"
       @click="store.setActiveMap(map.id)"
-      @click.right.prevent="showContextMenu(map.id, $event)"
     >
-      <IconMap :size="24" />
-      <span class="text-sm truncate">{{ map.name }}</span>
-      <div class="flex justify-between items-center w-full">
-        <span class="text-[0.6rem] text-gray-400 text-center w-full"
+      <div class="flex items-center gap-2 w-1/2">
+        <IconMap :size="24" />
+        <span class="text-sm truncate">{{ map.name }}</span>
+      </div>
+      <div class="flex gap-2 justify-end items-center w-full">
+        <span class="text-[0.6rem] leading-none text-gray-400 text-right mr-2">
+          {{ map.width }} x {{ map.height }}
+        </span>
+        <span class="text-[0.6rem] leading-none text-gray-400 text-right"
           >{{ getMapSizeInKB(map).toPrecision(2) }} KB</span
         >
+        <button
+          :class="[
+            'flex items-center justify-center gap-2 rounded-md cursor-pointer transition-all duration-150 hover:text-gray-500 '
+          ]"
+          @click.stop="showContextMenu(map.id, $event)"
+        >
+          <IconDotsVertical :size="18" />
+        </button>
       </div>
     </div>
-    <button
-      :class="[
-        'flex flex-col items-center gap-2 px-3 py-1.5 rounded-md mb-1 cursor-pointer transition-colors hover:text-black hover:bg-gray-100'
-      ]"
-      @click="isNewMapOpen = true"
-    >
-      <IconPlus :size="24" />
-      <span class="text-sm word-wrap">Nowa mapa</span>
-    </button>
-    <button
-      :class="[
-        'flex flex-col items-center gap-2 px-3 py-1.5 rounded-md mb-1 cursor-pointer transition-colors hover:text-black hover:bg-gray-100'
-      ]"
-      @click="store.importMapFromJSON"
-    >
-      <IconUpload :size="24" />
-      <span class="text-sm word-wrap">Importuj mapę </span>
-    </button>
 
-    <div
-      v-if="isContextMenuOpen"
-      class="absolute top-0 left-0 w-full h-full"
-      @click="isContextMenuOpen = false"
-    ></div>
-
-    <div
-      v-if="isContextMenuOpen"
-      :style="{ top: contextMenuPosition.y + 'px', left: contextMenuPosition.x + 'px' }"
-      class="absolute bg-white border border-gray-200 rounded-lg shadow-lg px-4 py-1 z-50"
-    >
-      <button
-        @click="
-          () => {
-            store.deleteMap(contextMapId!)
-            isContextMenuOpen = false
-          }
-        "
+    <Teleport to="body">
+      <div
+        v-if="isContextMenuOpen"
+        class="fixed top-0 left-0 w-full h-full"
+        @click="isContextMenuOpen = false"
+      ></div>
+      <div
+        v-if="isContextMenuOpen"
+        :style="{
+          top: contextMenuPosition.y + 20 + 'px',
+          left: contextMenuPosition.x - 10 + 'px'
+        }"
+        class="absolute bg-white border border-black/10 rounded-md shadow-lg z-50 flex flex-col overflow-hidden"
       >
-        Usuń
-      </button>
-    </div>
+        <button
+          class="px-4 py-2 text-xs cursor-pointer flex items-center gap-2 transition-all duration-150 text-black bg-white hover:bg-gray-100"
+          @click="
+            () => {
+              store.exportMapAsJSON()
+              isContextMenuOpen = false
+            }
+          "
+        >
+          <IconDownload :size="18" />
+          <span>Eksportuj</span>
+        </button>
+        <button
+          class="px-4 py-2 text-xs cursor-pointer flex items-center gap-2 transition-all duration-150 text-red-700 bg-red-100 hover:bg-red-200"
+          @click="
+            () => {
+              store.deleteMap(contextMapId!)
+              isContextMenuOpen = false
+            }
+          "
+        >
+          <IconTrash :size="18" />
+          <span>Usuń</span>
+        </button>
+      </div>
+    </Teleport>
   </div>
 
   <NewMap :is-open="isNewMapOpen" @close="isNewMapOpen = false" />

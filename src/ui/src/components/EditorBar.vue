@@ -8,9 +8,7 @@ import {
   IconCircle,
   IconArrowBackUp,
   IconArrowForwardUp,
-  IconDownload,
-  IconBox,
-  IconPlayerPlay
+  IconBox
 } from '@tabler/icons-vue'
 import DynamicIcon from './DynamicIcon.vue'
 import { computed, onMounted } from 'vue'
@@ -29,19 +27,7 @@ const tools = [
 
 const actions = [
   { name: 'Undo', icon: IconArrowBackUp, shortcut: 'Ctrl + Z', action: () => store.undo() },
-  { name: 'Redo', icon: IconArrowForwardUp, shortcut: 'Ctrl + Y', action: () => store.redo() },
-  {
-    name: 'export',
-    icon: IconDownload,
-    shortcut: 'Ctrl + D',
-    action: () => store.exportMapAsJSON()
-  },
-  {
-    name: 'Test',
-    icon: IconPlayerPlay,
-    shortcut: 'Ctrl + Shift + P',
-    action: () => store.toggleTestMode()
-  }
+  { name: 'Redo', icon: IconArrowForwardUp, shortcut: 'Ctrl + Y', action: () => store.redo() }
 ]
 
 const handleKeydown = (e: KeyboardEvent): void => {
@@ -120,62 +106,91 @@ const sortedLayers = computed(() => {
   if (!store.activeMap) return []
   return Object.entries(store.activeMap.layers).sort((a, b) => b[1].index - a[1].index)
 })
+
+// Sliding Background Logic
+import { ref, watch, nextTick } from 'vue'
+
+const toolRefs = ref<HTMLElement[]>([])
+const layerRefs = ref<HTMLElement[]>([])
+
+const toolHighlightStyle = ref({
+  top: '0px',
+  height: '0px',
+  backgroundColor: store.currentTool === ZTool.eraser ? 'red !important' : 'black'
+})
+
+const layerHighlightStyle = ref({
+  top: '0px',
+  height: '0px'
+})
+
+const updateToolHighlight = (): void => {
+  const activeIndex = tools.findIndex((t) => t.tool === store.currentTool)
+  const el = toolRefs.value[activeIndex]
+
+  if (el) {
+    toolHighlightStyle.value = {
+      top: `${el.offsetTop}px`,
+      height: `${el.offsetHeight}px`,
+      backgroundColor: store.currentTool === ZTool.eraser ? 'red !important' : 'black'
+    }
+  }
+}
+
+const updateLayerHighlight = (): void => {
+  if (!sortedLayers.value.length) return
+
+  const activeIndex = sortedLayers.value.findIndex(([key]) => key === store.activeLayer)
+  const el = layerRefs.value[activeIndex]
+
+  if (el) {
+    layerHighlightStyle.value = {
+      top: `${el.offsetTop}px`,
+      height: `${el.offsetHeight}px`
+    }
+  }
+}
+
+watch(
+  () => store.currentTool,
+  () => {
+    nextTick(updateToolHighlight)
+  },
+  { immediate: true }
+)
+
+watch(
+  () => [store.activeLayer, sortedLayers.value],
+  () => {
+    nextTick(updateLayerHighlight)
+  },
+  { immediate: true, deep: true }
+)
+
+onMounted(() => {
+  window.addEventListener('keydown', handleKeydown)
+
+  // Using window event for simplicity as per previous implementation
+  window.addEventListener('resize', () => {
+    updateToolHighlight()
+    updateLayerHighlight()
+  })
+
+  nextTick(() => {
+    updateToolHighlight()
+    updateLayerHighlight()
+  })
+})
 </script>
 
 <template>
-  <div class="flex flex-col items-center gap-4 p-1 border-b border-white/5">
-    <div class="flex flex-col gap-1 bg-black/10 text-white rounded-xl border border-white/5">
-      <button
-        v-for="tool in tools"
-        :key="tool.tooltip"
-        :class="
-          store.currentTool === tool.tool
-            ? tool.isCritical
-              ? 'bg-red-500 shadow-[0_0_10px_rgba(220,38,38,0.5)]'
-              : 'bg-black shadow-[0_0_10px_rgba(0,0,0,0.4)]'
-            : 'bg-transparent text-gray-400 hover:text-black'
-        "
-        class="group relative p-2 rounded-lg transition-all duration-200 cursor-pointer"
-        :title="tool.tooltip"
-        @click="store.setTool(tool.tool)"
-      >
-        <component :is="tool.icon" :size="18" />
-        <div
-          class="absolute top-1 z-1000 left-full ml-2 px-2 py-1 bg-slate-800 text-white text-xs rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap border border-slate-700"
-        >
-          {{ tool.tooltip.split(' ')[0] }}
-          <div
-            class="absolute z-1001 top-1/2 -left-1 -translate-y-1/2 w-2 h-2 bg-slate-800 rotate-45 border-l border-b border-slate-700"
-          ></div>
-        </div>
-      </button>
-    </div>
-
-    <div
-      v-if="sortedLayers.length"
-      class="flex flex-col gap-1 bg-black/10 rounded-xl border border-white/5"
-    >
-      <button
-        v-for="[key, data] in sortedLayers"
-        :key="key"
-        class="p-1 rounded-lg transition-all duration-200 cursor-pointer"
-        :class="
-          store.activeLayer === key
-            ? 'bg-black shadow-[0_0_10px_rgba(0,0,0,0.4)]'
-            : 'bg-transparent text-gray-400 hover:text-black'
-        "
-        @click="store.setLayer(key as ZLayer)"
-      >
-        <DynamicIcon :icon="data.icon" :tooltip="key.charAt(0).toUpperCase() + key.slice(1)" />
-      </button>
-    </div>
-
-    <div class="flex flex-col gap-1 bg-black/10 rounded-xl border border-white/5">
+  <div class="absolute bottom-6 left-0 z-20 flex flex-col items-center justify-end gap-4 p-2">
+    <div class="flex flex-col gap-1 bg-black/10 backdrop-blur-lg rounded-xl border border-white/5">
       <button
         v-for="action in actions"
         :key="action.name"
         class="relative p-1 rounded-lg transition-all duration-200 cursor-pointer"
-        :class="'bg-transparent text-gray-400 hover:text-black'"
+        :class="'bg-transparent text-black hover:text-gray-500'"
         @click="action.action"
       >
         <component :is="action.icon" />
@@ -197,6 +212,54 @@ const sortedLayers = computed(() => {
             >{{ store.currentHistory!.stack!.length - store.currentHistory!.index - 1 }}</span
           >
         </div>
+      </button>
+    </div>
+
+    <div
+      class="relative flex flex-col gap-1 bg-black/10 backdrop-blur-lg text-white rounded-xl border border-white/5"
+    >
+      <div
+        class="absolute left-0 right-0 bg-black rounded-lg transition-all duration-300 ease-out z-0"
+        :style="toolHighlightStyle"
+      ></div>
+      <button
+        v-for="tool in tools"
+        :key="tool.tooltip"
+        ref="toolRefs"
+        class="group relative p-2 rounded-lg transition-all duration-200 cursor-pointer z-10 text-black"
+        :class="store.currentTool === tool.tool ? 'text-white' : ''"
+        :title="tool.tooltip"
+        @click="store.setTool(tool.tool)"
+      >
+        <component :is="tool.icon" :size="18" />
+        <div
+          class="absolute top-1 z-1000 left-full ml-2 px-2 py-1 bg-slate-800 text-white text-xs rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap border border-slate-700"
+        >
+          {{ tool.tooltip.split(' ')[0] }}
+          <div
+            class="absolute z-1001 top-1/2 -left-1 -translate-y-1/2 w-2 h-2 bg-slate-800 rotate-45 border-l border-b border-slate-700"
+          ></div>
+        </div>
+      </button>
+    </div>
+
+    <div
+      v-if="sortedLayers.length"
+      class="relative flex flex-col gap-1 bg-black/10 backdrop-blur-lg rounded-xl border border-white/5"
+    >
+      <div
+        class="absolute left-0 right-0 bg-black rounded-lg transition-all duration-300 ease-out z-0"
+        :style="layerHighlightStyle"
+      ></div>
+      <button
+        v-for="[key, data] in sortedLayers"
+        :key="key"
+        ref="layerRefs"
+        class="relative p-1 rounded-lg transition-all duration-200 text-black cursor-pointer z-10"
+        :class="store.activeLayer === key ? 'text-white' : ''"
+        @click="store.setLayer(key as ZLayer)"
+      >
+        <DynamicIcon :icon="data.icon" :tooltip="key.charAt(0).toUpperCase() + key.slice(1)" />
       </button>
     </div>
   </div>
