@@ -1,8 +1,9 @@
 import PIXI from '../utils/pixi'
 import { TextureManager } from '../managers/TextureManager'
 import { ZTool } from '@engine/utils/enums'
+import { ZSystem } from '@engine/utils/types'
 
-export class GhostSystem implements ZSystem {
+export class GhostSystem extends ZSystem {
   private container: PIXI.Container
   private textureManager: TextureManager
   private tileSize: number
@@ -20,6 +21,8 @@ export class GhostSystem implements ZSystem {
   private isShape: boolean = false
 
   constructor(stage: PIXI.Container, textureManager: TextureManager, tileSize: number) {
+    super()
+
     this.wrapper = stage
     this.textureManager = textureManager
     this.tileSize = tileSize
@@ -34,17 +37,7 @@ export class GhostSystem implements ZSystem {
     this.wrapper.addChild(this.container)
   }
 
-  public onSetup(): void {
-    /* Setup */
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  public onPreUpdate(_delta: number): void {
-    /* PreUpdate */
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  public onUpdate(_delta: number): void {
+  public onUpdate(): void {
     if (!this.dirty) return
 
     this.container.removeChildren()
@@ -62,11 +55,6 @@ export class GhostSystem implements ZSystem {
     }
 
     this.dirty = false
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  public onPostUpdate(_delta: number): void {
-    /* PostUpdate */
   }
 
   public onDestroy(): void {

@@ -2,8 +2,9 @@ import PIXI from '../utils/pixi'
 import { TextureManager } from '../managers/TextureManager'
 import { AutotileSolver } from '@engine/utils/AutotileSolver'
 import { ZLayer } from '@engine/utils/enums'
+import { ZSystem } from '@engine/utils/types'
 
-export class MapRenderSystem implements ZSystem {
+export class RenderSystem extends ZSystem {
   private container: PIXI.Container
   private layers: Record<ZLayer, PIXI.Container>
   private tileContainers: Record<ZLayer, (PIXI.Container | null)[][]>
@@ -13,19 +14,17 @@ export class MapRenderSystem implements ZSystem {
 
   private wrapper: PIXI.Container
 
-  // State
   private mapData: ZMap | null = null
   private fullRenderDirty: boolean = false
   private tileUpdates: { x: number; y: number; layer: ZLayer; tiles: TileSelection[] }[] = []
 
   constructor(stage: PIXI.Container, textureManager: TextureManager, tileSize: number) {
+    super()
     this.wrapper = stage
 
     this.textureManager = textureManager
     this.tileSize = tileSize
 
-    // Initialize with placeholders/empty to satisfy TS strict property initialization
-    // Real initialization happens in onBoot
     this.container = null!
     this.layers = null!
     this.tileContainers = null!
@@ -36,7 +35,6 @@ export class MapRenderSystem implements ZSystem {
     this.container.label = 'MapContainer'
     this.wrapper.addChild(this.container)
 
-    // Inicjalizacja warstw PIXI
     this.layers = {
       [ZLayer.ground]: new PIXI.Container({ label: 'GroundLayer' }),
       [ZLayer.walls]: new PIXI.Container({ label: 'WallsLayer' }),
@@ -46,22 +44,13 @@ export class MapRenderSystem implements ZSystem {
       [ZLayer.roofs]: new PIXI.Container({ label: 'RoofsLayer' })
     }
 
-    // Dodanie warstw do kontenera w odpowiedniej kolejności
     const sortedLayers = Object.values(this.layers)
     this.container.addChild(...sortedLayers)
 
     this.tileContainers = this.createEmptyContainerStructure(0, 0)
   }
 
-  public onSetup(): void {
-    // Setup logic if needed
-  }
-  public onPreUpdate(): void {
-    // PreUpdate logic if needed
-  }
-
   public onUpdate(): void {
-    // 1. Full render if dirty
     if (this.fullRenderDirty && this.mapData) {
       this.performFullRender(this.mapData)
       this.fullRenderDirty = false
@@ -75,19 +64,12 @@ export class MapRenderSystem implements ZSystem {
     }
   }
 
-  public onPostUpdate(): void {
-    // PostUpdate logic if needed
-  }
-
   public onDestroy(): void {
     if (this.container) {
       this.container.destroy({ children: true })
     }
   }
 
-  /**
-   * Schedules a tile update
-   */
   public requestTileUpdate(x: number, y: number, tiles: TileSelection[], layer: ZLayer): void {
     if (!this.mapData) return
     this.tileUpdates.push({ x, y, layer, tiles })
@@ -96,7 +78,7 @@ export class MapRenderSystem implements ZSystem {
   public setMap(mapData: ZMap): void {
     this.mapData = mapData
     this.fullRenderDirty = true
-    this.tileUpdates = [] // Clear pending updates on new map
+    this.tileUpdates = []
   }
 
   private performDrawTile(
@@ -177,6 +159,10 @@ export class MapRenderSystem implements ZSystem {
         }
       }
     })
+  }
+
+  public IsMapLoaded(): boolean {
+    return this.tileUpdates.length === 0
   }
 
   private renderAutotile(

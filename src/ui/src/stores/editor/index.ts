@@ -246,11 +246,12 @@ export const useEditorStore = defineStore('editor', () => {
         try {
           const text = await input.files[0].text()
           const importedMap = JSON.parse(text)
-          // Generowanie nowego ID, aby uniknąć kolizji
-          importedMap.id = (Math.max(...storedMaps.value.map((m) => m.id)) || 0) + 1
+          importedMap.id = Math.max(...storedMaps.value.map((m) => m.id), 0) + 1
           storedMaps.value.push(importedMap)
-          activeMapID.value = importedMap.id
-          nextTick(() => history.recordHistory())
+          nextTick(() => {
+            history.recordHistory()
+            setActiveMap(importedMap.id)
+          })
         } catch (e) {
           console.error('Failed to import map', e)
         }
@@ -258,6 +259,15 @@ export const useEditorStore = defineStore('editor', () => {
       document.body.removeChild(input)
     }
     input.click()
+  }
+
+  const deleteMap = (mapId: number): void => {
+    storedMaps.value = storedMaps.value.filter((m) => m.id !== mapId)
+    if (activeMapID.value === mapId) {
+      activeMapID.value = storedMaps.value[0]?.id || null
+    }
+    saveProject()
+    history.recordHistory()
   }
 
   // ==========================================
@@ -286,6 +296,7 @@ export const useEditorStore = defineStore('editor', () => {
     setTool: (t: ZTool) => (currentTool.value = t),
     setSelection: (s: TileSelection) => (selection.value = s),
     setActiveMap,
+    deleteMap,
 
     initMap,
     createMap,

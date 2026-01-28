@@ -7,6 +7,16 @@ import { ref } from 'vue'
 const store = useEditorStore()
 
 const isNewMapOpen = ref(false)
+
+const isContextMenuOpen = ref(false)
+const contextMapId = ref<number | null>(null)
+const contextMenuPosition = ref({ x: 0, y: 0 })
+
+const showContextMenu = (mapId: number, event: MouseEvent): void => {
+  isContextMenuOpen.value = true
+  contextMapId.value = mapId
+  contextMenuPosition.value = { x: event.clientX, y: event.clientY }
+}
 </script>
 
 <template>
@@ -21,6 +31,7 @@ const isNewMapOpen = ref(false)
           : 'hover:text-black hover:bg-gray-100'
       ]"
       @click="store.setActiveMap(map.id)"
+      @click.right.prevent="showContextMenu(map.id, $event)"
     >
       <IconMap :size="24" />
       <span class="text-sm truncate">{{ map.name }}</span>
@@ -46,6 +57,29 @@ const isNewMapOpen = ref(false)
       <IconUpload :size="24" />
       <span class="text-sm word-wrap">Importuj mapę </span>
     </button>
+
+    <div
+      v-if="isContextMenuOpen"
+      class="absolute top-0 left-0 w-full h-full"
+      @click="isContextMenuOpen = false"
+    ></div>
+
+    <div
+      v-if="isContextMenuOpen"
+      :style="{ top: contextMenuPosition.y + 'px', left: contextMenuPosition.x + 'px' }"
+      class="absolute bg-white border border-gray-200 rounded-lg shadow-lg px-4 py-1 z-50"
+    >
+      <button
+        @click="
+          () => {
+            store.deleteMap(contextMapId!)
+            isContextMenuOpen = false
+          }
+        "
+      >
+        Usuń
+      </button>
+    </div>
   </div>
 
   <NewMap :is-open="isNewMapOpen" @close="isNewMapOpen = false" />

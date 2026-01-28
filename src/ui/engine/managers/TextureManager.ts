@@ -11,11 +11,15 @@ export class TextureManager {
       this.textures.set(id, texture)
       ZLogger.with('TextureManager').info(`Loaded ${id}`)
     } catch (e) {
-      ZLogger.with('TextureManager').error(`Failed to load ${id}`, (e as Error).toString())
+      ZLogger.with('TextureManager').error(`Failed to load ${id}`, e)
     }
   }
 
   public get(id: string): PIXI.Texture | undefined {
-    return this.textures.get(id)
+    const texture = this.textures.get(id)
+    if (!texture) {
+      ZLogger.with('TextureManager').warn(`Texture ${id} not found`)
+    }
+    return texture
   }
 }

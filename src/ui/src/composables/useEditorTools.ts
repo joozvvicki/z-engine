@@ -181,6 +181,7 @@ export const useEditorTools = (): {
     const target = engine.gridSystem.getTileCoords(event)
 
     if (
+      !target ||
       target.x < 0 ||
       target.x >= store.activeMap.width ||
       target.y < 0 ||

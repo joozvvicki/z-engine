@@ -1,20 +1,23 @@
-import PIXI from '../utils/pixi'
+import { Application as PIXIApplication } from '../utils/pixi'
 import { TextureManager } from '../managers/TextureManager'
-import { MapRenderSystem } from '../systems/MapRenderSystem'
+import { RenderSystem } from '../systems/RenderSystem'
 import { GhostSystem } from '../systems/GhostSystem'
 import { GridSystem } from '../systems/GridSystem'
 import { initDevtools } from '@pixi/devtools'
 import ZLogger from './ZLogger'
+import { ZSystem } from '@engine/utils/types'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Constructor<T> = new (...args: any[]) => T
 
 export class ZEngine {
-  public app: PIXI.Application
+  public app: PIXIApplication
   public textureManager: TextureManager
 
-  public get mapSystem(): MapRenderSystem | undefined {
-    return this.getSystem(MapRenderSystem)
+  public static DEBUGGING: boolean = import.meta.env.DEV
+
+  public get renderSystem(): RenderSystem | undefined {
+    return this.getSystem(RenderSystem)
   }
   public get ghostSystem(): GhostSystem | undefined {
     return this.getSystem(GhostSystem)
@@ -26,7 +29,10 @@ export class ZEngine {
   private systems: Map<string, ZSystem> = new Map()
 
   public boot(): void {
-    this.systems.forEach((system) => system.onBoot())
+    this.systems.forEach((system) => {
+      system.onBoot()
+      ZLogger.with(system.constructor.name).info("I'm ready!")
+    })
     this.app.ticker.add((ticker) => this.tick(ticker.deltaMS))
   }
 
@@ -37,7 +43,7 @@ export class ZEngine {
   }
 
   constructor() {
-    this.app = new PIXI.Application()
+    this.app = new PIXIApplication()
     this.textureManager = new TextureManager()
   }
 
@@ -51,11 +57,10 @@ export class ZEngine {
     })
     container.appendChild(this.app.canvas)
 
-    PIXI.TextureSource.defaultOptions.scaleMode = 'nearest'
     this.app.stage.hitArea = this.app.screen
     this.app.stage.sortableChildren = true
 
-    this.addSystem(new MapRenderSystem(this.app.stage, this.textureManager, tileSize))
+    this.addSystem(new RenderSystem(this.app.stage, this.textureManager, tileSize))
     this.addSystem(new GhostSystem(this.app.stage, this.textureManager, tileSize))
     this.addSystem(new GridSystem(this.app.stage, this.textureManager, tileSize))
 
@@ -63,9 +68,10 @@ export class ZEngine {
 
     if (import.meta.env.DEV) {
       window.__PIXI_APP__ = this.app
+      initDevtools({ app: this.app })
     }
 
-    initDevtools({ app: this.app })
+    ZLogger.log('Hello 👋🏽 Everything is ready!')
   }
 
   public addSystem<T extends ZSystem>(system: T): T {
@@ -75,15 +81,15 @@ export class ZEngine {
 
   public getSystem<T extends ZSystem>(type: Constructor<T>): T | undefined {
     const system = this.systems.get(type.name)
-    if (!system) {
-      ZLogger.warn(`System ${type.name} not found in ZEngine`)
-      return undefined
-    }
     return system as T
   }
 
   public destroy(): void {
-    this.systems.forEach((s) => s.onDestroy())
+    this.systems.forEach((s) => {
+      s.onDestroy()
+      ZLogger.with(s.constructor.name).info("I'm leaving!")
+    })
     this.app.destroy({ removeView: true })
+    ZLogger.log('Goodbye 👋🏽 Everything is gone!')
   }
 }
