@@ -12,13 +12,30 @@ export class MapRenderSystem implements ZSystem {
   private textureManager: TextureManager
   private tileSize: number
 
+  private wrapper: PIXI.Container
+
+  // State
+  private mapData: ZMap | null = null
+  private fullRenderDirty: boolean = false
+  private tileUpdates: { x: number; y: number; layer: ZLayer; tiles: TileSelection[] }[] = []
+
   constructor(stage: PIXI.Container, textureManager: TextureManager, tileSize: number) {
-    this.container = new PIXI.Container()
-    this.container.label = 'MapContainer'
-    stage.addChild(this.container)
+    this.wrapper = stage
 
     this.textureManager = textureManager
     this.tileSize = tileSize
+
+    // Initialize with placeholders/empty to satisfy TS strict property initialization
+    // Real initialization happens in onBoot
+    this.container = null!
+    this.layers = null!
+    this.tileContainers = null!
+  }
+
+  public onBoot(): void {
+    this.container = new PIXI.Container()
+    this.container.label = 'MapContainer'
+    this.wrapper.addChild(this.container)
 
     // Inicjalizacja warstw PIXI
     this.layers = {
@@ -37,17 +54,53 @@ export class MapRenderSystem implements ZSystem {
     this.tileContainers = this.createEmptyContainerStructure(0, 0)
   }
 
-  public onBoot(): void {}
-  public onSetup(): void {}
-  public onPreUpdate(_delta: number): void {}
-  public onUpdate(_delta: number): void {}
-  public onPostUpdate(_delta: number): void {}
-  public onDestroy(): void {}
+  public onSetup(): void {
+    // Setup logic if needed
+  }
+  public onPreUpdate(): void {
+    // PreUpdate logic if needed
+  }
+
+  public onUpdate(): void {
+    // 1. Full render if dirty
+    if (this.fullRenderDirty && this.mapData) {
+      this.performFullRender(this.mapData)
+      this.fullRenderDirty = false
+    }
+
+    if (this.tileUpdates.length > 0) {
+      const batch = this.tileUpdates.splice(0, this.tileUpdates.length)
+      batch.forEach((update) => {
+        this.performDrawTile(update.x, update.y, update.tiles, update.layer, this.mapData!)
+      })
+    }
+  }
+
+  public onPostUpdate(): void {
+    // PostUpdate logic if needed
+  }
+
+  public onDestroy(): void {
+    if (this.container) {
+      this.container.destroy({ children: true })
+    }
+  }
 
   /**
-   * Renderuje pojedyncze pole (zastępuje stary drawTile)
+   * Schedules a tile update
    */
-  public drawTile(
+  public requestTileUpdate(x: number, y: number, tiles: TileSelection[], layer: ZLayer): void {
+    if (!this.mapData) return
+    this.tileUpdates.push({ x, y, layer, tiles })
+  }
+
+  public setMap(mapData: ZMap): void {
+    this.mapData = mapData
+    this.fullRenderDirty = true
+    this.tileUpdates = [] // Clear pending updates on new map
+  }
+
+  private performDrawTile(
     x: number,
     y: number,
     tiles: TileSelection[],
@@ -102,7 +155,7 @@ export class MapRenderSystem implements ZSystem {
     }
   }
 
-  public renderFullMap(mapData: ZMap): void {
+  private performFullRender(mapData: ZMap): void {
     this.resetLayers(mapData.width, mapData.height)
 
     const layersOrder: ZLayer[] = [
@@ -120,7 +173,7 @@ export class MapRenderSystem implements ZSystem {
         for (let x = 0; x < mapData.width; x++) {
           const stack = grid[y][x]
           if (stack && stack.length > 0) {
-            this.drawTile(x, y, stack, layer, mapData)
+            this.performDrawTile(x, y, stack, layer, mapData)
           }
         }
       }

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { onMounted, onUnmounted, ref, watch } from 'vue'
 import { ZEngine } from '@engine/core/ZEngine'
 import { useEditorStore, ZLayer, ZTool } from '@ui/stores/editor'
 import { type FederatedPointerEvent } from 'pixi.js'
@@ -22,7 +22,7 @@ const activeEventId = ref<string | null>(null)
 const handleInteraction = (event: FederatedPointerEvent, isCommit = false): void => {
   if (!engine || !store.selection || !store.activeMap) return
 
-  const target = engine.getTileCoords(event)
+  const target = engine.gridSystem.getTileCoords(event)
 
   if (
     target.x < 0 ||
@@ -177,7 +177,7 @@ const applyTile = (
 
   if (isEraser) {
     store.setTileAt(x, y, null)
-    engine.clearTile(x, y, layer)
+    engine.mapSystem.clearTileAt(x, y, layer)
   } else {
     const isAutotile = store.selection.isAutotile
 
@@ -192,7 +192,7 @@ const applyTile = (
     store.setTileAt(x, y, tile, isStacking)
 
     const stack = store.activeMap.layers[layer].data[y]?.[x]
-    if (stack) engine.drawTile(x, y, stack, layer, store.activeMap)
+    if (stack) engine.mapSystem.requestTileUpdate(x, y, stack, layer)
   }
 
   refreshNeighbors(x, y, layer)
@@ -209,15 +209,13 @@ const refreshNeighbors = (tx: number, ty: number, layer: ZLayer): void => {
       if (nx >= 0 && nx < store.activeMap.width && ny >= 0 && ny < store.activeMap.height) {
         const stack = store.activeMap.layers[layer].data[ny]?.[nx]
         if (stack && stack.length > 0) {
-          engine.drawTile(nx, ny, stack, layer, store.activeMap)
+          engine.mapSystem.requestTileUpdate(nx, ny, stack, layer)
         }
       }
     }
   }
 }
 const onPointerDown = (event: FederatedPointerEvent): void => {
-  // Zostawiamy tylko przycisk 1 (środkowy/scroll) dla panningu
-  // Jeśli chcesz przesuwać klawiszem, lepiej użyć np. event.ctrlKey lub spacji
   if (event.button === 1) {
     isPanning.value = true
     lastPanPos.value = { x: event.global.x, y: event.global.y }
@@ -226,7 +224,7 @@ const onPointerDown = (event: FederatedPointerEvent): void => {
 
   if (event.button !== 0 || !engine) return
 
-  const target = engine.getTileCoords(event)
+  const target = engine.gridSystem.getTileCoords(event)
 
   // Pipeta pod Alt
   if (event.altKey) {
@@ -258,7 +256,7 @@ const onPointerMove = (event: FederatedPointerEvent): void => {
   }
   if (!engine) return
 
-  const target = engine.getTileCoords(event)
+  const target = engine.gridSystem.getTileCoords(event)
   const tool = store.currentTool
 
   if (
@@ -266,9 +264,9 @@ const onPointerMove = (event: FederatedPointerEvent): void => {
     isPointerDown.value &&
     shapeStartPos.value
   ) {
-    engine.updateShapeGhost(shapeStartPos.value, target, tool)
+    engine.ghostSystem.updateShape(shapeStartPos.value, target, tool)
   } else {
-    engine.updateGhost(target.x, target.y, store.selection, tool)
+    engine.ghostSystem.update(target.x, target.y, store.selection, tool)
 
     if (isPointerDown.value && (tool === ZTool.brush || tool === ZTool.eraser)) {
       handleInteraction(event)
@@ -289,7 +287,7 @@ const onPointerUp = (event: FederatedPointerEvent): void => {
   }
   isPointerDown.value = false
   shapeStartPos.value = null
-  engine?.hideGhost()
+  engine?.ghostSystem.hide()
 }
 const onWheel = (event: WheelEvent): void => {
   if (!canvasContainer.value) return
@@ -339,30 +337,43 @@ const initEngine = async (): Promise<void> => {
   engine = new ZEngine()
   await engine.init(canvasContainer.value, store.tileSize)
 
-  await Promise.all(store.tilesets.map((ts) => engine!.loadTileset(ts.id, ts.url)))
+  await Promise.all(store.tilesets.map((ts) => engine!.textureManager.loadTileset(ts.id, ts.url)))
 
   engine.app.stage.on('pointerdown', onPointerDown)
   engine.app.stage.on('pointermove', onPointerMove)
   engine.app.stage.on('pointerup', onPointerUp)
-  engine.app.stage.on('pointerleave', () => engine?.hideGhost())
+  engine.app.stage.on('pointerleave', () => engine?.ghostSystem.hide())
 
-  engine.renderMap(store.activeMap, isEventTool.value)
+  engine.mapSystem.setMap(store.activeMap)
+  const isEventTool = store.currentTool === ZTool.event
+  engine.gridSystem.setSize(
+    isEventTool ? store.activeMap.width : 0,
+    isEventTool ? store.activeMap.height : 0
+  )
 }
 
 watch(() => store.activeMapID, initEngine)
 watch(
   () => store.historyIndex,
   () => {
-    if (store.activeMap && engine) engine.renderMap(store.activeMap, isEventTool.value)
+    if (store.activeMap && engine) {
+      engine.mapSystem.setMap(store.activeMap)
+      engine.gridSystem.setSize(store.activeMap.width, store.activeMap.height)
+    }
   }
 )
-
-const isEventTool = computed(() => store.currentTool === ZTool.event)
 
 watch(
   () => store.currentTool,
   () => {
-    if (engine && store.activeMap) engine.renderMap(store.activeMap, isEventTool.value)
+    if (engine && store.activeMap) {
+      engine.mapSystem.setMap(store.activeMap)
+      const isEventTool = store.currentTool === ZTool.event
+      engine.gridSystem.setSize(
+        isEventTool ? store.activeMap.width : 0,
+        isEventTool ? store.activeMap.height : 0
+      )
+    }
   }
 )
 
