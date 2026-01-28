@@ -64,7 +64,7 @@ const settings = [
   >
     <div class="mb-3 text-pink-400 bg-pink-100 px-3 py-2 rounded-md">Z</div>
 
-    <nav class="flex flex-col gap-2 relative z-[999]">
+    <nav class="flex flex-col gap-2 relative z-999">
       <NavButton
         v-for="option in options"
         :key="option.label"

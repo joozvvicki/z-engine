@@ -5,10 +5,7 @@ import { useLocalStorage } from '@vueuse/core'
 // --- MODUŁY LOKALNE ---
 import { TILESETS } from './constants'
 import { useHistory } from './useHistory'
-import { ZLayer, ZTool, type TileSelection, type ZEvent, type ZMap } from './types'
-
-// Re-export typów, aby inne komponenty mogły je importować bezpośrednio ze store'a
-export { ZLayer, ZTool, type TileSelection, type ZEvent, type ZMap }
+import { ZLayer, ZTool } from '../../../engine/utils/enums'
 
 export const useEditorStore = defineStore('editor', () => {
   // ==========================================

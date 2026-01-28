@@ -1,4 +1,4 @@
-import { TileSelection, ZLayer, ZMap } from '@ui/stores/editor'
+import { ZLayer } from '@engine/utils/enums'
 
 export class AutotileSolver {
   static isSameTile(

@@ -1,5 +1,5 @@
 import ZLogger from '@engine/core/ZLogger'
-import PIXI from '../utils/pixi'
+import PIXI from '@engine/utils/pixi'
 
 export class TextureManager {
   private textures: Map<string, PIXI.Texture> = new Map()

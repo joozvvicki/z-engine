@@ -1,6 +1,6 @@
 import { ref, computed, type Ref, ComputedRef } from 'vue'
 import { useEditorStore } from '@ui/stores/editor'
-import type { IconMap } from './useTilesetAtlas'
+import type { IconMap } from '@ui/composables/useTilesetAtlas'
 
 export const useTilesetSelection = (
   iconMapping: Ref<IconMap[]>,

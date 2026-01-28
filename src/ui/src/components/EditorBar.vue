@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useEditorStore, ZLayer, ZTool } from '@ui/stores/editor'
+import { useEditorStore } from '@ui/stores/editor'
 import {
   IconPencil,
   IconEraser,
@@ -14,6 +14,7 @@ import {
 } from '@tabler/icons-vue'
 import DynamicIcon from './DynamicIcon.vue'
 import { computed, onMounted } from 'vue'
+import { ZLayer, ZTool } from '@engine/utils/enums'
 
 const store = useEditorStore()
 
@@ -60,7 +61,7 @@ onMounted(() => {
         case 'D':
           store.exportMapAsJSON()
           break
-        case 'ArrowUp':
+        case 'ArrowUp': {
           const currentLayerID = activeMap.value?.layers[store.activeLayer]
             ? store.activeLayer
             : null
@@ -71,7 +72,8 @@ onMounted(() => {
           store.setLayer(layerKeys[nextIndex] as ZLayer)
           e.preventDefault()
           break
-        case 'ArrowDown':
+        }
+        case 'ArrowDown': {
           const currLayerID = activeMap.value?.layers[store.activeLayer] ? store.activeLayer : null
           if (!currLayerID) return
           const lKeys = Object.keys(activeMap.value!.layers)
@@ -80,6 +82,7 @@ onMounted(() => {
           store.setLayer(lKeys[prevIndex] as ZLayer)
           e.preventDefault()
           break
+        }
         case '1':
           store.setTool(ZTool.brush)
           e.preventDefault()
@@ -136,11 +139,11 @@ const sortedLayers = computed(() => {
       >
         <component :is="tool.icon" :size="18" />
         <div
-          class="absolute top-1 z-[1000] left-full ml-2 px-2 py-1 bg-slate-800 text-white text-xs rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap border border-slate-700 z-50"
+          class="absolute top-1 z-1000 left-full ml-2 px-2 py-1 bg-slate-800 text-white text-xs rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap border border-slate-700"
         >
           {{ tool.tooltip.split(' ')[0] }}
           <div
-            class="absolute z-[1001] top-1/2 -left-1 -translate-y-1/2 w-2 h-2 bg-slate-800 rotate-45 border-l border-b border-slate-700"
+            class="absolute z-1001 top-1/2 -left-1 -translate-y-1/2 w-2 h-2 bg-slate-800 rotate-45 border-l border-b border-slate-700"
           ></div>
         </div>
       </button>

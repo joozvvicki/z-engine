@@ -1,20 +1,8 @@
 import { defineStore } from 'pinia'
 import { useLocalStorage } from '@vueuse/core'
 
-export interface Actor {
-  id: number
-  name: string
-  nickname: string
-  classId: number
-  initialLevel: number
-  maxLevel: number
-  profile: string
-  face: string
-  character: string
-}
-
 export const useDatabaseStore = defineStore('database', () => {
-  const actors = useLocalStorage<Actor[]>('Z_DB_Actors', [
+  const actors = useLocalStorage<ZActor[]>('Z_DB_Actors', [
     {
       id: 1,
       name: 'Harold',

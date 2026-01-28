@@ -17,8 +17,8 @@ const isNewMapOpen = ref(false)
       :class="[
         'flex flex-col items-center gap-2 px-3 py-1.5 rounded-md mb-1 cursor-pointer transition-colors ',
         map.id === store.activeMapID
-          ? 'bg-black text-white hover:bg-black/100 hover:text-white shadow-[0_0_10px_rgba(0,0,0,0.3)]'
-          : 'hover:text-black/100 hover:bg-gray-100'
+          ? 'bg-black text-white hover:bg-black hover:text-white shadow-[0_0_10px_rgba(0,0,0,0.3)]'
+          : 'hover:text-black hover:bg-gray-100'
       ]"
       @click="store.setActiveMap(map.id)"
     >
@@ -30,7 +30,7 @@ const isNewMapOpen = ref(false)
     </div>
     <button
       :class="[
-        'flex flex-col items-center gap-2 px-3 py-1.5 rounded-md mb-1 cursor-pointer transition-colors hover:text-black/100 hover:bg-gray-100'
+        'flex flex-col items-center gap-2 px-3 py-1.5 rounded-md mb-1 cursor-pointer transition-colors hover:text-black hover:bg-gray-100'
       ]"
       @click="isNewMapOpen = true"
     >
@@ -39,7 +39,7 @@ const isNewMapOpen = ref(false)
     </button>
     <button
       :class="[
-        'flex flex-col items-center gap-2 px-3 py-1.5 rounded-md mb-1 cursor-pointer transition-colors hover:text-black/100 hover:bg-gray-100'
+        'flex flex-col items-center gap-2 px-3 py-1.5 rounded-md mb-1 cursor-pointer transition-colors hover:text-black hover:bg-gray-100'
       ]"
       @click="store.importMapFromJSON"
     >

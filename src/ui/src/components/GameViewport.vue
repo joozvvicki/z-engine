@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref, watch } from 'vue'
 import { ZEngine } from '@engine/core/ZEngine'
-import { useEditorStore, ZLayer, ZTool } from '@ui/stores/editor'
+import { useEditorStore } from '@ui/stores/editor'
 import { type FederatedPointerEvent } from '@engine/utils/pixi'
 import { IconAlertTriangle } from '@tabler/icons-vue'
 import EventEditor from './modal/EventEditor.vue'
+import { ZLayer, ZTool } from '@engine/utils/enums'
 
 const canvasContainer = ref<HTMLElement | null>(null)
 let engine: ZEngine | null = null

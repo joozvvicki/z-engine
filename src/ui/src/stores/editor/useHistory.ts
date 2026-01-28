@@ -1,13 +1,19 @@
-import { ref, computed, type Ref, watch, nextTick } from 'vue'
-import type { ZMap } from './types'
+import { ref, computed, type Ref, watch, nextTick, type ComputedRef } from 'vue'
 
 const MAX_HISTORY = 50
 
-export function useHistory(
+export const useHistory = (
   activeMap: Ref<ZMap | undefined>,
   activeMapID: Ref<number | null>,
   saveCallback: () => void
-) {
+): {
+  historyIndex: ComputedRef<number>
+  canUndo: ComputedRef<boolean>
+  canRedo: ComputedRef<boolean>
+  recordHistory: () => void
+  undo: () => void
+  redo: () => void
+} => {
   // Historia per Mapa (ID mapy -> { stack, index })
   const historyMap = ref<Record<number, { stack: string[]; index: number }>>({})
 
@@ -26,7 +32,7 @@ export function useHistory(
   )
 
   // Pomocnicza funkcja przywracania stanu
-  const restoreStateFromSnapshot = (map: ZMap, snapshot: string) => {
+  const restoreStateFromSnapshot = (map: ZMap, snapshot: string): void => {
     const data = JSON.parse(snapshot)
     map.layers = data.layers
     map.events = data.events
@@ -34,7 +40,7 @@ export function useHistory(
     map.height = data.height
   }
 
-  const recordHistory = () => {
+  const recordHistory = (): void => {
     const map = activeMap.value
     const hist = currentHistory.value
     if (!map || !hist) return
@@ -63,7 +69,7 @@ export function useHistory(
     }
   }
 
-  const undo = () => {
+  const undo = (): void => {
     const hist = currentHistory.value
     const map = activeMap.value
     if (!hist || !map) return
@@ -87,7 +93,7 @@ export function useHistory(
     saveCallback()
   }
 
-  const redo = () => {
+  const redo = (): void => {
     const hist = currentHistory.value
     const map = activeMap.value
     if (!hist || !map || hist.index >= hist.stack.length - 1) return

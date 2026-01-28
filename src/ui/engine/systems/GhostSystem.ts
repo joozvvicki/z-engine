@@ -1,6 +1,6 @@
 import PIXI from '../utils/pixi'
-import { TileSelection, ZTool } from '@ui/stores/editor'
 import { TextureManager } from '../managers/TextureManager'
+import { ZTool } from '@engine/utils/enums'
 
 export class GhostSystem implements ZSystem {
   private container: PIXI.Container
