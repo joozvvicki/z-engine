@@ -1,7 +1,7 @@
 import { Ref, ref } from 'vue'
 import { ZEngine } from '@engine/core/ZEngine'
 import { useEditorStore } from '@ui/stores/editor'
-import { ZLayer, ZTool } from '@engine/types'
+import { ZLayer, ZTool, TileSelection } from '@engine/types'
 import type { FederatedPointerEvent } from '@engine/utils/pixi'
 
 export const useEditorTools = (): {
@@ -14,6 +14,7 @@ export const useEditorTools = (): {
     isCommit?: boolean
   ) => void
   clearEventSelection: () => void
+  deleteSelection: (engine: ZEngine) => void
 } => {
   const store = useEditorStore()
   const shapeStartPos = ref<{ x: number; y: number } | null>(null)
@@ -30,20 +31,24 @@ export const useEditorTools = (): {
     layer: ZLayer,
     isEraser: boolean,
     isStacking: boolean,
-    engine: ZEngine
+    engine: ZEngine,
+    overrideTile?: TileSelection | null
   ): void => {
-    if (!store.activeMap || !store.selection) return
+    if (!store.activeMap) return // store.selection check moved down
     if (x < 0 || x >= store.activeMap.width || y < 0 || y >= store.activeMap.height) return
+
+    // Use overrideTile if provided, otherwise use store.selection
+    const sourceTile = overrideTile !== undefined ? overrideTile : store.selection
 
     if (isEraser) {
       store.setTileAt(x, y, null)
       engine.renderSystem?.clearTileAt(x, y, layer)
-    } else {
-      const isAutotile = store.selection.isAutotile
+    } else if (sourceTile) {
+      const isAutotile = sourceTile.isAutotile
       const tile = {
-        ...store.selection,
-        x: isAutotile ? store.selection.x : store.selection.x + ox,
-        y: isAutotile ? store.selection.y : store.selection.y + oy,
+        ...sourceTile,
+        x: isAutotile ? sourceTile.x : sourceTile.x + ox,
+        y: isAutotile ? sourceTile.y : sourceTile.y + oy,
         w: 1,
         h: 1
       }
@@ -130,14 +135,53 @@ export const useEditorTools = (): {
     isStacking: boolean,
     engine: ZEngine
   ): void => {
+    // If pattern exists, use its dimensions. Otherwise respect autotile logic.
+    // NOTE: This fixes the bug where pasting a pattern with an autotile base tile would result in w=1, h=1.
+    const pattern = store.selection?.pattern
     const isEraser = tool === ZTool.eraser
     const isAutotile = store.selection?.isAutotile
-    const w = isEraser || isAutotile ? 1 : store.selection!.w
-    const h = isEraser || isAutotile ? 1 : store.selection!.h
 
+    let w = 1
+    let h = 1
+
+    if (pattern && !isEraser) {
+      w = store.selection!.w
+      h = store.selection!.h
+    } else {
+      w = isEraser || isAutotile ? 1 : store.selection!.w
+      h = isEraser || isAutotile ? 1 : store.selection!.h
+    }
+
+    // console.log('drawBrush executing. Pattern:', !!pattern, 'Eraser:', isEraser)
     for (let ox = 0; ox < w; ox++) {
       for (let oy = 0; oy < h; oy++) {
-        applyTile(target.x + ox, target.y + oy, ox, oy, layer, isEraser, isStacking, engine)
+        // If we have a pattern (clipboard paste), use the specific tile from pattern
+        if (store.selection?.pattern && !isEraser) {
+          const patternTile = store.selection.pattern[oy]?.[ox]
+          // console.log('Pattern tile at', ox, oy, patternTile)
+          if (patternTile) {
+            // We need to override the tile being applied with the one from pattern
+            // Hack: we modify the selection temporarily or pass the tile directly?
+            // `applyTile` uses `store.selection`.
+            // We should modify `applyTile` or `drawBrush` to support explicit tile data.
+            // Providing a modified applyTile is better.
+            applyTile(
+              target.x + ox,
+              target.y + oy,
+              0,
+              0,
+              layer,
+              false,
+              isStacking,
+              engine,
+              patternTile
+            )
+          }
+          // If pattern tile is null, we might want to skip or erase?
+          // Standard generic behavior: skip nulls in pattern (transparent).
+        } else {
+          applyTile(target.x + ox, target.y + oy, ox, oy, layer, isEraser, isStacking, engine)
+        }
       }
     }
   }
@@ -210,6 +254,19 @@ export const useEditorTools = (): {
       return
     }
 
+    if (tool === ZTool.select && isCommit && shapeStartPos.value) {
+      const start = shapeStartPos.value
+      const end = target
+      const x = Math.min(start.x, end.x)
+      const y = Math.min(start.y, end.y)
+      const w = Math.abs(start.x - end.x) + 1
+      const h = Math.abs(start.y - end.y) + 1
+
+      store.setSelectionCoords({ x, y, w, h })
+      return
+    }
+
+    // Default brush/eraser behavior
     if ((tool === ZTool.brush || tool === ZTool.eraser) && !shapeStartPos.value) {
       drawBrush(target, tool, layer, isStacking, engine)
       return
@@ -221,11 +278,49 @@ export const useEditorTools = (): {
     activeEventId.value = null
   }
 
+  const deleteSelection = (engine: ZEngine): void => {
+    if (!store.selectionCoords || !store.activeMap) return
+    const { x, y, w, h } = store.selectionCoords
+    const layer = store.activeLayer
+
+    // Batch update store (IO heavy)
+    store.clearRegion(x, y, w, h)
+
+    // Batch update engine visuals
+    for (let dy = 0; dy < h; dy++) {
+      for (let dx = 0; dx < w; dx++) {
+        const tx = x + dx
+        const ty = y + dy
+        if (tx >= 0 && tx < store.activeMap.width && ty >= 0 && ty < store.activeMap.height) {
+          engine.renderSystem?.clearTileAt(tx, ty, layer)
+          // Also refresh neighbors to update auto-tiles
+          // refreshNeighbors(tx, ty, layer, engine)
+          // Note: refreshNeighbors iterates neighbors. For a large block, this is overlapping.
+          // Ideally we refresh the perimeter. For now, doing it per tile is safer for correctness,
+          // though redundant. engine updates are cheap (PIXI).
+          // Actually, let's skip neighbor refresh for internal tiles for optimization if needed,
+          // but for now correctness first.
+        }
+      }
+    }
+
+    // Refresh neighbors for the entire block perimeter to fix autotiles
+    // Doing it naively for all for now.
+    for (let dy = 0; dy < h; dy++) {
+      for (let dx = 0; dx < w; dx++) {
+        refreshNeighbors(x + dx, y + dy, layer, engine)
+      }
+    }
+
+    store.setSelectionCoords(null)
+  }
+
   return {
     shapeStartPos,
     activeEventCoords,
     activeEventId,
     handleInteraction,
-    clearEventSelection
+    clearEventSelection,
+    deleteSelection
   }
 }

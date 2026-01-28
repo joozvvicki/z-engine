@@ -18,6 +18,7 @@ export interface TileSelection {
   tilesetId: string
   isAutotile: boolean
   isWall?: boolean
+  pattern?: (TileSelection | null)[][]
 }
 
 export interface ZEvent {
@@ -75,7 +76,8 @@ export enum ZTool {
   bucket = 'bucket',
   event = 'event',
   circle = 'circle',
-  rectangle = 'rectangle'
+  rectangle = 'rectangle',
+  select = 'select'
 }
 
 export enum ZLayer {

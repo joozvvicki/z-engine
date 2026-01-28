@@ -32,6 +32,10 @@ export const useEditorStore = defineStore('editor', () => {
     isAutotile: false
   })
 
+  // Select Tool State
+  const selectionCoords = ref<{ x: number; y: number; w: number; h: number } | null>(null)
+  const clipboard = ref<TileSelection | null>(null)
+
   // Dane Map
   const storedMaps = useLocalStorage<ZMap[]>('Z_Maps', [])
 
@@ -153,13 +157,36 @@ export const useEditorStore = defineStore('editor', () => {
     saveProject()
   }
 
+  const clearRegion = (x: number, y: number, w: number, h: number): void => {
+    const map = activeMap.value
+    if (!map) return
+    const layerData = map.layers[activeLayer.value].data
+
+    let changed = false
+    for (let dy = 0; dy < h; dy++) {
+      for (let dx = 0; dx < w; dx++) {
+        const tx = x + dx
+        const ty = y + dy
+        if (tx >= 0 && tx < map.width && ty >= 0 && ty < map.height) {
+          // Clear the tile stack
+          layerData[ty][tx] = []
+          changed = true
+        }
+      }
+    }
+
+    if (changed) {
+      saveProject()
+    }
+  }
+
   const pickTile = (x: number, y: number): void => {
     if (!activeMap.value) return
     const stack = activeMap.value.layers[activeLayer.value].data[y]?.[x]
     if (!stack || stack.length === 0) return
 
     const topTile = stack[stack.length - 1]
-    selection.value = { ...topTile, w: 1, h: 1 }
+    selection.value = { ...topTile, w: 1, h: 1, pattern: undefined }
 
     // Automatyczna zmiana zakładki w zależności od ID tilesetu
     const id = topTile.tilesetId
@@ -168,6 +195,85 @@ export const useEditorStore = defineStore('editor', () => {
     else if (id === 'C') activeTab.value = 'C'
     else if (id === 'D') activeTab.value = 'D'
     else if (id === 'Roofs') activeTab.value = 'Roofs'
+  }
+
+  const setSelectionCoords = (
+    coords: { x: number; y: number; w: number; h: number } | null
+  ): void => {
+    selectionCoords.value = coords
+  }
+
+  const copySelection = (): void => {
+    if (!selectionCoords.value || !activeMap.value) return
+    const { x, y, w, h } = selectionCoords.value
+    const layerData = activeMap.value.layers[activeLayer.value].data
+
+    const pattern: (TileSelection | null)[][] = []
+
+    for (let dy = 0; dy < h; dy++) {
+      const row: (TileSelection | null)[] = []
+      for (let dx = 0; dx < w; dx++) {
+        const stack = layerData[y + dy]?.[x + dx]
+        if (stack && stack.length > 0) {
+          // Copy the top tile
+          row.push({ ...stack[stack.length - 1] })
+        } else {
+          row.push(null)
+        }
+      }
+      pattern.push(row)
+    }
+
+    // Determine the "primary" tile (top-left) for the clipboard
+    // If the top-left is empty, we still use it as the anchor, or we could find the first non-empty.
+    // simpler is to just take 0,0 even if null, but TileSelection requires tilesetId.
+    // So we'll use the first found tile as metadata or a dummy if empty.
+    let baseTile: TileSelection | null = null
+
+    // Find first non-null tile to use as base property
+    for (const row of pattern) {
+      for (const tile of row) {
+        if (tile) {
+          baseTile = tile
+          break
+        }
+      }
+      if (baseTile) break
+    }
+
+    // If no non-null tile found (empty selection), create a dummy base tile so clipboard layout is preserved.
+    // This allows pasting "empty" space (transparent stamp) or at least doesn't break the paste action.
+    if (!baseTile) {
+      baseTile = {
+        x: 0,
+        y: 0,
+        w: 1,
+        h: 1,
+        tilesetId: 'A1', // Default dummy
+        isAutotile: false
+      }
+    }
+
+    if (baseTile) {
+      clipboard.value = {
+        ...baseTile, // Base properties
+        w,
+        h,
+        pattern
+      }
+
+      // Auto-switch to Stamp mode (Brush with pattern)
+      selection.value = clipboard.value
+      selectionCoords.value = null
+      currentTool.value = ZTool.brush
+    }
+  }
+
+  const pasteSelection = (): void => {
+    if (!clipboard.value) return
+    selection.value = clipboard.value
+    selectionCoords.value = null // Clear selection box to avoid confusion
+    currentTool.value = ZTool.brush
   }
 
   // ==========================================
@@ -287,6 +393,8 @@ export const useEditorStore = defineStore('editor', () => {
     selection,
     activeLayer,
     currentTool,
+    selectionCoords,
+    clipboard,
 
     // History (rozpakowujemy metody z composable)
     ...history,
@@ -294,7 +402,7 @@ export const useEditorStore = defineStore('editor', () => {
     // Actions
     setLayer: (l: ZLayer) => (activeLayer.value = l),
     setTool: (t: ZTool) => (currentTool.value = t),
-    setSelection: (s: TileSelection) => (selection.value = s),
+    setSelection: (s: TileSelection) => (selection.value = { ...s, pattern: s.pattern }),
     setActiveMap,
     deleteMap,
 
@@ -302,6 +410,10 @@ export const useEditorStore = defineStore('editor', () => {
     createMap,
     setTileAt,
     pickTile,
+    clearRegion,
+    setSelectionCoords,
+    copySelection,
+    pasteSelection,
 
     addEvent,
     updateEvent,

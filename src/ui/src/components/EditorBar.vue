@@ -8,7 +8,8 @@ import {
   IconCircle,
   IconArrowBackUp,
   IconArrowForwardUp,
-  IconBox
+  IconBox,
+  IconScan
 } from '@tabler/icons-vue'
 import DynamicIcon from './DynamicIcon.vue'
 import { computed, onMounted } from 'vue'
@@ -18,6 +19,7 @@ const store = useEditorStore()
 
 const tools = [
   { tool: ZTool.brush, icon: IconPencil, tooltip: 'Pędzel (Ctrl + 1)' },
+  { tool: ZTool.select, icon: IconScan, tooltip: 'Zaznacz (Ctrl + S)' },
   { tool: ZTool.bucket, icon: IconBucketDroplet, tooltip: 'Wypełniacz (Ctrl + 2)' },
   { tool: ZTool.rectangle, icon: IconRectangle, tooltip: 'Prostokąt (Ctrl + 3)' },
   { tool: ZTool.circle, icon: IconCircle, tooltip: 'Okrąg (Ctrl + 4)' },
@@ -26,8 +28,20 @@ const tools = [
 ]
 
 const actions = [
-  { name: 'Undo', icon: IconArrowBackUp, shortcut: 'Ctrl + Z', action: () => store.undo() },
-  { name: 'Redo', icon: IconArrowForwardUp, shortcut: 'Ctrl + Y', action: () => store.redo() }
+  {
+    name: 'Undo',
+    icon: IconArrowBackUp,
+    shortcut: 'Ctrl + Z',
+    action: () => store.undo(),
+    tooltip: 'Cofnij (Ctrl + Z)'
+  },
+  {
+    name: 'Redo',
+    icon: IconArrowForwardUp,
+    shortcut: 'Ctrl + Y',
+    action: () => store.redo(),
+    tooltip: 'Ponów (Ctrl + Y)'
+  }
 ]
 
 const handleKeydown = (e: KeyboardEvent): void => {
@@ -94,7 +108,30 @@ const handleKeydown = (e: KeyboardEvent): void => {
         store.setTool(ZTool.eraser)
         e.preventDefault()
         break
+      case 's':
+      case 'S':
+        store.setTool(ZTool.select)
+        e.preventDefault()
     }
+  } else {
+    // Shortcuts without modifiers or with other modifiers
+    if (e.key === 'Escape') {
+      store.setSelectionCoords(null)
+      // Reset selection pattern if it exists (stop stamping)
+      if (store.selection && store.selection.pattern) {
+        store.setSelection({ ...store.selection, pattern: undefined, w: 1, h: 1 })
+      }
+    }
+  }
+
+  if ((e.ctrlKey || e.metaKey) && e.code === 'KeyC') {
+    store.copySelection()
+    e.preventDefault()
+  }
+
+  if ((e.ctrlKey || e.metaKey) && e.code === 'KeyV') {
+    store.pasteSelection()
+    e.preventDefault()
   }
 }
 
@@ -185,11 +222,14 @@ onMounted(() => {
 
 <template>
   <div class="absolute bottom-6 left-0 z-20 flex flex-col items-center justify-end gap-4 p-2">
-    <div class="flex flex-col gap-1 bg-black/10 backdrop-blur-lg rounded-xl border border-white/5">
+    <div
+      v-if="store.currentHistory?.stack?.length !== 1"
+      class="flex flex-col gap-1 bg-black/10 backdrop-blur-lg rounded-xl border border-white/5"
+    >
       <button
         v-for="action in actions"
         :key="action.name"
-        class="relative p-1 rounded-lg transition-all duration-200 cursor-pointer"
+        class="relative p-1 rounded-lg transition-all duration-200 cursor-pointer group"
         :class="'bg-transparent text-black hover:text-gray-500'"
         @click="action.action"
       >
@@ -211,6 +251,15 @@ onMounted(() => {
             class="w-3 h-3 bg-red-500 rounded-full"
             >{{ store.currentHistory!.stack!.length - store.currentHistory!.index - 1 }}</span
           >
+        </div>
+        <div
+          v-if="action.tooltip"
+          class="absolute top-1 z-1000 left-full ml-2 px-2 py-1 bg-slate-800 text-white text-xs rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap border border-slate-700"
+        >
+          {{ action.tooltip.split(' ')[0] }}
+          <div
+            class="absolute z-1001 top-1/2 -left-1 -translate-y-1/2 w-2 h-2 bg-slate-800 rotate-45 border-l border-b border-slate-700"
+          ></div>
         </div>
       </button>
     </div>

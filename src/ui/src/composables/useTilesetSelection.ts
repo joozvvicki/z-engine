@@ -1,6 +1,6 @@
 import { ref, computed, type Ref, ComputedRef } from 'vue'
 import { useEditorStore } from '@ui/stores/editor'
-import type { IconMap } from '@ui/composables/useTilesetAtlas'
+import type { IconMap } from '@engine/types'
 
 export const useTilesetSelection = (
   iconMapping: Ref<IconMap[]>,
@@ -116,6 +116,7 @@ export const useTilesetSelection = (
 
   const selectionStyle = computed(() => {
     if (!store.selection) return null
+    if (store.selection.pattern) return null // Hide selection in tileset selector if we have a pattern (paste mode)
     const sel = store.selection
     const isA = ['A1', 'A2', 'A3', 'A4', 'A5'].includes(sel.tilesetId)
 

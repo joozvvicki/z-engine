@@ -20,8 +20,14 @@ const isEngineReady = ref(false)
 
 const { scale, isPanning, handleWheel, startPan, updatePan, endPan, resetViewport } = useViewport()
 
-const { shapeStartPos, activeEventCoords, activeEventId, handleInteraction, clearEventSelection } =
-  useEditorTools()
+const {
+  shapeStartPos,
+  activeEventCoords,
+  activeEventId,
+  handleInteraction,
+  clearEventSelection,
+  deleteSelection
+} = useEditorTools()
 
 const onPointerDown = (event: FederatedPointerEvent): void => {
   if (event.button === 1) {
@@ -46,7 +52,7 @@ const onPointerDown = (event: FederatedPointerEvent): void => {
     return
   }
 
-  if ([ZTool.rectangle, ZTool.circle].includes(store.currentTool) && target.value) {
+  if ([ZTool.rectangle, ZTool.circle, ZTool.select].includes(store.currentTool) && target.value) {
     shapeStartPos.value = target.value
   } else {
     handleInteraction(event, engine)
@@ -64,7 +70,7 @@ const onPointerMove = (event: FederatedPointerEvent): void => {
   const tool = store.currentTool
 
   if (
-    [ZTool.rectangle, ZTool.circle].includes(tool) &&
+    [ZTool.rectangle, ZTool.circle, ZTool.select].includes(tool) &&
     isPointerDown.value &&
     shapeStartPos.value
   ) {
@@ -75,9 +81,20 @@ const onPointerMove = (event: FederatedPointerEvent): void => {
 
     if (isPointerDown.value && (tool === ZTool.brush || tool === ZTool.eraser)) {
       handleInteraction(event, engine)
+      handleInteraction(event, engine)
     }
   }
 }
+
+const updateSelectionGhost = (): void => {
+  if (engine && engine.ghostSystem && store.selectionCoords) {
+    engine.ghostSystem.setSelectionBox(store.selectionCoords)
+  } else if (engine && engine.ghostSystem) {
+    engine.ghostSystem.setSelectionBox(null)
+  }
+}
+
+watch(() => store.selectionCoords, updateSelectionGhost)
 
 const onPointerUp = (event: FederatedPointerEvent): void => {
   if (isPanning.value) {
@@ -86,7 +103,7 @@ const onPointerUp = (event: FederatedPointerEvent): void => {
   }
 
   if (isPointerDown.value) {
-    if ([ZTool.rectangle, ZTool.circle, ZTool.event].includes(store.currentTool)) {
+    if ([ZTool.rectangle, ZTool.circle, ZTool.event, ZTool.select].includes(store.currentTool)) {
       handleInteraction(event, engine, true)
     }
     store.recordHistory() // Save history after interaction loop ends
@@ -157,10 +174,18 @@ watch(
 )
 
 onMounted(async () => {
-  window.addEventListener('pointerup', () => {
-    isPointerDown.value = false
-    endPan()
+  isPointerDown.value = false
+  endPan()
+
+  window.addEventListener('keydown', (e) => {
+    if ((e.key === 'Delete' || e.key === 'Backspace') && engine) {
+      // Only delete if we have a selection and engine is ready
+      if (store.selectionCoords) {
+        deleteSelection(engine)
+      }
+    }
   })
+
   await initEngine()
 })
 
