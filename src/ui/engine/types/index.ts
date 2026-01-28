@@ -19,6 +19,8 @@ export interface TileSelection {
   isAutotile: boolean
   isWall?: boolean
   pattern?: (TileSelection | null)[][]
+  structure?: Partial<Record<ZLayer, (TileSelection[] | null)[][]>>
+  isMultiLayer?: boolean
 }
 
 export interface ZEvent {

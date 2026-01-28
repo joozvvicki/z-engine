@@ -41,7 +41,7 @@ export const useEditorTools = (): {
     const sourceTile = overrideTile !== undefined ? overrideTile : store.selection
 
     if (isEraser) {
-      store.setTileAt(x, y, null)
+      store.setTileAt(x, y, null, false, layer)
       engine.renderSystem?.clearTileAt(x, y, layer)
     } else if (sourceTile) {
       const isAutotile = sourceTile.isAutotile
@@ -52,7 +52,7 @@ export const useEditorTools = (): {
         w: 1,
         h: 1
       }
-      store.setTileAt(x, y, tile, isStacking)
+      store.setTileAt(x, y, tile, isStacking, layer)
       const stack = store.activeMap.layers[layer].data[y]?.[x]
       if (stack) engine.renderSystem?.requestTileUpdate(x, y, stack, layer)
     }
@@ -143,6 +143,43 @@ export const useEditorTools = (): {
 
     let w = 1
     let h = 1
+
+    // Check for multi-layer structure
+    if (store.selection?.structure && !isEraser) {
+      const structure = store.selection.structure
+      const w = store.selection.w
+      const h = store.selection.h
+
+      for (const layerKey in structure) {
+        // If it's a multi-layer copy, we respect the original layer IDs (ZLayer values).
+        // If it's a single-layer copy (but with stack structure), we paste everything into the CURRENT active layer.
+        const targetLayer = store.selection.isMultiLayer === true ? (layerKey as ZLayer) : layer // 'layer' arg is the active layer passed to drawBrush
+
+        const grid = structure[layerKey as ZLayer]
+        if (!grid) continue
+
+        for (let ox = 0; ox < w; ox++) {
+          for (let oy = 0; oy < h; oy++) {
+            const stack = grid[oy]?.[ox]
+            if (stack && stack.length > 0) {
+              const tx = target.x + ox
+              const ty = target.y + oy
+
+              stack.forEach((tile, index) => {
+                if (index === 0) {
+                  // Replace mode for first tile in stack
+                  applyTile(tx, ty, 0, 0, targetLayer, false, false, engine, tile)
+                } else {
+                  // Stack mode for subsequent tiles
+                  applyTile(tx, ty, 0, 0, targetLayer, false, true, engine, tile)
+                }
+              })
+            }
+          }
+        }
+      }
+      return
+    }
 
     if (pattern && !isEraser) {
       w = store.selection!.w

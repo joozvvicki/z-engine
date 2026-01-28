@@ -1,6 +1,6 @@
 import PIXI from '../utils/pixi'
 import { TextureManager } from '../managers/TextureManager'
-import { ZSystem, type TileSelection, ZTool } from '@engine/types'
+import { ZSystem, type TileSelection, ZTool, ZLayer } from '@engine/types'
 
 export class GhostSystem extends ZSystem {
   private container: PIXI.Container
@@ -95,189 +95,220 @@ export class GhostSystem extends ZSystem {
         .stroke({ width: 1, color: 0x00ffff, alpha: 0.8 })
       this.container.addChild(g)
     } else if (this.currentTool === ZTool.brush || this.currentTool === ZTool.bucket) {
-      // If we have a pattern (paste mode), render the whole pattern
-      if (this.selection.pattern) {
-        // Render pattern
+      if (this.selection.structure) {
+        // Render multi-layer structure (prioritize over flat pattern)
+        for (const layerKey in this.selection.structure) {
+          const grid = this.selection.structure[layerKey as ZLayer]
+          if (!grid) continue
+
+          for (let dy = 0; dy < this.selection.h; dy++) {
+            for (let dx = 0; dx < this.selection.w; dx++) {
+              const stack = grid[dy]?.[dx]
+              if (stack && stack.length > 0) {
+                for (const tile of stack) {
+                  const tex = this.textureManager.get(tile.tilesetId)
+                  if (!tex) continue
+
+                  if (tile.isAutotile) {
+                    // Autotile interaction logic for GHOST structure
+                    const halfSize = this.tileSize / 2
+
+                    for (let qy = 0; qy < 2; qy++) {
+                      for (let qx = 0; qx < 2; qx++) {
+                        // Check neighbors within the CURRENT LAYER GRID
+                        const check = (odx: number, ody: number): boolean => {
+                          const nx = dx + odx
+                          const ny = dy + ody
+                          if (
+                            nx < 0 ||
+                            nx >= this.selection!.w ||
+                            ny < 0 ||
+                            ny >= this.selection!.h
+                          )
+                            return false
+
+                          const neighborStack = grid[ny]?.[nx]
+                          if (!neighborStack) return false
+
+                          // Check if any tile in neighbor stack matches
+                          return neighborStack.some(
+                            (n) =>
+                              n.tilesetId === tile.tilesetId && n.x === tile.x && n.y === tile.y
+                          )
+                        }
+
+                        // Logic copied/adapted from AutotileSolver
+                        const ndx = qx === 0 ? -1 : 1
+                        const ndy = qy === 0 ? -1 : 1
+
+                        const hasH = check(ndx, 0)
+                        const hasV = check(0, ndy)
+                        const hasD = check(ndx, ndy)
+
+                        const isA3 = tile.tilesetId === 'A3'
+                        const isA4Wall =
+                          tile.tilesetId === 'A4' && (tile.y === 3 || tile.y === 8 || tile.y === 13)
+
+                        let srcX = 0
+                        let srcY = 0
+
+                        if (isA3 || isA4Wall) {
+                          if (qx === 0 && qy === 0) {
+                            srcX = hasH ? halfSize : 0
+                            srcY = hasV ? halfSize : 0
+                          } else if (qx === 1 && qy === 0) {
+                            srcX = hasH ? this.tileSize : this.tileSize * 1.5
+                            srcY = hasV ? halfSize : 0
+                          } else if (qx === 0 && qy === 1) {
+                            srcX = hasH ? halfSize : 0
+                            srcY = !hasV ? this.tileSize * 1.5 : halfSize
+                          } else if (qx === 1 && qy === 1) {
+                            srcX = hasH ? this.tileSize : this.tileSize * 1.5
+                            srcY = !hasV ? this.tileSize * 1.5 : halfSize
+                          }
+                        } else {
+                          // Standard Autotile
+                          if (qx === 0 && qy === 0) {
+                            if (!hasH && !hasV) {
+                              srcX = 0
+                              srcY = this.tileSize
+                            } else if (hasH && !hasV) {
+                              srcX = this.tileSize
+                              srcY = this.tileSize
+                            } else if (!hasH && hasV) {
+                              srcX = 0
+                              srcY = this.tileSize * 2
+                            } else if (hasH && hasV && !hasD) {
+                              srcX = this.tileSize
+                              srcY = 0
+                            } else {
+                              srcX = this.tileSize
+                              srcY = this.tileSize * 2
+                            }
+                          } else if (qx === 1 && qy === 0) {
+                            if (!hasH && !hasV) {
+                              srcX = this.tileSize * 1.5
+                              srcY = this.tileSize
+                            } else if (hasH && !hasV) {
+                              srcX = halfSize
+                              srcY = this.tileSize
+                            } else if (!hasH && hasV) {
+                              srcX = this.tileSize * 1.5
+                              srcY = this.tileSize * 2
+                            } else if (hasH && hasV && !hasD) {
+                              srcX = this.tileSize * 1.5
+                              srcY = 0
+                            } else {
+                              srcX = halfSize
+                              srcY = this.tileSize * 2
+                            }
+                          } else if (qx === 0 && qy === 1) {
+                            if (!hasH && !hasV) {
+                              srcX = 0
+                              srcY = this.tileSize * 2.5
+                            } else if (hasH && !hasV) {
+                              srcX = this.tileSize
+                              srcY = this.tileSize * 2.5
+                            } else if (!hasH && hasV) {
+                              srcX = 0
+                              srcY = this.tileSize * 1.5
+                            } else if (hasH && hasV && !hasD) {
+                              srcX = this.tileSize
+                              srcY = halfSize
+                            } else {
+                              srcX = this.tileSize
+                              srcY = this.tileSize * 1.5
+                            }
+                          } else if (qx === 1 && qy === 1) {
+                            if (!hasH && !hasV) {
+                              srcX = this.tileSize * 1.5
+                              srcY = this.tileSize * 2.5
+                            } else if (hasH && !hasV) {
+                              srcX = halfSize
+                              srcY = this.tileSize * 2.5
+                            } else if (!hasH && hasV) {
+                              srcX = this.tileSize * 1.5
+                              srcY = this.tileSize * 1.5
+                            } else if (hasH && hasV && !hasD) {
+                              srcX = this.tileSize * 1.5
+                              srcY = halfSize
+                            } else {
+                              srcX = halfSize
+                              srcY = this.tileSize * 1.5
+                            }
+                          }
+                        }
+
+                        const sprite = new PIXI.Sprite(
+                          new PIXI.Texture({
+                            source: tex.source,
+                            frame: new PIXI.Rectangle(
+                              tile.x * this.tileSize + srcX,
+                              tile.y * this.tileSize + srcY,
+                              halfSize,
+                              halfSize
+                            )
+                          })
+                        )
+                        sprite.x = x + dx * this.tileSize + qx * halfSize
+                        sprite.y = y + dy * this.tileSize + qy * halfSize
+                        sprite.alpha = 0.5
+                        this.container.addChild(sprite)
+                      }
+                    }
+                  } else {
+                    // Standard Tile
+                    const sprite = new PIXI.Sprite(
+                      new PIXI.Texture({
+                        source: tex.source,
+                        frame: new PIXI.Rectangle(
+                          tile.x * this.tileSize,
+                          tile.y * this.tileSize,
+                          this.tileSize,
+                          this.tileSize
+                        )
+                      })
+                    )
+                    sprite.x = x + dx * this.tileSize
+                    sprite.y = y + dy * this.tileSize
+                    sprite.alpha = 0.5
+                    this.container.addChild(sprite)
+                  }
+                }
+              }
+            }
+          }
+        }
+      } else if (this.selection.pattern) {
+        // Fallback or legacy pattern
+        // (This code block is mostly redundant now since we always populate structure, but kept for safety)
         for (let dy = 0; dy < this.selection.h; dy++) {
           for (let dx = 0; dx < this.selection.w; dx++) {
             const tile = this.selection.pattern[dy]?.[dx]
             if (tile) {
               const tex = this.textureManager.get(tile.tilesetId)
               if (tex) {
-                if (tile.isAutotile) {
-                  // Autotile interaction logic for GHOST (internal connections only)
-                  const halfSize = this.tileSize / 2
-
-                  for (let qy = 0; qy < 2; qy++) {
-                    for (let qx = 0; qx < 2; qx++) {
-                      // Check neighbors within the pattern
-                      const check = (odx: number, ody: number): boolean => {
-                        const nx = dx + odx
-                        const ny = dy + ody
-                        // Bounds check
-                        if (nx < 0 || nx >= this.selection!.w || ny < 0 || ny >= this.selection!.h)
-                          return false
-                        const neighbor = this.selection!.pattern![ny]?.[nx]
-                        if (!neighbor) return false
-                        return (
-                          neighbor.tilesetId === tile.tilesetId &&
-                          neighbor.x === tile.x &&
-                          neighbor.y === tile.y
-                        )
-                      }
-
-                      // Logic copied/adapted from AutotileSolver
-                      const ndx = qx === 0 ? -1 : 1
-                      const ndy = qy === 0 ? -1 : 1
-
-                      const hasH = check(ndx, 0)
-                      const hasV = check(0, ndy)
-                      const hasD = check(ndx, ndy)
-
-                      const isA3 = tile.tilesetId === 'A3'
-                      const isA4Wall =
-                        tile.tilesetId === 'A4' && (tile.y === 3 || tile.y === 8 || tile.y === 13)
-
-                      let srcX = 0
-                      let srcY = 0
-
-                      if (isA3 || isA4Wall) {
-                        // Simplify A3/A4 for ghost if needed, or implement full logic
-                        // Assuming standard logic for now
-                        if (qx === 0 && qy === 0) {
-                          srcX = hasH ? halfSize : 0
-                          srcY = hasV ? halfSize : 0
-                        } else if (qx === 1 && qy === 0) {
-                          srcX = hasH ? this.tileSize : this.tileSize * 1.5
-                          srcY = hasV ? halfSize : 0
-                        } else if (qx === 0 && qy === 1) {
-                          srcX = hasH ? halfSize : 0
-                          srcY = !hasV ? this.tileSize * 1.5 : halfSize
-                        } else if (qx === 1 && qy === 1) {
-                          srcX = hasH ? this.tileSize : this.tileSize * 1.5
-                          srcY = !hasV ? this.tileSize * 1.5 : halfSize
-                        }
-                      } else {
-                        // Standard Autotile (A1, A2, A4-Ground, etc)
-                        // TOP-LEFT
-                        if (qx === 0 && qy === 0) {
-                          if (!hasH && !hasV) {
-                            srcX = 0
-                            srcY = this.tileSize
-                          } else if (hasH && !hasV) {
-                            srcX = this.tileSize
-                            srcY = this.tileSize
-                          } else if (!hasH && hasV) {
-                            srcX = 0
-                            srcY = this.tileSize * 2
-                          } else if (hasH && hasV && !hasD) {
-                            srcX = this.tileSize
-                            srcY = 0
-                          } else {
-                            srcX = this.tileSize
-                            srcY = this.tileSize * 2
-                          }
-                        }
-                        // TOP-RIGHT
-                        else if (qx === 1 && qy === 0) {
-                          if (!hasH && !hasV) {
-                            srcX = this.tileSize * 1.5
-                            srcY = this.tileSize
-                          } else if (hasH && !hasV) {
-                            srcX = halfSize
-                            srcY = this.tileSize
-                          } else if (!hasH && hasV) {
-                            srcX = this.tileSize * 1.5
-                            srcY = this.tileSize * 2
-                          } else if (hasH && hasV && !hasD) {
-                            srcX = this.tileSize * 1.5
-                            srcY = 0
-                          } else {
-                            srcX = halfSize
-                            srcY = this.tileSize * 2
-                          }
-                        }
-                        // BOTTOM-LEFT
-                        else if (qx === 0 && qy === 1) {
-                          if (!hasH && !hasV) {
-                            srcX = 0
-                            srcY = this.tileSize * 2.5
-                          } else if (hasH && !hasV) {
-                            srcX = this.tileSize
-                            srcY = this.tileSize * 2.5
-                          } else if (!hasH && hasV) {
-                            srcX = 0
-                            srcY = this.tileSize * 1.5
-                          } else if (hasH && hasV && !hasD) {
-                            srcX = this.tileSize
-                            srcY = halfSize
-                          } else {
-                            srcX = this.tileSize
-                            srcY = this.tileSize * 1.5
-                          }
-                        }
-                        // BOTTOM-RIGHT
-                        else if (qx === 1 && qy === 1) {
-                          if (!hasH && !hasV) {
-                            srcX = this.tileSize * 1.5
-                            srcY = this.tileSize * 2.5
-                          } else if (hasH && !hasV) {
-                            srcX = halfSize
-                            srcY = this.tileSize * 2.5
-                          } else if (!hasH && hasV) {
-                            srcX = this.tileSize * 1.5
-                            srcY = this.tileSize * 1.5
-                          } else if (hasH && hasV && !hasD) {
-                            srcX = this.tileSize * 1.5
-                            srcY = halfSize
-                          } else {
-                            srcX = halfSize
-                            srcY = this.tileSize * 1.5
-                          }
-                        }
-                      }
-
-                      const sprite = new PIXI.Sprite(
-                        new PIXI.Texture({
-                          source: tex.source,
-                          frame: new PIXI.Rectangle(
-                            tile.x * this.tileSize + srcX,
-                            tile.y * this.tileSize + srcY,
-                            halfSize,
-                            halfSize
-                          )
-                        })
-                      )
-                      sprite.x = x + dx * this.tileSize + qx * halfSize
-                      sprite.y = y + dy * this.tileSize + qy * halfSize
-                      sprite.alpha = 0.5
-                      this.container.addChild(sprite)
-                    }
-                  }
-                } else {
-                  // Standard Tile
-                  const sprite = new PIXI.Sprite(
-                    new PIXI.Texture({
-                      source: tex.source,
-                      frame: new PIXI.Rectangle(
-                        tile.x * this.tileSize,
-                        tile.y * this.tileSize,
-                        this.tileSize,
-                        this.tileSize
-                      )
-                    })
-                  )
-                  sprite.x = x + dx * this.tileSize
-                  sprite.y = y + dy * this.tileSize
-                  sprite.alpha = 0.5
-                  this.container.addChild(sprite)
-                }
+                const sprite = new PIXI.Sprite(
+                  new PIXI.Texture({
+                    source: tex.source,
+                    frame: new PIXI.Rectangle(
+                      tile.x * this.tileSize,
+                      tile.y * this.tileSize,
+                      this.tileSize,
+                      this.tileSize
+                    )
+                  })
+                )
+                sprite.x = x + dx * this.tileSize
+                sprite.y = y + dy * this.tileSize
+                sprite.alpha = 0.5
+                this.container.addChild(sprite)
               }
             }
           }
         }
       } else {
-        // Render standard single tile selection (or autotile representative)
+        // Single tile selection fallback
         const tex = this.textureManager.get(this.selection.tilesetId)
         if (tex) {
           const sprite = new PIXI.Sprite(

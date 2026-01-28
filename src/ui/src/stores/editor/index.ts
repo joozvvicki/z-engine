@@ -126,16 +126,24 @@ export const useEditorStore = defineStore('editor', () => {
   // 5. EDITING ACTIONS (Brush, Pick)
   // ==========================================
 
-  const setTileAt = (x: number, y: number, tile: TileSelection | null, stack = false): void => {
+  const setTileAt = (
+    x: number,
+    y: number,
+    tile: TileSelection | null,
+    stack = false,
+    layer?: ZLayer
+  ): void => {
     const map = activeMap.value
     if (!map || x < 0 || x >= map.width || y < 0 || y >= map.height) return
 
+    const targetLayer = layer ?? activeLayer.value
+
     // Pobieramy referencję do stosu na danej pozycji
-    const currentCell = map.layers[activeLayer.value].data[y][x]
+    const currentCell = map.layers[targetLayer].data[y][x]
 
     if (tile === null) {
       // Gumka: czyścimy stos całkowicie
-      map.layers[activeLayer.value].data[y][x] = []
+      map.layers[targetLayer].data[y][x] = []
     } else {
       if (stack && currentCell) {
         // Sprawdź duplikaty
@@ -146,11 +154,11 @@ export const useEditorStore = defineStore('editor', () => {
         if (!isDuplicate) {
           // ZAMIAST .push(tile), robimy nadpisanie nową tablicą (spread operator).
           // To gwarantuje, że Vue "zauważy" zmianę i przerysuje kafelki.
-          map.layers[activeLayer.value].data[y][x] = [...currentCell, tile]
+          map.layers[targetLayer].data[y][x] = [...currentCell, tile]
         }
       } else {
         // Tryb bez Shifta: zastępujemy wszystko nowym kafelkiem
-        map.layers[activeLayer.value].data[y][x] = [tile]
+        map.layers[targetLayer].data[y][x] = [tile]
       }
     }
 
@@ -203,23 +211,71 @@ export const useEditorStore = defineStore('editor', () => {
     selectionCoords.value = coords
   }
 
-  const copySelection = (): void => {
+  const copySelection = (allLayers = false): void => {
+    console.log('copySelection called. allLayers:', allLayers)
     if (!selectionCoords.value || !activeMap.value) return
     const { x, y, w, h } = selectionCoords.value
-    const layerData = activeMap.value.layers[activeLayer.value].data
+
+    // Helper to get top-most tile from a stack
+    const getTopTile = (layerId: ZLayer, tx: number, ty: number): TileSelection | null => {
+      const stack = activeMap.value!.layers[layerId]?.data[ty]?.[tx]
+      return stack && stack.length > 0 ? stack[stack.length - 1] : null
+    }
 
     const pattern: (TileSelection | null)[][] = []
+    const structure: Partial<Record<ZLayer, (TileSelection[] | null)[][]>> = {}
 
+    // Capture structure for layers
+    const layersToCheck = allLayers
+      ? [ZLayer.ground, ZLayer.walls, ZLayer.decoration, ZLayer.trees, ZLayer.events, ZLayer.roofs]
+      : [activeLayer.value]
+
+    for (const l of layersToCheck) {
+      const layerGrid: (TileSelection[] | null)[][] = []
+      let hasData = false
+
+      for (let dy = 0; dy < h; dy++) {
+        const row: (TileSelection[] | null)[] = []
+        for (let dx = 0; dx < w; dx++) {
+          const stack = activeMap.value!.layers[l]?.data[y + dy]?.[x + dx]
+          if (stack && stack.length > 0) {
+            row.push([...stack]) // Clone stack
+            hasData = true
+          } else {
+            row.push(null)
+          }
+        }
+        layerGrid.push(row)
+      }
+
+      if (hasData) {
+        structure[l] = layerGrid
+      }
+    }
+
+    // Always generate 'pattern' (flattened or single layer) for fallback/preview
     for (let dy = 0; dy < h; dy++) {
       const row: (TileSelection | null)[] = []
       for (let dx = 0; dx < w; dx++) {
-        const stack = layerData[y + dy]?.[x + dx]
-        if (stack && stack.length > 0) {
-          // Copy the top tile
-          row.push({ ...stack[stack.length - 1] })
+        let tile: TileSelection | null = null
+
+        if (allLayers) {
+          const layersToCheck = [
+            ZLayer.ground,
+            ZLayer.walls,
+            ZLayer.decoration,
+            ZLayer.trees,
+            ZLayer.roofs
+          ]
+          for (const l of layersToCheck) {
+            const t = getTopTile(l, y + dy, x + dx)
+            if (t) tile = { ...t }
+          }
         } else {
-          row.push(null)
+          const t = getTopTile(activeLayer.value, y + dy, x + dx)
+          if (t) tile = { ...t }
         }
+        row.push(tile)
       }
       pattern.push(row)
     }
@@ -259,7 +315,9 @@ export const useEditorStore = defineStore('editor', () => {
         ...baseTile, // Base properties
         w,
         h,
-        pattern
+        pattern: allLayers ? undefined : pattern,
+        structure, // Always include structure now
+        isMultiLayer: allLayers // Flag to distinguish paste behavior
       }
 
       // Auto-switch to Stamp mode (Brush with pattern)

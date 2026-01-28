@@ -125,7 +125,11 @@ const handleKeydown = (e: KeyboardEvent): void => {
   }
 
   if ((e.ctrlKey || e.metaKey) && e.code === 'KeyC') {
-    store.copySelection()
+    if (e.shiftKey) {
+      store.copySelection(true) // Copy merged visible layers
+    } else {
+      store.copySelection(false) // Copy active layer only
+    }
     e.preventDefault()
   }
 
