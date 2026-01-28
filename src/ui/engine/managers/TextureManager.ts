@@ -8,6 +8,7 @@ export class TextureManager {
     if (this.textures.has(id)) return
     try {
       const texture = await PIXI.Assets.load(url)
+      texture.source.scaleMode = 'nearest'
       this.textures.set(id, texture)
       ZLogger.with('TextureManager').info(`Loaded ${id}`)
     } catch (e) {
