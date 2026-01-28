@@ -1,5 +1,4 @@
-import * as PIXI from 'pixi.js'
-import 'pixi.js/unsafe-eval'
+import PIXI from '../utils/pixi'
 import { TileSelection, ZTool } from '@ui/stores/editor'
 import { TextureManager } from '../managers/TextureManager'
 

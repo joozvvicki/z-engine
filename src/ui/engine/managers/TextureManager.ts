@@ -1,6 +1,5 @@
 import ZLogger from '@engine/core/ZLogger'
-import * as PIXI from 'pixi.js'
-import 'pixi.js/unsafe-eval'
+import PIXI from '../utils/pixi'
 
 export class TextureManager {
   private textures: Map<string, PIXI.Texture> = new Map()

@@ -1,10 +1,10 @@
-import * as PIXI from 'pixi.js'
-import 'pixi.js/unsafe-eval'
+import PIXI from '../utils/pixi'
 import { TextureManager } from '../managers/TextureManager'
 import { MapRenderSystem } from '../systems/MapRenderSystem'
 import { GhostSystem } from '../systems/GhostSystem'
 import { GridSystem } from '../systems/GridSystem'
 import { initDevtools } from '@pixi/devtools'
+import ZLogger from './ZLogger'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Constructor<T> = new (...args: any[]) => T
@@ -13,13 +13,13 @@ export class ZEngine {
   public app: PIXI.Application
   public textureManager: TextureManager
 
-  public get mapSystem(): MapRenderSystem {
+  public get mapSystem(): MapRenderSystem | undefined {
     return this.getSystem(MapRenderSystem)
   }
-  public get ghostSystem(): GhostSystem {
+  public get ghostSystem(): GhostSystem | undefined {
     return this.getSystem(GhostSystem)
   }
-  public get gridSystem(): GridSystem {
+  public get gridSystem(): GridSystem | undefined {
     return this.getSystem(GridSystem)
   }
 
@@ -73,10 +73,11 @@ export class ZEngine {
     return system
   }
 
-  public getSystem<T extends ZSystem>(type: Constructor<T>): T {
+  public getSystem<T extends ZSystem>(type: Constructor<T>): T | undefined {
     const system = this.systems.get(type.name)
     if (!system) {
-      throw new Error(`System ${type.name} not found in ZEngine`)
+      ZLogger.warn(`System ${type.name} not found in ZEngine`)
+      return undefined
     }
     return system as T
   }
