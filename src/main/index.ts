@@ -2,6 +2,7 @@ import { app, shell, BrowserWindow } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
+import installExtension from 'electron-devtools-installer'
 
 function createWindow(): void {
   const mainWindow = new BrowserWindow({
@@ -16,8 +17,9 @@ function createWindow(): void {
     }
   })
 
-  mainWindow.on('ready-to-show', () => {
+  mainWindow.on('ready-to-show', async () => {
     mainWindow.show()
+
     mainWindow.webContents.openDevTools()
   })
 
@@ -35,6 +37,15 @@ function createWindow(): void {
 
 app.whenReady().then(() => {
   electronApp.setAppUserModelId('pl.joozvvicki.z-engine')
+
+  if (process.env.NODE_ENV === 'development') {
+    try {
+      const name = installExtension('aamddddknhcagpehecnhphigffljadon')
+      console.log(`Added Extension: ${name}`)
+    } catch (err) {
+      console.log('An error occurred: ', err)
+    }
+  }
 
   app.on('browser-window-created', (_, window) => {
     optimizer.watchWindowShortcuts(window)

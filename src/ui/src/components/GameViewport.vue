@@ -36,6 +36,11 @@ const handleInteraction = (event: FederatedPointerEvent, isCommit = false): void
   const layer = store.activeLayer
   const isStacking = event.shiftKey
 
+  if (tool == ZTool.bucket && isCommit) {
+    drawBucket(target, layer, isStacking)
+    return
+  }
+
   if (tool === ZTool.event && isCommit) {
     const existing = store.activeMap.events?.find((e) => e.x === target.x && e.y === target.y)
     activeEventCoords.value = { x: target.x, y: target.y }
@@ -50,6 +55,59 @@ const handleInteraction = (event: FederatedPointerEvent, isCommit = false): void
 
   if ((tool === ZTool.brush || tool === ZTool.eraser) && !shapeStartPos.value) {
     drawBrush(target, tool, layer, isStacking)
+    return
+  }
+}
+
+const drawBucket = (target: { x: number; y: number }, layer: ZLayer, isStacking: boolean): void => {
+  if (!store.activeMap || !engine || !store.selection) return
+
+  const stack = store.activeMap.layers[layer].data[target.y]?.[target.x]
+  if (!stack) return
+
+  const targetTile = stack[stack.length - 1]
+  if (!targetTile) return
+
+  const queue = [target]
+  const visited = new Set<string>()
+
+  while (queue.length > 0) {
+    const current = queue.shift()!
+    const key = `${current.x},${current.y}`
+
+    if (visited.has(key)) continue
+    visited.add(key)
+
+    const currentStack = store.activeMap.layers[layer].data[current.y]?.[current.x]
+    if (!currentStack) continue
+
+    const currentTile = currentStack[currentStack.length - 1]
+    if (!currentTile) {
+      applyTile(current.x, current.y, 0, 0, layer, false, isStacking)
+      continue
+    }
+
+    if (currentTile.tilesetId !== targetTile.tilesetId) continue
+
+    applyTile(current.x, current.y, 0, 0, layer, false, isStacking)
+
+    const neighbors = [
+      { x: current.x + 1, y: current.y },
+      { x: current.x - 1, y: current.y },
+      { x: current.x, y: current.y + 1 },
+      { x: current.x, y: current.y - 1 }
+    ]
+
+    for (const neighbor of neighbors) {
+      if (
+        neighbor.x >= 0 &&
+        neighbor.x < store.activeMap.width &&
+        neighbor.y >= 0 &&
+        neighbor.y < store.activeMap.height
+      ) {
+        queue.push(neighbor)
+      }
+    }
   }
 }
 
@@ -179,7 +237,11 @@ const onPointerDown = (event: FederatedPointerEvent): void => {
   isPointerDown.value = true
   store.recordHistory()
 
-  // Teraz Shift przejdzie tutaj i trafi do handleInteraction
+  if (store.currentTool === ZTool.bucket) {
+    handleInteraction(event, true)
+    return
+  }
+
   if ([ZTool.rectangle, ZTool.circle].includes(store.currentTool)) {
     shapeStartPos.value = target
   } else {

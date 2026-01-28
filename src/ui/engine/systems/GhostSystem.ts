@@ -3,7 +3,7 @@ import 'pixi.js/unsafe-eval'
 import { TileSelection, ZTool } from '@ui/stores/editor'
 import { TextureManager } from '../managers/TextureManager'
 
-export class GhostSystem {
+export class GhostSystem implements ZSystem {
   private container: PIXI.Container
   private textureManager: TextureManager
   private tileSize: number
@@ -16,6 +16,33 @@ export class GhostSystem {
 
     this.textureManager = textureManager
     this.tileSize = tileSize
+  }
+
+  public onBoot(): void {
+    this.container.visible = false
+  }
+
+  public onSetup(): void {
+    /* Setup */
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  public onPreUpdate(_delta: number): void {
+    /* PreUpdate */
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  public onUpdate(_delta: number): void {
+    /* Update */
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  public onPostUpdate(_delta: number): void {
+    /* PostUpdate */
+  }
+
+  public onDestroy(): void {
+    /* Destroy */
   }
 
   public update(x: number, y: number, sel: TileSelection, tool: ZTool): void {

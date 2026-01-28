@@ -4,7 +4,7 @@ import { ZLayer, TileSelection, ZMap } from '@ui/stores/editor'
 import { TextureManager } from '../managers/TextureManager'
 import { AutotileSolver } from '@engine/utils/AutotileSolver'
 
-export class MapRenderSystem {
+export class MapRenderSystem implements ZSystem {
   private container: PIXI.Container
   private layers: Record<ZLayer, PIXI.Container>
   private tileContainers: Record<ZLayer, (PIXI.Container | null)[][]>
@@ -22,12 +22,12 @@ export class MapRenderSystem {
 
     // Inicjalizacja warstw PIXI
     this.layers = {
-      [ZLayer.ground]: new PIXI.Container(),
-      [ZLayer.walls]: new PIXI.Container(),
-      [ZLayer.decoration]: new PIXI.Container(),
-      [ZLayer.trees]: new PIXI.Container(),
-      [ZLayer.events]: new PIXI.Container(),
-      [ZLayer.roofs]: new PIXI.Container()
+      [ZLayer.ground]: new PIXI.Container({ label: 'GroundLayer' }),
+      [ZLayer.walls]: new PIXI.Container({ label: 'WallsLayer' }),
+      [ZLayer.decoration]: new PIXI.Container({ label: 'DecorationLayer' }),
+      [ZLayer.trees]: new PIXI.Container({ label: 'TreesLayer' }),
+      [ZLayer.events]: new PIXI.Container({ label: 'EventsLayer' }),
+      [ZLayer.roofs]: new PIXI.Container({ label: 'RoofsLayer' })
     }
 
     // Dodanie warstw do kontenera w odpowiedniej kolejności
@@ -36,6 +36,13 @@ export class MapRenderSystem {
 
     this.tileContainers = this.createEmptyContainerStructure(0, 0)
   }
+
+  public onBoot(): void {}
+  public onSetup(): void {}
+  public onPreUpdate(_delta: number): void {}
+  public onUpdate(_delta: number): void {}
+  public onPostUpdate(_delta: number): void {}
+  public onDestroy(): void {}
 
   /**
    * Renderuje pojedyncze pole (zastępuje stary drawTile)
@@ -47,13 +54,11 @@ export class MapRenderSystem {
     layer: ZLayer,
     mapData: ZMap
   ): void {
-    // 1. Wyczyść stare
     this.clearTileAt(x, y, layer)
 
     if (!tiles || tiles.length === 0) return
 
-    // 2. Stwórz kontener na kafelki w tym polu
-    const cellContainer = new PIXI.Container()
+    const cellContainer = new PIXI.Container({ label: `Cell_${x}_${y}` })
     cellContainer.x = x * this.tileSize
     cellContainer.y = y * this.tileSize
 

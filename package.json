@@ -23,6 +23,7 @@
   "dependencies": {
     "@electron-toolkit/preload": "^3.0.2",
     "@electron-toolkit/utils": "^4.0.0",
+    "@pixi/devtools": "^2.0.1",
     "@tabler/icons-vue": "^3.36.1",
     "@tailwindcss/vite": "^4.1.18",
     "@vueuse/core": "^14.1.0",
@@ -40,6 +41,7 @@
     "@vitejs/plugin-vue": "^6.0.2",
     "electron": "^39.2.6",
     "electron-builder": "^26.0.12",
+    "electron-devtools-installer": "^4.0.0",
     "electron-vite": "^5.0.0",
     "eslint": "^9.39.1",
     "eslint-plugin-vue": "^10.6.2",

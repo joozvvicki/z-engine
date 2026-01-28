@@ -3,22 +3,45 @@ import 'pixi.js/unsafe-eval'
 import { TextureManager } from '../managers/TextureManager'
 import { MapRenderSystem } from '../systems/MapRenderSystem'
 import { GhostSystem } from '../systems/GhostSystem'
+import { GridSystem } from '../systems/GridSystem'
 import { ZMap, TileSelection, ZLayer, ZTool } from '@ui/stores/editor'
+import { initDevtools } from '@pixi/devtools'
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Constructor<T> = new (...args: any[]) => T
 
 export class ZEngine {
   public app: PIXI.Application
   public textureManager: TextureManager
-  public mapSystem!: MapRenderSystem
-  public ghostSystem!: GhostSystem
 
-  private gridGraphics: PIXI.Graphics
+  // Keep these as getters for backward compatibility or ease of use
+  public get mapSystem(): MapRenderSystem {
+    return this.getSystem(MapRenderSystem)
+  }
+  public get ghostSystem(): GhostSystem {
+    return this.getSystem(GhostSystem)
+  }
+  public get gridSystem(): GridSystem {
+    return this.getSystem(GridSystem)
+  }
+
+  private systems: Map<string, ZSystem> = new Map()
   private tileSize: number = 48
+
+  public boot(): void {
+    this.systems.forEach((system) => system.onBoot())
+    this.app.ticker.add((ticker) => this.tick(ticker.deltaMS))
+  }
+
+  private tick(delta: number): void {
+    this.systems.forEach((system) => system.onPreUpdate(delta))
+    this.systems.forEach((system) => system.onUpdate(delta))
+    this.systems.forEach((system) => system.onPostUpdate(delta))
+  }
 
   constructor() {
     this.app = new PIXI.Application()
     this.textureManager = new TextureManager()
-    this.gridGraphics = new PIXI.Graphics()
-    // Systemy inicjalizujemy w init(), gdy mamy stage
   }
 
   public async init(container: HTMLElement, tileSize: number): Promise<void> {
@@ -33,29 +56,48 @@ export class ZEngine {
     })
     container.appendChild(this.app.canvas)
 
-    // Konfiguracja PIXI
+    // PIXI Configuration
     PIXI.TextureSource.defaultOptions.scaleMode = 'nearest'
     this.app.stage.hitArea = this.app.screen
-
-    // Inicjalizacja systemów
-    this.mapSystem = new MapRenderSystem(this.app.stage, this.textureManager, tileSize)
-    this.ghostSystem = new GhostSystem(this.app.stage, this.textureManager, tileSize)
-
-    // Grid
-    this.app.stage.addChild(this.gridGraphics) // Grid na wierzchu (pod ghostem)
     this.app.stage.sortableChildren = true
+
+    // Initialize Systems
+    this.addSystem(new MapRenderSystem(this.app.stage, this.textureManager, tileSize))
+    this.addSystem(new GhostSystem(this.app.stage, this.textureManager, tileSize))
+    this.addSystem(new GridSystem(this.app.stage, this.textureManager, tileSize))
+
+    this.boot()
+
+    if (import.meta.env.DEV) {
+      window.__PIXI_APP__ = this.app
+    }
+
+    initDevtools({ app: this.app })
   }
 
-  // --- API DLA VIEWPORTU ---
+  public addSystem<T extends ZSystem>(system: T): T {
+    this.systems.set(system.constructor.name, system)
+    return system
+  }
+
+  public getSystem<T extends ZSystem>(type: Constructor<T>): T {
+    const system = this.systems.get(type.name)
+    if (!system) {
+      throw new Error(`System ${type.name} not found in ZEngine`)
+    }
+    return system as T
+  }
+
+  // --- API FOR VIEWPORT ---
 
   public async loadTileset(id: string, url: string): Promise<void> {
     await this.textureManager.loadTileset(id, url)
   }
 
   public renderMap(mapData: ZMap, isEventTool: boolean): void {
-    if (!this.mapSystem) return
     this.mapSystem.renderFullMap(mapData)
-    this.drawGrid(mapData.width, mapData.height, isEventTool)
+
+    this.gridSystem.drawGrid(isEventTool ? mapData.width : 0, isEventTool ? mapData.height : 0)
   }
 
   public drawTile(
@@ -72,7 +114,6 @@ export class ZEngine {
     this.mapSystem.clearTileAt(x, y, layer)
   }
 
-  // Delegacja do GhostSystem
   public updateGhost(x: number, y: number, sel: TileSelection, tool: ZTool): void {
     this.ghostSystem.update(x, y, sel, tool)
   }
@@ -97,25 +138,8 @@ export class ZEngine {
     }
   }
 
-  private drawGrid(w: number, h: number, isEventTool: boolean): void {
-    const g = this.gridGraphics
-    g.clear()
-    g.zIndex = 100
-
-    if (!isEventTool) return
-    for (let x = 0; x <= w; x++) {
-      g.moveTo(x * this.tileSize, 0)
-        .lineTo(x * this.tileSize, h * this.tileSize)
-        .stroke({ width: 1, color: 0x000000, alpha: 0.1 })
-    }
-    for (let y = 0; y <= h; y++) {
-      g.moveTo(0, y * this.tileSize)
-        .lineTo(w * this.tileSize, y * this.tileSize)
-        .stroke({ width: 1, color: 0x000000, alpha: 0.1 })
-    }
-  }
-
   public destroy(): void {
+    this.systems.forEach((s) => s.onDestroy())
     this.app.destroy({ removeView: true })
   }
 }
