@@ -72,6 +72,12 @@ export class GhostSystem extends ZSystem {
     }
   }
 
+  public setVisible(visible: boolean): void {
+    if (this.container) {
+      this.container.visible = visible
+    }
+  }
+
   private renderSingleGhost(): void {
     if (!this.selection) return
 

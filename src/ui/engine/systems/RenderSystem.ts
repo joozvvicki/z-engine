@@ -2,9 +2,9 @@ import PIXI from '../utils/pixi'
 import { TextureManager } from '../managers/TextureManager'
 import { AutotileSolver } from '@engine/utils/AutotileSolver'
 import { ZSystem, type ZMap, type TileSelection, ZLayer } from '@engine/types'
+import { MapManager } from '@engine/managers/MapManager'
 
 export class RenderSystem extends ZSystem {
-  private container: PIXI.Container
   private layers: Record<ZLayer, PIXI.Container>
   private tileContainers: Record<ZLayer, (PIXI.Container | null)[][]>
 
@@ -12,27 +12,37 @@ export class RenderSystem extends ZSystem {
   private tileSize: number
 
   private wrapper: PIXI.Container
+  private mapManager: MapManager
 
-  private mapData: ZMap | null = null
   private fullRenderDirty: boolean = false
   private tileUpdates: { x: number; y: number; layer: ZLayer; tiles: TileSelection[] }[] = []
 
-  constructor(stage: PIXI.Container, textureManager: TextureManager, tileSize: number) {
+  constructor(
+    stage: PIXI.Container,
+    textureManager: TextureManager,
+    mapManager: MapManager,
+    tileSize: number
+  ) {
     super()
     this.wrapper = stage
 
     this.textureManager = textureManager
+    this.mapManager = mapManager
     this.tileSize = tileSize
 
-    this.container = null!
     this.layers = null!
     this.tileContainers = null!
   }
 
   public onBoot(): void {
-    this.container = new PIXI.Container()
-    this.container.label = 'MapContainer'
-    this.wrapper.addChild(this.container)
+    // We attach layers directly to wrapper (Stage) to allow interleaving with Entities (Player)
+    // Z-Index Strategy:
+    // Ground: 0
+    // Walls: 100
+    // Decoration: 200
+    // Events: 300 (Player will be here, maybe 350)
+    // Trees: 400
+    // Roofs: 500
 
     this.layers = {
       [ZLayer.ground]: new PIXI.Container({ label: 'GroundLayer' }),
@@ -43,39 +53,65 @@ export class RenderSystem extends ZSystem {
       [ZLayer.roofs]: new PIXI.Container({ label: 'RoofsLayer' })
     }
 
+    this.layers[ZLayer.ground].zIndex = 0
+    this.layers[ZLayer.walls].zIndex = 100
+    this.layers[ZLayer.decoration].zIndex = 200
+    this.layers[ZLayer.events].zIndex = 300
+    this.layers[ZLayer.trees].zIndex = 400
+    this.layers[ZLayer.roofs].zIndex = 500
+
+    // Enable Y-sorting / Priority sorting
+    this.layers[ZLayer.trees].sortableChildren = true
+    this.layers[ZLayer.decoration].sortableChildren = true // For "Stars"
+    this.layers[ZLayer.walls].sortableChildren = true // Maybe?
+    this.layers[ZLayer.events].sortableChildren = true // Events are Y-sorted
+    this.layers[ZLayer.roofs].sortableChildren = true // Ensure roofs are sortable if we move stuff there
+
     const sortedLayers = Object.values(this.layers)
-    this.container.addChild(...sortedLayers)
+    this.wrapper.addChild(...sortedLayers)
+    // Since wrapper (Stage) has sortableChildren=true, zIndex will be respected.
 
     this.tileContainers = this.createEmptyContainerStructure(0, 0)
   }
 
+  public getLayerContainer(layer: ZLayer): PIXI.Container {
+    return this.layers[layer]
+  }
+
   public onUpdate(): void {
-    if (this.fullRenderDirty && this.mapData) {
-      this.performFullRender(this.mapData)
+    if (this.fullRenderDirty && this.mapManager.currentMap) {
+      this.performFullRender(this.mapManager.currentMap)
       this.fullRenderDirty = false
     }
 
     if (this.tileUpdates.length > 0) {
       const batch = this.tileUpdates.splice(0, this.tileUpdates.length)
       batch.forEach((update) => {
-        this.performDrawTile(update.x, update.y, update.tiles, update.layer, this.mapData!)
+        this.performDrawTile(
+          update.x,
+          update.y,
+          update.tiles,
+          update.layer,
+          this.mapManager.currentMap!
+        )
       })
     }
   }
 
   public onDestroy(): void {
-    if (this.container) {
-      this.container.destroy({ children: true })
-    }
+    Object.values(this.layers).forEach((layer) => {
+      this.wrapper.removeChild(layer)
+      layer.destroy({ children: true })
+    })
   }
 
   public requestTileUpdate(x: number, y: number, tiles: TileSelection[], layer: ZLayer): void {
-    if (!this.mapData) return
+    if (!this.mapManager.currentMap) return
     this.tileUpdates.push({ x, y, layer, tiles })
   }
 
   public setMap(mapData: ZMap): void {
-    this.mapData = mapData
+    this.mapManager.setMap(mapData)
     this.fullRenderDirty = true
     this.tileUpdates = []
   }
@@ -95,6 +131,42 @@ export class RenderSystem extends ZSystem {
     cellContainer.x = x * this.tileSize
     cellContainer.y = y * this.tileSize
 
+    // For Trees layer, use Y-sorting
+    // Sort by the BOTTOM of the tile to match Player's anchor
+    // Player Z is usually (y + 1) * tileSize (feet position).
+    // We want trees to sort relative to that.
+    // If we use (y + 1), it matches player.
+    // If we use (y + 3), trees are always "in front" (foreground).
+    if (layer === ZLayer.trees) {
+      cellContainer.zIndex = (y + 1) * this.tileSize
+    }
+
+    // Check High Priority (Star)
+    let isHighPriority = false
+    const configs = this.mapManager.getTilesetConfigs()
+
+    if (configs) {
+      tiles.forEach((t) => {
+        const key = `${t.x}_${t.y}`
+        if (configs[t.tilesetId]?.[key]?.isHighPriority) {
+          isHighPriority = true
+        }
+      })
+    }
+
+    if (isHighPriority) {
+      // Force sort above player by moving to Roofs layer (Index 500)
+      cellContainer.zIndex = (y + 10) * this.tileSize
+
+      this.layers[ZLayer.roofs].addChild(cellContainer)
+      // Store in simple array structure corresponding to LOGICAL layer
+      this.tileContainers[layer][y][x] = cellContainer
+    } else {
+      this.layers[layer].addChild(cellContainer)
+      this.tileContainers[layer][y][x] = cellContainer
+    }
+
+    // Render Tiles inside cell
     tiles.forEach((selection) => {
       const tex = this.textureManager.get(selection.tilesetId)
       if (!tex) return
@@ -119,9 +191,6 @@ export class RenderSystem extends ZSystem {
       }
       cellContainer.addChild(wrapper)
     })
-
-    this.layers[layer].addChild(cellContainer)
-    this.tileContainers[layer][y][x] = cellContainer
   }
 
   public clearTileAt(x: number, y: number, layer: ZLayer): void {
@@ -129,7 +198,9 @@ export class RenderSystem extends ZSystem {
 
     const existing = this.tileContainers[layer][y][x]
     if (existing) {
-      this.layers[layer].removeChild(existing)
+      // IMPORTANT: Use parent.removeChild because the tile might have been moved
+      // to a different visual layer (e.g. Roofs) than 'layer' implies.
+      existing.parent?.removeChild(existing)
       existing.destroy({ children: true })
       this.tileContainers[layer][y][x] = null
     }

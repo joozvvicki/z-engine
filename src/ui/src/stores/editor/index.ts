@@ -39,6 +39,34 @@ export const useEditorStore = defineStore('editor', () => {
   // Dane Map
   const storedMaps = useLocalStorage<ZMap[]>('Z_Maps', [])
 
+  // Tileset Database (Configs)
+  // Record<TilesetId, Record<TileIndexKey, TileConfig>>
+  // TileIndexKey = "x_y"
+  const storedTilesetConfigs = useLocalStorage<
+    Record<string, Record<string, { isSolid: boolean; isHighPriority: boolean }>>
+  >('Z_TilesetConfigs', {})
+
+  const updateTileConfig = (
+    tilesetId: string,
+    x: number,
+    y: number,
+    config: Partial<{ isSolid: boolean; isHighPriority: boolean; collisionMask: boolean[] }>
+  ) => {
+    if (!storedTilesetConfigs.value[tilesetId]) {
+      storedTilesetConfigs.value[tilesetId] = {}
+    }
+    const key = `${x}_${y}`
+    const current = storedTilesetConfigs.value[tilesetId][key] || {
+      isSolid: false,
+      isHighPriority: false
+    }
+
+    storedTilesetConfigs.value[tilesetId][key] = {
+      ...current,
+      ...config
+    }
+  }
+
   // Computed: Aktualna mapa
   const activeMap = computed(() => storedMaps.value.find((m) => m.id === activeMapID.value))
 
@@ -453,6 +481,10 @@ export const useEditorStore = defineStore('editor', () => {
     currentTool,
     selectionCoords,
     clipboard,
+
+    // Tileset Configs
+    tilesetConfigs: storedTilesetConfigs,
+    updateTileConfig,
 
     // History (rozpakowujemy metody z composable)
     ...history,

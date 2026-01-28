@@ -3,7 +3,11 @@ import { TextureManager } from '../managers/TextureManager'
 import { RenderSystem } from '../systems/RenderSystem'
 import { GhostSystem } from '../systems/GhostSystem'
 import { GridSystem } from '../systems/GridSystem'
+import { PlayerSystem } from '../systems/PlayerSystem'
+import { EntityRenderSystem } from '../systems/EntityRenderSystem'
 import { initDevtools } from '@pixi/devtools'
+import { InputManager } from '../managers/InputManager'
+import { MapManager } from '../managers/MapManager'
 import ZLogger from './ZLogger'
 import { ZSystem } from '@engine/types'
 
@@ -13,6 +17,9 @@ type Constructor<T> = new (...args: any[]) => T
 export class ZEngine {
   public app: PIXIApplication
   public textureManager: TextureManager
+  public inputManager: InputManager
+  public mapManager: MapManager
+  public mode: 'edit' | 'play' = 'edit'
 
   public get renderSystem(): RenderSystem | undefined {
     return this.getSystem(RenderSystem)
@@ -22,6 +29,12 @@ export class ZEngine {
   }
   public get gridSystem(): GridSystem | undefined {
     return this.getSystem(GridSystem)
+  }
+  public get playerSystem(): PlayerSystem | undefined {
+    return this.getSystem(PlayerSystem)
+  }
+  public get entityRenderSystem(): EntityRenderSystem | undefined {
+    return this.getSystem(EntityRenderSystem)
   }
 
   private systems: Map<string, ZSystem> = new Map()
@@ -35,14 +48,45 @@ export class ZEngine {
   }
 
   private tick(delta: number): void {
-    this.systems.forEach((system) => system.onPreUpdate(delta))
-    this.systems.forEach((system) => system.onUpdate(delta))
-    this.systems.forEach((system) => system.onPostUpdate(delta))
+    // Edit Mode: Update Ghost, Grid, Render
+    // Play Mode: Update Player, EntityRender, Render
+    this.systems.forEach((system) => {
+      // Filter systems based on mode
+      if (this.mode === 'edit') {
+        if (system instanceof PlayerSystem || system instanceof EntityRenderSystem) return
+      } else {
+        if (system instanceof GhostSystem) return // Hide ghost in play mode?
+      }
+
+      system.onPreUpdate(delta)
+      system.onUpdate(delta)
+      system.onPostUpdate(delta)
+    })
+  }
+
+  public setMode(mode: 'edit' | 'play'): void {
+    this.mode = mode
+    ZLogger.log(`Switched to ${mode} mode`)
+
+    const entitySystem = this.getSystem(EntityRenderSystem)
+    const ghostSystem = this.getSystem(GhostSystem)
+
+    if (mode === 'play') {
+      entitySystem?.setVisible(true)
+      ghostSystem?.setVisible(false)
+      // Reset player?
+      // this.getSystem(PlayerSystem)?.onBoot()
+    } else {
+      entitySystem?.setVisible(false)
+      ghostSystem?.setVisible(true)
+    }
   }
 
   constructor() {
     this.app = new PIXIApplication()
     this.textureManager = new TextureManager()
+    this.inputManager = null!
+    this.mapManager = null!
   }
 
   public async init(container: HTMLElement, tileSize: number): Promise<void> {
@@ -64,9 +108,29 @@ export class ZEngine {
     this.app.stage.hitArea = this.app.screen
     this.app.stage.sortableChildren = true
 
-    this.addSystem(new RenderSystem(this.app.stage, this.textureManager, tileSize))
+    this.inputManager = new InputManager()
+    this.mapManager = new MapManager()
+
+    this.addSystem(new RenderSystem(this.app.stage, this.textureManager, this.mapManager, tileSize))
     this.addSystem(new GhostSystem(this.app.stage, this.textureManager, tileSize))
     this.addSystem(new GridSystem(this.app.stage, this.textureManager, tileSize))
+
+    const playerSystem = new PlayerSystem(this.inputManager, this.mapManager, tileSize)
+    this.addSystem(playerSystem)
+
+    // We need RenderSystem instance to pass to EntityRenderSystem
+    const renderSystem = this.getSystem(RenderSystem)
+    if (!renderSystem) throw new Error('RenderSystem not found')
+
+    this.addSystem(
+      new EntityRenderSystem(
+        this.app.stage,
+        playerSystem,
+        this.textureManager,
+        tileSize,
+        renderSystem
+      )
+    )
 
     this.boot()
 
@@ -89,6 +153,7 @@ export class ZEngine {
   }
 
   public destroy(): void {
+    this.inputManager?.destroy()
     this.systems.forEach((s) => {
       s.onDestroy()
       ZLogger.with(s.constructor.name).info("I'm leaving!")

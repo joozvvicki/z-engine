@@ -138,7 +138,10 @@ const initEngine = async (): Promise<void> => {
   engine.app.stage.on('pointerdown', onPointerDown)
   engine.app.stage.on('pointermove', onPointerMove)
   engine.app.stage.on('pointerup', onPointerUp)
+  engine.app.stage.on('pointerup', onPointerUp)
   engine.app.stage.on('pointerleave', () => engine?.ghostSystem?.hide())
+
+  window['$zEngine'] = engine
 
   engine.renderSystem?.setMap(store.activeMap)
   const isEventTool = store.currentTool === ZTool.event
@@ -148,9 +151,44 @@ const initEngine = async (): Promise<void> => {
   )
 
   isEngineReady.value = engine.renderSystem?.IsMapLoaded() ?? false
+
+  // Force sync configs immediately after engine creation
+  if (store.tilesetConfigs) {
+    engine.mapManager?.setTilesetConfigs(store.tilesetConfigs)
+  }
 }
 
-watch(() => store.activeMap, initEngine, { deep: false })
+watch(
+  () => store.activeMap,
+  (newMap) => {
+    // Deep clone map to avoid direct mutation issues or just pass reference?
+    // Passing reference is fine as long as Engine treats it read-mostly or we handle reactivity.
+    // Since map data is large, ref is better.
+    if (newMap) {
+      engine?.renderSystem?.setMap(JSON.parse(JSON.stringify(newMap))) // Clone to detach?
+      // Actually, RenderSystem stores MapManager.
+    }
+  },
+  { deep: true, immediate: true }
+)
+
+// Sync Tileset Configs
+watch(
+  () => store.tilesetConfigs,
+  (newConfigs) => {
+    if (engine && engine.mapManager) {
+      engine.mapManager.setTilesetConfigs(newConfigs)
+      // If configs change, we might need to re-render to apply new z-indexes?
+      // Yes, because performDrawTile uses configs for zIndex.
+      // Force full re-render?
+      // engine.renderSystem?.forceFullRender() // Method not exists yet, but setMap triggers it.
+      // We can trigger revisualization if needed.
+      // For now, let's just update data. Visual update requires map reload or tile update.
+    }
+  },
+  { deep: true, immediate: true }
+)
+
 watch(
   () => store.historyIndex,
   () => {

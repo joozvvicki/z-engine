@@ -9,13 +9,35 @@ import {
   IconArrowBackUp,
   IconArrowForwardUp,
   IconBox,
-  IconScan
+  IconScan,
+  IconPlayerPlay,
+  IconPlayerStop,
+  IconDatabase,
+  IconX
 } from '@tabler/icons-vue'
 import DynamicIcon from './DynamicIcon.vue'
-import { computed, onMounted } from 'vue'
+import TilesetEditor from './TilesetEditor.vue'
+import { computed, onMounted, ref, watch, nextTick } from 'vue'
 import { ZLayer, ZTool } from '@engine/types'
 
 const store = useEditorStore()
+const isPlaying = ref(false)
+const isDatabaseOpen = ref(false)
+
+const togglePlay = (): void => {
+  isPlaying.value = !isPlaying.value
+  // Access ZEngine instance directly via window logic or store?
+  // Store has reference to renderSystem but maybe not engine.
+  // We need to call window.__PIXI_APP__ wrapper.
+  // Wait, ZEngine instance is not global, but app is.
+  // Actually, we need to access the ZEngine instance to call setMode.
+  // In `App.vue` or `GameViewport.vue` we initialized it.
+  // Usually we should push this state to store.
+
+  if (window['$zEngine']) {
+    window['$zEngine'].setMode(isPlaying.value ? 'play' : 'edit')
+  }
+}
 
 const tools = [
   { tool: ZTool.brush, icon: IconPencil, tooltip: 'Pędzel (Ctrl + 1)' },
@@ -149,7 +171,6 @@ const sortedLayers = computed(() => {
 })
 
 // Sliding Background Logic
-import { ref, watch, nextTick } from 'vue'
 
 const toolRefs = ref<HTMLElement[]>([])
 const layerRefs = ref<HTMLElement[]>([])
@@ -267,6 +288,33 @@ onMounted(() => {
         </div>
       </button>
     </div>
+    <div class="flex flex-col gap-1 bg-white/10 backdrop-blur-lg rounded-xl border border-white/5">
+      <button
+        class="relative p-1 rounded-lg transition-all duration-200 cursor-pointer group hover:bg-white/10"
+        :class="isDatabaseOpen ? 'text-white' : 'text-black/50'"
+        title="Tileset Database"
+        @click="isDatabaseOpen = !isDatabaseOpen"
+      >
+        <IconDatabase />
+      </button>
+
+      <div class="w-px h-4 bg-white/10 mx-1"></div>
+
+      <button
+        class="relative p-1 rounded-lg transition-all duration-200 cursor-pointer group"
+        :class="isPlaying ? 'text-green-400' : 'text-black hover:text-green-600'"
+        @click="togglePlay"
+      >
+        <IconPlayerStop v-if="isPlaying" />
+        <IconPlayerPlay v-else />
+
+        <div
+          class="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 px-2 py-1 bg-black text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap"
+        >
+          {{ isPlaying ? 'Stop Game' : 'Play Game' }}
+        </div>
+      </button>
+    </div>
 
     <div
       class="relative flex flex-col gap-1 bg-black/10 backdrop-blur-lg text-white rounded-xl border border-white/5"
@@ -314,6 +362,29 @@ onMounted(() => {
       >
         <DynamicIcon :icon="data.icon" :tooltip="key.charAt(0).toUpperCase() + key.slice(1)" />
       </button>
+    </div>
+
+    <!-- Database Modal -->
+    <div
+      v-if="isDatabaseOpen"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-white/80 backdrop-blur-sm"
+      @click.self="isDatabaseOpen = false"
+    >
+      <div
+        class="bg-white border border-white/10 rounded-xl shadow-2xl w-[800px] h-[600px] flex flex-col overflow-hidden text-white"
+      >
+        <div class="flex justify-between items-center p-3 border-b border-white/10 bg-white/20">
+          <h3 class="text-white font-bold text-sm flex items-center gap-2">
+            <IconDatabase class="w-4 h-4" /> Tileset Configuration
+          </h3>
+          <button class="text-white/50 hover:text-white" @click="isDatabaseOpen = false">
+            <IconX class="w-4 h-4" />
+          </button>
+        </div>
+        <div class="flex-1 overflow-hidden relative bg-gray-800">
+          <TilesetEditor />
+        </div>
+      </div>
     </div>
   </div>
 </template>
