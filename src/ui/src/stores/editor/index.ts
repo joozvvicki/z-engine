@@ -5,7 +5,7 @@ import { useLocalStorage } from '@vueuse/core'
 // --- MODUŁY LOKALNE ---
 import { TILESETS } from './constants'
 import { useHistory } from './useHistory'
-import { ZLayer, ZTool } from '../../../engine/utils/enums'
+import { ZMap, type TileSelection, type ZEvent, ZTool, ZLayer } from '@engine/types'
 
 export const useEditorStore = defineStore('editor', () => {
   // ==========================================
@@ -222,7 +222,7 @@ export const useEditorStore = defineStore('editor', () => {
 
   const exportMapAsJSON = (): void => {
     if (!activeMap.value) return
-    const dataStr = JSON.stringify(activeMap.value, null, 2)
+    const dataStr = JSON.stringify(activeMap.value)
     const blob = new Blob([dataStr], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
 

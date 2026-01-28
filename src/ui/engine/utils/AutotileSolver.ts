@@ -1,4 +1,4 @@
-import { ZLayer } from '@engine/utils/enums'
+import { ZLayer, type ZMap, type TileSelection } from '@engine/types'
 
 export class AutotileSolver {
   static isSameTile(

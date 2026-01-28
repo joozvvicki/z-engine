@@ -5,7 +5,7 @@ import { GhostSystem } from '../systems/GhostSystem'
 import { GridSystem } from '../systems/GridSystem'
 import { initDevtools } from '@pixi/devtools'
 import ZLogger from './ZLogger'
-import { ZSystem } from '@engine/utils/types'
+import { ZSystem } from '@engine/types'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Constructor<T> = new (...args: any[]) => T

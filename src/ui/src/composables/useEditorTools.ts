@@ -1,7 +1,7 @@
 import { Ref, ref } from 'vue'
 import { ZEngine } from '@engine/core/ZEngine'
 import { useEditorStore } from '@ui/stores/editor'
-import { ZLayer, ZTool } from '@engine/utils/enums'
+import { ZLayer, ZTool } from '@engine/types'
 import type { FederatedPointerEvent } from '@engine/utils/pixi'
 
 export const useEditorTools = (): {

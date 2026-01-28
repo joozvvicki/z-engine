@@ -1,4 +1,5 @@
 import { ref, computed, type Ref, watch, nextTick, type ComputedRef } from 'vue'
+import type { ZMap } from '@engine/types'
 
 const MAX_HISTORY = 50
 

@@ -3,6 +3,7 @@ import { IconMap, IconPlus, IconUpload } from '@tabler/icons-vue'
 import { useEditorStore } from '@ui/stores/editor'
 import NewMap from './modal/NewMap.vue'
 import { ref } from 'vue'
+import type { ZMap } from '@engine/types'
 
 const store = useEditorStore()
 
@@ -11,6 +12,13 @@ const isNewMapOpen = ref(false)
 const isContextMenuOpen = ref(false)
 const contextMapId = ref<number | null>(null)
 const contextMenuPosition = ref({ x: 0, y: 0 })
+
+const getMapSizeInKB = (map: ZMap): number => {
+  const json = JSON.stringify(map)
+  const bytes = new TextEncoder().encode(json).length
+  const kb = bytes / 1024
+  return kb
+}
 
 const showContextMenu = (mapId: number, event: MouseEvent): void => {
   isContextMenuOpen.value = true
@@ -25,7 +33,7 @@ const showContextMenu = (mapId: number, event: MouseEvent): void => {
       v-for="map in store.maps"
       :key="map.id"
       :class="[
-        'flex flex-col items-center gap-2 px-3 py-1.5 rounded-md mb-1 cursor-pointer transition-colors ',
+        'flex flex-col items-center gap-2 px-3 py-3 rounded-md mb-1 cursor-pointer transition-colors ',
         map.id === store.activeMapID
           ? 'bg-black text-white hover:bg-black hover:text-white shadow-[0_0_10px_rgba(0,0,0,0.3)]'
           : 'hover:text-black hover:bg-gray-100'
@@ -36,7 +44,9 @@ const showContextMenu = (mapId: number, event: MouseEvent): void => {
       <IconMap :size="24" />
       <span class="text-sm truncate">{{ map.name }}</span>
       <div class="flex justify-between items-center w-full">
-        <span class="text-sm truncate text-center w-full">{{ map.width }} x {{ map.height }}</span>
+        <span class="text-[0.6rem] text-gray-400 text-center w-full"
+          >{{ getMapSizeInKB(map).toPrecision(2) }} KB</span
+        >
       </div>
     </div>
     <button

@@ -1,8 +1,7 @@
 import PIXI from '../utils/pixi'
 import { TextureManager } from '../managers/TextureManager'
 import { AutotileSolver } from '@engine/utils/AutotileSolver'
-import { ZLayer } from '@engine/utils/enums'
-import { ZSystem } from '@engine/utils/types'
+import { ZSystem, type ZMap, type TileSelection, ZLayer } from '@engine/types'
 
 export class RenderSystem extends ZSystem {
   private container: PIXI.Container

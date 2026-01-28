@@ -1,6 +1,6 @@
 import PIXI from '../utils/pixi'
 import { TextureManager } from '../managers/TextureManager'
-import { ZSystem } from '@engine/utils/types'
+import { ZSystem } from '@engine/types'
 
 export class GridSystem implements ZSystem {
   private container: PIXI.Container

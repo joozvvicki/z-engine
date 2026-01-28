@@ -14,7 +14,7 @@ import {
 } from '@tabler/icons-vue'
 import DynamicIcon from './DynamicIcon.vue'
 import { computed, onMounted } from 'vue'
-import { ZLayer, ZTool } from '@engine/utils/enums'
+import { ZLayer, ZTool } from '@engine/types'
 
 const store = useEditorStore()
 
@@ -44,79 +44,81 @@ const actions = [
   }
 ]
 
-const activeMap = computed(() => store.maps.find((map) => map.id === store.activeMapID))
-
-onMounted(() => {
-  const handleKeydown = (e: KeyboardEvent): void => {
-    if (e.ctrlKey || e.metaKey) {
-      if (e.shiftKey) {
-        switch (e.key) {
-          case 'P':
-            store.toggleTestMode()
-            break
-        }
-      }
-
+const handleKeydown = (e: KeyboardEvent): void => {
+  if (e.ctrlKey || e.metaKey) {
+    if (e.shiftKey) {
       switch (e.key) {
-        case 'D':
-          store.exportMapAsJSON()
-          break
-        case 'ArrowUp': {
-          const currentLayerID = activeMap.value?.layers[store.activeLayer]
-            ? store.activeLayer
-            : null
-          if (!currentLayerID) return
-          const layerKeys = Object.keys(activeMap.value!.layers)
-          const currentIndex = layerKeys.indexOf(currentLayerID)
-          const nextIndex = (currentIndex + 1) % layerKeys.length
-          store.setLayer(layerKeys[nextIndex] as ZLayer)
-          e.preventDefault()
-          break
-        }
-        case 'ArrowDown': {
-          const currLayerID = activeMap.value?.layers[store.activeLayer] ? store.activeLayer : null
-          if (!currLayerID) return
-          const lKeys = Object.keys(activeMap.value!.layers)
-          const currIndex = lKeys.indexOf(currLayerID)
-          const prevIndex = (currIndex - 1 + lKeys.length) % lKeys.length
-          store.setLayer(lKeys[prevIndex] as ZLayer)
-          e.preventDefault()
-          break
-        }
-        case '1':
-          store.setTool(ZTool.brush)
-          e.preventDefault()
-          break
-        case '2':
-          store.setTool(ZTool.bucket)
-          e.preventDefault()
-          break
-        case '3':
-          store.setTool(ZTool.rectangle)
-          e.preventDefault()
-          break
-        case '4':
-          store.setTool(ZTool.circle)
-          e.preventDefault()
-          break
-        case '5':
-          store.setTool(ZTool.event)
-          e.preventDefault()
-          break
-        case '6':
-          store.setTool(ZTool.eraser)
-          e.preventDefault()
+        case 'P':
+          store.toggleTestMode()
           break
       }
     }
-  }
 
+    switch (e.key) {
+      case 'Z':
+        store.undo()
+        break
+      case 'Y':
+        store.redo()
+        break
+      case 'D':
+        store.exportMapAsJSON()
+        break
+      case 'ArrowUp': {
+        const currentLayerID = store.activeMap?.layers[store.activeLayer] ? store.activeLayer : null
+        if (!currentLayerID) return
+        const layerKeys = Object.keys(store.activeMap!.layers)
+        const currentIndex = layerKeys.indexOf(currentLayerID)
+        const nextIndex = (currentIndex + 1) % layerKeys.length
+        store.setLayer(layerKeys[nextIndex] as ZLayer)
+        e.preventDefault()
+        break
+      }
+      case 'ArrowDown': {
+        const currLayerID = store.activeMap?.layers[store.activeLayer] ? store.activeLayer : null
+        if (!currLayerID) return
+        const lKeys = Object.keys(store.activeMap!.layers)
+        const currIndex = lKeys.indexOf(currLayerID)
+        const prevIndex = (currIndex - 1 + lKeys.length) % lKeys.length
+        store.setLayer(lKeys[prevIndex] as ZLayer)
+        e.preventDefault()
+        break
+      }
+      case '1':
+        store.setTool(ZTool.brush)
+        e.preventDefault()
+        break
+      case '2':
+        store.setTool(ZTool.bucket)
+        e.preventDefault()
+        break
+      case '3':
+        store.setTool(ZTool.rectangle)
+        e.preventDefault()
+        break
+      case '4':
+        store.setTool(ZTool.circle)
+        e.preventDefault()
+        break
+      case '5':
+        store.setTool(ZTool.event)
+        e.preventDefault()
+        break
+      case '6':
+        store.setTool(ZTool.eraser)
+        e.preventDefault()
+        break
+    }
+  }
+}
+
+onMounted(() => {
   window.addEventListener('keydown', handleKeydown)
 })
 
 const sortedLayers = computed(() => {
-  if (!activeMap.value) return []
-  return Object.entries(activeMap.value.layers).sort((a, b) => b[1].index - a[1].index)
+  if (!store.activeMap) return []
+  return Object.entries(store.activeMap.layers).sort((a, b) => b[1].index - a[1].index)
 })
 </script>
 

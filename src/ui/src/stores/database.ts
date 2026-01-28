@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { useLocalStorage } from '@vueuse/core'
+import type { ZActor } from '@engine/types'
 
 export const useDatabaseStore = defineStore('database', () => {
   const actors = useLocalStorage<ZActor[]>('Z_DB_Actors', [

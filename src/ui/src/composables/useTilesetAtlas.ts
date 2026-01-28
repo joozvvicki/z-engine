@@ -1,18 +1,6 @@
 import { ref, watch, type Ref } from 'vue'
 import { useEditorStore } from '@ui/stores/editor'
-
-export interface IconMap {
-  uiX: number
-  uiY: number
-  ox: number
-  oy: number
-  w: number
-  h: number
-  tilesetId: string
-  isAuto: boolean
-}
-
-type TileData = Omit<IconMap, 'uiX' | 'uiY' | 'tilesetId'>
+import { IconMap, TileData } from '@engine/types'
 
 export const useTilesetAtlas = (): {
   processedImageUrl: Ref<string>
