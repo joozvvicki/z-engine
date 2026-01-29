@@ -20,10 +20,11 @@ export class MapManager {
       return true
     }
 
-    // Phase 1: STRICT LAYERS (Highest, Events, Decoration, Walls)
+    // Phase 1: STRICT LAYERS (Events, Decoration, Walls)
     // If ANY tile in these layers is Solid, we Block immediately.
     // Non-solid tiles are ignored (Transparent), letting us check layers below.
-    const strictLayers = [ZLayer.highest, ZLayer.events, ZLayer.decoration, ZLayer.walls]
+    // NOTE: ZLayer.highest is EXCLUDED. It is a visual-only layer (like a roof above everything).
+    const strictLayers = [ZLayer.events, ZLayer.decoration, ZLayer.walls]
 
     for (const layerKey of strictLayers) {
       const layer = this.currentMap.layers[layerKey]
