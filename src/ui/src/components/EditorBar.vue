@@ -275,11 +275,11 @@ onMounted(() => {
         </div>
         <div
           v-if="action.tooltip"
-          class="absolute top-1 z-1000 left-full ml-2 px-2 py-1 bg-slate-800 text-white text-xs rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap border border-slate-700"
+          class="absolute top-1 z-1000 left-full ml-2 px-2 py-1 bg-black text-white text-xs rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap border border-white/5"
         >
           {{ action.tooltip.split(' ')[0] }}
           <div
-            class="absolute z-1001 top-1/2 -left-1 -translate-y-1/2 w-2 h-2 bg-slate-800 rotate-45 border-l border-b border-slate-700"
+            class="absolute z-1001 top-1/2 -left-1 -translate-y-1/2 w-2 h-2 bg-black rotate-45 border-l border-b border-white/5"
           ></div>
         </div>
       </button>
@@ -319,11 +319,11 @@ onMounted(() => {
       >
         <component :is="tool.icon" :size="18" />
         <div
-          class="absolute top-1 z-1000 left-full ml-2 px-2 py-1 bg-slate-800 text-white text-xs rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap border border-slate-700"
+          class="absolute top-1 z-1000 left-full ml-2 px-2 py-1 bg-black text-white text-xs rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap border border-white/5"
         >
           {{ tool.tooltip.split(' ')[0] }}
           <div
-            class="absolute z-1001 top-1/2 -left-1 -translate-y-1/2 w-2 h-2 bg-slate-800 rotate-45 border-l border-b border-slate-700"
+            class="absolute z-1001 top-1/2 -left-1 -translate-y-1/2 w-2 h-2 bg-black rotate-45 border-l border-b border-white/5"
           ></div>
         </div>
       </button>
