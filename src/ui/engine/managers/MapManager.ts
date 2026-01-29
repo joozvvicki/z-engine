@@ -83,13 +83,19 @@ export class MapManager {
 
   private tilesetConfigs: Record<
     string,
-    Record<string, { isSolid: boolean; isHighPriority: boolean; collisionMask?: boolean[] }>
+    Record<
+      string,
+      { isSolid: boolean; isHighPriority: boolean; collisionMask?: boolean[]; dirBlock: number }
+    >
   > | null = null
 
   public setTilesetConfigs(
     configs: Record<
       string,
-      Record<string, { isSolid: boolean; isHighPriority: boolean; collisionMask?: boolean[] }>
+      Record<
+        string,
+        { isSolid: boolean; isHighPriority: boolean; collisionMask?: boolean[]; dirBlock: number }
+      >
     >
   ): void {
     // console.log('MapManager received configs:', Object.keys(configs).length, configs)
@@ -100,9 +106,130 @@ export class MapManager {
     string,
     Record<
       string,
-      { isSolid: boolean; isHighPriority: boolean; collisionMask?: boolean[]; sortYOffset?: number }
+      {
+        isSolid: boolean
+        isHighPriority: boolean
+        collisionMask?: boolean[]
+        sortYOffset?: number
+        dirBlock?: number
+      }
     >
   > | null {
     return this.tilesetConfigs
+  }
+
+  // Check if moving from (x1,y1) to (x2,y2) is allowed
+  // Considers:
+  // 1. Target tile passability (Solid/Bridge rules) - via isPassable(x2, y2)
+  // 2. Directional blocking on Source Tile (Cannot leave)
+  // 3. Directional blocking on Target Tile (Cannot enter)
+  public checkPassage(x1: number, y1: number, x2: number, y2: number): boolean {
+    // 1. Base Passability (Target must be walkable)
+    if (!this.isPassable(x2, y2)) return false
+
+    // 2. Directional Check
+    // Determine direction
+    const dx = x2 - x1
+    const dy = y2 - y1
+
+    if (dx === 0 && dy === 0) return true // Same tile
+
+    // Bitmasks: 1=Up, 2=Right, 4=Down, 8=Left
+    let dirBit = 0
+    let oppBit = 0
+
+    if (dy === -1) {
+      // UP
+      dirBit = 1
+      oppBit = 4
+    } else if (dx === 1) {
+      // RIGHT
+      dirBit = 2
+      oppBit = 8
+    } else if (dy === 1) {
+      // DOWN
+      dirBit = 4
+      oppBit = 1
+    } else if (dx === -1) {
+      // LEFT
+      dirBit = 8
+      oppBit = 2
+    }
+
+    if (dirBit === 0) return true // Diagonals or jumps? Assume allowed for now if isPassable passed.
+
+    // Check Source Tile (Can I leave?)
+    if (this.isDirBlocked(x1, y1, dirBit)) return false
+
+    // Check Target Tile (Can I enter?)
+    // Note: If I walk INTO a tile that blocks 'Down', enables entering from top?
+    // Convention: If a tile blocks 'Up' (1), it means there is a wall on its Top Edge.
+    // So you cannot Leave Up, AND you cannot Enter from Up (move Down into it).
+    // Wait, let's stick to standard RPG Maker convention usually:
+    // Block D means "Passage" setting.
+    // X (Solid) = No passage.
+    // Dir Block = Specific passage denied.
+    // Typically, 'Dir Block Up' means you cannot pass the Up boundary.
+    // So checking Source.Up is correct.
+    // Checking Target.Down (the boundary we are crossing from the other side) is also correct.
+    if (this.isDirBlocked(x2, y2, oppBit)) return false
+
+    return true
+  }
+
+  private isDirBlocked(x: number, y: number, bit: number): boolean {
+    if (!this.currentMap || !this.tilesetConfigs) return false
+
+    // Check all layers (Top-Down) for any directional block
+    // OR should we only check the "active" ground layer?
+    // RPG Maker checks top-most effective tile.
+
+    // Let's use Top-Down similar to isPassable.
+    // However, for DirBlock, usually it's "If ANY tile blocks this specific direction, it is blocked"?
+    // OR "The tile that determines passability determines dir block"?
+
+    // Let's go with: The highest priority tile that has ANY config (Solid/Passable/Dir) dictates rules?
+    // No, standard approach:
+    // Iterate Top-Down.
+    // If we find a config:
+    //   If it defines dirBlock, use it.
+    //   If it is Passable (Bridge), it overrides lower blocks?
+    //   If it is Solid, we wouldn't be here (handled by isPassable).
+
+    const layersToCheck = [
+      ZLayer.roofs,
+      ZLayer.events,
+      ZLayer.trees,
+      ZLayer.decoration,
+      ZLayer.walls,
+      ZLayer.ground
+    ]
+
+    for (const layerKey of layersToCheck) {
+      const layer = this.currentMap.layers[layerKey]
+      if (!layer) continue
+
+      const tiles = layer.data[y]?.[x]
+      if (tiles && tiles.length > 0) {
+        for (let i = tiles.length - 1; i >= 0; i--) {
+          const tile = tiles[i]
+          const configKey = `${tile.x}_${tile.y}`
+          const config = this.tilesetConfigs[tile.tilesetId]?.[configKey]
+
+          if (config) {
+            if (config.isHighPriority) continue // Ignore stars
+
+            // Found effective tile (Bridge or Ground)
+            if (config.dirBlock !== undefined) {
+              return (config.dirBlock & bit) === bit
+            }
+            // If config exists but no dirBlock, assumed 0 (Open)
+            return false
+          }
+        }
+      }
+    }
+
+    return false
   }
 }

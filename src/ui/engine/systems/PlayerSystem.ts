@@ -66,7 +66,7 @@ export class PlayerSystem extends ZSystem {
         this.direction = nextDir
       }
 
-      const result = this.mapManager.isPassable(this.x + dx, this.y + dy)
+      const result = this.mapManager.checkPassage(this.x, this.y, this.x + dx, this.y + dy)
       // LOG ENABLED FORCEFULLY
       console.log(`[PlayerSystem] Move to ${this.x + dx},${this.y + dy}. Passable: ${result}`)
 

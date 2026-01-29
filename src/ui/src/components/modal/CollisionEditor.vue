@@ -23,6 +23,7 @@ const canvasRef = ref<HTMLCanvasElement | null>(null)
 // For now, let's use a simple boolean array [48*48]
 const mask = ref<boolean[]>(new Array(GRID_SIZE * GRID_SIZE).fill(false))
 const sortYOffset = ref(0) // Default 0
+const dirBlock = ref(0) // Bitmask
 
 const initMask = (): void => {
   const config = store.tilesetConfigs[props.tilesetId]?.[`${props.tileX}_${props.tileY}`]
@@ -34,6 +35,18 @@ const initMask = (): void => {
   if (config?.sortYOffset !== undefined) {
     sortYOffset.value = config.sortYOffset
   }
+  if (config?.dirBlock !== undefined) {
+    dirBlock.value = config.dirBlock
+  }
+}
+
+// Toggle Direction Bit
+const toggleDir = (bit: number): void => {
+  dirBlock.value ^= bit
+}
+
+const isDirBlocked = (bit: number): boolean => {
+  return (dirBlock.value & bit) === bit
 }
 
 // Draw logic
@@ -52,7 +65,8 @@ const handlePixelClick = (e: MouseEvent): void => {
 const save = (): void => {
   store.updateTileConfig(props.tilesetId, props.tileX, props.tileY, {
     collisionMask: mask.value,
-    sortYOffset: sortYOffset.value
+    sortYOffset: sortYOffset.value,
+    dirBlock: dirBlock.value
   })
   emit('close')
 }
@@ -116,6 +130,56 @@ initMask()
               Negative: Sorts Higher (Behind)<br />
               Positive: Sorts Lower (Front)
             </p>
+          </div>
+
+          <!-- Directional Blocking -->
+          <div class="flex flex-col gap-2 p-2 bg-white rounded-lg border border-white/10">
+            <span class="text-xs text-black/50 uppercase font-bold">Edge Blocking</span>
+            <div class="grid grid-cols-3 gap-1 w-max mx-auto">
+              <div></div>
+              <button
+                class="w-8 h-8 flex items-center justify-center rounded hover:bg-black/5 border transition-colors"
+                :class="
+                  isDirBlocked(1) ? 'bg-red-100 border-red-500 text-red-600' : 'border-black/10'
+                "
+                @click="toggleDir(1)"
+              >
+                ▲
+              </button>
+              <div></div>
+
+              <button
+                class="w-8 h-8 flex items-center justify-center rounded hover:bg-black/5 border transition-colors"
+                :class="
+                  isDirBlocked(8) ? 'bg-red-100 border-red-500 text-red-600' : 'border-black/10'
+                "
+                @click="toggleDir(8)"
+              >
+                ◀
+              </button>
+              <div class="w-8 h-8 flex items-center justify-center text-xs text-black/20">DIR</div>
+              <button
+                class="w-8 h-8 flex items-center justify-center rounded hover:bg-black/5 border transition-colors"
+                :class="
+                  isDirBlocked(2) ? 'bg-red-100 border-red-500 text-red-600' : 'border-black/10'
+                "
+                @click="toggleDir(2)"
+              >
+                ▶
+              </button>
+
+              <div></div>
+              <button
+                class="w-8 h-8 flex items-center justify-center rounded hover:bg-black/5 border transition-colors"
+                :class="
+                  isDirBlocked(4) ? 'bg-red-100 border-red-500 text-red-600' : 'border-black/10'
+                "
+                @click="toggleDir(4)"
+              >
+                ▼
+              </button>
+              <div></div>
+            </div>
           </div>
         </div>
 

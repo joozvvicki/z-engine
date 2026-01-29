@@ -47,7 +47,13 @@ export const useEditorStore = defineStore('editor', () => {
       string,
       Record<
         string,
-        { isSolid: boolean; isHighPriority: boolean; sortYOffset: number; collisionMask: boolean[] }
+        {
+          isSolid: boolean
+          isHighPriority: boolean
+          sortYOffset: number
+          collisionMask: boolean[]
+          dirBlock: number // Bitmask: 1=Up, 2=Right, 4=Down, 8=Left
+        }
       >
     >
   >('Z_TilesetConfigs', {})
@@ -61,6 +67,7 @@ export const useEditorStore = defineStore('editor', () => {
       isHighPriority: boolean
       collisionMask: boolean[]
       sortYOffset: number
+      dirBlock: number
     }>
   ): void => {
     if (!storedTilesetConfigs.value[tilesetId]) {
