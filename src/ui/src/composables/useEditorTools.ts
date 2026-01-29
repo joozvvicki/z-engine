@@ -281,6 +281,12 @@ export const useEditorTools = (): {
 
     if (tool === ZTool.event && isCommit) {
       const existing = store.activeMap.events?.find((e) => e.x === target.x && e.y === target.y)
+
+      // Prevent opening editor for PlayerStart
+      if (existing?.name === 'PlayerStart') {
+        return
+      }
+
       activeEventCoords.value = { x: target.x, y: target.y }
       activeEventId.value = existing?.id || null
       return

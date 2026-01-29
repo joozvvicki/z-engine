@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import { useEditorStore } from '@ui/stores/editor'
 import { IconDeviceFloppy, IconGhost, IconPlus, IconCopy, IconTrash } from '@tabler/icons-vue'
 import { ZEventTrigger, type ZEventPage } from '@engine/types'
+import CharacterSelector from './CharacterSelector.vue'
 
 const props = defineProps<{
   x: number
@@ -12,6 +13,7 @@ const props = defineProps<{
 
 const emit = defineEmits(['close'])
 const store = useEditorStore()
+const showCharacterSelector = ref(false)
 
 // --- State ---
 const existingEvent = store.maps
@@ -102,6 +104,19 @@ const setGraphicFromSelection = (): void => {
   }
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const onSelectGraphic = (selection: any): void => {
+  if (activePage.value) {
+    activePage.value.graphic = selection
+    showCharacterSelector.value = false
+  }
+}
+
+const getCharacterUrl = (filename: string): string => {
+  // Use Vite's asset handling to get the URL
+  return new URL(`../../assets/img/characters/${filename}`, import.meta.url).href
+}
+
 const save = (): void => {
   if (props.eventId) {
     store.updateEvent(props.eventId, { name: eventName.value, pages: pages.value })
@@ -123,6 +138,21 @@ const remove = (): void => {
     store.deleteEvent(props.eventId)
   }
   emit('close')
+}
+
+// Command Editing
+const showCommandSelector = ref(false)
+const cmdParams = ref({ mapId: 1, x: 0, y: 0 })
+
+const addTransferCommand = (): void => {
+  if (!activePage.value) return
+
+  activePage.value.list.push({
+    code: 201, // ZCommandCode.TransferPlayer
+    parameters: [cmdParams.value.mapId, cmdParams.value.x, cmdParams.value.y]
+  })
+
+  showCommandSelector.value = false
 }
 </script>
 
@@ -302,13 +332,37 @@ const remove = (): void => {
             <div class="flex gap-4">
               <div
                 class="w-24 h-24 bg-[url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAMUlEQVQ4T2nk5uamNYwYP//8/xyM2jB4wYDBsIqKikq8Gg4dOoQXR21g8IIBg2EVg4AAAABJRU5ErkJggg==')] bg-repeat border-2 border-dashed border-slate-200 hover:border-blue-400 rounded-xl flex items-center justify-center relative overflow-hidden cursor-pointer transition-colors group"
-                @dblclick="setGraphicFromSelection"
+                @dblclick="showCharacterSelector = true"
               >
                 <template v-if="activePage.graphic">
-                  <!-- Placeholder for graphic renderer -->
-                  <div class="text-center group-hover:scale-110 transition-transform">
+                  <!-- Show Tile or Character -->
+                  <!-- If it's a character (string ID ending in .png), render it -->
+                  <div
+                    v-if="
+                      typeof activePage.graphic.tilesetId === 'string' &&
+                      activePage.graphic.tilesetId.endsWith('.png')
+                    "
+                    class="w-full h-full relative flex items-center justify-center transform scale-75"
+                  >
+                    <!-- Calculate offset based on selected frame (pixel or tile) -->
+                    <div
+                      class="pixelated"
+                      :style="{
+                        width: `${activePage.graphic.pixelW || activePage.graphic.w * 48}px`,
+                        height: `${activePage.graphic.pixelH || activePage.graphic.h * 48}px`,
+                        backgroundImage: `url(${getCharacterUrl(activePage.graphic.tilesetId)})`,
+                        backgroundPosition:
+                          activePage.graphic.pixelX !== undefined
+                            ? `-${activePage.graphic.pixelX}px -${activePage.graphic.pixelY}px`
+                            : `-${activePage.graphic.x * 48}px -${activePage.graphic.y * 48}px`
+                      }"
+                    ></div>
+                  </div>
+                  <!-- Else it's a map tile -->
+                  <div v-else class="text-center group-hover:scale-110 transition-transform">
                     <div class="text-2xl mb-1 drop-shadow-sm">🖼️</div>
                   </div>
+
                   <div
                     class="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[9px] font-mono text-center p-0.5 truncate backdrop-blur-sm"
                   >
@@ -327,9 +381,17 @@ const remove = (): void => {
               <div class="flex-1 flex flex-col gap-2 justify-center">
                 <button
                   class="px-3 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-bold rounded-lg transition-colors border border-blue-100"
+                  @click="showCharacterSelector = true"
+                >
+                  Select Graphic
+                </button>
+                <button
+                  v-if="store.selection"
+                  class="px-3 py-2 bg-white hover:bg-slate-50 text-slate-600 hover:text-slate-800 text-xs font-bold rounded-lg transition-colors border border-slate-200"
+                  title="Use current map selection"
                   @click="setGraphicFromSelection"
                 >
-                  Set from Selection
+                  Use Map Selection
                 </button>
                 <button
                   class="px-3 py-2 bg-white hover:bg-red-50 text-slate-600 hover:text-red-500 text-xs font-bold rounded-lg transition-colors border border-slate-200 hover:border-red-200"
@@ -337,9 +399,6 @@ const remove = (): void => {
                 >
                   Clear Graphic
                 </button>
-                <p class="text-[10px] text-slate-400 leading-tight">
-                  Select a tile in the main view, then use "Set from Selection".
-                </p>
               </div>
             </div>
           </div>
@@ -485,6 +544,7 @@ const remove = (): void => {
               <!-- Insert Line -->
               <div
                 class="group flex items-center gap-3 px-4 py-2 hover:bg-blue-50 cursor-pointer transition-colors opacity-50 hover:opacity-100"
+                @dblclick="showCommandSelector = true"
               >
                 <span class="text-slate-300 text-[10px] w-6 text-right select-none">@</span>
                 <span class="text-slate-400 text-xs italic group-hover:text-blue-500"
@@ -493,6 +553,83 @@ const remove = (): void => {
               </div>
             </div>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <CharacterSelector
+      v-if="showCharacterSelector"
+      :initial-tileset-id="activePage?.graphic?.tilesetId"
+      :initial-x="activePage?.graphic?.x"
+      :initial-y="activePage?.graphic?.y"
+      :initial-pixel-w="activePage?.graphic?.pixelW"
+      :initial-pixel-h="activePage?.graphic?.pixelH"
+      @close="showCharacterSelector = false"
+      @select="onSelectGraphic"
+    />
+
+    <!-- Command Selector Modal (Simple for now) -->
+    <div
+      v-if="showCommandSelector"
+      class="fixed inset-0 z-60 flex items-center justify-center bg-gray-900/40 backdrop-blur-sm p-4"
+      @click.self="showCommandSelector = false"
+    >
+      <div
+        class="bg-white rounded-xl shadow-2xl w-[400px] overflow-hidden border border-white/20 animate-in fade-in zoom-in-95 duration-200"
+      >
+        <div class="p-4 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
+          <h3 class="text-xs font-bold uppercase tracking-widest text-slate-500">Insert Command</h3>
+          <button class="text-slate-400 hover:text-slate-600" @click="showCommandSelector = false">
+            <IconTrash size="16" class="rotate-45" />
+          </button>
+        </div>
+
+        <div class="p-4 space-y-4">
+          <!-- Command Type (Only Transfer Player for now) -->
+          <div>
+            <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1">Command</label>
+            <select
+              class="w-full border border-slate-200 rounded px-2 py-1.5 text-sm font-medium text-slate-700 bg-white"
+            >
+              <option value="201">Transfer Player</option>
+            </select>
+          </div>
+
+          <div class="grid grid-cols-3 gap-3">
+            <div>
+              <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1"
+                >Map ID</label
+              >
+              <input
+                v-model.number="cmdParams.mapId"
+                type="number"
+                class="w-full border border-slate-200 rounded px-2 py-1.5 text-sm font-mono"
+              />
+            </div>
+            <div>
+              <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1">X</label>
+              <input
+                v-model.number="cmdParams.x"
+                type="number"
+                class="w-full border border-slate-200 rounded px-2 py-1.5 text-sm font-mono"
+              />
+            </div>
+            <div>
+              <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1">Y</label>
+              <input
+                v-model.number="cmdParams.y"
+                type="number"
+                class="w-full border border-slate-200 rounded px-2 py-1.5 text-sm font-mono"
+              />
+            </div>
+          </div>
+
+          <button
+            class="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-lg shadow-blue-500/20 active:scale-95 transition-all text-xs uppercase"
+            @click="addTransferCommand"
+          >
+            Insert Command
+          </button>
         </div>
       </div>
     </div>

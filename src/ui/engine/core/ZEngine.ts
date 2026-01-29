@@ -5,6 +5,7 @@ import { GhostSystem } from '../systems/GhostSystem'
 import { GridSystem } from '../systems/GridSystem'
 import { PlayerSystem } from '../systems/PlayerSystem'
 import { EntityRenderSystem } from '../systems/EntityRenderSystem'
+import { EventSystem } from '../systems/EventSystem'
 import { initDevtools } from '@pixi/devtools'
 import { InputManager } from '../managers/InputManager'
 import { MapManager } from '../managers/MapManager'
@@ -35,6 +36,9 @@ export class ZEngine {
   }
   public get entityRenderSystem(): EntityRenderSystem | undefined {
     return this.getSystem(EntityRenderSystem)
+  }
+  public get eventSystem(): EventSystem | undefined {
+    return this.getSystem(EventSystem)
   }
 
   private systems: Map<string, ZSystem> = new Map()
@@ -127,6 +131,9 @@ export class ZEngine {
 
     const playerSystem = new PlayerSystem(this.inputManager, this.mapManager, tileSize)
     this.addSystem(playerSystem)
+
+    // EventSystem depends on PlayerSystem
+    this.addSystem(new EventSystem(this.mapManager, playerSystem))
 
     // We need RenderSystem instance to pass to EntityRenderSystem
     const renderSystem = this.getSystem(RenderSystem)

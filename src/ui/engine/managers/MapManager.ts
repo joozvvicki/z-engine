@@ -180,4 +180,9 @@ export class MapManager {
     }
     return false
   }
+
+  public getEventsAt(x: number, y: number): import('@engine/types').ZEvent[] {
+    if (!this.currentMap) return []
+    return this.currentMap.events.filter((e) => e.x === x && e.y === y)
+  }
 }

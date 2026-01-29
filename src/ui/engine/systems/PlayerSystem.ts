@@ -84,6 +84,59 @@ export class PlayerSystem extends ZSystem {
         this.isMoving = true
       }
     }
+
+    if (this.inputManager.isKeyDown('Enter') || this.inputManager.isKeyDown(' ')) {
+      this.checkInteraction()
+    }
+  }
+
+  private checkInteraction(): void {
+    if (this.isMoving) return
+
+    // Limit interaction rate? Simple debounce could be added input manager side,
+    // but for now relying on single-frame check is risky if key held.
+    // InputManager needs 'isKeyPressed' (trigger once).
+    // Assuming isKeyDown is continuous, we might re-trigger.
+    // Ideally we use isKeyPressed.
+    // For now, let's just check relative to direction.
+
+    let tx = this.x
+    let ty = this.y
+
+    if (this.direction === 'left') tx--
+    else if (this.direction === 'right') tx++
+    else if (this.direction === 'up') ty--
+    else if (this.direction === 'down') ty++
+
+    // Find event at tx, ty
+    const events = this.mapManager.getEventsAt(tx, ty)
+    // Also check events AT player position (Priority: Same Priority > Below)?
+    // RPG Maker checks Front first. If nothing, then Under.
+
+    // Let's filter for Action Trigger (0)
+    const actionEvent = events.find((e) => {
+      // We need to access the active page.
+      // Since we don't have full EventStateManager yet, we look at raw event data.
+      // In future: event.activePage.trigger === ZEventTrigger.Action
+      // For now, simple check on page 0 or last page?
+      // We need a helper to get active page.
+      // Using a simplified logic: Check last page.
+      const page = e.pages[e.pages.length - 1]
+      return page.trigger === 0 // Action
+    })
+
+    if (actionEvent) {
+      console.log(`[PlayerSystem] Interacted with event ${actionEvent.id}`)
+
+      // Check if EventSystem exists
+      if (window.$zEngine?.eventSystem) {
+        console.log('[PlayerSystem] Calling EventSystem.startEvent')
+        // @ts-ignore
+        window.$zEngine.eventSystem.startEvent(actionEvent)
+      } else {
+        console.error('[PlayerSystem] EventSystem not found on window.$zEngine')
+      }
+    }
   }
 
   private updateMovement(): void {
@@ -115,6 +168,9 @@ export class PlayerSystem extends ZSystem {
       this.isMoving = false
       this.x = this.targetX
       this.y = this.targetY
+
+      // Post-move trigger check (Player Touch)
+      // this.checkTrigger(1) // Player Touch
     }
   }
 

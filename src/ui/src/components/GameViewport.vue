@@ -134,15 +134,28 @@ const initEngine = async (): Promise<void> => {
 
   engine = new ZEngine()
   await Promise.all(store.tilesets.map((ts) => engine!.textureManager.loadTileset(ts.id, ts.url)))
+
+  // Preload Characters
+  const charModules = import.meta.glob('@ui/assets/img/characters/*.png', {
+    eager: true,
+    as: 'url'
+  })
+  await Promise.all(
+    Object.keys(charModules).map((path) => {
+      const name = path.split('/').pop() || path
+      return engine!.textureManager.loadTileset(name, charModules[path])
+    })
+  )
+
   await engine.init(canvasContainer.value, store.tileSize)
+  // @ts-ignore
+  window.$zEngine = engine
 
   engine.app.stage.on('pointerdown', onPointerDown)
   engine.app.stage.on('pointermove', onPointerMove)
   engine.app.stage.on('pointerup', onPointerUp)
   engine.app.stage.on('pointerup', onPointerUp)
   engine.app.stage.on('pointerleave', () => engine?.ghostSystem?.hide())
-
-  window['$zEngine'] = engine
 
   engine.renderSystem?.setMap(store.activeMap)
   const isEventTool = store.currentTool === ZTool.event
@@ -157,6 +170,44 @@ const initEngine = async (): Promise<void> => {
   if (store.tilesetConfigs) {
     engine.mapManager?.setTilesetConfigs(store.tilesetConfigs)
   }
+
+  // Listen for Global Engine Events (like Transfer Player)
+  // We use a custom event on window for now
+  window.addEventListener('z-transfer-player', (e: Event) => {
+    const customEvent = e as CustomEvent<{ mapId: number; x: number; y: number }>
+    const { mapId, x, y } = customEvent.detail
+    console.log(`[GameViewport] Received Transfer: Map ${mapId} @ ${x},${y}`)
+
+    // 1. Check if Map exists
+    const targetMap = store.maps.find((m) => m.id === mapId)
+    if (targetMap) {
+      // 2. Switch Map
+      store.setActiveMap(mapId)
+
+      // 3. Move Player (Need to wait for map load/engine update?)
+      // Since setActiveMap triggers a watcher that calls setMap on engine,
+      // checking engine state is tricky.
+      // We can force set player pos immediately on the new engine instance or existing one.
+      // But `store.activeMap` change might re-trigger things.
+      // Let's defer player move slightly or ensure it persists?
+      // For now, let's just create a temporary hack:
+      // We assume the engine instance survives map switch if we don't destroy it.
+      // Wait... `initEngine` destroys `engine`?
+      // `initEngine` is called ON MOUNT.
+      // `watch(activeMap)` only calls `engine.renderSystem.setMap`.
+      // IT DOES NOT RE-CREATE ENGINE. Good.
+
+      if (engine?.playerSystem) {
+        engine.playerSystem.x = x
+        engine.playerSystem.y = y
+        // Force snap to avoid sliding from previous position
+        // @ts-ignore
+        engine.playerSystem.snapToGrid()
+      }
+    } else {
+      console.error(`[GameViewport] Transfer Failed: Map ${mapId} not found`)
+    }
+  })
 }
 
 watch(
@@ -167,7 +218,8 @@ watch(
     // Since map data is large, ref is better.
     if (newMap) {
       engine?.renderSystem?.setMap(JSON.parse(JSON.stringify(newMap))) // Clone to detach?
-      // Actually, RenderSystem stores MapManager.
+      // Reload events for the new map (Play Mode)
+      engine?.entityRenderSystem?.loadEvents()
     }
   },
   { deep: true, immediate: true }
@@ -218,19 +270,23 @@ watch(
   ([layer, isTest, tool]) => {
     if (engine && engine.renderSystem) {
       if (isTest) {
+        engine.setMode('play')
+
         // Play Mode: Full Context, No Ghosts
         engine.renderSystem.updateLayerDimming(null)
         engine.renderSystem.setEventMarkersVisible(false)
       } else {
+        engine.setMode('edit')
+
         // Edit Mode
         if (tool === ZTool.event) {
           // Event Tool: Exclusive Focus on Events Layer + Show Markers
           engine.renderSystem.updateLayerDimming(ZLayer.events, true)
           engine.renderSystem.setEventMarkersVisible(true)
         } else {
-          // Standard Tool: Dim layers above active layer + Hide Markers
+          // Standard Tool: Dim layers above active layer
           engine.renderSystem.updateLayerDimming(layer as ZLayer, false)
-          engine.renderSystem.setEventMarkersVisible(false)
+          engine.renderSystem.setEventMarkersVisible(true)
         }
       }
     }
@@ -256,6 +312,8 @@ onMounted(async () => {
 
 onUnmounted(() => {
   engine?.destroy()
+  // @ts-ignore
+  window.$zEngine = null
 })
 </script>
 

@@ -317,19 +317,37 @@ export class GhostSystem extends ZSystem {
         // Single tile selection fallback
         const tex = this.textureManager.get(this.selection.tilesetId)
         if (tex) {
+          // Check for pixel override
+          const pX = this.selection.pixelX ?? this.selection.x * this.tileSize
+          const pY = this.selection.pixelY ?? this.selection.y * this.tileSize
+          const pW =
+            this.selection.pixelW ??
+            (this.selection.isAutotile ? this.tileSize : this.selection.w * this.tileSize)
+          const pH =
+            this.selection.pixelH ??
+            (this.selection.isAutotile ? this.tileSize : this.selection.h * this.tileSize)
+
           const sprite = new PIXI.Sprite(
             new PIXI.Texture({
               source: tex.source,
-              frame: new PIXI.Rectangle(
-                this.selection.x * this.tileSize,
-                this.selection.y * this.tileSize,
-                this.selection.isAutotile ? this.tileSize : this.selection.w * this.tileSize,
-                this.selection.isAutotile ? this.tileSize : this.selection.h * this.tileSize
-              )
+              frame: new PIXI.Rectangle(pX, pY, pW, pH)
             })
           )
-          sprite.x = x
-          sprite.y = y
+
+          // Center-bottom align if it looks like a character (png)
+          const isCharacter = this.selection.tilesetId.endsWith('.png')
+
+          if (isCharacter) {
+            sprite.anchor.set(0.5, 1)
+            // Ghost position is top-left of the target tile.
+            // We want the sprite bottom-center to be at the bottom-center of the target tile.
+            sprite.x = x + this.tileSize / 2
+            sprite.y = y + this.tileSize
+          } else {
+            sprite.x = x
+            sprite.y = y
+          }
+
           sprite.alpha = 0.5
           this.container.addChild(sprite)
         }

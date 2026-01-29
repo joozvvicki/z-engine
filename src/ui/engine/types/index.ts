@@ -21,6 +21,11 @@ export interface TileSelection {
   pattern?: (TileSelection | null)[][]
   structure?: Partial<Record<ZLayer, (TileSelection[] | null)[][]>>
   isMultiLayer?: boolean
+  // Optional pixel-based overrides for custom sized events/objects
+  pixelX?: number
+  pixelY?: number
+  pixelW?: number
+  pixelH?: number
 }
 
 export interface ZEvent {
@@ -143,9 +148,12 @@ export interface IconMap {
 
 export interface TileConfig {
   isSolid: boolean
-  isHighPriority: boolean
   collisionMask?: boolean[] // 48x48 true/false
   sortYOffset?: number // positive = sorts lower (front), negative = sorts higher (back)
 }
 
 export type TilesetConfig = Record<string, TileConfig> // Key is tileId ("x_y") -> "0_0", "1_0" etc.
+
+export enum ZCommandCode {
+  TransferPlayer = 201
+}

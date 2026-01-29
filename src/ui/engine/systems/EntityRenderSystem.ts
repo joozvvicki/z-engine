@@ -59,6 +59,8 @@ export class EntityRenderSystem extends ZSystem {
     })
     this.eventSprites.clear()
 
+    this.eventSprites.clear()
+
     const map = this.mapManager.currentMap
     if (!map || !map.events) return
 
@@ -73,21 +75,34 @@ export class EntityRenderSystem extends ZSystem {
         const tex = this.textureManager.get(activePage.graphic.tilesetId)
         if (!tex) return
 
+        const frameX = activePage.graphic.pixelX ?? activePage.graphic.x * this.tileSize
+        const frameY = activePage.graphic.pixelY ?? activePage.graphic.y * this.tileSize
+        const frameW = activePage.graphic.pixelW ?? activePage.graphic.w * this.tileSize
+        const frameH = activePage.graphic.pixelH ?? activePage.graphic.h * this.tileSize
+
         const sprite = new PIXI.Sprite(
           new PIXI.Texture({
             source: tex.source,
-            frame: new PIXI.Rectangle(
-              activePage.graphic.x * this.tileSize,
-              activePage.graphic.y * this.tileSize,
-              activePage.graphic.w * this.tileSize,
-              activePage.graphic.h * this.tileSize
-            )
+            frame: new PIXI.Rectangle(frameX, frameY, frameW, frameH)
           })
         )
 
-        sprite.x = event.x * this.tileSize
-        sprite.y = event.y * this.tileSize
-        // Y-Sort
+        // Rendering Logic:
+        // If it's a character sheet (direct PNG), align Bottom-Center
+        // If it's a tile (from tileset), align Top-Left
+        const isCharacter = activePage.graphic.tilesetId.endsWith('.png')
+
+        if (isCharacter) {
+          sprite.anchor.set(0.5, 1)
+          sprite.x = (event.x + 0.5) * this.tileSize
+          sprite.y = (event.y + 1) * this.tileSize
+        } else {
+          sprite.anchor.set(0, 0)
+          sprite.x = event.x * this.tileSize
+          sprite.y = event.y * this.tileSize
+        }
+
+        // Y-Sort: Use bottom of tile
         sprite.zIndex = (event.y + 1) * this.tileSize
 
         // Add to container
