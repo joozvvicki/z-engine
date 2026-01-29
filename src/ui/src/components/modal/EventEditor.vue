@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { useEditorStore } from '@ui/stores/editor'
-import { IconDeviceFloppy, IconX, IconGhost } from '@tabler/icons-vue'
+import { IconDeviceFloppy, IconX, IconGhost, IconTrash } from '@tabler/icons-vue'
 
 const props = defineProps<{
   x: number
@@ -21,12 +21,30 @@ const eventName = ref(
     `EV${store.maps.find((map) => map.id === store.activeMapID)?.events?.length || 0 + 1}`
 )
 const eventGraphic = ref(existingEvent?.graphic || store.selection)
+const isPlayerStart = ref(eventName.value === 'PlayerStart')
+
+watch(isPlayerStart, (val) => {
+  if (val) {
+    eventName.value = 'PlayerStart'
+  } else {
+    if (eventName.value === 'PlayerStart') {
+      eventName.value = `EV${store.maps.find((map) => map.id === store.activeMapID)?.events?.length || 0 + 1}`
+    }
+  }
+})
 
 const save = (): void => {
   if (props.eventId) {
     store.updateEvent(props.eventId, { name: eventName.value, graphic: eventGraphic.value })
   } else {
     store.addEvent(props.x, props.y, { name: eventName.value, graphic: eventGraphic.value })
+  }
+  emit('close')
+}
+
+const remove = (): void => {
+  if (props.eventId) {
+    store.deleteEvent(props.eventId)
   }
   emit('close')
 }
@@ -45,12 +63,25 @@ const save = (): void => {
       </div>
 
       <div class="p-6 space-y-4">
+        <div class="flex items-center gap-2">
+          <input
+            id="playerStart"
+            v-model="isPlayerStart"
+            type="checkbox"
+            class="accent-blue-600 w-4 h-4 cursor-pointer"
+          />
+          <label for="playerStart" class="text-xs font-bold text-black cursor-pointer select-none"
+            >Player Start Position</label
+          >
+        </div>
+
         <div class="space-y-1">
           <label class="text-[10px] uppercase font-bold text-black">Event Name</label>
           <input
             v-model="eventName"
             type="text"
-            class="w-full text-black/20 bg-white/20 border border-white/10 rounded p-2 text-sm outline-none focus:border-blue-500"
+            :disabled="isPlayerStart"
+            class="w-full text-black/20 bg-white/20 border border-white/10 rounded p-2 text-sm outline-none focus:border-blue-500 disabled:opacity-50"
           />
         </div>
 
@@ -73,6 +104,15 @@ const save = (): void => {
       </div>
 
       <div class="p-3 bg-white/5 border-t border-white/5 flex gap-2">
+        <button
+          v-if="props.eventId"
+          class="px-3 py-2 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white transition-colors text-[10px] font-bold uppercase rounded"
+          title="Delete Event"
+          @click="remove"
+        >
+          <IconTrash size="14" />
+        </button>
+
         <button
           class="flex-1 py-2 text-[10px] font-bold uppercase text-slate-400 hover:bg-white/5 transition-colors"
           @click="emit('close')"

@@ -30,8 +30,16 @@ export class PlayerSystem extends ZSystem {
   }
 
   public onBoot(): void {
-    this.x = 5
-    this.y = 5
+    const startEvent = this.mapManager.currentMap?.events.find((e) => e.name === 'PlayerStart')
+
+    if (startEvent) {
+      this.x = startEvent.x
+      this.y = startEvent.y
+    } else {
+      this.x = 5
+      this.y = 5
+    }
+
     this.snapToGrid()
   }
 

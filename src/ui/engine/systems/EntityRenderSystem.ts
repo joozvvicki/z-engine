@@ -3,6 +3,7 @@ import { ZSystem, ZLayer } from '@engine/types'
 import { PlayerSystem } from './PlayerSystem'
 import { TextureManager } from '@engine/managers/TextureManager'
 import { RenderSystem } from './RenderSystem'
+import { MapManager } from '@engine/managers/MapManager'
 
 export class EntityRenderSystem extends ZSystem {
   private container: PIXI.Container
@@ -29,26 +30,73 @@ export class EntityRenderSystem extends ZSystem {
   private animationTimer: number = 0
   private readonly ANIMATION_SPEED: number = 150 // ms per frame
 
+  private mapManager: MapManager
   private renderSystem: RenderSystem
+  private textureManager: TextureManager
+  private eventSprites: Map<string, PIXI.Container | PIXI.Sprite> = new Map()
 
   constructor(
     _stage: PIXI.Container,
     playerSystem: PlayerSystem,
-    _textureManager: TextureManager,
+    textureManager: TextureManager,
     tileSize: number,
-    renderSystem: RenderSystem
+    renderSystem: RenderSystem,
+    mapManager: MapManager
   ) {
     super()
     this.playerSystem = playerSystem
     this.tileSize = tileSize
     this.renderSystem = renderSystem
+    this.mapManager = mapManager
+    this.textureManager = textureManager
     this.container = null!
   }
 
+  public loadEvents(): void {
+    // Clear existing events
+    this.eventSprites.forEach((sprite) => {
+      sprite.destroy()
+    })
+    this.eventSprites.clear()
+
+    const map = this.mapManager.currentMap
+    if (!map || !map.events) return
+
+    map.events.forEach((event) => {
+      if (event.name === 'PlayerStart') return // Invisible marker
+
+      if (event.graphic) {
+        // Create visual for event
+        const tex = this.textureManager.get(event.graphic.tilesetId)
+        if (!tex) return
+
+        const sprite = new PIXI.Sprite(
+          new PIXI.Texture({
+            source: tex.source,
+            frame: new PIXI.Rectangle(
+              event.graphic.x * this.tileSize,
+              event.graphic.y * this.tileSize,
+              event.graphic.w * this.tileSize,
+              event.graphic.h * this.tileSize
+            )
+          })
+        )
+
+        sprite.x = event.x * this.tileSize
+        sprite.y = event.y * this.tileSize
+        // Y-Sort
+        sprite.zIndex = (event.y + 1) * this.tileSize
+
+        // Add to container
+        this.container.addChild(sprite)
+        this.eventSprites.set(event.id, sprite)
+      }
+    })
+  }
+
   public async onBoot(): Promise<void> {
-    // We want to sort with Trees layer
-    // So we use the Trees container from RenderSystem
-    this.container = this.renderSystem.getLayerContainer(ZLayer.trees)
+    // We want to sort with Decoration layer (to interleave with tiles)
+    this.container = this.renderSystem.getLayerContainer(ZLayer.decoration)
 
     // Create Player Sprite
     await this.createPlayerSprite()
@@ -116,10 +164,25 @@ export class EntityRenderSystem extends ZSystem {
     if (this.playerSprite) {
       this.playerSprite.visible = visible
     }
+
+    if (visible) {
+      this.loadEvents()
+      this.eventSprites.forEach((s) => (s.visible = true))
+    } else {
+      this.eventSprites.forEach((s) => (s.visible = false))
+    }
   }
 
   public onUpdate(delta: number): void {
     if (!this.playerSprite) return
+
+    // Self-healing: Ensure player is attached to container (RenderSystem might have cleared it)
+    if (this.playerSprite.parent !== this.container) {
+      this.container.addChild(this.playerSprite)
+      this.eventSprites.forEach((s) => {
+        if (s.parent !== this.container) this.container.addChild(s)
+      })
+    }
 
     // Interpolate position relative to bottom-center of tile?
     // PlayerSystem coordinates are top-left of the tile grid.
@@ -198,5 +261,9 @@ export class EntityRenderSystem extends ZSystem {
       this.container.removeChild(this.playerSprite)
       this.playerSprite.destroy()
     }
+    this.eventSprites.forEach((sprite) => {
+      sprite.destroy()
+    })
+    this.eventSprites.clear()
   }
 }

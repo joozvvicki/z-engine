@@ -74,11 +74,18 @@ export class ZEngine {
     if (mode === 'play') {
       entitySystem?.setVisible(true)
       ghostSystem?.setVisible(false)
+
+      // Hide Editor Events Markers (keep layer visible for Player)
+      this.renderSystem?.setEventMarkersVisible(false)
+
       // Reset player
       this.getSystem(PlayerSystem)?.onBoot()
     } else {
       entitySystem?.setVisible(false)
       ghostSystem?.setVisible(true)
+
+      // Show Editor Events Markers
+      this.renderSystem?.setEventMarkersVisible(true)
     }
   }
 
@@ -128,7 +135,8 @@ export class ZEngine {
         playerSystem,
         this.textureManager,
         tileSize,
-        renderSystem
+        renderSystem,
+        this.mapManager
       )
     )
 

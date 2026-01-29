@@ -129,8 +129,7 @@ export const useEditorStore = defineStore('editor', () => {
       [ZLayer.walls]: { data: createGrid(), index: 1, icon: 'wall' },
       [ZLayer.decoration]: { data: createGrid(), index: 2, icon: 'cactus' },
       [ZLayer.events]: { data: createGrid(), index: 3, icon: 'box' },
-      [ZLayer.trees]: { data: createGrid(), index: 4, icon: 'tree' },
-      [ZLayer.roofs]: { data: createGrid(), index: 5, icon: 'home' }
+      [ZLayer.highest]: { data: createGrid(), index: 4, icon: 'star' }
     }
   }
 
@@ -273,7 +272,7 @@ export const useEditorStore = defineStore('editor', () => {
 
     // Capture structure for layers
     const layersToCheck = allLayers
-      ? [ZLayer.ground, ZLayer.walls, ZLayer.decoration, ZLayer.trees, ZLayer.events, ZLayer.roofs]
+      ? [ZLayer.ground, ZLayer.walls, ZLayer.decoration, ZLayer.events, ZLayer.highest]
       : [activeLayer.value]
 
     for (const l of layersToCheck) {
@@ -306,13 +305,7 @@ export const useEditorStore = defineStore('editor', () => {
         let tile: TileSelection | null = null
 
         if (allLayers) {
-          const layersToCheck = [
-            ZLayer.ground,
-            ZLayer.walls,
-            ZLayer.decoration,
-            ZLayer.trees,
-            ZLayer.roofs
-          ]
+          const layersToCheck = [ZLayer.ground, ZLayer.walls, ZLayer.decoration, ZLayer.highest]
           for (const l of layersToCheck) {
             const t = getTopTile(l, y + dy, x + dx)
             if (t) tile = { ...t }
@@ -396,6 +389,11 @@ export const useEditorStore = defineStore('editor', () => {
       pages: []
     }
 
+    // Enforce uniqueness for PlayerStart
+    if (newEvent.name === 'PlayerStart') {
+      activeMap.value.events = activeMap.value.events.filter((e) => e.name !== 'PlayerStart')
+    }
+
     activeMap.value.events.push(newEvent)
     saveProject()
     history.recordHistory()
@@ -406,9 +404,24 @@ export const useEditorStore = defineStore('editor', () => {
     const ev = activeMap.value.events.find((e) => e.id === eventId)
     if (ev) {
       Object.assign(ev, updates)
+
+      // Enforce uniqueness for PlayerStart
+      if (updates.name === 'PlayerStart') {
+        activeMap.value.events = activeMap.value.events.filter(
+          (e) => e.id === eventId || e.name !== 'PlayerStart'
+        )
+      }
+
       saveProject()
       history.recordHistory()
     }
+  }
+
+  const deleteEvent = (eventId: string): void => {
+    if (!activeMap.value) return
+    activeMap.value.events = activeMap.value.events.filter((e) => e.id !== eventId)
+    saveProject()
+    history.recordHistory()
   }
 
   const toggleTestMode = (): void => {
@@ -525,6 +538,7 @@ export const useEditorStore = defineStore('editor', () => {
 
     addEvent,
     updateEvent,
+    deleteEvent,
 
     toggleTestMode,
     movePlayer,

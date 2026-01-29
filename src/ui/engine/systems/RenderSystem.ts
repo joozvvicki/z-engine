@@ -38,41 +38,48 @@ export class RenderSystem extends ZSystem {
     // We attach layers directly to wrapper (Stage) to allow interleaving with Entities (Player)
     // Z-Index Strategy:
     // Ground: 0
-    // Walls: 100
     // Decoration: 200
-    // Events: 300 (Player will be here, maybe 350)
-    // Trees: 400
-    // Roofs: 500
+    // Events: 300
+    // Highest: 500
 
     this.layers = {
       [ZLayer.ground]: new PIXI.Container({ label: 'GroundLayer' }),
       [ZLayer.walls]: new PIXI.Container({ label: 'WallsLayer' }),
       [ZLayer.decoration]: new PIXI.Container({ label: 'DecorationLayer' }),
-      [ZLayer.trees]: new PIXI.Container({ label: 'TreesLayer' }),
       [ZLayer.events]: new PIXI.Container({ label: 'EventsLayer' }),
-      [ZLayer.roofs]: new PIXI.Container({ label: 'RoofsLayer' })
+      [ZLayer.highest]: new PIXI.Container({ label: 'HighestLayer' })
     }
 
     this.layers[ZLayer.ground].zIndex = 0
     this.layers[ZLayer.walls].zIndex = 100
     this.layers[ZLayer.decoration].zIndex = 200
     this.layers[ZLayer.events].zIndex = 300
-    this.layers[ZLayer.trees].zIndex = 400
-    this.layers[ZLayer.roofs].zIndex = 500
+    this.layers[ZLayer.highest].zIndex = 500
 
     // Enable Y-sorting / Priority sorting
-    this.layers[ZLayer.trees].sortableChildren = true
-    this.layers[ZLayer.decoration].sortableChildren = true // For "Stars"
-    this.layers[ZLayer.walls].sortableChildren = true // Maybe?
-    this.layers[ZLayer.events].sortableChildren = true // Events are Y-sorted
-    this.layers[ZLayer.roofs].sortableChildren = true // Ensure roofs are sortable if we move stuff there
+    this.layers[ZLayer.walls].sortableChildren = true
+    this.layers[ZLayer.decoration].sortableChildren = true
+    this.layers[ZLayer.events].sortableChildren = true
+    this.layers[ZLayer.highest].sortableChildren = true
 
     const sortedLayers = Object.values(this.layers)
     this.wrapper.addChild(...sortedLayers)
     // Since wrapper (Stage) has sortableChildren=true, zIndex will be respected.
+    this.wrapper.sortableChildren = true
 
     this.tileContainers = this.createEmptyContainerStructure(0, 0)
+
+    // Load Player Texture for Editor Visualization
+    import('@ui/assets/img/characters/character.png').then((mod) => {
+      PIXI.Assets.load(mod.default).then((tex) => {
+        this.playerTexture = tex
+        // Trigger refresh once loaded
+        this.fullRenderDirty = true
+      })
+    })
   }
+
+  private playerTexture: PIXI.Texture | null = null
 
   public getLayerContainer(layer: ZLayer): PIXI.Container {
     return this.layers[layer]
@@ -183,35 +190,31 @@ export class RenderSystem extends ZSystem {
       // --- Sorting Logic ---
 
       // Default Base Z (standard sort)
-      // For Trees layer, we match Player sorting:
-      // Player Z ~= (y + 1) * tileSize + 1 (feet)
-      // Tile Base Z ~= (y + 1) * tileSize
-      const baseZ = (y + 1) * this.tileSize
+      let baseZ = (y + 1) * this.tileSize
+
+      // If this tile is manually placed on the Highest layer, we want it to ALWAYS be above
+      // "Star" tiles that are promoted from lower layers (like Tree Tops).
+      // We give it a massive boost to separate it into a "Roof/Flying" plane.
+      if (layer === ZLayer.highest) {
+        baseZ += 100000
+      }
 
       if (!isHighPriority) {
-        // Normal Layer (Ground, Walls, Trees, Decoration)
-        // If sorting is enabled on this layer (Trees, Decoration), respect Y + Offset
-        if (layer === ZLayer.trees || layer === ZLayer.decoration) {
+        // Normal Layer (Ground, Walls, Decoration)
+        // If sorting is enabled on this layer (Decoration, Walls, Highest), respect Y + Offset
+        if (layer === ZLayer.decoration || layer === ZLayer.walls || layer === ZLayer.highest) {
           cellContainer.zIndex = baseZ + ySortOffset
         }
 
-        // Add to Normal Layer
+        // Add to Layer
         this.layers[layer].addChild(cellContainer)
       } else {
-        // High Priority (Roofs)
-        // Move to top layer
-        // Apply Y-sort logic but boosted to Roofs space
-        // Roofs layer index is 500, but inside it we sort by Y relative to other roof tiles
-        // to maintain depth even "above" player.
-        // We use same baseZ formula so Roof tiles sort among themselves correctly.
-        // We add a huge offset? No, Roofs layer (DisplayObject) is visually above Trees layer.
-        // So internal zIndex just needs to be consistent within Roofs.
-
-        // However, if we want to "interleave" very precisely with other High Priority things?
-        // Usually fine.
-
+        // High Priority (Highest)
+        // Move to Top Layer
+        // We use Highest layer for Star tiles from any layer (usually Decoration).
+        // Sorting: Maintain Y-sort logic.
         cellContainer.zIndex = baseZ + ySortOffset
-        this.layers[ZLayer.roofs].addChild(cellContainer)
+        this.layers[ZLayer.highest].addChild(cellContainer)
       }
 
       // Track it
@@ -243,9 +246,8 @@ export class RenderSystem extends ZSystem {
       ZLayer.ground,
       ZLayer.walls,
       ZLayer.decoration,
-      ZLayer.trees,
       ZLayer.events,
-      ZLayer.roofs
+      ZLayer.highest
     ]
 
     layersOrder.forEach((layer) => {
@@ -258,6 +260,91 @@ export class RenderSystem extends ZSystem {
           }
         }
       }
+    })
+
+    // Render Object Events
+    this.renderEvents(mapData)
+  }
+
+  private eventMarkers: PIXI.Container[] = []
+
+  public setEventMarkersVisible(visible: boolean): void {
+    this.eventMarkers.forEach((c) => (c.visible = visible))
+  }
+
+  private renderEvents(mapData: ZMap): void {
+    this.eventMarkers = [] // Reset list (containers cleared by resetLayers? No, renderEvents runs after resetLayers usually, wait)
+    // resetLayers clears children of layers. So old markers are gone from PIXI.
+    // We just need to clear our reference list.
+
+    if (!mapData.events) return
+
+    mapData.events.forEach((event) => {
+      // Container for the event
+      const container = new PIXI.Container()
+      container.label = 'EditorEventMarker' // Tag it
+      container.x = event.x * this.tileSize
+      container.y = event.y * this.tileSize
+      container.zIndex = (event.y + 1) * this.tileSize
+
+      let graphicSprite: PIXI.Sprite | null = null
+
+      // 1. Determine Graphic
+      if (event.name === 'PlayerStart' || event.graphic) {
+        if (event.name === 'PlayerStart' && this.playerTexture) {
+          // Player Sprite (Down Idle = 0,0?)
+          // Assuming 4x4 layout, 0,0 is Down-Standing.
+          // Frame size = W/4, H/4
+          const fw = this.playerTexture.width / 4
+          const fh = this.playerTexture.height / 4
+
+          graphicSprite = new PIXI.Sprite(
+            new PIXI.Texture({
+              source: this.playerTexture.source,
+              frame: new PIXI.Rectangle(0, 0, fw, fh)
+            })
+          )
+          // Scale to fit within tileSize x tileSize
+          // Use smaller scale to ensure it fits inside the box completely
+          const maxDim = Math.max(fw, fh)
+          const scale = (this.tileSize / maxDim) * 0.8
+
+          graphicSprite.scale.set(scale)
+          graphicSprite.anchor.set(0.5, 0.5)
+          graphicSprite.x = this.tileSize / 2
+          graphicSprite.y = this.tileSize / 2
+        } else if (event.graphic) {
+          const tex = this.textureManager.get(event.graphic.tilesetId)
+          if (tex) {
+            graphicSprite = new PIXI.Sprite(
+              new PIXI.Texture({
+                source: tex.source,
+                frame: new PIXI.Rectangle(
+                  event.graphic.x * this.tileSize,
+                  event.graphic.y * this.tileSize,
+                  event.graphic.w * this.tileSize,
+                  event.graphic.h * this.tileSize
+                )
+              })
+            )
+          }
+        }
+      }
+
+      // 2. Add Graphic (Bottom Layer)
+      if (graphicSprite) {
+        container.addChild(graphicSprite)
+      }
+
+      // 3. Add Event Box Overlay (Semi-transparent Black + Border)
+      const overlay = new PIXI.Graphics()
+      overlay.rect(0, 0, this.tileSize, this.tileSize)
+      overlay.fill({ color: 0x000000, alpha: 0.5 })
+      overlay.stroke({ color: 0x000000, width: 2 })
+      container.addChild(overlay)
+
+      this.layers[ZLayer.events].addChild(container)
+      this.eventMarkers.push(container)
     })
   }
 
@@ -350,9 +437,8 @@ export class RenderSystem extends ZSystem {
       [ZLayer.ground]: create(),
       [ZLayer.walls]: create(),
       [ZLayer.decoration]: create(),
-      [ZLayer.trees]: create(),
       [ZLayer.events]: create(),
-      [ZLayer.roofs]: create()
+      [ZLayer.highest]: create()
     } as Record<ZLayer, PIXI.Container[][][]>
   }
 }

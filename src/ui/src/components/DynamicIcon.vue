@@ -2,19 +2,19 @@
 import {
   IconBackground,
   IconBox,
-  IconCactus,
   IconHelp,
   IconHome,
-  IconTree,
-  IconWall
+  IconCactus,
+  IconWall,
+  IconStar
 } from '@tabler/icons-vue'
 
 const iconsMap = {
   background: IconBackground,
   wall: IconWall,
+  star: IconStar,
   cactus: IconCactus,
   box: IconBox,
-  tree: IconTree,
   home: IconHome,
   help: IconHelp
 }
