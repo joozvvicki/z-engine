@@ -74,8 +74,8 @@ export class ZEngine {
     if (mode === 'play') {
       entitySystem?.setVisible(true)
       ghostSystem?.setVisible(false)
-      // Reset player?
-      // this.getSystem(PlayerSystem)?.onBoot()
+      // Reset player
+      this.getSystem(PlayerSystem)?.onBoot()
     } else {
       entitySystem?.setVisible(false)
       ghostSystem?.setVisible(true)
