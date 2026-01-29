@@ -6,7 +6,7 @@ import { MapManager } from '@engine/managers/MapManager'
 
 export class RenderSystem extends ZSystem {
   private layers: Record<ZLayer, PIXI.Container>
-  private tileContainers: Record<ZLayer, (PIXI.Container | null)[][]>
+  private tileContainers: Record<ZLayer, PIXI.Container[][][]>
 
   private textureManager: TextureManager
   private tileSize: number
@@ -127,76 +127,36 @@ export class RenderSystem extends ZSystem {
     layer: ZLayer,
     mapData: ZMap
   ): void {
+    // 1. Clear existing containers for this cell
     this.clearTileAt(x, y, layer)
 
     if (!tiles || tiles.length === 0) return
 
-    const cellContainer = new PIXI.Container({ label: `Cell_${x}_${y}` })
-    cellContainer.x = x * this.tileSize
-    cellContainer.y = y * this.tileSize
-
-    // For Trees layer, use Y-sorting
-    // Sort by the BOTTOM of the tile to match Player's anchor
-    // Player Z is usually (y + 1) * tileSize (feet position).
-    // We want trees to sort relative to that.
-    // If we use (y + 1), it matches player.
-    // If we use (y + 3), trees are always "in front" (foreground).
-    // For Trees layer, use Y-sorting
-    if (layer === ZLayer.trees) {
-      // Add +1 bias so that if Player Y == Tile Bottom Y, the Tile wins (covers player).
-      // Player must be strictly LOWER (Y > TileBottom) to pop in front.
-      cellContainer.zIndex = (y + 1) * this.tileSize + 1
-    }
-
-    // Check High Priority (Star) & Y-Sort Offset
-    let isHighPriority = false
-    let ySortOffset = 0
     const configs = this.mapManager.getTilesetConfigs()
 
-    if (configs) {
-      tiles.forEach((t) => {
-        const key = `${t.x}_${t.y}`
-        const config = configs[t.tilesetId]?.[key]
-        if (config) {
-          if (config.isHighPriority) isHighPriority = true
-          if (config.sortYOffset) ySortOffset = Number(config.sortYOffset)
-        }
-      })
-    }
-
-    // Apply offset if on a sorted layer (Trees, Decoration etc)
-    if (layer === ZLayer.trees || layer === ZLayer.decoration) {
-      cellContainer.zIndex += ySortOffset
-    }
-
-    // IMPORTANT: If a tile has a Custom Sort Offset, we NO LONGER assume it should interact with Player's Z-sorting.
-    // If it is marked High Priority (Star), it goes to Roofs.
-    // If it has offset, that offset applies within Roofs.
-    // The previous logic that cancelled High Priority is removed to fix stacking issues.
-
-    if (isHighPriority) {
-      // Force sort above player by moving to Roofs layer (Index 500)
-      // When moving to Roofs, we must ensure it stays above everything else in Roofs if needed,
-      // but usually Roofs is Y-sorted too.
-      // We apply the same Y-sort logic + Offset + Large Bias.
-      const baseZ = (y + 10) * this.tileSize
-      cellContainer.zIndex = baseZ + ySortOffset
-
-      this.layers[ZLayer.roofs].addChild(cellContainer)
-      // Store in simple array structure corresponding to LOGICAL layer
-      this.tileContainers[layer][y][x] = cellContainer
-    } else {
-      this.layers[layer].addChild(cellContainer)
-      this.tileContainers[layer][y][x] = cellContainer
-    }
-
-    // Render Tiles inside cell
+    // 2. Iterate each tile in the stack individually
     tiles.forEach((selection, index) => {
       const tex = this.textureManager.get(selection.tilesetId)
       if (!tex) return
 
+      // --- Determine Priority & Offset for THIS tile ---
+      let isHighPriority = false
+      let ySortOffset = 0
+
+      // Look up config
+      if (configs) {
+        const key = `${selection.x}_${selection.y}`
+        const config = configs[selection.tilesetId]?.[key]
+        if (config) {
+          if (config.isHighPriority) isHighPriority = true
+          if (config.sortYOffset) ySortOffset = Number(config.sortYOffset)
+        }
+      }
+
+      // --- Create Wrapper ---
       const wrapper = new PIXI.Container()
 
+      // Render execution
       if (selection.isAutotile) {
         this.renderAutotile(x, y, selection, layer, wrapper, tex, mapData, index)
       } else {
@@ -213,20 +173,66 @@ export class RenderSystem extends ZSystem {
         )
         wrapper.addChild(sprite)
       }
+
+      // --- Create Host Container Positioned in World ---
+      const cellContainer = new PIXI.Container({ label: `Cell_${x}_${y}_Layer${index}` })
+      cellContainer.x = x * this.tileSize
+      cellContainer.y = y * this.tileSize
       cellContainer.addChild(wrapper)
+
+      // --- Sorting Logic ---
+
+      // Default Base Z (standard sort)
+      // For Trees layer, we match Player sorting:
+      // Player Z ~= (y + 1) * tileSize + 1 (feet)
+      // Tile Base Z ~= (y + 1) * tileSize
+      let baseZ = (y + 1) * this.tileSize
+
+      if (!isHighPriority) {
+        // Normal Layer (Ground, Walls, Trees, Decoration)
+        // If sorting is enabled on this layer (Trees, Decoration), respect Y + Offset
+        if (layer === ZLayer.trees || layer === ZLayer.decoration) {
+          cellContainer.zIndex = baseZ + ySortOffset
+        }
+
+        // Add to Normal Layer
+        this.layers[layer].addChild(cellContainer)
+      } else {
+        // High Priority (Roofs)
+        // Move to top layer
+        // Apply Y-sort logic but boosted to Roofs space
+        // Roofs layer index is 500, but inside it we sort by Y relative to other roof tiles
+        // to maintain depth even "above" player.
+        // We use same baseZ formula so Roof tiles sort among themselves correctly.
+        // We add a huge offset? No, Roofs layer (DisplayObject) is visually above Trees layer.
+        // So internal zIndex just needs to be consistent within Roofs.
+
+        // However, if we want to "interleave" very precisely with other High Priority things?
+        // Usually fine.
+
+        cellContainer.zIndex = baseZ + ySortOffset
+        this.layers[ZLayer.roofs].addChild(cellContainer)
+      }
+
+      // Track it
+      if (!this.tileContainers[layer][y]) this.tileContainers[layer][y] = []
+      if (!this.tileContainers[layer][y][x]) this.tileContainers[layer][y][x] = []
+
+      this.tileContainers[layer][y][x].push(cellContainer)
     })
   }
 
   public clearTileAt(x: number, y: number, layer: ZLayer): void {
     if (!this.tileContainers[layer] || !this.tileContainers[layer][y]) return
 
-    const existing = this.tileContainers[layer][y][x]
-    if (existing) {
-      // IMPORTANT: Use parent.removeChild because the tile might have been moved
-      // to a different visual layer (e.g. Roofs) than 'layer' implies.
-      existing.parent?.removeChild(existing)
-      existing.destroy({ children: true })
-      this.tileContainers[layer][y][x] = null
+    const containers = this.tileContainers[layer][y][x]
+    if (containers && containers.length > 0) {
+      containers.forEach((c) => {
+        c.parent?.removeChild(c)
+        c.destroy({ children: true })
+      })
+      // Clear array
+      this.tileContainers[layer][y][x] = []
     }
   }
 
@@ -334,9 +340,12 @@ export class RenderSystem extends ZSystem {
   private createEmptyContainerStructure(
     w: number,
     h: number
-  ): Record<ZLayer, (PIXI.Container | null)[][]> {
-    const create = (): (PIXI.Container | null)[][] =>
-      Array.from({ length: h }, () => Array(w).fill(null))
+  ): Record<ZLayer, PIXI.Container[][][]> {
+    const create = (): PIXI.Container[][][] =>
+      Array.from({ length: h }, () => Array.from({ length: w }, () => []))
+    // Note: Array(w).fill([]) would share the same empty array reference! Must use Array.from or loop logic.
+    // Array.from({length: w}, () => []) creates fresh arrays.
+
     return {
       [ZLayer.ground]: create(),
       [ZLayer.walls]: create(),
@@ -344,6 +353,6 @@ export class RenderSystem extends ZSystem {
       [ZLayer.trees]: create(),
       [ZLayer.events]: create(),
       [ZLayer.roofs]: create()
-    } as Record<ZLayer, (PIXI.Container | null)[][]>
+    } as Record<ZLayer, PIXI.Container[][][]>
   }
 }
