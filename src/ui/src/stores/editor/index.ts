@@ -5,7 +5,15 @@ import { useLocalStorage } from '@vueuse/core'
 // --- MODUŁY LOKALNE ---
 import { TILESETS } from './constants'
 import { useHistory } from './useHistory'
-import { ZMap, type TileSelection, type ZEvent, ZTool, ZLayer } from '@engine/types'
+import {
+  ZMap,
+  type TileSelection,
+  type ZEvent,
+  ZTool,
+  ZLayer,
+  type ZEventPage,
+  ZEventTrigger
+} from '@engine/types'
 
 export const useEditorStore = defineStore('editor', () => {
   // ==========================================
@@ -377,16 +385,35 @@ export const useEditorStore = defineStore('editor', () => {
   // 6. EVENT & GAMEPLAY ACTIONS
   // ==========================================
 
+  // Helper for Default Page
+  const createDefaultPage = (graphic: TileSelection | null): ZEventPage => ({
+    id: `page_${Date.now()}`,
+    conditions: {},
+    graphic,
+    trigger: ZEventTrigger.Action, // Default: Action Button
+    options: {
+      moveRoute: null,
+      walkAnim: true,
+      stepAnim: false,
+      directionFix: false,
+      through: false
+    },
+    list: []
+  })
+
   const addEvent = (x: number, y: number, eventData: Partial<ZEvent>): void => {
     if (!activeMap.value) return
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const initialGraphic = (eventData as any).graphic || null
 
     const newEvent: ZEvent = {
       id: `ev_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
       name: eventData.name || `EV${activeMap.value.events.length + 1}`,
       x,
       y,
-      graphic: eventData.graphic || null,
-      pages: []
+      // Graphic is now inside pages[0]
+      pages: [createDefaultPage(initialGraphic)]
     }
 
     // Enforce uniqueness for PlayerStart
@@ -403,6 +430,19 @@ export const useEditorStore = defineStore('editor', () => {
     if (!activeMap.value) return
     const ev = activeMap.value.events.find((e) => e.id === eventId)
     if (ev) {
+      // Handle graphic update for migration/backward compatibility
+      // If 'graphic' is passed in updates (from old UI), update active page (Last page usually)
+      if ('graphic' in updates) {
+        // This is a temporary hack until UI generates pages
+        // If pages exist, update the last one? Or first?
+        if (ev.pages.length > 0) {
+          ev.pages[0].graphic = updates.graphic as TileSelection | null
+        } else {
+          ev.pages = [createDefaultPage(updates.graphic as TileSelection | null)]
+        }
+        delete updates.graphic
+      }
+
       Object.assign(ev, updates)
 
       // Enforce uniqueness for PlayerStart

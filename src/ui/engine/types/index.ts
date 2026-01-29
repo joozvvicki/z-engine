@@ -28,8 +28,48 @@ export interface ZEvent {
   name: string
   x: number
   y: number
+  pages: ZEventPage[]
+}
+
+export interface ZEventPage {
+  id: string
+  conditions: ZEventCondition
   graphic: TileSelection | null
-  pages: unknown[]
+  trigger: ZEventTrigger
+  options: ZEventOptions
+  list: ZEventCommand[]
+}
+
+export interface ZEventCondition {
+  switch1Id?: string
+  switch2Id?: string
+  variableId?: string
+  variableValue?: number
+  selfSwitchCh?: string // 'A', 'B', 'C', 'D'
+  item?: string
+  actor?: string
+}
+
+export enum ZEventTrigger {
+  Action = 0,
+  PlayerTouch = 1,
+  EventTouch = 2,
+  Autorun = 3,
+  Parallel = 4
+}
+
+export interface ZEventOptions {
+  moveRoute: unknown // Placeholder for future Move Route definition
+  walkAnim: boolean
+  stepAnim: boolean
+  directionFix: boolean
+  through: boolean
+}
+
+export interface ZEventCommand {
+  code: number
+  parameters: unknown[]
+  indent?: number
 }
 
 export interface ZMap {

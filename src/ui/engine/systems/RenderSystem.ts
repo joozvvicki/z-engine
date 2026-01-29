@@ -330,7 +330,9 @@ export class RenderSystem extends ZSystem {
       let graphicSprite: PIXI.Sprite | null = null
 
       // 1. Determine Graphic
-      if (event.name === 'PlayerStart' || event.graphic) {
+      const activePage = event.pages[0] // Default to first page for now until Interpreter
+
+      if (event.name === 'PlayerStart' || (activePage && activePage.graphic)) {
         if (event.name === 'PlayerStart' && this.playerTexture) {
           // Player Sprite (Down Idle = 0,0?)
           // Assuming 4x4 layout, 0,0 is Down-Standing.
@@ -353,17 +355,17 @@ export class RenderSystem extends ZSystem {
           graphicSprite.anchor.set(0.5, 0.5)
           graphicSprite.x = this.tileSize / 2
           graphicSprite.y = this.tileSize / 2
-        } else if (event.graphic) {
-          const tex = this.textureManager.get(event.graphic.tilesetId)
+        } else if (activePage && activePage.graphic) {
+          const tex = this.textureManager.get(activePage.graphic.tilesetId)
           if (tex) {
             graphicSprite = new PIXI.Sprite(
               new PIXI.Texture({
                 source: tex.source,
                 frame: new PIXI.Rectangle(
-                  event.graphic.x * this.tileSize,
-                  event.graphic.y * this.tileSize,
-                  event.graphic.w * this.tileSize,
-                  event.graphic.h * this.tileSize
+                  activePage.graphic.x * this.tileSize,
+                  activePage.graphic.y * this.tileSize,
+                  activePage.graphic.w * this.tileSize,
+                  activePage.graphic.h * this.tileSize
                 )
               })
             )

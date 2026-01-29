@@ -65,19 +65,22 @@ export class EntityRenderSystem extends ZSystem {
     map.events.forEach((event) => {
       if (event.name === 'PlayerStart') return // Invisible marker
 
-      if (event.graphic) {
+      const activePage = event.pages[0] // Default to first page for now until Interpreter
+      if (!activePage) return
+
+      if (activePage.graphic) {
         // Create visual for event
-        const tex = this.textureManager.get(event.graphic.tilesetId)
+        const tex = this.textureManager.get(activePage.graphic.tilesetId)
         if (!tex) return
 
         const sprite = new PIXI.Sprite(
           new PIXI.Texture({
             source: tex.source,
             frame: new PIXI.Rectangle(
-              event.graphic.x * this.tileSize,
-              event.graphic.y * this.tileSize,
-              event.graphic.w * this.tileSize,
-              event.graphic.h * this.tileSize
+              activePage.graphic.x * this.tileSize,
+              activePage.graphic.y * this.tileSize,
+              activePage.graphic.w * this.tileSize,
+              activePage.graphic.h * this.tileSize
             )
           })
         )
