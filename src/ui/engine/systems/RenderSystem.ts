@@ -199,14 +199,14 @@ export class RenderSystem extends ZSystem {
     }
 
     // Render Tiles inside cell
-    tiles.forEach((selection) => {
+    tiles.forEach((selection, index) => {
       const tex = this.textureManager.get(selection.tilesetId)
       if (!tex) return
 
       const wrapper = new PIXI.Container()
 
       if (selection.isAutotile) {
-        this.renderAutotile(x, y, selection, layer, wrapper, tex, mapData)
+        this.renderAutotile(x, y, selection, layer, wrapper, tex, mapData, index)
       } else {
         const sprite = new PIXI.Sprite(
           new PIXI.Texture({
@@ -274,7 +274,8 @@ export class RenderSystem extends ZSystem {
     layer: ZLayer,
     parent: PIXI.Container,
     tex: PIXI.Texture,
-    mapData: ZMap
+    mapData: ZMap,
+    stackIndex: number
   ): void {
     const isA1 = sel.tilesetId === 'A1'
     let frameCount = 1
@@ -296,7 +297,8 @@ export class RenderSystem extends ZSystem {
           layer,
           mapData,
           mapData.width,
-          mapData.height
+          mapData.height,
+          stackIndex
         )
 
         const textures: PIXI.Texture[] = []
