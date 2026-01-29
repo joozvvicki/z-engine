@@ -184,6 +184,7 @@ watch(
       // engine.renderSystem?.forceFullRender() // Method not exists yet, but setMap triggers it.
       // We can trigger revisualization if needed.
       // For now, let's just update data. Visual update requires map reload or tile update.
+      engine.renderSystem?.refresh()
     }
   },
   { deep: true, immediate: true }

@@ -106,6 +106,7 @@ export interface TileConfig {
   isSolid: boolean
   isHighPriority: boolean
   collisionMask?: boolean[] // 48x48 true/false
+  sortYOffset?: number // positive = sorts lower (front), negative = sorts higher (back)
 }
 
 export type TilesetConfig = Record<string, TileConfig> // Key is tileId ("x_y") -> "0_0", "1_0" etc.

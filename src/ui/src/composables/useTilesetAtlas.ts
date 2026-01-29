@@ -1,17 +1,22 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { ref, watch, type Ref } from 'vue'
 import { useEditorStore } from '@ui/stores/editor'
-import { IconMap, TileData } from '@engine/types'
+import { IconMap } from '@engine/types'
 
 export const useTilesetAtlas = (): {
   processedImageUrl: Ref<string>
   isProcessing: Ref<boolean>
   iconMapping: Ref<IconMap[]>
   GRID_SIZE: number
+  atlasWidth: Ref<number>
+  atlasHeight: Ref<number>
 } => {
   const store = useEditorStore()
   const processedImageUrl = ref('')
   const isProcessing = ref(false)
   const iconMapping = ref<IconMap[]>([])
+  const atlasWidth = ref(0)
+  const atlasHeight = ref(0)
 
   const GRID_SIZE = 48
   const ICONS_PER_ROW = 8
@@ -45,7 +50,7 @@ export const useTilesetAtlas = (): {
 
     if (store.activeTab === 'A') {
       const aTilesets = ['A1', 'A2', 'A3', 'A4', 'A5']
-      const tempTilesData: { img: HTMLImageElement; tiles: TileData[]; id: string }[] = []
+      const tempTilesData: { img: HTMLImageElement; tiles: any[]; id: string }[] = []
 
       for (const id of aTilesets) {
         const ts = store.tilesets.find((t) => t.id === id)
@@ -55,7 +60,7 @@ export const useTilesetAtlas = (): {
           const img = await loadImage(ts.url)
           const cols = Math.floor(img.width / GRID_SIZE)
           const rows = Math.floor(img.height / GRID_SIZE)
-          const tiles: TileData[] = []
+          const tiles: any[] = []
 
           if (id === 'A1') {
             const a1X = [0, 6, 8, 14]
@@ -120,6 +125,8 @@ export const useTilesetAtlas = (): {
     }
     processedImageUrl.value = canvas.toDataURL()
     isProcessing.value = false
+    atlasWidth.value = canvas.width
+    atlasHeight.value = canvas.height
   }
 
   watch([() => store.activeTab, () => store.tilesets], processTileset, {
@@ -127,5 +134,5 @@ export const useTilesetAtlas = (): {
     deep: true
   })
 
-  return { processedImageUrl, isProcessing, iconMapping, GRID_SIZE }
+  return { processedImageUrl, isProcessing, iconMapping, GRID_SIZE, atlasWidth, atlasHeight }
 }

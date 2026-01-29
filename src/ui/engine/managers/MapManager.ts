@@ -89,7 +89,10 @@ export class MapManager {
 
   public getTilesetConfigs(): Record<
     string,
-    Record<string, { isSolid: boolean; isHighPriority: boolean; collisionMask?: boolean[] }>
+    Record<
+      string,
+      { isSolid: boolean; isHighPriority: boolean; collisionMask?: boolean[]; sortYOffset?: number }
+    >
   > | null {
     return this.tilesetConfigs
   }

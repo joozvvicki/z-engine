@@ -34,7 +34,7 @@ const save = (): void => {
 
 <template>
   <div
-    class="absolute inset-0 z-[100] flex items-center justify-center bg-white/60 backdrop-blur-xs rounded-xl"
+    class="absolute inset-0 z-100 flex items-center justify-center bg-white/60 backdrop-blur-xs rounded-xl"
   >
     <div class="bg-white border border-white/10 rounded-lg w-[400px] shadow-2xl overflow-hidden">
       <div class="p-3 border-b border-white/5 flex justify-between items-center">
@@ -50,7 +50,7 @@ const save = (): void => {
           <input
             v-model="eventName"
             type="text"
-            class="w-full text-black/20 bg-black/20 border border-white/10 rounded p-2 text-sm outline-none focus:border-blue-500"
+            class="w-full text-black/20 bg-white/20 border border-white/10 rounded p-2 text-sm outline-none focus:border-blue-500"
           />
         </div>
 
@@ -80,7 +80,7 @@ const save = (): void => {
           Cancel
         </button>
         <button
-          class="flex-[2] py-2 bg-blue-600 text-white text-[10px] font-bold uppercase flex items-center justify-center gap-2"
+          class="flex-2 py-2 bg-blue-600 text-white text-[10px] font-bold uppercase flex items-center justify-center gap-2"
           @click="save"
         >
           <IconDeviceFloppy size="14" /> Save Event

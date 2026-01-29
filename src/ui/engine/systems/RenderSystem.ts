@@ -78,6 +78,10 @@ export class RenderSystem extends ZSystem {
     return this.layers[layer]
   }
 
+  public refresh(): void {
+    this.fullRenderDirty = true
+  }
+
   public onUpdate(): void {
     if (this.fullRenderDirty && this.mapManager.currentMap) {
       this.performFullRender(this.mapManager.currentMap)
@@ -137,26 +141,54 @@ export class RenderSystem extends ZSystem {
     // We want trees to sort relative to that.
     // If we use (y + 1), it matches player.
     // If we use (y + 3), trees are always "in front" (foreground).
+    // For Trees layer, use Y-sorting
     if (layer === ZLayer.trees) {
-      cellContainer.zIndex = (y + 1) * this.tileSize
+      // Add +1 bias so that if Player Y == Tile Bottom Y, the Tile wins (covers player).
+      // Player must be strictly LOWER (Y > TileBottom) to pop in front.
+      cellContainer.zIndex = (y + 1) * this.tileSize + 1
     }
 
-    // Check High Priority (Star)
+    // Check High Priority (Star) & Y-Sort Offset
     let isHighPriority = false
+    let ySortOffset = 0
     const configs = this.mapManager.getTilesetConfigs()
 
     if (configs) {
       tiles.forEach((t) => {
         const key = `${t.x}_${t.y}`
-        if (configs[t.tilesetId]?.[key]?.isHighPriority) {
-          isHighPriority = true
+        const config = configs[t.tilesetId]?.[key]
+        if (config) {
+          if (config.isHighPriority) isHighPriority = true
+          if (config.sortYOffset) ySortOffset = Number(config.sortYOffset)
         }
       })
     }
 
+    // Apply offset if on a sorted layer (Trees, Decoration etc)
+    if (layer === ZLayer.trees || layer === ZLayer.decoration) {
+      cellContainer.zIndex += ySortOffset
+    }
+
+    // IMPORTANT: If a tile has a Custom Sort Offset, we assume the user WANTS it to interact
+    // with the Player's Z-sorting (e.g. tree trunk).
+    // Therefore, we should NOT move it to the 'Roofs' layer (High Priority), because 'Roofs'
+    // is a separate container always rendered ABOVE the Player's container ('Trees').
+    // So, if has offset, we cancel isHighPriority to keep it in the sorted layer.
+    if (isHighPriority && ySortOffset !== 0) {
+      isHighPriority = false
+      // We might want to apply a 'base' high priority bias if the user *wanted* it high but adjustable?
+      // But usually 'High Priority' means 'Above Player'.
+      // If getting complicated, user should just disable High Priority in editor.
+      // But this override makes the 'Z-Index Offset' tool strictly more powerful.
+    }
+
     if (isHighPriority) {
       // Force sort above player by moving to Roofs layer (Index 500)
-      cellContainer.zIndex = (y + 10) * this.tileSize
+      // When moving to Roofs, we must ensure it stays above everything else in Roofs if needed,
+      // but usually Roofs is Y-sorted too.
+      // We apply the same Y-sort logic + Offset + Large Bias.
+      const baseZ = (y + 10) * this.tileSize
+      cellContainer.zIndex = baseZ + ySortOffset
 
       this.layers[ZLayer.roofs].addChild(cellContainer)
       // Store in simple array structure corresponding to LOGICAL layer

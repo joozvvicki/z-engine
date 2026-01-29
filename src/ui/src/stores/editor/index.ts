@@ -43,15 +43,26 @@ export const useEditorStore = defineStore('editor', () => {
   // Record<TilesetId, Record<TileIndexKey, TileConfig>>
   // TileIndexKey = "x_y"
   const storedTilesetConfigs = useLocalStorage<
-    Record<string, Record<string, { isSolid: boolean; isHighPriority: boolean }>>
+    Record<
+      string,
+      Record<
+        string,
+        { isSolid: boolean; isHighPriority: boolean; sortYOffset: number; collisionMask: boolean[] }
+      >
+    >
   >('Z_TilesetConfigs', {})
 
   const updateTileConfig = (
     tilesetId: string,
     x: number,
     y: number,
-    config: Partial<{ isSolid: boolean; isHighPriority: boolean; collisionMask: boolean[] }>
-  ) => {
+    config: Partial<{
+      isSolid: boolean
+      isHighPriority: boolean
+      collisionMask: boolean[]
+      sortYOffset: number
+    }>
+  ): void => {
     if (!storedTilesetConfigs.value[tilesetId]) {
       storedTilesetConfigs.value[tilesetId] = {}
     }

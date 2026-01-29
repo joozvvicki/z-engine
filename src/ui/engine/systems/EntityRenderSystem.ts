@@ -6,16 +6,10 @@ import { RenderSystem } from './RenderSystem'
 
 export class EntityRenderSystem extends ZSystem {
   private container: PIXI.Container
-  private wrapper: PIXI.Container
   private playerSystem: PlayerSystem
-  private textureManager: TextureManager
   private tileSize: number
 
   private playerSprite: PIXI.Sprite | null = null
-
-  // Temporary Character Asset for Player
-  // In future this will come from Actor Database
-  private characterName: string = 'Actor1_1'
 
   // RPG Maker XP Style (4x4)
   // Rows: Down, Left, Right, Up
@@ -38,16 +32,14 @@ export class EntityRenderSystem extends ZSystem {
   private renderSystem: RenderSystem
 
   constructor(
-    stage: PIXI.Container,
+    _stage: PIXI.Container,
     playerSystem: PlayerSystem,
-    textureManager: TextureManager,
+    _textureManager: TextureManager,
     tileSize: number,
     renderSystem: RenderSystem
   ) {
     super()
-    this.wrapper = stage
     this.playerSystem = playerSystem
-    this.textureManager = textureManager
     this.tileSize = tileSize
     this.renderSystem = renderSystem
     this.container = null!
@@ -139,8 +131,8 @@ export class EntityRenderSystem extends ZSystem {
     this.playerSprite.x = this.playerSystem.realX + this.tileSize / 2
     this.playerSprite.y = this.playerSystem.realY + this.tileSize
     // Y-sorting: zIndex = Y
-    this.playerSprite.zIndex = this.playerSprite.y - 1 // -1 to be slightly behind front objects if equal?
-    // Usually Y-sorting is exact Y.
+    // We strictly use Y for sorting.
+    // Any bias should be handled by the environment (Tiles) or offset.
     this.playerSprite.zIndex = this.playerSprite.y
 
     if (this.playerSprite instanceof PIXI.Sprite && this.playerSprite.texture.label !== 'EMPTY') {
