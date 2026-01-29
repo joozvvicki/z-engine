@@ -160,7 +160,15 @@ export type TilesetConfig = Record<string, TileConfig> // Key is tileId ("x_y") 
 
 export enum ZCommandCode {
   ShowMessage = 101,
-  TransferPlayer = 201
+  ShowChoices = 102,
+  ConditionalBranch = 111,
+  ControlSwitch = 121,
+  ControlVariable = 122,
+  TransferPlayer = 201,
+  Else = 411,
+  EndBranch = 412,
+  When = 402,
+  EndChoices = 404
 }
 
 export type ZCommandResult = 'continue' | 'wait' | 'stop'
@@ -208,6 +216,8 @@ export enum ZEngineSignal {
   EventTriggered = 'event:triggered',
   InteractionRequested = 'interaction:requested',
   ShowMessage = 'ui:show-message',
+  ShowChoices = 'ui:show-choices',
+  ChoiceSelected = 'ui:choice-selected',
   MessageClosed = 'ui:message-closed',
   GameStateChanged = 'state:changed'
 }
@@ -218,6 +228,8 @@ export interface ZSignalData {
   [ZEngineSignal.EventTriggered]: { event: ZEvent; trigger: ZEventTrigger }
   [ZEngineSignal.InteractionRequested]: { x: number; y: number }
   [ZEngineSignal.ShowMessage]: { text: string }
+  [ZEngineSignal.ShowChoices]: { choices: string[] }
+  [ZEngineSignal.ChoiceSelected]: { index: number }
   [ZEngineSignal.MessageClosed]: Record<string, never>
   [ZEngineSignal.GameStateChanged]: {
     type: 'switch' | 'variable' | 'load' | 'new'

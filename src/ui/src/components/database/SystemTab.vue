@@ -65,7 +65,7 @@ const filteredVariables = computed(() => {
     <!-- Header -->
     <div class="px-6 py-4 border-b border-gray-100 bg-white shadow-sm z-10">
       <h2
-        class="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600"
+        class="text-2xl font-bold bg-clip-text text-transparent bg-linear-to-r from-blue-600 to-indigo-600"
       >
         System Database
       </h2>
@@ -125,7 +125,7 @@ const filteredVariables = computed(() => {
             </div>
           </div>
 
-          <div class="mt-4 px-4 pb-8" v-if="!searchSwitches">
+          <div v-if="!searchSwitches" class="mt-4 px-4 pb-8">
             <button
               class="w-full py-2.5 border border-dashed border-gray-300 rounded-lg text-gray-400 text-xs font-medium hover:text-blue-600 hover:border-blue-300 hover:bg-blue-50 transition-all flex items-center justify-center gap-2"
               @click="loadMoreSwitches"
@@ -192,7 +192,7 @@ const filteredVariables = computed(() => {
             </div>
           </div>
 
-          <div class="mt-4 px-4 pb-8" v-if="!searchVariables">
+          <div v-if="!searchVariables" class="mt-4 px-4 pb-8">
             <button
               class="w-full py-2.5 border border-dashed border-gray-300 rounded-lg text-gray-400 text-xs font-medium hover:text-indigo-600 hover:border-indigo-300 hover:bg-indigo-50 transition-all flex items-center justify-center gap-2"
               @click="loadMoreVariables"

@@ -14,9 +14,17 @@ export class MessageSystem extends ZSystem {
   private messageBox: Graphics | null = null
   private textDisplay: Text | null = null
 
+  // Choice state
+  private isChoiceVisible: boolean = false
+  private choices: string[] = []
+  private selectedChoiceIndex: number = 0
+  private choicesContainer: Container | null = null
+
   private boxWidth: number = 600
   private boxHeight: number = 120
   private padding: number = 20
+  private choiceWidth: number = 200
+  private choiceHeight: number = 40
 
   constructor(stage: Container, services: ServiceLocator) {
     super()
@@ -36,18 +44,51 @@ export class MessageSystem extends ZSystem {
     this.eventBus.on(ZEngineSignal.ShowMessage, ({ text }) => {
       this.show(text)
     })
+    this.eventBus.on(ZEngineSignal.ShowChoices, ({ choices }) => {
+      this.showChoices(choices)
+    })
   }
 
   public onUpdate(): void {
     if (this.isVisible) {
-      // Check for input to close message
-      if (
-        this.inputManager.isKeyDown('Enter') ||
-        this.inputManager.isKeyDown('Space') ||
-        this.inputManager.isKeyDown('KeyZ')
-      ) {
-        this.close()
+      if (this.isChoiceVisible) {
+        this.updateChoiceSelection()
+      } else {
+        // Check for input to close message
+        if (
+          this.inputManager.isKeyDown('Enter') ||
+          this.inputManager.isKeyDown('Space') ||
+          this.inputManager.isKeyDown('KeyZ')
+        ) {
+          this.close()
+        }
       }
+    }
+  }
+
+  private updateChoiceSelection(): void {
+    if (this.inputManager.isKeyDown('ArrowDown') || this.inputManager.isKeyDown('KeyS')) {
+      this.selectedChoiceIndex = (this.selectedChoiceIndex + 1) % this.choices.length
+      this.renderChoices()
+      this.inputManager.clearKey('ArrowDown')
+      this.inputManager.clearKey('KeyS')
+    }
+    if (this.inputManager.isKeyDown('ArrowUp') || this.inputManager.isKeyDown('KeyW')) {
+      this.selectedChoiceIndex =
+        (this.selectedChoiceIndex - 1 + this.choices.length) % this.choices.length
+      this.renderChoices()
+      this.inputManager.clearKey('ArrowUp')
+      this.inputManager.clearKey('KeyW')
+    }
+
+    if (
+      this.inputManager.isKeyDown('Enter') ||
+      this.inputManager.isKeyDown('Space') ||
+      this.inputManager.isKeyDown('KeyZ')
+    ) {
+      const selectedIndex = this.selectedChoiceIndex
+      this.closeChoices()
+      this.eventBus.emit(ZEngineSignal.ChoiceSelected, { index: selectedIndex })
     }
   }
 
@@ -59,6 +100,7 @@ export class MessageSystem extends ZSystem {
 
   private close(): void {
     this.isVisible = false
+    this.isChoiceVisible = false
     this.container.visible = false
 
     // Clear input state to prevent immediate re-trigger
@@ -133,6 +175,82 @@ export class MessageSystem extends ZSystem {
     indicator.x = this.boxWidth - 15
     indicator.y = this.boxHeight - 15
     this.container.addChild(indicator)
+
+    this.container.visible = true
+  }
+
+  private showChoices(choices: string[]): void {
+    this.choices = choices
+    this.selectedChoiceIndex = 0
+    this.isChoiceVisible = true
+    this.isVisible = true // Ensure container is visible
+    this.renderChoices()
+  }
+
+  private closeChoices(): void {
+    this.isChoiceVisible = false
+    if (this.choicesContainer) {
+      this.container.removeChild(this.choicesContainer)
+      this.choicesContainer = null
+    }
+    // We don't call close() because we want the message box to stay visible if it was there?
+    // Actually standard behavior: ShowChoices often happens AFTER a ShowMessage.
+    // If we call submitChoice, the EventSystem will finish the command.
+    // But does standard RPG Maker close the message window when a choice is made?
+    // Usually YES, unless another message follows immediately.
+    // Let's close it.
+    this.close()
+  }
+
+  private renderChoices(): void {
+    if (this.choicesContainer) {
+      this.container.removeChild(this.choicesContainer)
+    }
+
+    const choicesContainer = new Container()
+    this.choicesContainer = choicesContainer
+    this.container.addChild(choicesContainer)
+
+    // Position choice box above the message box or to the right
+    // Let's put it on the right side of the screen, floating
+    const totalHeight = this.choices.length * this.choiceHeight + this.padding * 2
+    const totalWidth = this.choiceWidth + this.padding * 2
+
+    const bg = new Graphics()
+    bg.rect(0, 0, totalWidth, totalHeight)
+    bg.fill({ color: 0x000000, alpha: 0.9 })
+    bg.roundRect(0, 0, totalWidth, totalHeight, 8)
+    bg.stroke({ width: 2, color: 0xffffff, alpha: 0.4 })
+    choicesContainer.addChild(bg)
+
+    this.choices.forEach((choice, index) => {
+      const isSelected = index === this.selectedChoiceIndex
+      const y = this.padding + index * this.choiceHeight
+
+      if (isSelected) {
+        const highlight = new Graphics()
+        highlight.rect(this.padding / 2, y, totalWidth - this.padding, this.choiceHeight)
+        highlight.fill({ color: 0xffffff, alpha: 0.2 })
+        choicesContainer.addChild(highlight)
+      }
+
+      const text = new Text({
+        text: choice,
+        style: {
+          fontFamily: 'Arial, sans-serif',
+          fontSize: 16,
+          fill: isSelected ? 0xffff00 : 0xffffff,
+          fontWeight: isSelected ? 'bold' : 'normal'
+        }
+      })
+      text.x = this.padding
+      text.y = y + (this.choiceHeight - text.height) / 2
+      choicesContainer.addChild(text)
+    })
+
+    // Position the whole container
+    choicesContainer.x = this.boxWidth - totalWidth
+    choicesContainer.y = -totalHeight - 10 // Above the message box
 
     this.container.visible = true
   }

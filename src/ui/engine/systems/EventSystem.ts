@@ -55,6 +55,14 @@ export class EventSystem extends ZSystem {
   private registerCommands(): void {
     this.processors.set(ZCommandCode.TransferPlayer, this.commandTransferPlayer.bind(this))
     this.processors.set(ZCommandCode.ShowMessage, this.commandShowMessage.bind(this))
+    this.processors.set(ZCommandCode.ControlSwitch, this.commandControlSwitch.bind(this))
+    this.processors.set(ZCommandCode.ControlVariable, this.commandControlVariable.bind(this))
+    this.processors.set(ZCommandCode.ConditionalBranch, this.commandConditionalBranch.bind(this))
+    this.processors.set(ZCommandCode.Else, this.commandElse.bind(this))
+    this.processors.set(ZCommandCode.EndBranch, () => 'continue')
+    this.processors.set(ZCommandCode.ShowChoices, this.commandShowChoices.bind(this))
+    this.processors.set(ZCommandCode.When, this.commandWhen.bind(this))
+    this.processors.set(ZCommandCode.EndChoices, () => 'continue')
   }
 
   public onBoot(): void {
@@ -80,6 +88,12 @@ export class EventSystem extends ZSystem {
     this.eventBus.on(ZEngineSignal.PlayerMoved, ({ x, y }) => {
       this.checkTrigger(x, y, ZEventTrigger.PlayerTouch)
     })
+  }
+
+  public resumeProcessing(): void {
+    if (!this.activeInterpreter) return
+    this.isProcessing = true
+    this.executeInterpreter()
   }
 
   public onUpdate(): void {
@@ -244,5 +258,220 @@ export class EventSystem extends ZSystem {
     }
 
     return 'wait'
+  }
+
+  // Command 121: Control Switch
+  // Params: [switchId, value (0=OFF, 1=ON, 2=TOGGLE)]
+  private commandControlSwitch(params: unknown[]): ZCommandResult {
+    const gameState = this.services.require(GameStateManager)
+    const switchId = params[0] as number
+    const operation = params[1] as number // 0=OFF, 1=ON, 2=TOGGLE
+
+    if (operation === 0) {
+      gameState.setSwitch(switchId, false)
+    } else if (operation === 1) {
+      gameState.setSwitch(switchId, true)
+    } else if (operation === 2) {
+      gameState.toggleSwitch(switchId)
+    }
+
+    return 'continue'
+  }
+
+  // Command 122: Control Variable
+  // Params: [variableId, operation, value]
+  // Operation: 0=Set, 1=Add, 2=Sub, 3=Mul, 4=Div, 5=Mod
+  private commandControlVariable(params: unknown[]): ZCommandResult {
+    const gameState = this.services.require(GameStateManager)
+    const varId = params[0] as number
+    const op = params[1] as number
+    const value = params[2] as number
+
+    let current = gameState.getVariable(varId)
+
+    switch (op) {
+      case 0: // Set
+        current = value
+        break
+      case 1: // Add
+        current += value
+        break
+      case 2: // Sub
+        current -= value
+        break
+      case 3: // Mul
+        current *= value
+        break
+      case 4: // Div
+        current = Math.floor(current / value)
+        break
+      case 5: // Mod
+        current = current % value
+        break
+    }
+
+    gameState.setVariable(varId, current)
+    return 'continue'
+  }
+
+  // --- Show Choices Logic ---
+
+  // State for active choice selection
+  private pendingChoice: number | null = null
+
+  // Command 102: Show Choices
+  private commandShowChoices(params: unknown[]): ZCommandResult {
+    const choices = params[0] as string[]
+    // Emit event for UI to show choices
+    this.eventBus.emit(ZEngineSignal.ShowChoices, { choices })
+    return 'wait'
+  }
+
+  public submitChoice(index: number): void {
+    this.pendingChoice = index
+    this.resumeProcessing()
+  }
+
+  private commandWhen(params: unknown[]): ZCommandResult {
+    const choiceIndex = params[0] as number
+
+    // If this represents the choice the user made, enter.
+    // Otherwise, skip to next When or EndChoices.
+
+    if (this.pendingChoice === choiceIndex) {
+      return 'continue'
+    } else {
+      this.advanceToNextWhenOrEnd()
+      return 'continue'
+    }
+  }
+
+  // Command 111: Conditional Branch
+  // Params: [type, param1, param2]
+  // Type 0: Switch [id, value(1=ON, 0=OFF)]
+  // Type 1: Variable [id, op(0=Eq, 1=Ge, 2=Le...), value] (Simplified for now: 0=Eq, 1=Ge)
+  private commandConditionalBranch(params: unknown[]): ZCommandResult {
+    const gameState = this.services.require(GameStateManager)
+    const type = params[0] as number
+    let result = false
+
+    if (type === 0) {
+      // Switch
+      const switchId = params[1] as number
+      const requiredState = params[2] === 1 // 1=ON, 0=OFF
+      const currentVal = gameState.getSwitch(switchId)
+      result = currentVal === requiredState
+    } else if (type === 1) {
+      // Variable
+      const varId = params[1] as number
+      const neededVal = params[2] as number
+      // For now, assuming check is "Equal or Greater" (Standard RPG Maker is usually Equal or >= depending on context, let's assume Equal for simplicity or add op param later)
+      // Actually let's assume strict equality for now
+      const currentVal = gameState.getVariable(varId)
+      result = currentVal === neededVal
+    }
+
+    if (result) {
+      // Condition Met: Enter the block (continue)
+      return 'continue'
+    } else {
+      // Condition Failed: Skip to Else or EndBranch
+      this.advanceToElseOrEnd()
+      return 'continue'
+    }
+  }
+
+  // Command 411: Else
+  private commandElse(_params: unknown[]): ZCommandResult {
+    // If we hit this command naturally, it means the "Then" block just finished.
+    // So we must skip the "Else" block and go to EndBranch.
+    this.advanceToEnd()
+    return 'continue'
+  }
+
+  // Helper to skip to next Else or End (depth aware)
+  private advanceToElseOrEnd(): void {
+    if (!this.activeInterpreter) return
+    let depth = 0
+    const list = this.activeInterpreter.list
+
+    // activeInterpreter.index is currently pointing to Next command (after the 111)
+    // We scan from there
+    while (this.activeInterpreter.index < list.length) {
+      const cmd = list[this.activeInterpreter.index]
+
+      if (cmd.code === ZCommandCode.ConditionalBranch) {
+        depth++
+      } else if (cmd.code === ZCommandCode.EndBranch) {
+        if (depth === 0) {
+          // Found our End. Stop here (index will be incremented by loop logic? No, we are manually modifying index)
+          // Wait, if we return 'continue' from executeCommand, the loop in executeInterpreter will increment index AGAIN?
+          // No, executeInterpreter loop: get cmd at index, index++, execute.
+          // So if we are IN executeCommand, index is already at next.
+          // So scanning from index is correct.
+          // If we found End, we want to resume AFTER it? Or AT it?
+          // EndBranch is a no-op, so executing it does nothing.
+          // So we can set index to point AT it. The next loop cycle will execute EndBranch (no-op) and continue.
+          // BUT, if we want to skip `Else`, we should stop AT `Else`.
+          return
+        }
+        depth--
+      } else if (cmd.code === ZCommandCode.Else) {
+        if (depth === 0) {
+          // Found our Else.
+          this.activeInterpreter.index++ // Skip the Else command itself so we enter the Else block
+          return
+        }
+      }
+
+      this.activeInterpreter.index++
+    }
+  }
+
+  // Helper to skip to End (ignoring Else, for Conditional Branch)
+  private advanceToEnd(): void {
+    if (!this.activeInterpreter) return
+    let depth = 0
+    const list = this.activeInterpreter.list
+
+    while (this.activeInterpreter.index < list.length) {
+      const cmd = list[this.activeInterpreter.index]
+
+      if (cmd.code === ZCommandCode.ConditionalBranch) {
+        depth++
+      } else if (cmd.code === ZCommandCode.EndBranch) {
+        if (depth === 0) {
+          return // Found End.
+        }
+        depth--
+      }
+      this.activeInterpreter.index++
+    }
+  }
+
+  // Helper to advance to next 'When' or 'EndChoices' (for Show Choices)
+  private advanceToNextWhenOrEnd(): void {
+    if (!this.activeInterpreter) return
+    let depth = 0
+    const list = this.activeInterpreter.list
+
+    while (this.activeInterpreter.index < list.length) {
+      const cmd = list[this.activeInterpreter.index]
+
+      if (cmd.code === ZCommandCode.ShowChoices) {
+        // Nesting support
+        depth++
+      } else if (cmd.code === ZCommandCode.EndChoices) {
+        if (depth === 0) {
+          return
+        }
+        depth--
+      } else if (cmd.code === ZCommandCode.When) {
+        if (depth === 0) {
+          return
+        }
+      }
+      this.activeInterpreter.index++
+    }
   }
 }

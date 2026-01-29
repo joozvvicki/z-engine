@@ -9,7 +9,7 @@ import {
   IconTrash,
   IconX
 } from '@tabler/icons-vue'
-import { ZEventTrigger, type ZEventPage } from '@engine/types'
+import { ZEventTrigger, type ZEventPage, ZCommandCode, type ZEventCommand } from '@engine/types'
 import CharacterSelector from './CharacterSelector.vue'
 
 const props = defineProps<{
@@ -64,6 +64,60 @@ if (existingEvent && existingEvent.pages && existingEvent.pages.length > 0) {
 }
 
 const activePage = computed(() => pages.value[activePageIndex.value])
+
+const presentationList = computed(() => {
+  if (!activePage.value) return []
+  const list = activePage.value.list
+  type PresentationItem =
+    | { type: 'command'; command: ZEventCommand; indent: number; index: number }
+    | { type: 'add'; indent: number; index: number }
+  const result: PresentationItem[] = []
+  let depth = 0
+
+  // Helper to add 'Add' button
+  const addPlaceholder = (idx: number, d: number): void => {
+    result.push({ type: 'add', indent: d, index: idx })
+  }
+
+  list.forEach((cmd, idx) => {
+    let lineIndent = depth
+    if (
+      cmd.code === ZCommandCode.EndBranch ||
+      cmd.code === ZCommandCode.Else ||
+      cmd.code === ZCommandCode.When ||
+      cmd.code === ZCommandCode.EndChoices
+    ) {
+      lineIndent = Math.max(0, depth - 1)
+    }
+
+    // Special case: before adding a structural continuation (Else, When, End),
+    // we might want an 'Add' placeholder for the block ABOVE it.
+    if (
+      cmd.code === ZCommandCode.Else ||
+      cmd.code === ZCommandCode.When ||
+      cmd.code === ZCommandCode.EndBranch ||
+      cmd.code === ZCommandCode.EndChoices
+    ) {
+      // Only add placeholder if the previous command wasn't already a starter or continuation
+      // to avoid double placeholders, but RPG Maker usually shows them anyway at the bottom of blocks.
+      addPlaceholder(idx, depth)
+    }
+
+    result.push({ type: 'command', command: cmd, indent: lineIndent, index: idx })
+
+    // Update depth for next lines
+    if (cmd.code === ZCommandCode.ConditionalBranch || cmd.code === ZCommandCode.ShowChoices) {
+      depth++
+    } else if (cmd.code === ZCommandCode.EndBranch || cmd.code === ZCommandCode.EndChoices) {
+      depth = Math.max(0, depth - 1)
+    }
+  })
+
+  // Final placeholder at the very end
+  addPlaceholder(list.length, depth)
+
+  return result
+})
 
 // --- Actions ---
 
@@ -147,32 +201,125 @@ const remove = (): void => {
   emit('close')
 }
 
+const deleteCommand = (index: number): void => {
+  if (!activePage.value) return
+  const cmd = activePage.value.list[index]
+
+  // If Conditional Branch, find and delete the whole block
+  if (cmd.code === ZCommandCode.ConditionalBranch) {
+    if (!confirm('Deleting this branch will remove everything inside it. Continue?')) return // Simple check
+
+    let depth = 0
+    let endIndex = index
+    for (let i = index; i < activePage.value.list.length; i++) {
+      const scan = activePage.value.list[i]
+      if (scan.code === ZCommandCode.ConditionalBranch) {
+        depth++
+      } else if (scan.code === ZCommandCode.EndBranch) {
+        depth--
+        if (depth === 0) {
+          endIndex = i
+          break
+        }
+      }
+    }
+    // Delete range [index, endIndex]
+    const count = endIndex - index + 1
+    activePage.value.list.splice(index, count)
+  } else {
+    // Standard delete
+    activePage.value.list.splice(index, 1)
+  }
+}
+
 // Command Editing
 const showCommandSelector = ref(false)
 const editingCommandIndex = ref<number | null>(null)
+const selectedCommandIndex = ref<number | null>(null) // New: for selection state
 const selectedCommandType = ref(201) // Default to Transfer Player
-const cmdParams = ref({ mapId: 1, x: 0, y: 0 })
+const cmdParams = ref({
+  mapId: 1,
+  x: 0,
+  y: 0,
+  switchId: 0,
+  switchOp: 1, // 0=OFF, 1=ON, 2=TOGGLE
+  variableId: 0,
+  variableOp: 0, // 0=Set, 1=Add, 2=Sub...
+  variableValue: 0,
+  branchType: 0, // 0=Switch, 1=Variable
+  branchId: 0,
+  branchVal: 1, // ON/OFF
+  branchVarOp: 0, // Equal
+  branchVarVal: 0,
+  hasElse: false,
+  choices: ['', '', '', ''] // Default 4 choices max
+})
 const messageText = ref('')
 
-const openCommandEditor = (index: number | null = null): void => {
-  editingCommandIndex.value = index
-  if (index !== null && activePage.value) {
+const openCommandEditor = (index: number | null = null, isInsert: boolean = false): void => {
+  if (isInsert) {
+    // INSERT MODE
+    editingCommandIndex.value = null
+    // If index is provided, it's the absolute index where we want to insert.
+    // Our saveCommand logic currently uses selectedCommandIndex + 1.
+    // So we set selectedCommandIndex to index - 1.
+    if (index !== null) {
+      selectedCommandIndex.value = index - 1
+    }
+  } else {
+    // EDIT MODE
+    editingCommandIndex.value = index
+  }
+
+  if (index !== null && !isInsert && activePage.value) {
     const cmd = activePage.value.list[index]
     selectedCommandType.value = cmd.code
 
-    if (cmd.code === 201) {
-      cmdParams.value = {
-        mapId: cmd.parameters[0] as number,
-        x: cmd.parameters[1] as number,
-        y: cmd.parameters[2] as number
-      }
-    } else if (cmd.code === 101) {
+    if (selectedCommandType.value === ZCommandCode.TransferPlayer) {
+      cmdParams.value.mapId = cmd.parameters[0] as number
+      cmdParams.value.x = cmd.parameters[1] as number
+      cmdParams.value.y = cmd.parameters[2] as number
+    } else if (selectedCommandType.value === ZCommandCode.ShowMessage) {
       messageText.value = cmd.parameters[0] as string
+    } else if (selectedCommandType.value === ZCommandCode.ControlSwitch) {
+      cmdParams.value.switchId = cmd.parameters[0] as number
+      cmdParams.value.switchOp = cmd.parameters[1] as number
+    } else if (selectedCommandType.value === ZCommandCode.ControlVariable) {
+      cmdParams.value.variableId = cmd.parameters[0] as number
+      cmdParams.value.variableOp = cmd.parameters[1] as number
+      cmdParams.value.variableValue = cmd.parameters[2] as number
+    } else if (selectedCommandType.value === ZCommandCode.ConditionalBranch) {
+      cmdParams.value.branchType = cmd.parameters[0] as number
+      cmdParams.value.branchId = cmd.parameters[1] as number
+      if (cmdParams.value.branchType === 0) {
+        cmdParams.value.branchVal = cmd.parameters[2] as number
+      } else {
+        cmdParams.value.branchVarVal = cmd.parameters[2] as number
+      }
+    } else if (selectedCommandType.value === ZCommandCode.ShowChoices) {
+      // Reset choices
+      cmdParams.value.choices = (cmd.parameters[0] as string[]).concat(['', '', '', '']).slice(0, 4)
     }
   } else {
     // Reset for new
-    selectedCommandType.value = 201
-    cmdParams.value = { mapId: 1, x: 0, y: 0 }
+    selectedCommandType.value = ZCommandCode.TransferPlayer
+    cmdParams.value = {
+      mapId: 1,
+      x: 0,
+      y: 0,
+      switchId: 0,
+      switchOp: 1,
+      variableId: 0,
+      variableOp: 0,
+      variableValue: 0,
+      branchType: 0,
+      branchId: 0,
+      branchVal: 1,
+      branchVarOp: 0,
+      branchVarVal: 0,
+      hasElse: false,
+      choices: ['', '', '', '']
+    }
     messageText.value = ''
   }
   showCommandSelector.value = true
@@ -180,26 +327,119 @@ const openCommandEditor = (index: number | null = null): void => {
 
 const saveCommand = (): void => {
   if (!activePage.value) return
-
   let newCommand
-  if (selectedCommandType.value === 201) {
+  if (selectedCommandType.value === ZCommandCode.TransferPlayer) {
     newCommand = {
-      code: 201, // ZCommandCode.TransferPlayer
+      code: ZCommandCode.TransferPlayer,
       parameters: [cmdParams.value.mapId, cmdParams.value.x, cmdParams.value.y]
     }
-  } else if (selectedCommandType.value === 101) {
+  } else if (selectedCommandType.value === ZCommandCode.ShowMessage) {
     newCommand = {
-      code: 101, // ZCommandCode.ShowMessage
+      code: ZCommandCode.ShowMessage,
       parameters: [messageText.value]
+    }
+  } else if (selectedCommandType.value === ZCommandCode.ControlSwitch) {
+    newCommand = {
+      code: ZCommandCode.ControlSwitch,
+      parameters: [cmdParams.value.switchId, cmdParams.value.switchOp]
+    }
+  } else if (selectedCommandType.value === ZCommandCode.ControlVariable) {
+    newCommand = {
+      code: ZCommandCode.ControlVariable,
+      parameters: [
+        cmdParams.value.variableId,
+        cmdParams.value.variableOp,
+        cmdParams.value.variableValue
+      ]
+    }
+  } else if (selectedCommandType.value === ZCommandCode.ConditionalBranch) {
+    newCommand = {
+      code: ZCommandCode.ConditionalBranch,
+      parameters: [
+        cmdParams.value.branchType,
+        cmdParams.value.branchId,
+        cmdParams.value.branchType === 0 ? cmdParams.value.branchVal : cmdParams.value.branchVarVal
+      ]
+    }
+  } else if (selectedCommandType.value === ZCommandCode.ShowChoices) {
+    const validChoices = cmdParams.value.choices.filter((c) => c.trim().length > 0)
+    if (validChoices.length === 0) return // Must have choices
+    newCommand = {
+      code: ZCommandCode.ShowChoices,
+      parameters: [validChoices]
     }
   } else {
     return
   }
 
   if (editingCommandIndex.value !== null) {
+    // Editing existing
     activePage.value.list[editingCommandIndex.value] = newCommand
+    selectedCommandIndex.value = editingCommandIndex.value // Keep selected
   } else {
-    activePage.value.list.push(newCommand)
+    // Inserting new
+    if (selectedCommandIndex.value !== null) {
+      // Insert AFTER selected
+      const targetIndex = selectedCommandIndex.value + 1
+      activePage.value.list.splice(targetIndex, 0, newCommand)
+
+      // Auto-add EndBranch if needed
+      if (newCommand.code === ZCommandCode.ConditionalBranch) {
+        if (cmdParams.value.hasElse) {
+          activePage.value.list.splice(targetIndex + 1, 0, {
+            code: ZCommandCode.Else,
+            parameters: []
+          })
+          activePage.value.list.splice(targetIndex + 2, 0, {
+            code: ZCommandCode.EndBranch,
+            parameters: []
+          })
+        } else {
+          activePage.value.list.splice(targetIndex + 1, 0, {
+            code: ZCommandCode.EndBranch,
+            parameters: []
+          })
+        }
+      } else if (newCommand.code === ZCommandCode.ShowChoices) {
+        // Add When blocks and EndChoices
+        const choices = newCommand.parameters[0] as string[]
+        let offset = 1
+        choices.forEach((_, idx) => {
+          activePage.value.list.splice(targetIndex + offset, 0, {
+            code: ZCommandCode.When,
+            parameters: [idx]
+          })
+          offset++
+        })
+        activePage.value.list.splice(targetIndex + offset, 0, {
+          code: ZCommandCode.EndChoices,
+          parameters: []
+        })
+      }
+
+      // AUTO-SELECT for easier nesting
+      // If we added a branch (If/ShowChoices), select the 'If'/'ShowChoices' line
+      // so the NEXT insertion (which happens at selectedCommandIndex + 1)
+      // goes INSIDE the branch.
+      selectedCommandIndex.value = targetIndex
+    } else {
+      // Add to end
+      const targetIndex = activePage.value.list.length
+      activePage.value.list.push(newCommand)
+      if (newCommand.code === ZCommandCode.ConditionalBranch) {
+        if (cmdParams.value.hasElse) {
+          activePage.value.list.push({ code: ZCommandCode.Else, parameters: [] })
+        }
+        activePage.value.list.push({ code: ZCommandCode.EndBranch, parameters: [] })
+      } else if (newCommand.code === ZCommandCode.ShowChoices) {
+        const choices = newCommand.parameters[0] as string[]
+        choices.forEach((_, idx) => {
+          activePage.value.list.push({ code: ZCommandCode.When, parameters: [idx] })
+        })
+        activePage.value.list.push({ code: ZCommandCode.EndChoices, parameters: [] })
+      }
+      selectedCommandIndex.value = targetIndex
+    }
   }
 
   showCommandSelector.value = false
@@ -575,50 +815,175 @@ const saveCommand = (): void => {
               <p class="text-[10px]">Double click to insert</p>
             </div>
 
-            <div class="flex flex-col font-mono text-sm">
-              <div
-                v-for="(cmd, idx) in activePage.list"
-                :key="idx"
-                class="group flex items-center gap-3 px-4 py-2 hover:bg-blue-50 cursor-pointer border-b border-white hover:border-blue-100 transition-colors"
-                @click="openCommandEditor(idx)"
-              >
-                <span class="text-slate-300 text-[10px] w-6 text-right select-none">{{
-                  String(idx + 1).padStart(3, '0')
-                }}</span>
-                <!-- Command Display Logic -->
-                <div class="flex items-center gap-2">
-                  <span
-                    class="w-1.5 h-1.5 rounded-full"
-                    :class="cmd.code === 101 ? 'bg-green-400' : 'bg-blue-400'"
-                  ></span>
-                  <span v-if="cmd.code === 201" class="text-slate-700 font-medium font-sans"
-                    >Transfer Player (Map {{ cmd.parameters[0] }}, {{ cmd.parameters[1] }},
-                    {{ cmd.parameters[2] }})</span
-                  >
-                  <span v-else-if="cmd.code === 101" class="text-slate-700 font-medium font-sans"
-                    >Show Message: "{{ cmd.parameters[0] }}"</span
-                  >
-                  <span v-else class="text-slate-400 font-medium font-sans italic"
-                    >Unknown Command ({{ cmd.code }})</span
-                  >
-                  <IconTrash
-                    size="14"
-                    class="ml-auto text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
-                    @click.stop="activePage.list.splice(idx, 1)"
-                  />
-                </div>
-              </div>
-
-              <!-- Insert Line -->
-              <div
-                class="group flex items-center gap-3 px-4 py-2 hover:bg-blue-50 cursor-pointer transition-colors opacity-50 hover:opacity-100"
-                @dblclick="openCommandEditor()"
-              >
-                <span class="text-slate-300 text-[10px] w-6 text-right select-none">@</span>
-                <span class="text-slate-400 text-xs italic group-hover:text-blue-500"
-                  >Double click to add...</span
+            <div class="flex flex-col font-mono text-sm pb-10">
+              <template v-for="(item, idx) in presentationList" :key="idx">
+                <!-- Command -->
+                <div
+                  v-if="item.type === 'command'"
+                  class="group flex items-center gap-3 px-4 py-2 cursor-pointer border-b border-white transition-colors select-none"
+                  :class="
+                    selectedCommandIndex === item.index
+                      ? 'bg-blue-100 border-blue-200'
+                      : 'hover:bg-blue-50 hover:border-blue-100'
+                  "
+                  :style="{ paddingLeft: `${item.indent * 20 + 16}px` }"
+                  @click="selectedCommandIndex = item.index"
+                  @dblclick="openCommandEditor(item.index)"
                 >
-              </div>
+                  <span class="text-slate-300 text-[10px] w-6 text-right select-none shrink-0">{{
+                    String(item.index + 1).padStart(3, '0')
+                  }}</span>
+                  <!-- Command Display Logic -->
+                  <div class="flex items-center gap-2 flex-1">
+                    <span
+                      class="w-1.5 h-1.5 rounded-full shrink-0"
+                      :class="
+                        item.command.code === 101
+                          ? 'bg-green-400'
+                          : item.command.code === 111
+                            ? 'bg-purple-400'
+                            : 'bg-blue-400'
+                      "
+                    ></span>
+
+                    <!-- Transfer Player -->
+                    <span
+                      v-if="item.command.code === 201"
+                      class="text-slate-700 font-medium font-sans"
+                      >Transfer Player (Map {{ item.command.parameters[0] }},
+                      {{ item.command.parameters[1] }}, {{ item.command.parameters[2] }})</span
+                    >
+                    <!-- Show Message -->
+                    <span
+                      v-else-if="item.command.code === 101"
+                      class="text-slate-700 font-medium font-sans"
+                      >Show Message: "{{ item.command.parameters[0] }}"</span
+                    >
+                    <!-- Switch -->
+                    <span
+                      v-else-if="item.command.code === ZCommandCode.ControlSwitch"
+                      class="text-slate-700 font-medium font-sans"
+                    >
+                      Switch #{{ item.command.parameters[0] }} =
+                      {{
+                        item.command.parameters[1] === 0
+                          ? 'OFF'
+                          : item.command.parameters[1] === 1
+                            ? 'ON'
+                            : 'TOGGLE'
+                      }}
+                    </span>
+                    <!-- Variable -->
+                    <span
+                      v-else-if="item.command.code === ZCommandCode.ControlVariable"
+                      class="text-slate-700 font-medium font-sans"
+                    >
+                      Var #{{ item.command.parameters[0] }}
+                      {{
+                        ['Set', 'Add', 'Sub', 'Mul', 'Div', 'Mod'][
+                          item.command.parameters[1] as number
+                        ]
+                      }}
+                      {{ item.command.parameters[2] }}
+                    </span>
+                    <!-- Conditional -->
+                    <span
+                      v-else-if="item.command.code === ZCommandCode.ConditionalBranch"
+                      class="text-purple-700 font-bold font-sans"
+                    >
+                      If
+                      {{
+                        item.command.parameters[0] === 0
+                          ? `Switch #${item.command.parameters[1]} is ${item.command.parameters[2] ? 'ON' : 'OFF'}`
+                          : `Var #${item.command.parameters[1]} == ${item.command.parameters[2]}`
+                      }}
+                    </span>
+                    <!-- Else -->
+                    <span
+                      v-else-if="item.command.code === ZCommandCode.Else"
+                      class="text-purple-700 font-bold font-sans"
+                    >
+                      Else
+                    </span>
+                    <!-- End -->
+                    <span
+                      v-else-if="item.command.code === ZCommandCode.EndBranch"
+                      class="text-purple-700 font-bold font-sans"
+                    >
+                      End Branch
+                    </span>
+
+                    <!-- Show Choices -->
+                    <span
+                      v-else-if="item.command.code === ZCommandCode.ShowChoices"
+                      class="text-orange-700 font-bold font-sans"
+                    >
+                      Show Choices: {{ (item.command.parameters[0] as string[]).join(', ') }}
+                    </span>
+                    <!-- When -->
+                    <span
+                      v-else-if="item.command.code === ZCommandCode.When"
+                      class="text-orange-700 font-bold font-sans"
+                    >
+                      When "{{
+                        (
+                          activePage?.list.find(
+                            (c, i) =>
+                              i < item.index &&
+                              c.code === ZCommandCode.ShowChoices &&
+                              i > item.index - 20
+                          ) as any
+                        )?.parameters[0][item.command.parameters[0] as number] || 'Choice'
+                      }}"
+                    </span>
+                    <!-- End Choices -->
+                    <span
+                      v-else-if="item.command.code === ZCommandCode.EndChoices"
+                      class="text-orange-700 font-bold font-sans"
+                    >
+                      End Choices
+                    </span>
+
+                    <span v-else class="text-slate-400 font-medium font-sans italic"
+                      >Unknown Command ({{ item.command.code }})</span
+                    >
+                    <IconTrash
+                      v-if="
+                        item.command.code !== ZCommandCode.Else &&
+                        item.command.code !== ZCommandCode.EndBranch &&
+                        item.command.code !== ZCommandCode.When &&
+                        item.command.code !== ZCommandCode.EndChoices
+                      "
+                      size="14"
+                      class="ml-auto text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                      @click.stop="deleteCommand(item.index)"
+                    />
+                  </div>
+                </div>
+
+                <!-- Add Placeholder -->
+                <div
+                  v-else
+                  class="group flex items-center gap-3 px-4 py-1.5 hover:bg-slate-50 cursor-pointer transition-colors"
+                  :style="{ paddingLeft: `${item.indent * 20 + 16}px` }"
+                  @dblclick="openCommandEditor(item.index, true)"
+                  @click="selectedCommandIndex = item.index - 1"
+                >
+                  <span
+                    class="text-slate-300 text-[10px] w-6 text-right select-none opacity-0 shrink-0"
+                    >@</span
+                  >
+                  <div
+                    class="flex items-center gap-2 text-slate-300 group-hover:text-blue-400 transition-colors"
+                  >
+                    <span class="font-mono text-xs opacity-50">&lt;&gt;</span>
+                    <span
+                      class="text-[10px] uppercase tracking-widest font-bold opacity-0 group-hover:opacity-100"
+                      >Add Command</span
+                    >
+                  </div>
+                </div>
+              </template>
             </div>
           </div>
         </div>
@@ -661,10 +1026,22 @@ const saveCommand = (): void => {
             >
             <select
               v-model.number="selectedCommandType"
-              class="w-full border border-slate-200 rounded px-2 py-1.5 text-sm font-medium text-slate-700 bg-white"
+              :disabled="
+                editingCommandIndex !== null &&
+                (selectedCommandType === ZCommandCode.ConditionalBranch ||
+                  selectedCommandType === ZCommandCode.ShowChoices ||
+                  selectedCommandType === ZCommandCode.Else ||
+                  selectedCommandType === ZCommandCode.EndBranch ||
+                  selectedCommandType === ZCommandCode.When ||
+                  selectedCommandType === ZCommandCode.EndChoices)
+              "
+              class="w-full border border-slate-200 rounded px-2 py-1.5 text-sm font-medium text-slate-700 bg-white disabled:bg-slate-50 disabled:text-slate-400"
             >
               <option :value="101">Show Message</option>
               <option :value="201">Transfer Player</option>
+              <option :value="ZCommandCode.ControlSwitch">Control Switch</option>
+              <option :value="ZCommandCode.ControlVariable">Control Variable</option>
+              <option :value="ZCommandCode.ConditionalBranch">Conditional Branch</option>
             </select>
           </div>
 
@@ -680,6 +1057,207 @@ const saveCommand = (): void => {
                 placeholder="Enter message text..."
                 class="w-full border border-slate-200 rounded px-3 py-2 text-sm font-sans resize-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
               ></textarea>
+            </div>
+          </div>
+
+          <!-- Control Switch Params -->
+          <div v-if="selectedCommandType === ZCommandCode.ControlSwitch" class="space-y-3">
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1"
+                  >Switch ID</label
+                >
+                <select
+                  v-model.number="cmdParams.switchId"
+                  class="w-full border border-slate-200 rounded px-2 py-1.5 text-sm font-mono"
+                >
+                  <option :value="0">0: None</option>
+                  <option v-for="(name, idx) in store.systemSwitches" :key="idx" :value="idx + 1">
+                    {{ String(idx + 1).padStart(3, '0') }}: {{ name || 'Unnamed' }}
+                  </option>
+                </select>
+              </div>
+              <div>
+                <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1"
+                  >Operation</label
+                >
+                <select
+                  v-model.number="cmdParams.switchOp"
+                  class="w-full border border-slate-200 rounded px-2 py-1.5 text-sm font-medium"
+                >
+                  <option :value="1">ON</option>
+                  <option :value="0">OFF</option>
+                  <option :value="2">TOGGLE</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Control Variable Params -->
+          <div v-if="selectedCommandType === ZCommandCode.ControlVariable" class="space-y-3">
+            <div>
+              <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1"
+                >Variable ID</label
+              >
+              <select
+                v-model.number="cmdParams.variableId"
+                class="w-full border border-slate-200 rounded px-2 py-1.5 text-sm font-mono"
+              >
+                <option :value="0">0: None</option>
+                <option v-for="(name, idx) in store.systemVariables" :key="idx" :value="idx + 1">
+                  {{ String(idx + 1).padStart(3, '0') }}: {{ name || 'Unnamed' }}
+                </option>
+              </select>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1"
+                  >Operation</label
+                >
+                <select
+                  v-model.number="cmdParams.variableOp"
+                  class="w-full border border-slate-200 rounded px-2 py-1.5 text-sm font-medium"
+                >
+                  <option :value="0">Set (=)</option>
+                  <option :value="1">Add (+)</option>
+                  <option :value="2">Sub (-)</option>
+                  <option :value="3">Mul (*)</option>
+                  <option :value="4">Div (/)</option>
+                  <option :value="5">Mod (%)</option>
+                </select>
+              </div>
+              <div>
+                <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1"
+                  >Value</label
+                >
+                <input
+                  v-model.number="cmdParams.variableValue"
+                  type="number"
+                  class="w-full border border-slate-200 rounded px-2 py-1.5 text-sm font-mono"
+                />
+              </div>
+            </div>
+          </div>
+
+          <!-- Conditional Branch Params -->
+          <div v-if="selectedCommandType === ZCommandCode.ConditionalBranch" class="space-y-3">
+            <div>
+              <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1"
+                >Condition Type</label
+              >
+              <div class="flex gap-4">
+                <label class="flex items-center gap-2 cursor-pointer">
+                  <input
+                    v-model.number="cmdParams.branchType"
+                    type="radio"
+                    :value="0"
+                    class="text-blue-600 focus:ring-blue-500"
+                  />
+                  <span class="text-sm font-medium text-slate-700">Switch</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer">
+                  <input
+                    v-model.number="cmdParams.branchType"
+                    type="radio"
+                    :value="1"
+                    class="text-blue-600 focus:ring-blue-500"
+                  />
+                  <span class="text-sm font-medium text-slate-700">Variable</span>
+                </label>
+              </div>
+            </div>
+
+            <!-- Switch Condition -->
+            <div v-if="cmdParams.branchType === 0" class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1"
+                  >Switch</label
+                >
+                <select
+                  v-model.number="cmdParams.branchId"
+                  class="w-full border border-slate-200 rounded px-2 py-1.5 text-sm font-mono"
+                >
+                  <option :value="0">0: None</option>
+                  <option v-for="(name, idx) in store.systemSwitches" :key="idx" :value="idx + 1">
+                    {{ String(idx + 1).padStart(3, '0') }}: {{ name || 'Unnamed' }}
+                  </option>
+                </select>
+              </div>
+              <div>
+                <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1"
+                  >State</label
+                >
+                <select
+                  v-model.number="cmdParams.branchVal"
+                  class="w-full border border-slate-200 rounded px-2 py-1.5 text-sm font-medium"
+                >
+                  <option :value="1">ON</option>
+                  <option :value="0">OFF</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Variable Condition -->
+            <div v-if="cmdParams.branchType === 1" class="space-y-3">
+              <div>
+                <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1"
+                  >Variable</label
+                >
+                <select
+                  v-model.number="cmdParams.branchId"
+                  class="w-full border border-slate-200 rounded px-2 py-1.5 text-sm font-mono"
+                >
+                  <option :value="0">0: None</option>
+                  <option v-for="(name, idx) in store.systemVariables" :key="idx" :value="idx + 1">
+                    {{ String(idx + 1).padStart(3, '0') }}: {{ name || 'Unnamed' }}
+                  </option>
+                </select>
+              </div>
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1"
+                    >Operator</label
+                  >
+                  <select
+                    disabled
+                    class="w-full border border-slate-200 rounded px-2 py-1.5 text-sm font-medium bg-gray-50 opacity-50"
+                  >
+                    <option :value="0">Equal To (=)</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1"
+                    >Value</label
+                  >
+                  <input
+                    v-model.number="cmdParams.branchVarVal"
+                    type="number"
+                    class="w-full border border-slate-200 rounded px-2 py-1.5 text-sm font-mono"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <!-- Has Else Checkbox -->
+            <div class="pt-2 border-t border-slate-100">
+              <label class="flex items-center gap-2 cursor-pointer group">
+                <input
+                  v-model="cmdParams.hasElse"
+                  type="checkbox"
+                  :disabled="editingCommandIndex !== null"
+                  class="accent-blue-600 w-4 h-4 rounded border-slate-300 group-hover:ring-2 ring-blue-100 transition-all disabled:opacity-50"
+                />
+                <div class="flex flex-col">
+                  <span class="text-xs font-bold text-slate-600 group-hover:text-blue-700"
+                    >Create Else Branch</span
+                  >
+                  <span
+                    v-if="editingCommandIndex !== null"
+                    class="text-[9px] text-slate-400 font-normal"
+                    >Cannot modify structure (Else) after creation</span
+                  >
+                </div>
+              </label>
             </div>
           </div>
 
