@@ -1,4 +1,4 @@
-import { ZDataProvider, ZEngineSignal } from '@engine/types'
+import { ZEngineSignal } from '@engine/types'
 import { ZEventBus } from '@engine/core/ZEventBus'
 import { ServiceLocator } from '@engine/core/ServiceLocator'
 import ZLogger from '@engine/core/ZLogger'
@@ -26,8 +26,8 @@ export class GameStateManager {
     this.eventBus = services.require(ZEventBus)
   }
 
-  public setDataProvider(_provider: ZDataProvider): void {
-    // this.dataProvider = provider
+  public setDataProvider(): void {
+    // Placeholder for future persistence logic
   }
 
   // --- Switches ---

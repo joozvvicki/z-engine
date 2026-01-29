@@ -1,8 +1,6 @@
 import { Container, Graphics } from '../utils/pixi'
 import { ZSystem } from '@engine/types'
 
-import { ServiceLocator } from '@engine/core/ServiceLocator'
-
 export class TransitionSystem extends ZSystem {
   private overlay: Graphics
   private isFading: boolean = false
@@ -11,10 +9,7 @@ export class TransitionSystem extends ZSystem {
   private fadeTimer: number = 0
   private resolvePromise: ((value: void | PromiseLike<void>) => void) | null = null
 
-  constructor(
-    private stage: Container,
-    _services: ServiceLocator
-  ) {
+  constructor(private stage: Container) {
     super()
     this.overlay = new Graphics()
     // Initial size, will be updated by resize()

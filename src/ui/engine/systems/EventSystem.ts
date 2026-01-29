@@ -46,8 +46,8 @@ export class EventSystem extends ZSystem {
     this.eventBus = services.require(ZEventBus)
 
     // These will be retrieved lazily since they might not be registered yet
-    this.sceneManager = null as any // Will be set in onBoot
-    this.playerSystem = null as any // Will be set in onBoot
+    this.sceneManager = undefined as unknown as SceneManager
+    this.playerSystem = undefined as unknown as PlayerSystem
 
     this.registerCommands()
   }
@@ -382,7 +382,7 @@ export class EventSystem extends ZSystem {
   }
 
   // Command 411: Else
-  private commandElse(_params: unknown[]): ZCommandResult {
+  private commandElse(): ZCommandResult {
     // If we hit this command naturally, it means the "Then" block just finished.
     // So we must skip the "Else" block and go to EndBranch.
     this.advanceToEnd()

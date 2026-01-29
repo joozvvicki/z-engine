@@ -1,6 +1,10 @@
 class ZLogger {
-  private tag: string = 'Z Engine'
+  private tag: string
   private isDebugging: boolean = import.meta.env.DEV
+
+  constructor(tag: string) {
+    this.tag = tag
+  }
 
   log(...messages: unknown[]): void {
     if (!this.isDebugging) return
@@ -35,9 +39,8 @@ class ZLogger {
     )
   }
   with(tag: string): ZLogger {
-    this.tag = tag
-    return this
+    return new ZLogger(tag)
   }
 }
 
-export default new ZLogger()
+export default new ZLogger('Z Engine')

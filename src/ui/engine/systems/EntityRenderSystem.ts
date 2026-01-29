@@ -49,9 +49,9 @@ export class EntityRenderSystem extends ZSystem {
     this.textureManager = services.require(TextureManager)
     this.mapManager = services.require(MapManager)
 
-    // Lazy load these in onBoot
-    this.playerSystem = null as any
-    this.renderSystem = null as any
+    // These will be retrieved lazily in onBoot
+    this.playerSystem = undefined as unknown as PlayerSystem
+    this.renderSystem = undefined as unknown as RenderSystem
   }
 
   public loadEvents(): void {
