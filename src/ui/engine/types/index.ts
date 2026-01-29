@@ -207,7 +207,8 @@ export enum ZEngineSignal {
   MapLoaded = 'map:loaded',
   EventTriggered = 'event:triggered',
   InteractionRequested = 'interaction:requested',
-  ShowMessage = 'ui:show-message'
+  ShowMessage = 'ui:show-message',
+  MessageClosed = 'ui:message-closed'
 }
 
 export interface ZSignalData {
@@ -216,4 +217,5 @@ export interface ZSignalData {
   [ZEngineSignal.EventTriggered]: { event: ZEvent; trigger: ZEventTrigger }
   [ZEngineSignal.InteractionRequested]: { x: number; y: number }
   [ZEngineSignal.ShowMessage]: { text: string }
+  [ZEngineSignal.MessageClosed]: Record<string, never>
 }

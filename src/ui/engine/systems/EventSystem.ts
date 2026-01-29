@@ -16,7 +16,6 @@ import type { ZEngine } from '../core/ZEngine'
 import { ZEventBus } from '../core/ZEventBus'
 
 export class EventSystem extends ZSystem {
-  // @ts-ignore - mapManager is used in trigger logic (WIP)
   private mapManager: MapManager
   // @ts-ignore - playerSystem is used for positioning (WIP)
   private playerSystem: PlayerSystem
@@ -75,12 +74,6 @@ export class EventSystem extends ZSystem {
     }
   }
 
-  public onPostUpdate(): void {
-    // Reset flag for next frame
-    this.hasExecutedThisFrame = false
-  }
-
-  private hasExecutedThisFrame: boolean = false
   private isWaitingForMessage: boolean = false
 
   public finishMessage(): void {
@@ -109,9 +102,6 @@ export class EventSystem extends ZSystem {
         eventId: event.id
       }
       this.isProcessing = true
-      console.log(`[EventSystem] Started event ${event.id} with ${activePage.list.length} commands`)
-    } else {
-      console.warn(`[EventSystem] Event ${event.id} has no commands on active page`)
     }
   }
 
@@ -121,18 +111,12 @@ export class EventSystem extends ZSystem {
   }
 
   public checkTrigger(x: number, y: number, trigger: ZEventTrigger): void {
-    console.log(
-      `[EventSystem] checkTrigger at (${x}, ${y}), trigger: ${trigger}, isProcessing: ${this.isProcessing}`
-    )
-
     if (this.isProcessing) return // Don't interrupt
 
     const map = this.mapManager.currentMap
     if (!map) return
 
     const event = map.events.find((e) => e.x === x && e.y === y)
-    console.log(`[EventSystem] Found event:`, event)
-
     if (!event) return
 
     // Find active page
@@ -145,60 +129,27 @@ export class EventSystem extends ZSystem {
       }
     }
 
-    console.log(
-      `[EventSystem] Active page:`,
-      activePage,
-      `trigger match:`,
-      activePage?.trigger === trigger
-    )
-
     if (activePage && activePage.trigger === trigger) {
       this.startEvent(event)
     }
   }
 
   private executeInterpreter(): void {
-    if (!this.activeInterpreter) {
-      console.log('[EventSystem] executeInterpreter called but no active interpreter')
-      return
-    }
-
-    if (this.hasExecutedThisFrame) {
-      console.log('[EventSystem] executeInterpreter already executed this frame, skipping')
-      return
-    }
-
-    this.hasExecutedThisFrame = true
-
-    console.log(
-      '[EventSystem] executeInterpreter - index:',
-      this.activeInterpreter.index,
-      'length:',
-      this.activeInterpreter.list.length,
-      'isWaitingForMessage:',
-      this.isWaitingForMessage
-    )
-    console.trace('[EventSystem] executeInterpreter stack trace')
+    if (!this.activeInterpreter) return
 
     // Execute commands until one yields (wait) or list ends
     while (this.activeInterpreter.index < this.activeInterpreter.list.length) {
       const cmd = this.activeInterpreter.list[this.activeInterpreter.index]
       this.activeInterpreter.index++
 
-      console.log(`[EventSystem] Executing command ${cmd.code}`)
-
       const result = this.executeCommand(cmd)
       if (result === 'wait') {
-        console.log(
-          `[EventSystem] Command returned 'wait', pausing interpreter. isProcessing stays true`
-        )
         // Don't clear activeInterpreter or isProcessing - we're waiting
         return // Stop processing this frame, but keep isProcessing = true
       }
       if (result === 'stop') {
         this.activeInterpreter = null
         this.isProcessing = false
-        console.log(`[EventSystem] Command returned 'stop', ending event`)
         return
       }
       // If result is 'continue', loop continues to next command
@@ -207,7 +158,6 @@ export class EventSystem extends ZSystem {
     // End of list - only reached if all commands executed without 'wait' or 'stop'
     this.activeInterpreter = null
     this.isProcessing = false
-    console.log(`[EventSystem] Event finished - reached end of command list`)
   }
 
   private executeCommand(cmd: ZEventCommand): ZCommandResult {
@@ -217,7 +167,7 @@ export class EventSystem extends ZSystem {
     }
 
     // Unknown command, skip
-    console.warn(`[EventSystem] Unknown command code: ${cmd.code}`)
+    // console.warn(`[EventSystem] Unknown command code: ${cmd.code}`)
     return 'continue'
   }
 
@@ -239,13 +189,11 @@ export class EventSystem extends ZSystem {
   // Params: [text, faceName?, faceIndex?]
   private commandShowMessage(params: unknown[]): ZCommandResult {
     const text = params[0] as string
-    console.log('[EventSystem] commandShowMessage called with text:', text)
 
     this.isWaitingForMessage = true
 
     // Emit signal for UI to show message
     this.eventBus.emit(ZEngineSignal.ShowMessage, { text })
-    console.log('[EventSystem] Emitted ShowMessage signal')
 
     // Clear input keys to prevent immediate close
     if (window.$zEngine?.inputManager) {

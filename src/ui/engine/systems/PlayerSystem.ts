@@ -25,6 +25,9 @@ export class PlayerSystem extends ZSystem {
   private targetX: number = 0
   private targetY: number = 0
 
+  // Input blocking (e.g., during messages)
+  private isInputBlocked: boolean = false
+
   constructor(
     inputManager: InputManager,
     mapManager: MapManager,
@@ -49,6 +52,17 @@ export class PlayerSystem extends ZSystem {
       this.y = 5
     }
 
+    this.realX = this.x * this.tileSize
+    this.realY = this.y * this.tileSize
+
+    // Listen for message events to block/unblock input
+    this.eventBus.on(ZEngineSignal.ShowMessage, () => {
+      this.isInputBlocked = true
+    })
+
+    this.eventBus.on(ZEngineSignal.MessageClosed, () => {
+      this.isInputBlocked = false
+    })
     this.snapToGrid()
   }
 
@@ -59,6 +73,7 @@ export class PlayerSystem extends ZSystem {
 
   private updateInput(): void {
     if (this.isMoving) return
+    if (this.isInputBlocked) return // Don't process input during messages
 
     let dx = 0
     let dy = 0

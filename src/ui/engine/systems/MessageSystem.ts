@@ -1,12 +1,12 @@
 import { ZSystem, ZEngineSignal } from '@engine/types'
-import { Container, Graphics, Text, TextStyle } from 'pixi.js'
+import { Container, Graphics, Text } from 'pixi.js'
 import { ZEventBus } from '@engine/core/ZEventBus'
 import { InputManager } from '@engine/managers/InputManager'
 
 export class MessageSystem extends ZSystem {
   private container: Container
-  private eventBus: ZEventBus
   private inputManager: InputManager
+  private eventBus: ZEventBus
 
   private isVisible: boolean = false
   private messageText: string = ''
@@ -29,17 +29,10 @@ export class MessageSystem extends ZSystem {
 
     this.eventBus = eventBus
     this.inputManager = inputManager
-
-    console.log(
-      '[MessageSystem] Constructor - container added to stage with zIndex:',
-      this.container.zIndex
-    )
   }
 
   public onBoot(): void {
-    console.log('[MessageSystem] Booting, listening for ShowMessage signal')
     this.eventBus.on(ZEngineSignal.ShowMessage, ({ text }) => {
-      console.log('[MessageSystem] Received ShowMessage signal:', text)
       this.show(text)
     })
   }
@@ -58,11 +51,9 @@ export class MessageSystem extends ZSystem {
   }
 
   private show(text: string): void {
-    console.log('[MessageSystem] show() called with text:', text)
     this.messageText = text
     this.isVisible = true
     this.render()
-    console.log('[MessageSystem] Container visible:', this.container.visible)
   }
 
   private close(): void {
@@ -74,6 +65,9 @@ export class MessageSystem extends ZSystem {
     this.inputManager.clearKey('Space')
     this.inputManager.clearKey('KeyZ')
 
+    // Emit signal to unblock player input
+    this.eventBus.emit(ZEngineSignal.MessageClosed, {})
+
     // Notify EventSystem that message is finished
     if (window.$zEngine?.eventSystem) {
       window.$zEngine.eventSystem.finishMessage()
@@ -81,92 +75,71 @@ export class MessageSystem extends ZSystem {
   }
 
   private render(): void {
-    console.log('[MessageSystem] render() called')
     // Clear previous content
     this.container.removeChildren()
 
     // Create message box background
     this.messageBox = new Graphics()
 
-    // Semi-transparent black background
-    this.messageBox.beginFill(0x000000, 0.85)
-    this.messageBox.drawRoundedRect(0, 0, this.boxWidth, this.boxHeight, 12)
-    this.messageBox.endFill()
+    // Semi-transparent black background with modern PIXI v8 API
+    this.messageBox.rect(0, 0, this.boxWidth, this.boxHeight)
+    this.messageBox.fill({ color: 0x000000, alpha: 0.85 })
 
-    // White border
-    this.messageBox.lineStyle(3, 0xffffff, 0.3)
-    this.messageBox.drawRoundedRect(0, 0, this.boxWidth, this.boxHeight, 12)
+    // White border with rounded corners
+    this.messageBox.roundRect(0, 0, this.boxWidth, this.boxHeight, 12)
+    this.messageBox.stroke({ width: 3, color: 0xffffff, alpha: 0.3 })
 
     // Decorative corners
-    this.messageBox.lineStyle(2, 0xffffff, 0.5)
-    // Top-left
-    this.messageBox.moveTo(0, 10)
-    this.messageBox.lineTo(0, 0)
-    this.messageBox.lineTo(10, 0)
-    // Top-right
-    this.messageBox.moveTo(this.boxWidth - 10, 0)
-    this.messageBox.lineTo(this.boxWidth, 0)
-    this.messageBox.lineTo(this.boxWidth, 10)
-    // Bottom-left
-    this.messageBox.moveTo(0, this.boxHeight - 10)
-    this.messageBox.lineTo(0, this.boxHeight)
-    this.messageBox.lineTo(10, this.boxHeight)
-    // Bottom-right
-    this.messageBox.moveTo(this.boxWidth - 10, this.boxHeight)
-    this.messageBox.lineTo(this.boxWidth, this.boxHeight)
-    this.messageBox.lineTo(this.boxWidth, this.boxHeight - 10)
+    const corner = new Graphics()
+    corner.moveTo(0, 10).lineTo(0, 0).lineTo(10, 0)
+    corner
+      .moveTo(this.boxWidth - 10, 0)
+      .lineTo(this.boxWidth, 0)
+      .lineTo(this.boxWidth, 10)
+    corner
+      .moveTo(0, this.boxHeight - 10)
+      .lineTo(0, this.boxHeight)
+      .lineTo(10, this.boxHeight)
+    corner
+      .moveTo(this.boxWidth - 10, this.boxHeight)
+      .lineTo(this.boxWidth, this.boxHeight)
+      .lineTo(this.boxWidth, this.boxHeight - 10)
+    corner.stroke({ width: 2, color: 0xffffff, alpha: 0.5 })
+    this.messageBox.addChild(corner)
 
     this.container.addChild(this.messageBox)
 
-    // Create text
-    const textStyle = new TextStyle({
-      fontFamily: 'Arial, sans-serif',
-      fontSize: 18,
-      fill: 0xffffff,
-      wordWrap: true,
-      wordWrapWidth: this.boxWidth - this.padding * 2,
-      lineHeight: 24
+    // Create text with modern PIXI v8 API
+    this.textDisplay = new Text({
+      text: this.messageText,
+      style: {
+        fontFamily: 'Arial, sans-serif',
+        fontSize: 18,
+        fill: 0xffffff,
+        wordWrap: true,
+        wordWrapWidth: this.boxWidth - this.padding * 2,
+        lineHeight: 24
+      }
     })
-
-    this.textDisplay = new Text(this.messageText, textStyle)
     this.textDisplay.x = this.padding
     this.textDisplay.y = this.padding
     this.container.addChild(this.textDisplay)
 
     // Add prompt indicator (small triangle)
     const indicator = new Graphics()
-    indicator.beginFill(0xffffff, 0.6)
-    indicator.moveTo(0, 0)
-    indicator.lineTo(6, 0)
-    indicator.lineTo(3, 8)
-    indicator.closePath()
-    indicator.endFill()
+    indicator.moveTo(0, 0).lineTo(6, 0).lineTo(3, 8).closePath()
+    indicator.fill({ color: 0xffffff, alpha: 0.6 })
     indicator.x = this.boxWidth - 15
     indicator.y = this.boxHeight - 15
     this.container.addChild(indicator)
 
     this.container.visible = true
-    console.log(
-      '[MessageSystem] Render complete. Container position:',
-      this.container.x,
-      this.container.y,
-      'Children:',
-      this.container.children.length
-    )
   }
 
   public resize(width: number, height: number): void {
     // Position message box at bottom center
     this.container.x = (width - this.boxWidth) / 2
     this.container.y = height - this.boxHeight - 40
-    console.log(
-      '[MessageSystem] resize() called. New position:',
-      this.container.x,
-      this.container.y,
-      'Screen:',
-      width,
-      height
-    )
   }
 
   public onDestroy(): void {
