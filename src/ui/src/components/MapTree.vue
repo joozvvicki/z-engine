@@ -5,16 +5,18 @@ import {
   IconMap,
   IconPlus,
   IconTrash,
-  IconUpload
+  IconUpload,
+  IconSettings
 } from '@tabler/icons-vue'
 import { useEditorStore } from '@ui/stores/editor'
-import NewMap from './modal/NewMap.vue'
+import MapPropertiesModal from './modal/MapPropertiesModal.vue'
 import { ref } from 'vue'
 import type { ZMap } from '@engine/types'
 
 const store = useEditorStore()
 
-const isNewMapOpen = ref(false)
+const isMapModalOpen = ref(false)
+const editMapId = ref<number | null>(null)
 
 const isContextMenuOpen = ref(false)
 const contextMapId = ref<number | null>(null)
@@ -32,6 +34,19 @@ const showContextMenu = (mapId: number, event: MouseEvent): void => {
   contextMapId.value = mapId
   contextMenuPosition.value = { x: event.clientX, y: event.clientY }
 }
+
+const openNewMapModal = () => {
+  editMapId.value = null
+  isMapModalOpen.value = true
+}
+
+const openEditMapModal = () => {
+  if (contextMapId.value) {
+    editMapId.value = contextMapId.value
+    isMapModalOpen.value = true
+    isContextMenuOpen.value = false
+  }
+}
 </script>
 
 <template>
@@ -44,7 +59,7 @@ const showContextMenu = (mapId: number, event: MouseEvent): void => {
           :class="[
             'flex items-center justify-center gap-2 p-1 rounded-md  cursor-pointer transition-colors hover:text-black hover:bg-gray-100'
           ]"
-          @click="isNewMapOpen = true"
+          @click="openNewMapModal"
         >
           <IconPlus :size="24" />
         </button>
@@ -104,8 +119,15 @@ const showContextMenu = (mapId: number, event: MouseEvent): void => {
           top: contextMenuPosition.y + 20 + 'px',
           left: contextMenuPosition.x - 10 + 'px'
         }"
-        class="absolute bg-white border border-black/10 rounded-md shadow-lg z-50 flex flex-col overflow-hidden"
+        class="absolute bg-white border border-black/10 rounded-md shadow-lg z-50 flex flex-col overflow-hidden w-32"
       >
+        <button
+          class="px-4 py-2 text-xs cursor-pointer flex items-center gap-2 transition-all duration-150 text-black bg-white hover:bg-gray-100"
+          @click="openEditMapModal"
+        >
+          <IconSettings :size="18" />
+          <span>Właściwości</span>
+        </button>
         <button
           class="px-4 py-2 text-xs cursor-pointer flex items-center gap-2 transition-all duration-150 text-black bg-white hover:bg-gray-100"
           @click="
@@ -134,5 +156,10 @@ const showContextMenu = (mapId: number, event: MouseEvent): void => {
     </Teleport>
   </div>
 
-  <NewMap :is-open="isNewMapOpen" @close="isNewMapOpen = false" />
+  <MapPropertiesModal
+    :is-open="isMapModalOpen"
+    :edit-mode="!!editMapId"
+    :map-id="editMapId"
+    @close="isMapModalOpen = false"
+  />
 </template>

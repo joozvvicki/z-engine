@@ -141,7 +141,12 @@ export const useEditorStore = defineStore('editor', () => {
     }
   }
 
-  const createMap = (name: string, width: number, height: number): void => {
+  const createMap = (
+    name: string,
+    width: number,
+    height: number,
+    tilesets: string[] = []
+  ): void => {
     const newId =
       storedMaps.value.length > 0 ? Math.max(...storedMaps.value.map((m) => m.id)) + 1 : 1
     const newMap: ZMap = {
@@ -150,13 +155,71 @@ export const useEditorStore = defineStore('editor', () => {
       width,
       height,
       layers: createEmptyLayers(width, height),
-      events: []
+      events: [],
+      tilesets
     }
     storedMaps.value.push(newMap)
     activeMapID.value = newMap.id
 
     // Inicjalizacja historii dla nowej mapy
     nextTick(() => history.recordHistory())
+  }
+
+  const updateMapProperties = (
+    mapId: number,
+    props: { name: string; width: number; height: number; tilesets: string[] }
+  ): void => {
+    const map = storedMaps.value.find((m) => m.id === mapId)
+    if (!map) return
+
+    map.name = props.name
+    map.tilesets = props.tilesets
+
+    // Resize logic if dimensions changed (cropping or padding)
+    if (map.width !== props.width || map.height !== props.height) {
+      // Simple resize approach: recreate grids or resize arrays?
+      // For Alpha, let's use the recreate/copy approach similar to picking, but simplified.
+      // It's safer to just set dimensions and verify grids, but changing grid size requires re-initializing arrays.
+
+      // This is complex. Let's defer complex resizing logic and just focus on metadata for now,
+      // OR implement a basic "resize canvas" that might crop data.
+
+      // Let's defer RESIZE logic for a separate dedicated task if possible,
+      // OR implement a very basic destructive resize (or non-destructive extension).
+
+      // For now, let's just update properties unless user explicitly requested resize handling.
+      // The implementation plan mainly focused on "Editing existing map name, dimensions, and tilesets".
+      // I will trust the store logic to handle it or just update the raw values which might break grid access if not handled.
+      // wait, `initMap` recreates layers.
+
+      // Let's re-use resize logic if available or just warn.
+      // Actually, changing W/H without resizing grid arrays WILL crash the renderer.
+
+      // Let's implement a Safe Resize later. For now, assume these properties are just metadata
+      // EXCEPT width/height which are critical.
+
+      // I'll call initMap-like logic but preserving data? Too risky for this step without dedicated function.
+      // I will skipping resizing arrays here and just update metadata, BUT I must implement resize eventually.
+      // Actually, `activeMap` watcher in `GameViewport` might clone the map.
+
+      // Let's stick to just updating metadata for now.
+      map.width = props.width
+      map.height = props.height
+
+      // Re-initialize layers with new size, preserving OLD data where possible?
+      Object.values(map.layers).forEach((layer) => {
+        const oldData = layer.data
+        const newData = Array.from({ length: props.height }, (_, y) =>
+          Array.from({ length: props.width }, (_, x) =>
+            y < oldData.length && x < oldData[0].length ? oldData[y][x] : null
+          )
+        )
+        layer.data = newData
+      })
+    }
+
+    saveProject()
+    history.recordHistory()
   }
 
   const initMap = (width: number, height: number): void => {
@@ -569,6 +632,7 @@ export const useEditorStore = defineStore('editor', () => {
 
     initMap,
     createMap,
+    updateMapProperties,
     setTileAt,
     pickTile,
     clearRegion,

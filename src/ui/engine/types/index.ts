@@ -91,6 +91,7 @@ export interface ZMap {
     }
   >
   events: ZEvent[]
+  tilesets: string[]
 }
 
 /* eslint-disable @typescript-eslint/no-unused-vars */

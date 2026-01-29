@@ -2,7 +2,7 @@
 import { useEditorStore } from '@ui/stores/editor'
 import { useTilesetAtlas } from '@ui/composables/useTilesetAtlas'
 import { useTilesetSelection } from '@ui/composables/useTilesetSelection'
-import { ref, watch, onMounted, nextTick } from 'vue'
+import { ref, watch, onMounted, nextTick, computed } from 'vue'
 import { IconSettings, IconX, IconStar } from '@tabler/icons-vue'
 import CollisionEditor from './modal/CollisionEditor.vue'
 
@@ -93,7 +93,28 @@ const onContainerMouseMove = (e: MouseEvent): void => {
   }
 }
 
-const TABS = ['A', 'B', 'C', 'D', 'Roofs']
+const TABS = computed(() => {
+  // If no active map or no tilesets defined (legacy), show all default
+  const allTabs = ['A', 'B', 'C', 'D', 'Roofs']
+  if (!store.activeMap || !store.activeMap.tilesets || store.activeMap.tilesets.length === 0) {
+    return allTabs
+  }
+
+  // Filter tabs based on map tilesets
+  // Map tilesets are like 'A1', 'A2', 'B', 'C'
+  // Tabs are 'A' (grouping A1-A5), B, C, D, Roofs
+  const mapTilesets = store.activeMap.tilesets
+  const availableTabs = new Set<string>()
+
+  mapTilesets.forEach((ts) => {
+    if (ts.startsWith('A')) availableTabs.add('A')
+    else availableTabs.add(ts)
+  })
+
+  // Sort based on original order
+  return allTabs.filter((t) => availableTabs.has(t))
+})
+
 const tabRefs = ref<HTMLElement[]>([])
 const highlightStyle = ref({
   left: '0px',
@@ -101,7 +122,7 @@ const highlightStyle = ref({
 })
 
 const updateHighlight = (): void => {
-  const activeIndex = TABS.indexOf(store.activeTab)
+  const activeIndex = TABS.value.indexOf(store.activeTab)
   const el = tabRefs.value[activeIndex]
 
   if (el) {
@@ -113,7 +134,7 @@ const updateHighlight = (): void => {
 }
 
 watch(
-  () => store.activeTab,
+  [() => store.activeTab, TABS],
   () => {
     nextTick(updateHighlight)
   },
