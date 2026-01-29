@@ -1,11 +1,14 @@
-import { ZSystem, ZEventTrigger } from '@engine/types'
+import { ZSystem, ZEngineSignal } from '@engine/types'
 import { InputManager } from '@engine/managers/InputManager'
 import { MapManager } from '@engine/managers/MapManager'
+import { ZEventBus } from '@engine/core/ZEventBus'
+import ZLogger from '@engine/core/ZLogger'
 
 export class PlayerSystem extends ZSystem {
   private inputManager: InputManager
   private mapManager: MapManager
   private tileSize: number
+  private eventBus: ZEventBus
 
   // Player state (runtime)
   // In a full implementation, this should be in an Entity component
@@ -22,11 +25,17 @@ export class PlayerSystem extends ZSystem {
   private targetX: number = 0
   private targetY: number = 0
 
-  constructor(inputManager: InputManager, mapManager: MapManager, tileSize: number) {
+  constructor(
+    inputManager: InputManager,
+    mapManager: MapManager,
+    tileSize: number,
+    eventBus: ZEventBus
+  ) {
     super()
     this.inputManager = inputManager
     this.mapManager = mapManager
     this.tileSize = tileSize
+    this.eventBus = eventBus
   }
 
   public onBoot(): void {
@@ -76,7 +85,9 @@ export class PlayerSystem extends ZSystem {
 
       const result = this.mapManager.checkPassage(this.x, this.y, this.x + dx, this.y + dy)
       // LOG ENABLED FORCEFULLY
-      console.log(`[PlayerSystem] Move to ${this.x + dx},${this.y + dy}. Passable: ${result}`)
+      ZLogger.with('PlayerSystem').info(
+        `Move to ${this.x + dx},${this.y + dy}. Passable: ${result}`
+      )
 
       if (result) {
         this.targetX = this.x + dx
@@ -85,37 +96,19 @@ export class PlayerSystem extends ZSystem {
       }
     }
 
-    if (this.inputManager.isKeyDown('Enter') || this.inputManager.isKeyDown(' ')) {
-      this.checkTrigger(ZEventTrigger.Action)
-    }
-  }
-
-  private checkTrigger(trigger: ZEventTrigger): void {
-    if (this.isMoving && trigger === ZEventTrigger.Action) return
-
-    let tx = this.x
-    let ty = this.y
-
-    if (trigger === ZEventTrigger.Action) {
+    if (
+      this.inputManager.isKeyDown('Enter') ||
+      this.inputManager.isKeyDown(' ') ||
+      this.inputManager.isKeyDown('z')
+    ) {
+      let tx = this.x
+      let ty = this.y
       if (this.direction === 'left') tx--
       else if (this.direction === 'right') tx++
       else if (this.direction === 'up') ty--
       else if (this.direction === 'down') ty++
-    }
 
-    const events = this.mapManager.getEventsAt(tx, ty)
-    const activeEvent = events.find((e) => {
-      const page = e.pages[e.pages.length - 1] // TODO: Real condition check
-      return page && page.trigger === trigger
-    })
-
-    if (activeEvent) {
-      console.log(`[PlayerSystem] Triggered event ${activeEvent.id} via ${ZEventTrigger[trigger]}`)
-      // @ts-ignore - $zEngine is a global debugging/access reference
-      if (window.$zEngine?.eventSystem) {
-        // @ts-ignore - $zEngine is a global debugging/access reference
-        window.$zEngine.eventSystem.startEvent(activeEvent)
-      }
+      this.eventBus.emit(ZEngineSignal.InteractionRequested, { x: tx, y: ty })
     }
   }
 
@@ -145,12 +138,18 @@ export class PlayerSystem extends ZSystem {
     }
 
     if (arrived) {
+      const prevX = this.x
+      const prevY = this.y
       this.isMoving = false
       this.x = this.targetX
       this.y = this.targetY
 
-      // Post-move trigger check (Player Touch)
-      this.checkTrigger(ZEventTrigger.PlayerTouch)
+      this.eventBus.emit(ZEngineSignal.PlayerMoved, {
+        x: this.x,
+        y: this.y,
+        prevX,
+        prevY
+      })
     }
   }
 

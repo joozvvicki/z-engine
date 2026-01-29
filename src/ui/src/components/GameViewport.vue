@@ -5,7 +5,8 @@ import { useEditorStore } from '@ui/stores/editor'
 import { type FederatedPointerEvent } from '@engine/utils/pixi'
 import { IconAlertTriangle } from '@tabler/icons-vue'
 import EventEditor from './modal/EventEditor.vue'
-import { ZLayer, ZTool } from '@engine/types'
+import PlayMessage from './PlayMessage.vue'
+import { ZLayer, ZTool, type TileSelection } from '@engine/types'
 import { useViewport } from '@ui/composables/useViewport'
 import { useEditorTools } from '@ui/composables/useEditorTools'
 import { nextTick } from 'vue'
@@ -26,6 +27,15 @@ const dataProvider = {
   getTilesetUrl: (slotId: string) => {
     const ts = store.tilesets.find((t) => t.id === slotId)
     return ts?.url || ''
+  },
+  setTileAt: (
+    x: number,
+    y: number,
+    tile: TileSelection | null,
+    isStacking: boolean,
+    layer: ZLayer
+  ) => {
+    store.setTileAt(x, y, tile, isStacking, layer)
   }
 }
 const isPointerDown = ref(false)
@@ -163,7 +173,6 @@ const initEngine = async (): Promise<void> => {
   )
 
   await engine.init(canvasContainer.value, store.tileSize)
-  // @ts-ignore - engine is assigned after init and accessed globally by systems
   window.$zEngine = engine
 
   engine.app.stage.on('pointerdown', onPointerDown)
@@ -229,28 +238,14 @@ watch(
 watch(
   () => store.tilesetConfigs,
   (newConfigs) => {
-    if (engine && engine.mapManager) {
-      engine.mapManager.setTilesetConfigs(newConfigs)
-      // If configs change, we might need to re-render to apply new z-indexes?
-      // Yes, because performDrawTile uses configs for zIndex.
-      // Force full re-render?
-      // engine.renderSystem?.forceFullRender() // Method not exists yet, but setMap triggers it.
-      // We can trigger revisualization if needed.
-      // For now, let's just update data. Visual update requires map reload or tile update.
+    if (engine && engine.tilesetManager) {
+      engine.tilesetManager.setConfigs(newConfigs)
       engine.renderSystem?.refresh()
     }
   },
   { deep: true, immediate: true }
 )
 
-watch(
-  () => store.historyIndex,
-  async () => {
-    if (engine && store.activeMap) {
-      await engine.setMap(store.activeMap)
-    }
-  }
-)
 watch(
   () => store.currentTool,
   () => {
@@ -352,6 +347,8 @@ onUnmounted(() => {
       :y="activeEventCoords.y"
       @close="clearEventSelection"
     />
+
+    <PlayMessage />
   </div>
 </template>
 

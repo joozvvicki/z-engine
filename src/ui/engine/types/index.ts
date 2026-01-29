@@ -159,7 +159,28 @@ export interface TileConfig {
 export type TilesetConfig = Record<string, TileConfig> // Key is tileId ("x_y") -> "0_0", "1_0" etc.
 
 export enum ZCommandCode {
+  ShowMessage = 101,
   TransferPlayer = 201
+}
+
+export type ZCommandResult = 'continue' | 'wait' | 'stop'
+
+export interface ZCommandProcessor {
+  (params: unknown[]): ZCommandResult
+}
+
+export interface ZTileDelta {
+  x: number
+  y: number
+  layer: ZLayer
+  oldStack: TileSelection[] | null
+  newStack: TileSelection[] | null
+}
+
+export interface ZHistoryEntry {
+  id: string
+  label: string
+  deltas: ZTileDelta[]
 }
 
 /**
@@ -170,4 +191,29 @@ export interface ZDataProvider {
   getMap(id: number): Promise<ZMap | null>
   getTilesetConfigs(): Promise<Record<string, TilesetConfig>> // URL-indexed
   getTilesetUrl(slotId: string): string // Resolver for slotId -> default URL
+  setTileAt(
+    x: number,
+    y: number,
+    tile: TileSelection | null,
+    isStacking: boolean,
+    layer: ZLayer
+  ): void
+}
+/**
+ * Core engine signals for internal communication via Event Bus.
+ */
+export enum ZEngineSignal {
+  PlayerMoved = 'player:moved',
+  MapLoaded = 'map:loaded',
+  EventTriggered = 'event:triggered',
+  InteractionRequested = 'interaction:requested',
+  ShowMessage = 'ui:show-message'
+}
+
+export interface ZSignalData {
+  [ZEngineSignal.PlayerMoved]: { x: number; y: number; prevX: number; prevY: number }
+  [ZEngineSignal.MapLoaded]: { mapId: number; map: ZMap }
+  [ZEngineSignal.EventTriggered]: { event: ZEvent; trigger: ZEventTrigger }
+  [ZEngineSignal.InteractionRequested]: { x: number; y: number }
+  [ZEngineSignal.ShowMessage]: { text: string }
 }

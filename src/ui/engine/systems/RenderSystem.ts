@@ -3,6 +3,7 @@ import { TextureManager } from '../managers/TextureManager'
 import { AutotileSolver } from '@engine/utils/AutotileSolver'
 import { ZSystem, type ZMap, type TileSelection, ZLayer } from '@engine/types'
 import { MapManager } from '@engine/managers/MapManager'
+import { TilesetManager } from '../managers/TilesetManager'
 
 export class RenderSystem extends ZSystem {
   private layers: Record<ZLayer, PIXI.Container>
@@ -13,6 +14,7 @@ export class RenderSystem extends ZSystem {
 
   private wrapper: PIXI.Container
   private mapManager: MapManager
+  private tilesetManager: TilesetManager
 
   private fullRenderDirty: boolean = false
   private tileUpdates: { x: number; y: number; layer: ZLayer; tiles: TileSelection[] }[] = []
@@ -21,6 +23,7 @@ export class RenderSystem extends ZSystem {
     stage: PIXI.Container,
     textureManager: TextureManager,
     mapManager: MapManager,
+    tilesetManager: TilesetManager,
     tileSize: number
   ) {
     super()
@@ -28,6 +31,7 @@ export class RenderSystem extends ZSystem {
 
     this.textureManager = textureManager
     this.mapManager = mapManager
+    this.tilesetManager = tilesetManager
     this.tileSize = tileSize
 
     this.layers = null!
@@ -121,18 +125,6 @@ export class RenderSystem extends ZSystem {
     this.tileUpdates.push({ x, y, layer, tiles })
   }
 
-  private normalizeUrl(url: string): string {
-    if (!url) return ''
-    try {
-      if (url.startsWith('http')) {
-        return new URL(url).pathname
-      }
-    } catch {
-      // Fallback
-    }
-    return url
-  }
-
   public setMap(mapData: ZMap): void {
     this.mapManager.setMap(mapData)
     this.fullRenderDirty = true
@@ -151,29 +143,17 @@ export class RenderSystem extends ZSystem {
 
     if (!tiles || tiles.length === 0) return
 
-    const configs = this.mapManager.getTilesetConfigs()
-
     // 2. Iterate each tile in the stack individually
     tiles.forEach((selection, index) => {
       const tex = this.textureManager.get(selection.tilesetId)
       if (!tex) return
 
       // --- Determine Priority & Offset for THIS tile ---
-      let isHighPriority = false
-      let ySortOffset = 0
+      const tilesetUrl = mapData.tilesetConfig?.[selection.tilesetId] || selection.tilesetId
+      const config = this.tilesetManager.getTileConfig(tilesetUrl, selection.x, selection.y)
 
-      // Look up config
-      if (configs) {
-        const key = `${selection.x}_${selection.y}`
-        const tilesetUrl = this.normalizeUrl(
-          mapData.tilesetConfig?.[selection.tilesetId] || selection.tilesetId
-        )
-        const config = configs[tilesetUrl]?.[key]
-        if (config) {
-          if (config.isHighPriority) isHighPriority = true
-          if (config.sortYOffset) ySortOffset = Number(config.sortYOffset)
-        }
-      }
+      const isHighPriority = config?.isHighPriority || false
+      const ySortOffset = config?.sortYOffset ? Number(config.sortYOffset) : 0
 
       // --- Create Wrapper ---
       const wrapper = new PIXI.Container()

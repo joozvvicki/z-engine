@@ -34,8 +34,8 @@ const togglePlay = (): void => {
     }
   }
 
-  if (window['$zEngine']) {
-    window['$zEngine'].setMode(store.isTestMode ? 'play' : 'edit')
+  if (window.$zEngine) {
+    window.$zEngine.setMode(store.isTestMode ? 'play' : 'edit')
   }
 }
 
@@ -252,7 +252,7 @@ onMounted(() => {
 <template>
   <div class="absolute bottom-6 left-0 z-20 flex flex-col items-center justify-end gap-4 p-2">
     <div
-      v-if="store.currentHistory?.stack?.length !== 1"
+      v-if="store.undoCount > 0 || store.redoCount > 0"
       class="flex flex-col gap-1 bg-black/10 backdrop-blur-lg rounded-xl border border-white/5"
     >
       <button
@@ -269,17 +269,14 @@ onMounted(() => {
           class="text-white text-[0.5rem] absolute -top-1 -right-1 flex items-center justify-center"
         >
           <span
-            v-if="action.name === 'Undo' && store.currentHistory!.index !== 0"
+            v-if="action.name === 'Undo' && store.undoCount > 0"
             class="w-3 h-3 bg-red-500 rounded-full"
-            >{{ store.currentHistory?.index }}</span
+            >{{ store.undoCount }}</span
           >
           <span
-            v-if="
-              action.name === 'Redo' &&
-              store.currentHistory!.stack!.length - store.currentHistory!.index - 1 !== 0
-            "
+            v-if="action.name === 'Redo' && store.redoCount > 0"
             class="w-3 h-3 bg-red-500 rounded-full"
-            >{{ store.currentHistory!.stack!.length - store.currentHistory!.index - 1 }}</span
+            >{{ store.redoCount }}</span
           >
         </div>
         <div

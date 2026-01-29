@@ -10,8 +10,12 @@ import { initDevtools } from '@pixi/devtools'
 import { InputManager } from '../managers/InputManager'
 import { MapManager } from '../managers/MapManager'
 import { TransitionSystem } from '../systems/TransitionSystem'
+import { TilesetManager } from '../managers/TilesetManager'
+import { ToolManager } from '../managers/ToolManager'
+import { HistoryManager } from '../managers/HistoryManager'
 import ZLogger from './ZLogger'
-import { ZSystem, ZMap, ZDataProvider } from '@engine/types'
+import { ZEventBus } from './ZEventBus'
+import { ZSystem, ZMap, ZDataProvider, ZEngineSignal } from '@engine/types'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Constructor<T> = new (...args: any[]) => T
@@ -21,9 +25,13 @@ export class ZEngine {
   public textureManager: TextureManager
   public inputManager: InputManager
   public mapManager: MapManager
+  public tilesetManager: TilesetManager
+  public toolManager: ToolManager
+  public historyManager: HistoryManager
   public mode: 'edit' | 'play' = 'edit'
   public onMapChangeRequest: ((mapId: number, x: number, y: number) => Promise<void>) | null = null
   public isLoading: boolean = false
+  public eventBus: ZEventBus
 
   private dataProvider: ZDataProvider | null = null
 
@@ -106,6 +114,8 @@ export class ZEngine {
 
   public setDataProvider(provider: ZDataProvider): void {
     this.dataProvider = provider
+    this.toolManager.setDataProvider(provider)
+    this.historyManager.setDataProvider(provider)
     ZLogger.log('[ZEngine] Data Provider set')
   }
 
@@ -113,7 +123,11 @@ export class ZEngine {
     this.app = new PIXIApplication()
     this.textureManager = new TextureManager()
     this.inputManager = new InputManager()
-    this.mapManager = new MapManager()
+    this.tilesetManager = new TilesetManager()
+    this.mapManager = new MapManager(this.tilesetManager)
+    this.historyManager = new HistoryManager()
+    this.toolManager = new ToolManager(this.mapManager, this.historyManager)
+    this.eventBus = new ZEventBus()
   }
 
   public async init(container: HTMLElement, tileSize: number): Promise<void> {
@@ -135,7 +149,17 @@ export class ZEngine {
     this.app.stage.hitArea = this.app.screen
     this.app.stage.sortableChildren = true
 
-    this.addSystem(new RenderSystem(this.app.stage, this.textureManager, this.mapManager, tileSize))
+    const renderSystem = new RenderSystem(
+      this.app.stage,
+      this.textureManager,
+      this.mapManager,
+      this.tilesetManager,
+      tileSize
+    )
+    this.addSystem(renderSystem)
+    this.toolManager.setRenderSystem(renderSystem)
+    this.historyManager.setManagers(this.mapManager, renderSystem)
+
     this.addSystem(new GhostSystem(this.app.stage, this.textureManager, tileSize))
     this.addSystem(new GridSystem(this.app.stage, this.textureManager, tileSize))
     const transitionSystem = new TransitionSystem(this.app.stage)
@@ -143,13 +167,17 @@ export class ZEngine {
     // Initial resize to match screen
     transitionSystem.resize(this.app.screen.width, this.app.screen.height)
 
-    const playerSystem = new PlayerSystem(this.inputManager, this.mapManager, tileSize)
+    const playerSystem = new PlayerSystem(
+      this.inputManager,
+      this.mapManager,
+      tileSize,
+      this.eventBus
+    )
     this.addSystem(playerSystem)
 
-    // EventSystem depends on PlayerSystem
-    this.addSystem(new EventSystem(this, this.mapManager, playerSystem))
+    // EventSystem depends on PlayerSystem (for collision/triggering)
+    this.addSystem(new EventSystem(this, this.mapManager, playerSystem, this.eventBus))
 
-    const renderSystem = this.getSystem(RenderSystem)!
     this.addSystem(
       new EntityRenderSystem(
         this.app.stage,
@@ -212,7 +240,7 @@ export class ZEngine {
 
       // 2. Load Collision Configs
       const configs = await this.dataProvider.getTilesetConfigs()
-      this.mapManager.setTilesetConfigs(configs)
+      this.tilesetManager.setConfigs(configs)
     }
 
     // 3. Preload all required textures
@@ -228,6 +256,8 @@ export class ZEngine {
 
     this.isLoading = false
     ZLogger.log(`[ZEngine] Map ${map.id} loaded and rendered`)
+
+    this.eventBus.emit(ZEngineSignal.MapLoaded, { mapId: map.id, map })
   }
 
   public async transferPlayer(mapId: number, x: number, y: number): Promise<void> {
