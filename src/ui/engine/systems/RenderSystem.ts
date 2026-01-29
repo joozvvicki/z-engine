@@ -186,7 +186,7 @@ export class RenderSystem extends ZSystem {
       // For Trees layer, we match Player sorting:
       // Player Z ~= (y + 1) * tileSize + 1 (feet)
       // Tile Base Z ~= (y + 1) * tileSize
-      let baseZ = (y + 1) * this.tileSize
+      const baseZ = (y + 1) * this.tileSize
 
       if (!isHighPriority) {
         // Normal Layer (Ground, Walls, Trees, Decoration)
