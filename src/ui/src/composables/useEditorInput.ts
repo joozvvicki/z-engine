@@ -74,6 +74,7 @@ export const useEditorInput = (
   }
 
   const onPointerMove = (event: FederatedPointerEvent): void => {
+    if (store.isTestMode) return
     if (isPanning.value) {
       updatePan(event.global.x, event.global.y, canvasContainer.value)
       return
@@ -103,6 +104,10 @@ export const useEditorInput = (
   }
 
   const onPointerUp = (event: FederatedPointerEvent): void => {
+    if (store.isTestMode) {
+      isPointerDown.value = false
+      return
+    }
     if (isPanning.value) {
       endPan()
       return

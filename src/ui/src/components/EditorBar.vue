@@ -21,7 +21,7 @@ const store = useEditorStore()
 
 const previousLayer = ref<ZLayer | null>(null)
 
-const togglePlay = (): void => {
+const togglePlay = (event?: MouseEvent): void => {
   store.toggleTestMode()
 
   if (store.isTestMode) {
@@ -34,8 +34,9 @@ const togglePlay = (): void => {
     }
   }
 
-  if (window.$zEngine) {
-    window.$zEngine.setMode(store.isTestMode ? 'play' : 'edit')
+  // Blur focus to prevent keyboard trap
+  if (event?.currentTarget instanceof HTMLElement) {
+    event.currentTarget.blur()
   }
 }
 

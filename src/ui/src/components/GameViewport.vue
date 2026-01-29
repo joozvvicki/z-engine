@@ -11,7 +11,7 @@ const canvasContainer = ref<HTMLElement | null>(null)
 const store = useEditorStore()
 
 // 1. Initialize Engine & State Sync
-const { engine, initEngine } = useEngine(canvasContainer)
+const { engine, initEngine, isLoading } = useEngine(canvasContainer)
 
 // 2. Handle Inputs & Viewport
 const {
@@ -40,7 +40,7 @@ onMounted(async () => {
   // Handle Deletion
   window.addEventListener('keydown', (e) => {
     if ((e.key === 'Delete' || e.key === 'Backspace') && engine.value) {
-      if (store.selectionCoords) {
+      if (store.selectionCoords && !store.isTestMode) {
         deleteSelection(engine.value)
       }
     }
@@ -54,6 +54,19 @@ onMounted(async () => {
     tabindex="0"
     @wheel.prevent="onWheel"
   >
+    <!-- Loading Overlay -->
+    <div
+      v-if="isLoading"
+      class="absolute inset-0 z-50 flex items-center justify-center bg-white/20 backdrop-blur-md transition-all duration-300 pointer-events-auto"
+    >
+      <div class="flex flex-col items-center gap-4">
+        <div
+          class="w-12 h-12 border-4 border-black/10 border-t-black rounded-full animate-spin"
+        ></div>
+        <p class="text-xs font-black uppercase tracking-[0.2em] text-black/60">Loading Map</p>
+      </div>
+    </div>
+
     <div
       v-if="!store.activeMap"
       class="text-white/20 flex flex-col items-center pointer-events-none select-none"
@@ -65,7 +78,8 @@ onMounted(async () => {
     <div
       v-else
       ref="canvasContainer"
-      class="transition-opacity duration-300 delay-500 shadow-2xl bg-white border border-black/50 border-box"
+      class="shadow-2xl bg-white border border-black/50 border-box"
+      :class="{ 'opacity-0': isLoading }"
     ></div>
 
     <!-- Stats Bar -->

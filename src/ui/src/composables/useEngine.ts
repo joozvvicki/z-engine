@@ -62,7 +62,6 @@ export const useEngine = (
     canvasContainer.value.style.height = `${h}px`
 
     const newEngine = new ZEngine()
-    engine.value = newEngine
     window.$zEngine = newEngine
 
     newEngine.setDataProvider(dataProvider)
@@ -82,12 +81,14 @@ export const useEngine = (
         return newEngine.services.require(TextureManager).loadTileset(name, url)
       })
     )
-
     await newEngine.init(canvasContainer.value, store.tileSize)
 
     if (store.activeMap) {
       await newEngine.services.require(SceneManager).loadMap(store.activeMap)
     }
+
+    // Now set the engine ref to trigger watchers with a fully initialized engine
+    engine.value = newEngine
 
     // Grid Size setup
     const isEventTool = store.currentTool === ZTool.event
@@ -181,23 +182,31 @@ export const useEngine = (
 
   // 4. Layer Dimming & Focus
   watch(
-    () => [store.activeLayer, store.isTestMode, store.currentTool],
-    ([layer, isTest, tool]) => {
-      if (engine.value) {
-        const renderSystem = engine.value.services.get(RenderSystem)
+    () => ({
+      eng: engine.value,
+      layer: store.activeLayer,
+      isTest: store.isTestMode,
+      tool: store.currentTool
+    }),
+    ({ eng, layer, isTest, tool }, old) => {
+      if (eng) {
+        const renderSystem = eng.services.get(RenderSystem)
         if (renderSystem) {
+          // Only trigger mode switch if isTest actually changed OR if engine just became available
+          if (isTest !== old?.isTest || eng !== old?.eng) {
+            eng.setMode(isTest ? 'play' : 'edit')
+          }
+
           if (isTest) {
-            engine.value.setMode('play')
             renderSystem.updateLayerDimming(null)
             renderSystem.setEventMarkersVisible(false)
           } else {
-            engine.value.setMode('edit')
             if (tool === ZTool.event) {
               renderSystem.updateLayerDimming(ZLayer.events, true)
               renderSystem.setEventMarkersVisible(true)
             } else {
               renderSystem.updateLayerDimming(layer as ZLayer, false)
-              renderSystem.setEventMarkersVisible(true)
+              renderSystem.setEventMarkersVisible(false)
             }
           }
         }
