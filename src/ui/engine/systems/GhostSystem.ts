@@ -2,6 +2,8 @@ import PIXI from '../utils/pixi'
 import { TextureManager } from '../managers/TextureManager'
 import { ZSystem, type TileSelection, ZTool, ZLayer } from '@engine/types'
 
+import { ServiceLocator } from '@engine/core/ServiceLocator'
+
 export class GhostSystem extends ZSystem {
   private container: PIXI.Container
   private textureManager: TextureManager
@@ -19,12 +21,13 @@ export class GhostSystem extends ZSystem {
   private shapeEnd: { x: number; y: number } | null = null
   private isShape: boolean = false
 
-  constructor(stage: PIXI.Container, textureManager: TextureManager, tileSize: number) {
+  constructor(stage: PIXI.Container, services: ServiceLocator, tileSize: number) {
     super()
 
     this.wrapper = stage
-    this.textureManager = textureManager
+    this.textureManager = services.require(TextureManager)
     this.tileSize = tileSize
+
     this.container = null!
   }
 

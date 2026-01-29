@@ -2,6 +2,7 @@ import { ZSystem, ZEngineSignal } from '@engine/types'
 import { Container, Graphics, Text } from 'pixi.js'
 import { ZEventBus } from '@engine/core/ZEventBus'
 import { InputManager } from '@engine/managers/InputManager'
+import { ServiceLocator } from '@engine/core/ServiceLocator'
 
 export class MessageSystem extends ZSystem {
   private container: Container
@@ -17,7 +18,7 @@ export class MessageSystem extends ZSystem {
   private boxHeight: number = 120
   private padding: number = 20
 
-  constructor(stage: Container, eventBus: ZEventBus, inputManager: InputManager) {
+  constructor(stage: Container, services: ServiceLocator) {
     super()
     this.container = new Container()
     this.container.visible = false
@@ -27,8 +28,8 @@ export class MessageSystem extends ZSystem {
     stage.sortableChildren = true
     stage.addChild(this.container)
 
-    this.eventBus = eventBus
-    this.inputManager = inputManager
+    this.eventBus = services.require(ZEventBus)
+    this.inputManager = services.require(InputManager)
   }
 
   public onBoot(): void {

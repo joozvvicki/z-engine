@@ -4,6 +4,7 @@ import { AutotileSolver } from '@engine/utils/AutotileSolver'
 import { ZSystem, type ZMap, type TileSelection, ZLayer } from '@engine/types'
 import { MapManager } from '@engine/managers/MapManager'
 import { TilesetManager } from '../managers/TilesetManager'
+import { ServiceLocator } from '@engine/core/ServiceLocator'
 
 export class RenderSystem extends ZSystem {
   private layers: Record<ZLayer, PIXI.Container>
@@ -19,19 +20,13 @@ export class RenderSystem extends ZSystem {
   private fullRenderDirty: boolean = false
   private tileUpdates: { x: number; y: number; layer: ZLayer; tiles: TileSelection[] }[] = []
 
-  constructor(
-    stage: PIXI.Container,
-    textureManager: TextureManager,
-    mapManager: MapManager,
-    tilesetManager: TilesetManager,
-    tileSize: number
-  ) {
+  constructor(stage: PIXI.Container, services: ServiceLocator, tileSize: number) {
     super()
     this.wrapper = stage
 
-    this.textureManager = textureManager
-    this.mapManager = mapManager
-    this.tilesetManager = tilesetManager
+    this.textureManager = services.require(TextureManager)
+    this.mapManager = services.require(MapManager)
+    this.tilesetManager = services.require(TilesetManager)
     this.tileSize = tileSize
 
     this.layers = null!

@@ -1,6 +1,8 @@
 import PIXI from '../utils/pixi'
-import { TextureManager } from '../managers/TextureManager'
+
 import { ZSystem } from '@engine/types'
+
+import { ServiceLocator } from '@engine/core/ServiceLocator'
 
 export class GridSystem implements ZSystem {
   private container: PIXI.Container
@@ -14,7 +16,7 @@ export class GridSystem implements ZSystem {
   private height: number = 0
   private dirty: boolean = false
 
-  constructor(stage: PIXI.Container, _textureManager: TextureManager, tileSize: number) {
+  constructor(stage: PIXI.Container, _services: ServiceLocator, tileSize: number) {
     this.wrapper = stage
     this.tileSize = tileSize
 

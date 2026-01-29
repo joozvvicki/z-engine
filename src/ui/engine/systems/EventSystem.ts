@@ -12,14 +12,17 @@ import {
 } from '@engine/types'
 import { MapManager } from '@engine/managers/MapManager'
 import { PlayerSystem } from './PlayerSystem'
-import type { ZEngine } from '../core/ZEngine'
+
 import { ZEventBus } from '../core/ZEventBus'
+import { ServiceLocator } from '../core/ServiceLocator'
+import { SceneManager } from '../managers/SceneManager'
 
 export class EventSystem extends ZSystem {
+  private services: ServiceLocator
   private mapManager: MapManager
   // @ts-ignore - playerSystem is used for positioning (WIP)
   private playerSystem: PlayerSystem
-  private engine: ZEngine
+  private sceneManager: SceneManager
   private eventBus: ZEventBus
 
   // Runtime state
@@ -34,17 +37,15 @@ export class EventSystem extends ZSystem {
   // Command Processor Registry
   private processors: Map<number, ZCommandProcessor> = new Map()
 
-  constructor(
-    engine: ZEngine,
-    mapManager: MapManager,
-    playerSystem: PlayerSystem,
-    eventBus: ZEventBus
-  ) {
+  constructor(services: ServiceLocator) {
     super()
-    this.engine = engine
-    this.mapManager = mapManager
-    this.playerSystem = playerSystem
-    this.eventBus = eventBus
+    this.services = services
+    this.mapManager = services.require(MapManager)
+    this.eventBus = services.require(ZEventBus)
+
+    // These will be retrieved lazily since they might not be registered yet
+    this.sceneManager = null as any // Will be set in onBoot
+    this.playerSystem = null as any // Will be set in onBoot
 
     this.registerCommands()
   }
@@ -55,6 +56,10 @@ export class EventSystem extends ZSystem {
   }
 
   public onBoot(): void {
+    // Lazily retrieve dependencies that might not have been registered during constructor
+    this.sceneManager = this.services.require(SceneManager)
+    this.playerSystem = this.services.require(PlayerSystem)
+
     this.eventBus.on(ZEngineSignal.EventTriggered, ({ event }) => {
       this.startEvent(event)
     })
@@ -179,8 +184,8 @@ export class EventSystem extends ZSystem {
     const y = params[2] as number
     // const direction = params[3]
 
-    // Orchestrate transfer via ZEngine (handles fades and store sync)
-    this.engine.transferPlayer(mapId, x, y)
+    // Orchestrate transfer via SceneManager (handles fades and store sync)
+    this.sceneManager.changeScene(mapId, x, y)
 
     return 'stop' // Stop processing current event (it will be destroyed on map switch)
   }

@@ -2,6 +2,7 @@ import { ZSystem, ZEngineSignal } from '@engine/types'
 import { InputManager } from '@engine/managers/InputManager'
 import { MapManager } from '@engine/managers/MapManager'
 import { ZEventBus } from '@engine/core/ZEventBus'
+import { ServiceLocator } from '@engine/core/ServiceLocator'
 import ZLogger from '@engine/core/ZLogger'
 
 export class PlayerSystem extends ZSystem {
@@ -28,17 +29,12 @@ export class PlayerSystem extends ZSystem {
   // Input blocking (e.g., during messages)
   private isInputBlocked: boolean = false
 
-  constructor(
-    inputManager: InputManager,
-    mapManager: MapManager,
-    tileSize: number,
-    eventBus: ZEventBus
-  ) {
+  constructor(services: ServiceLocator, tileSize: number) {
     super()
-    this.inputManager = inputManager
-    this.mapManager = mapManager
+    this.inputManager = services.require(InputManager)
+    this.mapManager = services.require(MapManager)
+    this.eventBus = services.require(ZEventBus)
     this.tileSize = tileSize
-    this.eventBus = eventBus
   }
 
   public onBoot(): void {

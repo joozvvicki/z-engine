@@ -4,6 +4,7 @@ import { PlayerSystem } from './PlayerSystem'
 import { TextureManager } from '@engine/managers/TextureManager'
 import { RenderSystem } from './RenderSystem'
 import { MapManager } from '@engine/managers/MapManager'
+import { ServiceLocator } from '@engine/core/ServiceLocator'
 
 export class EntityRenderSystem extends ZSystem {
   private container: PIXI.Container
@@ -35,21 +36,22 @@ export class EntityRenderSystem extends ZSystem {
   private textureManager: TextureManager
   private eventSprites: Map<string, PIXI.Container | PIXI.Sprite> = new Map()
 
-  constructor(
-    _stage: PIXI.Container,
-    playerSystem: PlayerSystem,
-    textureManager: TextureManager,
-    tileSize: number,
-    renderSystem: RenderSystem,
-    mapManager: MapManager
-  ) {
+  private services: ServiceLocator
+
+  constructor(services: ServiceLocator, tileSize: number) {
     super()
-    this.playerSystem = playerSystem
+    this.services = services
     this.tileSize = tileSize
-    this.renderSystem = renderSystem
-    this.mapManager = mapManager
-    this.textureManager = textureManager
-    this.container = null!
+
+    this.container = new PIXI.Container()
+
+    // Dependencies from services
+    this.textureManager = services.require(TextureManager)
+    this.mapManager = services.require(MapManager)
+
+    // Lazy load these in onBoot
+    this.playerSystem = null as any
+    this.renderSystem = null as any
   }
 
   public loadEvents(): void {
@@ -113,6 +115,10 @@ export class EntityRenderSystem extends ZSystem {
   }
 
   public async onBoot(): Promise<void> {
+    // Retrieve dependencies lazily
+    this.playerSystem = this.services.require(PlayerSystem)
+    this.renderSystem = this.services.require(RenderSystem)
+
     // We want to sort with Decoration layer (to interleave with tiles)
     this.container = this.renderSystem.getLayerContainer(ZLayer.decoration)
 
