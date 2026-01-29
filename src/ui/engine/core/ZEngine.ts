@@ -15,6 +15,7 @@ import { TransitionSystem } from '../systems/TransitionSystem'
 import { TilesetManager } from '../managers/TilesetManager'
 import { ToolManager } from '../managers/ToolManager'
 import { HistoryManager } from '../managers/HistoryManager'
+import { GameStateManager } from '../managers/GameStateManager'
 import ZLogger from './ZLogger'
 import { ZEventBus } from './ZEventBus'
 import { ServiceLocator } from './ServiceLocator'
@@ -125,6 +126,7 @@ export class ZEngine {
     this.sceneManager.setDataProvider(provider)
     this.services.require(ToolManager).setDataProvider(provider)
     this.services.require(HistoryManager).setDataProvider(provider)
+    this.services.require(GameStateManager).setDataProvider(provider)
     ZLogger.log('[ZEngine] Data Provider set')
   }
 
@@ -152,6 +154,7 @@ export class ZEngine {
     this.services.register(ToolManager, toolManager)
     this.services.register(SceneManager, sceneManager)
     this.services.register(ZEventBus, eventBus)
+    this.services.register(GameStateManager, new GameStateManager(this.services))
     this.services.register('ZEngine', this)
 
     ZLogger.log(

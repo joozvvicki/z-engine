@@ -208,7 +208,8 @@ export enum ZEngineSignal {
   EventTriggered = 'event:triggered',
   InteractionRequested = 'interaction:requested',
   ShowMessage = 'ui:show-message',
-  MessageClosed = 'ui:message-closed'
+  MessageClosed = 'ui:message-closed',
+  GameStateChanged = 'state:changed'
 }
 
 export interface ZSignalData {
@@ -218,4 +219,9 @@ export interface ZSignalData {
   [ZEngineSignal.InteractionRequested]: { x: number; y: number }
   [ZEngineSignal.ShowMessage]: { text: string }
   [ZEngineSignal.MessageClosed]: Record<string, never>
+  [ZEngineSignal.GameStateChanged]: {
+    type: 'switch' | 'variable' | 'load' | 'new'
+    id?: number
+    value?: boolean | number
+  }
 }

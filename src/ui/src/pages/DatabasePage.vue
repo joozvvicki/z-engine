@@ -13,6 +13,8 @@ import {
 } from '@tabler/icons-vue'
 import NavButton from '@ui/components/NavButton.vue'
 
+import SystemTab from '@ui/components/database/SystemTab.vue'
+
 const currentTab = ref('actors')
 
 const tabs = [
@@ -37,6 +39,7 @@ const tabs = [
     <main class="flex-1 p-2 verflow-hidden flex flex-col">
       <div class="flex-1 overflow-hidden bg-white rounded-lg shadow-2xl border border-white/5 p-4">
         <ActorsTab v-if="currentTab === 'actors'" />
+        <SystemTab v-else-if="currentTab === 'system'" />
 
         <div v-else class="w-full h-full flex flex-col items-center justify-center text-white/20">
           <IconSettings :size="48" class="mb-4 opacity-20" />

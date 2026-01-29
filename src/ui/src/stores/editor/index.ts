@@ -66,6 +66,14 @@ export const useEditorStore = defineStore('editor', () => {
     >
   >('Z_TilesetConfigs', {})
 
+  // System Data (Database)
+  const systemSwitches = useLocalStorage<string[]>('Z_SystemSwitches', [])
+  const systemVariables = useLocalStorage<string[]>('Z_SystemVariables', [])
+
+  // Ensure initial size
+  if (systemSwitches.value.length === 0) systemSwitches.value = new Array(20).fill('')
+  if (systemVariables.value.length === 0) systemVariables.value = new Array(20).fill('')
+
   const updateTileConfig = (
     tilesetUrl: string,
     x: number,
@@ -669,6 +677,9 @@ export const useEditorStore = defineStore('editor', () => {
 
     saveProject,
     exportMapAsJSON,
-    importMapFromJSON
+    importMapFromJSON,
+    // System
+    systemSwitches,
+    systemVariables
   }
 })

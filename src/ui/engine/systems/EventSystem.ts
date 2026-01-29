@@ -17,6 +17,7 @@ import { ZEventBus } from '../core/ZEventBus'
 import { ServiceLocator } from '../core/ServiceLocator'
 import { SceneManager } from '../managers/SceneManager'
 import { InputManager } from '../managers/InputManager'
+import { GameStateManager } from '../managers/GameStateManager'
 
 export class EventSystem extends ZSystem {
   private services: ServiceLocator
@@ -118,8 +119,31 @@ export class EventSystem extends ZSystem {
     }
   }
 
-  private checkPageConditions(_conditions: ZEventCondition): boolean {
-    // TODO: Implement Switches/Variables check
+  private checkPageConditions(conditions: ZEventCondition): boolean {
+    const gameState = this.services.require(GameStateManager)
+
+    // 1. Switch 1
+    if (conditions.switch1Id) {
+      const val = gameState.getSwitch(Number(conditions.switch1Id))
+      if (!val) return false
+    }
+
+    // 2. Switch 2
+    if (conditions.switch2Id) {
+      const val = gameState.getSwitch(Number(conditions.switch2Id))
+      if (!val) return false
+    }
+
+    // 3. Variable >= Value
+    if (conditions.variableId && conditions.variableValue !== undefined) {
+      const val = gameState.getVariable(Number(conditions.variableId))
+      if (val < conditions.variableValue) return false
+    }
+
+    // 4. TODO: Self Switch
+    // 5. TODO: Item
+    // 6. TODO: Actor
+
     return true
   }
 
