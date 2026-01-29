@@ -272,6 +272,32 @@ export class RenderSystem extends ZSystem {
     this.eventMarkers.forEach((c) => (c.visible = visible))
   }
 
+  public updateLayerDimming(activeLayer: ZLayer | null): void {
+    // If no active layer (or Play Mode), reset all to alpha 1
+    if (!activeLayer) {
+      Object.values(this.layers).forEach((c) => (c.alpha = 1))
+      return
+    }
+
+    const activeContainer = this.layers[activeLayer]
+    if (!activeContainer) return
+
+    const activeZ = activeContainer.zIndex
+
+    // Loop through all layers
+    Object.values(this.layers).forEach((container) => {
+      if (container === activeContainer) {
+        container.alpha = 1
+      } else if (container.zIndex > activeZ) {
+        // Higher layer -> DIM IT (so we can see the active layer)
+        container.alpha = 0.3
+      } else {
+        // Lower layer -> Keep visible (context)
+        container.alpha = 1
+      }
+    })
+  }
+
   private renderEvents(mapData: ZMap): void {
     this.eventMarkers = [] // Reset list (containers cleared by resetLayers? No, renderEvents runs after resetLayers usually, wait)
     // resetLayers clears children of layers. So old markers are gone from PIXI.

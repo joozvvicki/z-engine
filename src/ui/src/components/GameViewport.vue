@@ -5,7 +5,7 @@ import { useEditorStore } from '@ui/stores/editor'
 import { type FederatedPointerEvent } from '@engine/utils/pixi'
 import { IconAlertTriangle } from '@tabler/icons-vue'
 import EventEditor from './modal/EventEditor.vue'
-import { ZTool } from '@engine/types'
+import { ZLayer, ZTool } from '@engine/types'
 import { useViewport } from '@ui/composables/useViewport'
 import { useEditorTools } from '@ui/composables/useEditorTools'
 import { nextTick } from 'vue'
@@ -210,6 +210,23 @@ watch(
       )
     }
   }
+)
+
+// Active Layer Dimming
+watch(
+  () => [store.activeLayer, store.isTestMode],
+  ([layer, isTest]) => {
+    if (engine && engine.renderSystem) {
+      if (isTest) {
+        // Play Mode: No Dimming
+        engine.renderSystem.updateLayerDimming(null)
+      } else {
+        // Edit Mode: Dim based on active layer
+        engine.renderSystem.updateLayerDimming(layer as ZLayer)
+      }
+    }
+  },
+  { immediate: true }
 )
 
 onMounted(async () => {
