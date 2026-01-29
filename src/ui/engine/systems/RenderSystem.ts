@@ -169,18 +169,10 @@ export class RenderSystem extends ZSystem {
       cellContainer.zIndex += ySortOffset
     }
 
-    // IMPORTANT: If a tile has a Custom Sort Offset, we assume the user WANTS it to interact
-    // with the Player's Z-sorting (e.g. tree trunk).
-    // Therefore, we should NOT move it to the 'Roofs' layer (High Priority), because 'Roofs'
-    // is a separate container always rendered ABOVE the Player's container ('Trees').
-    // So, if has offset, we cancel isHighPriority to keep it in the sorted layer.
-    if (isHighPriority && ySortOffset !== 0) {
-      isHighPriority = false
-      // We might want to apply a 'base' high priority bias if the user *wanted* it high but adjustable?
-      // But usually 'High Priority' means 'Above Player'.
-      // If getting complicated, user should just disable High Priority in editor.
-      // But this override makes the 'Z-Index Offset' tool strictly more powerful.
-    }
+    // IMPORTANT: If a tile has a Custom Sort Offset, we NO LONGER assume it should interact with Player's Z-sorting.
+    // If it is marked High Priority (Star), it goes to Roofs.
+    // If it has offset, that offset applies within Roofs.
+    // The previous logic that cancelled High Priority is removed to fix stacking issues.
 
     if (isHighPriority) {
       // Force sort above player by moving to Roofs layer (Index 500)
