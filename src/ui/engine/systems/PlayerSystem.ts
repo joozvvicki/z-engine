@@ -1,4 +1,4 @@
-import { ZSystem } from '@engine/types'
+import { ZSystem, ZEventTrigger } from '@engine/types'
 import { InputManager } from '@engine/managers/InputManager'
 import { MapManager } from '@engine/managers/MapManager'
 
@@ -86,55 +86,35 @@ export class PlayerSystem extends ZSystem {
     }
 
     if (this.inputManager.isKeyDown('Enter') || this.inputManager.isKeyDown(' ')) {
-      this.checkInteraction()
+      this.checkTrigger(ZEventTrigger.Action)
     }
   }
 
-  private checkInteraction(): void {
-    if (this.isMoving) return
-
-    // Limit interaction rate? Simple debounce could be added input manager side,
-    // but for now relying on single-frame check is risky if key held.
-    // InputManager needs 'isKeyPressed' (trigger once).
-    // Assuming isKeyDown is continuous, we might re-trigger.
-    // Ideally we use isKeyPressed.
-    // For now, let's just check relative to direction.
+  private checkTrigger(trigger: ZEventTrigger): void {
+    if (this.isMoving && trigger === ZEventTrigger.Action) return
 
     let tx = this.x
     let ty = this.y
 
-    if (this.direction === 'left') tx--
-    else if (this.direction === 'right') tx++
-    else if (this.direction === 'up') ty--
-    else if (this.direction === 'down') ty++
+    if (trigger === ZEventTrigger.Action) {
+      if (this.direction === 'left') tx--
+      else if (this.direction === 'right') tx++
+      else if (this.direction === 'up') ty--
+      else if (this.direction === 'down') ty++
+    }
 
-    // Find event at tx, ty
     const events = this.mapManager.getEventsAt(tx, ty)
-    // Also check events AT player position (Priority: Same Priority > Below)?
-    // RPG Maker checks Front first. If nothing, then Under.
-
-    // Let's filter for Action Trigger (0)
-    const actionEvent = events.find((e) => {
-      // We need to access the active page.
-      // Since we don't have full EventStateManager yet, we look at raw event data.
-      // In future: event.activePage.trigger === ZEventTrigger.Action
-      // For now, simple check on page 0 or last page?
-      // We need a helper to get active page.
-      // Using a simplified logic: Check last page.
-      const page = e.pages[e.pages.length - 1]
-      return page.trigger === 0 // Action
+    const activeEvent = events.find((e) => {
+      const page = e.pages[e.pages.length - 1] // TODO: Real condition check
+      return page && page.trigger === trigger
     })
 
-    if (actionEvent) {
-      console.log(`[PlayerSystem] Interacted with event ${actionEvent.id}`)
-
-      // Check if EventSystem exists
+    if (activeEvent) {
+      console.log(`[PlayerSystem] Triggered event ${activeEvent.id} via ${ZEventTrigger[trigger]}`)
+      // @ts-ignore - $zEngine is a global debugging/access reference
       if (window.$zEngine?.eventSystem) {
-        console.log('[PlayerSystem] Calling EventSystem.startEvent')
-        // @ts-ignore
-        window.$zEngine.eventSystem.startEvent(actionEvent)
-      } else {
-        console.error('[PlayerSystem] EventSystem not found on window.$zEngine')
+        // @ts-ignore - $zEngine is a global debugging/access reference
+        window.$zEngine.eventSystem.startEvent(activeEvent)
       }
     }
   }
@@ -170,7 +150,7 @@ export class PlayerSystem extends ZSystem {
       this.y = this.targetY
 
       // Post-move trigger check (Player Touch)
-      // this.checkTrigger(1) // Player Touch
+      this.checkTrigger(ZEventTrigger.PlayerTouch)
     }
   }
 

@@ -4,7 +4,7 @@ import { useEditorStore } from '@ui/stores/editor'
 import { IconDeviceFloppy, IconX } from '@tabler/icons-vue'
 
 const props = defineProps<{
-  tilesetId: string
+  tilesetUrl: string // Renamed from tilesetId to be explicit
   tileX: number
   tileY: number
   imageUrl: string
@@ -26,7 +26,7 @@ const sortYOffset = ref(0) // Default 0
 const dirBlock = ref(0) // Bitmask
 
 const initMask = (): void => {
-  const config = store.tilesetConfigs[props.tilesetId]?.[`${props.tileX}_${props.tileY}`]
+  const config = store.tilesetConfigs[props.tilesetUrl]?.[`${props.tileX}_${props.tileY}`]
   if (config?.collisionMask) {
     mask.value = [...config.collisionMask]
   } else if (config?.isSolid) {
@@ -63,7 +63,7 @@ const handlePixelClick = (e: MouseEvent): void => {
 }
 
 const save = (): void => {
-  store.updateTileConfig(props.tilesetId, props.tileX, props.tileY, {
+  store.updateTileConfig(props.tilesetUrl, props.tileX, props.tileY, {
     collisionMask: mask.value,
     sortYOffset: sortYOffset.value,
     dirBlock: dirBlock.value

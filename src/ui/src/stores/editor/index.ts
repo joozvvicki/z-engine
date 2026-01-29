@@ -67,7 +67,7 @@ export const useEditorStore = defineStore('editor', () => {
   >('Z_TilesetConfigs', {})
 
   const updateTileConfig = (
-    tilesetId: string,
+    tilesetUrl: string,
     x: number,
     y: number,
     config: Partial<{
@@ -78,16 +78,25 @@ export const useEditorStore = defineStore('editor', () => {
       dirBlock: number
     }>
   ): void => {
-    if (!storedTilesetConfigs.value[tilesetId]) {
-      storedTilesetConfigs.value[tilesetId] = {}
+    let normalizedUrl = tilesetUrl
+    try {
+      if (tilesetUrl.startsWith('http')) {
+        normalizedUrl = new URL(tilesetUrl).pathname
+      }
+    } catch {
+      // Keep original if parsing fails
+    }
+
+    if (!storedTilesetConfigs.value[normalizedUrl]) {
+      storedTilesetConfigs.value[normalizedUrl] = {}
     }
     const key = `${x}_${y}`
-    const current = storedTilesetConfigs.value[tilesetId][key] || {
+    const current = storedTilesetConfigs.value[normalizedUrl][key] || {
       isSolid: false,
       isHighPriority: false
     }
 
-    storedTilesetConfigs.value[tilesetId][key] = {
+    storedTilesetConfigs.value[normalizedUrl][key] = {
       ...current,
       ...config
     }
@@ -141,11 +150,46 @@ export const useEditorStore = defineStore('editor', () => {
     }
   }
 
+  // Scanning available tileset files
+  const availableTilesetFiles = import.meta.glob('@ui/assets/img/tilesets/*.png', {
+    eager: true,
+    as: 'url'
+  })
+
+  // Computed: Dynamically resolve tileset list for properties modal
+  const tilesetFileList = computed(() => {
+    return Object.entries(availableTilesetFiles).map(([path, url]) => {
+      const name = path.split('/').pop() || path
+      return { name, url: url as string }
+    })
+  })
+
+  // Computed: Dynamically resolve tilesets for the current map
+  const currentMapTilesets = computed(() => {
+    if (!activeMap.value) return TILESETS
+
+    const config = activeMap.value.tilesetConfig || {}
+    const result: { id: string; url: string }[] = []
+
+    // Slots A1-A5, B, C, D, E, Roofs
+    const slots = ['A1', 'A2', 'A3', 'A4', 'A5', 'B', 'C', 'D', 'Roofs']
+    slots.forEach((slot) => {
+      if (config[slot]) {
+        result.push({ id: slot, url: config[slot] })
+      } else {
+        // Fallback to default if not set
+        const def = TILESETS.find((t) => t.id === slot)
+        if (def) result.push(def)
+      }
+    })
+    return result
+  })
+
   const createMap = (
     name: string,
     width: number,
     height: number,
-    tilesets: string[] = []
+    tilesetConfig: Record<string, string> = {}
   ): void => {
     const newId =
       storedMaps.value.length > 0 ? Math.max(...storedMaps.value.map((m) => m.id)) + 1 : 1
@@ -156,7 +200,7 @@ export const useEditorStore = defineStore('editor', () => {
       height,
       layers: createEmptyLayers(width, height),
       events: [],
-      tilesets
+      tilesetConfig
     }
     storedMaps.value.push(newMap)
     activeMapID.value = newMap.id
@@ -167,55 +211,29 @@ export const useEditorStore = defineStore('editor', () => {
 
   const updateMapProperties = (
     mapId: number,
-    props: { name: string; width: number; height: number; tilesets: string[] }
+    props: { name: string; width: number; height: number; tilesetConfig: Record<string, string> }
   ): void => {
     const map = storedMaps.value.find((m) => m.id === mapId)
     if (!map) return
 
     map.name = props.name
-    map.tilesets = props.tilesets
+    map.tilesetConfig = props.tilesetConfig
 
     // Resize logic if dimensions changed (cropping or padding)
     if (map.width !== props.width || map.height !== props.height) {
-      // Simple resize approach: recreate grids or resize arrays?
-      // For Alpha, let's use the recreate/copy approach similar to picking, but simplified.
-      // It's safer to just set dimensions and verify grids, but changing grid size requires re-initializing arrays.
-
-      // This is complex. Let's defer complex resizing logic and just focus on metadata for now,
-      // OR implement a basic "resize canvas" that might crop data.
-
-      // Let's defer RESIZE logic for a separate dedicated task if possible,
-      // OR implement a very basic destructive resize (or non-destructive extension).
-
-      // For now, let's just update properties unless user explicitly requested resize handling.
-      // The implementation plan mainly focused on "Editing existing map name, dimensions, and tilesets".
-      // I will trust the store logic to handle it or just update the raw values which might break grid access if not handled.
-      // wait, `initMap` recreates layers.
-
-      // Let's re-use resize logic if available or just warn.
-      // Actually, changing W/H without resizing grid arrays WILL crash the renderer.
-
-      // Let's implement a Safe Resize later. For now, assume these properties are just metadata
-      // EXCEPT width/height which are critical.
-
-      // I'll call initMap-like logic but preserving data? Too risky for this step without dedicated function.
-      // I will skipping resizing arrays here and just update metadata, BUT I must implement resize eventually.
-      // Actually, `activeMap` watcher in `GameViewport` might clone the map.
-
-      // Let's stick to just updating metadata for now.
-      map.width = props.width
-      map.height = props.height
-
-      // Re-initialize layers with new size, preserving OLD data where possible?
+      // Re-initialize layers with new size, preserving OLD data where possible
       Object.values(map.layers).forEach((layer) => {
         const oldData = layer.data
         const newData = Array.from({ length: props.height }, (_, y) =>
           Array.from({ length: props.width }, (_, x) =>
-            y < oldData.length && x < oldData[0].length ? oldData[y][x] : null
+            y < oldData.length && oldData[y] && x < oldData[y].length ? oldData[y][x] : null
           )
         )
         layer.data = newData
       })
+
+      map.width = props.width
+      map.height = props.height
     }
 
     saveProject()
@@ -608,7 +626,9 @@ export const useEditorStore = defineStore('editor', () => {
     activeTab,
     activeMapID,
     maps: storedMaps,
-    tilesets: TILESETS,
+    tilesets: currentMapTilesets, // Swap static for dynamic
+    staticTilesets: TILESETS,
+    tilesetFileList,
     tileSize,
     selection,
     activeLayer,

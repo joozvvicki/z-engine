@@ -9,6 +9,7 @@ import { EventSystem } from '../systems/EventSystem'
 import { initDevtools } from '@pixi/devtools'
 import { InputManager } from '../managers/InputManager'
 import { MapManager } from '../managers/MapManager'
+import { TransitionSystem } from '../systems/TransitionSystem'
 import ZLogger from './ZLogger'
 import { ZSystem } from '@engine/types'
 
@@ -21,6 +22,7 @@ export class ZEngine {
   public inputManager: InputManager
   public mapManager: MapManager
   public mode: 'edit' | 'play' = 'edit'
+  public onMapChangeRequest: ((mapId: number, x: number, y: number) => Promise<void>) | null = null
 
   public get renderSystem(): RenderSystem | undefined {
     return this.getSystem(RenderSystem)
@@ -39,6 +41,9 @@ export class ZEngine {
   }
   public get eventSystem(): EventSystem | undefined {
     return this.getSystem(EventSystem)
+  }
+  public get transitionSystem(): TransitionSystem | undefined {
+    return this.getSystem(TransitionSystem)
   }
 
   private systems: Map<string, ZSystem> = new Map()
@@ -128,12 +133,16 @@ export class ZEngine {
     this.addSystem(new RenderSystem(this.app.stage, this.textureManager, this.mapManager, tileSize))
     this.addSystem(new GhostSystem(this.app.stage, this.textureManager, tileSize))
     this.addSystem(new GridSystem(this.app.stage, this.textureManager, tileSize))
+    const transitionSystem = new TransitionSystem(this.app.stage)
+    this.addSystem(transitionSystem)
+    // Initial resize to match screen
+    transitionSystem.resize(this.app.screen.width, this.app.screen.height)
 
     const playerSystem = new PlayerSystem(this.inputManager, this.mapManager, tileSize)
     this.addSystem(playerSystem)
 
     // EventSystem depends on PlayerSystem
-    this.addSystem(new EventSystem(this.mapManager, playerSystem))
+    this.addSystem(new EventSystem(this, this.mapManager, playerSystem))
 
     // We need RenderSystem instance to pass to EntityRenderSystem
     const renderSystem = this.getSystem(RenderSystem)
@@ -168,6 +177,23 @@ export class ZEngine {
   public getSystem<T extends ZSystem>(type: Constructor<T>): T | undefined {
     const system = this.systems.get(type.name)
     return system as T
+  }
+
+  public async transferPlayer(mapId: number, x: number, y: number): Promise<void> {
+    ZLogger.log(`[ZEngine] Transferring Player to Map ${mapId} @ ${x},${y}`)
+
+    // 1. Fade Out
+    await this.transitionSystem?.fadeOut(300)
+
+    // 2. Request Map Change via Callback (Vue Store integration)
+    if (this.onMapChangeRequest) {
+      await this.onMapChangeRequest(mapId, x, y)
+    } else {
+      ZLogger.warn('[ZEngine] onMapChangeRequest not set, transfer may fail or be incomplete')
+    }
+
+    // 3. Fade In
+    await this.transitionSystem?.fadeIn(300)
   }
 
   public destroy(): void {

@@ -1,15 +1,17 @@
 import { ZSystem, type ZEvent, type ZEventCommand, ZCommandCode } from '@engine/types'
 import { MapManager } from '@engine/managers/MapManager'
 import { PlayerSystem } from './PlayerSystem'
+import type { ZEngine } from '../core/ZEngine'
 
 export class EventSystem extends ZSystem {
-  // @ts-ignore
+  // @ts-ignore - mapManager is used in trigger logic (WIP)
   private mapManager: MapManager
-  // @ts-ignore
+  // @ts-ignore - playerSystem is used for positioning (WIP)
   private playerSystem: PlayerSystem
+  private engine: ZEngine
 
   // Runtime state
-  // @ts-ignore
+  // @ts-ignore - isProcessing tracks interpreter status
   private isProcessing: boolean = false
   private activeInterpreter: {
     list: ZEventCommand[]
@@ -17,8 +19,9 @@ export class EventSystem extends ZSystem {
     eventId: string
   } | null = null
 
-  constructor(mapManager: MapManager, playerSystem: PlayerSystem) {
+  constructor(engine: ZEngine, mapManager: MapManager, playerSystem: PlayerSystem) {
     super()
+    this.engine = engine
     this.mapManager = mapManager
     this.playerSystem = playerSystem
   }
@@ -93,25 +96,8 @@ export class EventSystem extends ZSystem {
     const y = params[2] as number
     // const direction = params[3]
 
-    console.log(`[EventSystem] Transfer to Map ${mapId} @ ${x},${y}`)
-
-    // Load new map
-    // We assume MapManager.loadMap is async or handles switching?
-    // MapManager currently just holds the map data.
-    // We need to trigger a global Map Load.
-    // Since we don't have a full wrapper, we might need to modify Store?
-    // Or MapManager should have a 'loadMapById' if it had access to a DB.
-    // Currently, Stores hold the maps. MapManager just receives the active ZMap.
-
-    // Workaround: Call into global store via window or event bus?
-    // Or more cleanly, EventSystem emits an event that GameViewport listens to?
-    // For now, let's use the window.$zEngine hack or window.dispatchEvent?
-
-    window.dispatchEvent(
-      new CustomEvent('z-transfer-player', {
-        detail: { mapId, x, y }
-      })
-    )
+    // Orchestrate transfer via ZEngine (handles fades and store sync)
+    this.engine.transferPlayer(mapId, x, y)
 
     // Stop processing current event (it will be destroyed on map switch)
     this.activeInterpreter = null

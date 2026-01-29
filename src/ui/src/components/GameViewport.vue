@@ -9,6 +9,7 @@ import { ZLayer, ZTool } from '@engine/types'
 import { useViewport } from '@ui/composables/useViewport'
 import { useEditorTools } from '@ui/composables/useEditorTools'
 import { nextTick } from 'vue'
+import { until } from '@vueuse/core'
 
 const canvasContainer = ref<HTMLElement | null>(null)
 let engine: ZEngine | null = null
@@ -17,6 +18,7 @@ const store = useEditorStore()
 const isPointerDown = ref(false)
 const target = ref<{ x: number; y: number } | null | undefined>(null)
 const isEngineReady = ref(false)
+const isLoading = ref(false)
 
 const { scale, isPanning, handleWheel, startPan, updatePan, endPan, resetViewport } = useViewport()
 
@@ -148,7 +150,7 @@ const initEngine = async (): Promise<void> => {
   )
 
   await engine.init(canvasContainer.value, store.tileSize)
-  // @ts-ignore
+  // @ts-ignore - engine is assigned after init and accessed globally by systems
   window.$zEngine = engine
 
   engine.app.stage.on('pointerdown', onPointerDown)
@@ -157,7 +159,13 @@ const initEngine = async (): Promise<void> => {
   engine.app.stage.on('pointerup', onPointerUp)
   engine.app.stage.on('pointerleave', () => engine?.ghostSystem?.hide())
 
-  engine.renderSystem?.setMap(store.activeMap)
+  const resolvedMap = JSON.parse(JSON.stringify(store.activeMap))
+  resolvedMap.tilesetConfig = {}
+  store.tilesets.forEach((ts) => {
+    resolvedMap.tilesetConfig[ts.id] = ts.url
+  })
+
+  engine.renderSystem?.setMap(resolvedMap)
   const isEventTool = store.currentTool === ZTool.event
   engine.gridSystem?.setSize(
     isEventTool ? store.activeMap.width : 0,
@@ -171,55 +179,60 @@ const initEngine = async (): Promise<void> => {
     engine.mapManager?.setTilesetConfigs(store.tilesetConfigs)
   }
 
-  // Listen for Global Engine Events (like Transfer Player)
-  // We use a custom event on window for now
-  window.addEventListener('z-transfer-player', (e: Event) => {
-    const customEvent = e as CustomEvent<{ mapId: number; x: number; y: number }>
-    const { mapId, x, y } = customEvent.detail
-    console.log(`[GameViewport] Received Transfer: Map ${mapId} @ ${x},${y}`)
-
-    // 1. Check if Map exists
+  engine.onMapChangeRequest = async (mapId, x, y) => {
     const targetMap = store.maps.find((m) => m.id === mapId)
     if (targetMap) {
-      // 2. Switch Map
       store.setActiveMap(mapId)
 
-      // 3. Move Player (Need to wait for map load/engine update?)
-      // Since setActiveMap triggers a watcher that calls setMap on engine,
-      // checking engine state is tricky.
-      // We can force set player pos immediately on the new engine instance or existing one.
-      // But `store.activeMap` change might re-trigger things.
-      // Let's defer player move slightly or ensure it persists?
-      // For now, let's just create a temporary hack:
-      // We assume the engine instance survives map switch if we don't destroy it.
-      // Wait... `initEngine` destroys `engine`?
-      // `initEngine` is called ON MOUNT.
-      // `watch(activeMap)` only calls `engine.renderSystem.setMap`.
-      // IT DOES NOT RE-CREATE ENGINE. Good.
+      // Wait for next tick so store.activeMap watcher can start loading textures
+      await nextTick()
+
+      // Wait for the async loading in the watcher to complete
+      await until(isLoading).toBe(false)
 
       if (engine?.playerSystem) {
         engine.playerSystem.x = x
         engine.playerSystem.y = y
-        // Force snap to avoid sliding from previous position
-        // @ts-ignore
+        // @ts-ignore - snapToGrid is a custom method
         engine.playerSystem.snapToGrid()
       }
     } else {
       console.error(`[GameViewport] Transfer Failed: Map ${mapId} not found`)
     }
-  })
+  }
 }
 
 watch(
   () => store.activeMap,
-  (newMap) => {
-    // Deep clone map to avoid direct mutation issues or just pass reference?
-    // Passing reference is fine as long as Engine treats it read-mostly or we handle reactivity.
-    // Since map data is large, ref is better.
-    if (newMap) {
-      engine?.renderSystem?.setMap(JSON.parse(JSON.stringify(newMap))) // Clone to detach?
-      // Reload events for the new map (Play Mode)
-      engine?.entityRenderSystem?.loadEvents()
+  async (newMap) => {
+    if (newMap && engine) {
+      isLoading.value = true
+      try {
+        // Sync transition overlay size with current map
+        const w = newMap.width * store.tileSize
+        const h = newMap.height * store.tileSize
+        engine!.transitionSystem?.resize(w, h)
+
+        // 1. Dynamic Texture Loading from Map Config (which drives store.tilesets)
+        const tilesetPromises = store.tilesets.map((ts) =>
+          engine!.textureManager.loadTileset(ts.id, ts.url)
+        )
+        await Promise.all(tilesetPromises)
+
+        // 2. Load the map into the engine
+        // Deep clone to detach from store reactivity for stable rendering
+        const resolvedMap = JSON.parse(JSON.stringify(newMap))
+        // Inject fully resolved tilesetConfig so MapManager doesn't lose data
+        resolvedMap.tilesetConfig = {}
+        store.tilesets.forEach((ts) => {
+          resolvedMap.tilesetConfig[ts.id] = ts.url
+        })
+
+        engine.renderSystem!.setMap(resolvedMap)
+        engine?.entityRenderSystem?.loadEvents()
+      } finally {
+        isLoading.value = false
+      }
     }
   },
   { deep: true, immediate: true }
@@ -245,16 +258,27 @@ watch(
 
 watch(
   () => store.historyIndex,
-  () => {
-    if (store.activeMap && engine?.renderSystem && engine?.gridSystem) {
-      engine.renderSystem.setMap(store.activeMap)
+  async () => {
+    if (engine && store.activeMap && engine.renderSystem && engine.gridSystem) {
+      const tilesetPromises = store.tilesets.map((ts) =>
+        engine!.textureManager.loadTileset(ts.id, ts.url)
+      )
+      await Promise.all(tilesetPromises)
+
+      const resolvedMap = JSON.parse(JSON.stringify(store.activeMap))
+      resolvedMap.tilesetConfig = {}
+      store.tilesets.forEach((ts) => {
+        resolvedMap.tilesetConfig[ts.id] = ts.url
+      })
+
+      engine.renderSystem.setMap(resolvedMap)
     }
   }
 )
 watch(
   () => store.currentTool,
   () => {
-    if (engine?.renderSystem && engine?.gridSystem && store.activeMap) {
+    if (engine && engine.renderSystem && engine.gridSystem && store.activeMap) {
       const isEventTool = store.currentTool === ZTool.event
       engine.gridSystem.setSize(
         isEventTool ? store.activeMap.width : 0,
@@ -312,7 +336,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
   engine?.destroy()
-  // @ts-ignore
+  // @ts-ignore - cleaning up global reference
   window.$zEngine = null
 })
 </script>

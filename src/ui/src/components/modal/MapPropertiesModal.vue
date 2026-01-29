@@ -18,63 +18,64 @@ const props = defineProps<{
   mapId?: number | null
 }>()
 
+const TILESET_SLOTS = ['A1', 'A2', 'A3', 'A4', 'A5', 'B', 'C', 'D', 'Roofs']
+
 const form = reactive({
   name: 'Nowa Mapa',
   width: 20,
   height: 15,
-  tilesets: [] as string[]
+  tilesetConfig: {} as Record<string, string>
 })
 
-// Initialize form when opening in Edit Mode
+// Initialize form when opening
 watch(
   () => props.isOpen,
   (open) => {
     if (open) {
+      // Clear/Reset the config object with all slots
+      const cleanConfig: Record<string, string> = {}
+      TILESET_SLOTS.forEach((slot) => (cleanConfig[slot] = ''))
+
       if (props.editMode && props.mapId) {
         const map = store.maps.find((m) => m.id === props.mapId)
         if (map) {
           form.name = map.name
           form.width = map.width
           form.height = map.height
-          form.tilesets = map.tilesets ? [...map.tilesets] : []
-          // Default to all basic tilesets if empty (legacy support)
-          if (form.tilesets.length === 0) {
-            form.tilesets = store.tilesets.map((t) => t.id)
+          // Merge existing config into our clean slate
+          if (map.tilesetConfig) {
+            Object.assign(cleanConfig, map.tilesetConfig)
           }
         }
       } else {
-        // Reset for Create Mode
         form.name = 'Nowa Mapa'
         form.width = 20
         form.height = 15
-        // Default: Select All Basic Tilesets
-        form.tilesets = ['A1', 'A2', 'A3', 'A4', 'A5', 'B', 'C', 'D', 'Roofs']
       }
+      form.tilesetConfig = cleanConfig
     }
   }
 )
 
 const handleSave = (): void => {
   if (form.name.trim() && form.width > 0 && form.height > 0) {
+    // Filter out empty strings before saving to keep the objects clean
+    const finalConfig: Record<string, string> = {}
+    Object.entries(form.tilesetConfig).forEach(([slot, url]) => {
+      if (url) finalConfig[slot] = url
+    })
+
     if (props.editMode && props.mapId) {
       store.updateMapProperties(props.mapId, {
         name: form.name,
         width: form.width,
         height: form.height,
-        tilesets: form.tilesets
+        tilesetConfig: finalConfig
       })
     } else {
-      store.createMap(form.name, form.width, form.height, form.tilesets)
+      store.createMap(form.name, form.width, form.height, finalConfig)
     }
     emit('close')
-  }
-}
-
-const toggleTileset = (id: string): void => {
-  if (form.tilesets.includes(id)) {
-    form.tilesets = form.tilesets.filter((t) => t !== id)
-  } else {
-    form.tilesets.push(id)
   }
 }
 </script>
@@ -86,7 +87,7 @@ const toggleTileset = (id: string): void => {
       class="fixed inset-0 z-100 flex items-center justify-center bg-white/20 backdrop-blur-sm p-4"
     >
       <div
-        class="w-full max-w-lg bg-white border border-white/10 rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+        class="w-full max-w-2xl bg-white border border-white/10 rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
       >
         <div
           class="flex items-center justify-between p-4 border-b border-white/5 bg-white/5 shrink-0"
@@ -102,7 +103,7 @@ const toggleTileset = (id: string): void => {
           </button>
         </div>
 
-        <div class="p-6 space-y-6 overflow-y-auto">
+        <div class="p-6 space-y-6 overflow-y-auto scrollbar-thin">
           <div class="space-y-2">
             <label class="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-2">
               <IconTextCaption size="14" /> Nazwa Mapy
@@ -141,21 +142,33 @@ const toggleTileset = (id: string): void => {
           <!-- Tileset Selection -->
           <div class="space-y-2">
             <label class="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-2">
-              <IconGridDots size="14" /> Dostępne Tilesety
+              <IconGridDots size="14" /> Konfiguracja Tilesetów (RPG Maker Style)
             </label>
-            <div class="grid grid-cols-4 gap-2 bg-black/5 p-2 rounded-lg border border-black/5">
-              <div
-                v-for="ts in store.tilesets"
-                :key="ts.id"
-                :class="[
-                  'cursor-pointer px-2 py-1.5 rounded text-xs text-center border transition-all select-none',
-                  form.tilesets.includes(ts.id)
-                    ? 'bg-blue-500 text-white border-blue-600 font-bold shadow-sm'
-                    : 'bg-white text-gray-500 border-transparent hover:bg-gray-100'
-                ]"
-                @click="toggleTileset(ts.id)"
-              >
-                {{ ts.id }}
+            <div
+              class="grid grid-cols-1 md:grid-cols-2 gap-4 bg-black/5 p-4 rounded-lg border border-black/5"
+            >
+              <div v-for="slot in TILESET_SLOTS" :key="slot" class="flex flex-col gap-1">
+                <label class="text-[9px] font-bold text-gray-400 uppercase">{{ slot }}</label>
+                <div class="flex gap-2 items-center">
+                  <select
+                    v-model="form.tilesetConfig[slot]"
+                    class="flex-1 bg-white border border-black/10 rounded px-2 py-1.5 text-xs text-gray-600 outline-none focus:border-blue-500"
+                  >
+                    <option value="">(Domyślny)</option>
+                    <option v-for="file in store.tilesetFileList" :key="file.url" :value="file.url">
+                      {{ file.name }}
+                    </option>
+                  </select>
+                  <div
+                    v-if="form.tilesetConfig[slot]"
+                    class="w-8 h-8 rounded border border-black/10 overflow-hidden bg-white shrink-0 shadow-sm"
+                  >
+                    <img
+                      :src="form.tilesetConfig[slot]"
+                      class="w-full h-full object-cover pixelated"
+                    />
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -163,7 +176,8 @@ const toggleTileset = (id: string): void => {
           <div class="p-3 bg-blue-500/20 border border-blue-500/80 rounded-lg">
             <p class="text-[10px] text-blue-400 leading-relaxed italic">
               Wskazówka: Zmiana rozmiaru mapy może spowodować przycięcie istniejących elementów,
-              jeśli nowa mapa jest mniejsza.
+              jeśli nowa mapa jest mniejsza. Każdy slot (A1, B, etc.) może mieć przypisany dowolny
+              plik .png z folderu assets.
             </p>
           </div>
         </div>
@@ -179,10 +193,23 @@ const toggleTileset = (id: string): void => {
             class="flex-2 py-2.5 text-xs font-bold bg-black hover:bg-gray-700 text-white rounded-lg transition-all shadow-lg shadow-blue-900/20 uppercase cursor-pointer"
             @click="handleSave"
           >
-            {{ editMode ? 'Zapisz Zmiany' : 'Stwórz Projekt' }}
+            {{ editMode ? 'Zapisz Zmiany' : 'Zatwierdź' }}
           </button>
         </div>
       </div>
     </div>
   </Teleport>
 </template>
+
+<style scoped>
+.pixelated {
+  image-rendering: pixelated;
+}
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 3px;
+}
+</style>

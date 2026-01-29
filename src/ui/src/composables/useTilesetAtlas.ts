@@ -110,7 +110,18 @@ export const useTilesetAtlas = (): {
             GRID_SIZE,
             GRID_SIZE
           )
-          iconMapping.value.push({ uiX, uiY, ...tile, tilesetId: data.id, isAuto: tile.isAuto })
+
+          const originalTs = store.tilesets.find((t) => t.id === data.id)
+          const targetUrl = originalTs?.url || data.img.src
+
+          iconMapping.value.push({
+            uiX,
+            uiY,
+            ...tile,
+            tilesetId: data.id,
+            url: targetUrl,
+            isAuto: tile.isAuto
+          })
           globalIndex++
         })
       })
@@ -121,6 +132,9 @@ export const useTilesetAtlas = (): {
         canvas.width = img.width
         canvas.height = img.height
         ctx.drawImage(img, 0, 0)
+
+        // Populate iconMapping for non-A tabs too?
+        // TilesetSelector currently uses a different loop for B-E.
       }
     }
     processedImageUrl.value = canvas.toDataURL()

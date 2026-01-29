@@ -1,7 +1,14 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useEditorStore } from '@ui/stores/editor'
-import { IconDeviceFloppy, IconGhost, IconPlus, IconCopy, IconTrash } from '@tabler/icons-vue'
+import {
+  IconDeviceFloppy,
+  IconGhost,
+  IconPlus,
+  IconCopy,
+  IconTrash,
+  IconX
+} from '@tabler/icons-vue'
 import { ZEventTrigger, type ZEventPage } from '@engine/types'
 import CharacterSelector from './CharacterSelector.vue'
 
@@ -142,17 +149,43 @@ const remove = (): void => {
 
 // Command Editing
 const showCommandSelector = ref(false)
+const editingCommandIndex = ref<number | null>(null)
 const cmdParams = ref({ mapId: 1, x: 0, y: 0 })
 
-const addTransferCommand = (): void => {
+const openCommandEditor = (index: number | null = null): void => {
+  editingCommandIndex.value = index
+  if (index !== null && activePage.value) {
+    const cmd = activePage.value.list[index]
+    if (cmd.code === 201) {
+      cmdParams.value = {
+        mapId: cmd.parameters[0] as number,
+        x: cmd.parameters[1] as number,
+        y: cmd.parameters[2] as number
+      }
+    }
+  } else {
+    // Reset for new
+    cmdParams.value = { mapId: 1, x: 0, y: 0 }
+  }
+  showCommandSelector.value = true
+}
+
+const saveCommand = (): void => {
   if (!activePage.value) return
 
-  activePage.value.list.push({
+  const newCommand = {
     code: 201, // ZCommandCode.TransferPlayer
     parameters: [cmdParams.value.mapId, cmdParams.value.x, cmdParams.value.y]
-  })
+  }
+
+  if (editingCommandIndex.value !== null) {
+    activePage.value.list[editingCommandIndex.value] = newCommand
+  } else {
+    activePage.value.list.push(newCommand)
+  }
 
   showCommandSelector.value = false
+  editingCommandIndex.value = null
 }
 </script>
 
@@ -529,6 +562,7 @@ const addTransferCommand = (): void => {
                 v-for="(cmd, idx) in activePage.list"
                 :key="idx"
                 class="group flex items-center gap-3 px-4 py-2 hover:bg-blue-50 cursor-pointer border-b border-white hover:border-blue-100 transition-colors"
+                @click="openCommandEditor(idx)"
               >
                 <span class="text-slate-300 text-[10px] w-6 text-right select-none">{{
                   String(idx + 1).padStart(3, '0')
@@ -536,15 +570,22 @@ const addTransferCommand = (): void => {
                 <!-- Command Logic Placeholder -->
                 <div class="flex items-center gap-2">
                   <span class="w-1.5 h-1.5 rounded-full bg-blue-400"></span>
-                  <span class="text-slate-700 font-medium font-sans">Command {{ cmd.code }}</span>
-                  <span class="text-slate-400 text-xs">--</span>
+                  <span class="text-slate-700 font-medium font-sans"
+                    >Transfer Player (Map {{ cmd.parameters[0] }}, {{ cmd.parameters[1] }},
+                    {{ cmd.parameters[2] }})</span
+                  >
+                  <IconTrash
+                    size="14"
+                    class="ml-auto text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                    @click.stop="activePage.list.splice(idx, 1)"
+                  />
                 </div>
               </div>
 
               <!-- Insert Line -->
               <div
                 class="group flex items-center gap-3 px-4 py-2 hover:bg-blue-50 cursor-pointer transition-colors opacity-50 hover:opacity-100"
-                @dblclick="showCommandSelector = true"
+                @dblclick="openCommandEditor()"
               >
                 <span class="text-slate-300 text-[10px] w-6 text-right select-none">@</span>
                 <span class="text-slate-400 text-xs italic group-hover:text-blue-500"
@@ -578,9 +619,11 @@ const addTransferCommand = (): void => {
         class="bg-white rounded-xl shadow-2xl w-[400px] overflow-hidden border border-white/20 animate-in fade-in zoom-in-95 duration-200"
       >
         <div class="p-4 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
-          <h3 class="text-xs font-bold uppercase tracking-widest text-slate-500">Insert Command</h3>
+          <h3 class="text-xs font-bold uppercase tracking-widest text-slate-500">
+            {{ editingCommandIndex !== null ? 'Edit Command' : 'Insert Command' }}
+          </h3>
           <button class="text-slate-400 hover:text-slate-600" @click="showCommandSelector = false">
-            <IconTrash size="16" class="rotate-45" />
+            <IconX size="16" />
           </button>
         </div>
 
@@ -589,7 +632,8 @@ const addTransferCommand = (): void => {
           <div>
             <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1">Command</label>
             <select
-              class="w-full border border-slate-200 rounded px-2 py-1.5 text-sm font-medium text-slate-700 bg-white"
+              disabled
+              class="w-full border border-slate-200 rounded px-2 py-1.5 text-sm font-medium text-slate-700 bg-slate-50 cursor-not-allowed"
             >
               <option value="201">Transfer Player</option>
             </select>
@@ -626,9 +670,9 @@ const addTransferCommand = (): void => {
 
           <button
             class="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-lg shadow-blue-500/20 active:scale-95 transition-all text-xs uppercase"
-            @click="addTransferCommand"
+            @click="saveCommand"
           >
-            Insert Command
+            {{ editingCommandIndex !== null ? 'Update Command' : 'Insert Command' }}
           </button>
         </div>
       </div>

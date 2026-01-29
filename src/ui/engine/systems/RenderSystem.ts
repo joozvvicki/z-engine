@@ -121,6 +121,18 @@ export class RenderSystem extends ZSystem {
     this.tileUpdates.push({ x, y, layer, tiles })
   }
 
+  private normalizeUrl(url: string): string {
+    if (!url) return ''
+    try {
+      if (url.startsWith('http')) {
+        return new URL(url).pathname
+      }
+    } catch {
+      // Fallback
+    }
+    return url
+  }
+
   public setMap(mapData: ZMap): void {
     this.mapManager.setMap(mapData)
     this.fullRenderDirty = true
@@ -153,7 +165,10 @@ export class RenderSystem extends ZSystem {
       // Look up config
       if (configs) {
         const key = `${selection.x}_${selection.y}`
-        const config = configs[selection.tilesetId]?.[key]
+        const tilesetUrl = this.normalizeUrl(
+          mapData.tilesetConfig?.[selection.tilesetId] || selection.tilesetId
+        )
+        const config = configs[tilesetUrl]?.[key]
         if (config) {
           if (config.isHighPriority) isHighPriority = true
           if (config.sortYOffset) ySortOffset = Number(config.sortYOffset)

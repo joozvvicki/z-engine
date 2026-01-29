@@ -19,15 +19,14 @@ const { handleMouseDown, handleMouseMove, handleMouseUp, selectionStyle } = useT
 // -- Edit Mode State --
 const isEditMode = ref(false)
 const showCollisionEditor = ref(false)
-const editingTile = ref<{ id: string; x: number; y: number; url: string } | null>(null)
+const editingTile = ref<{ x: number; y: number; url: string } | null>(null)
 
 // -- Edit Mode Logic --
-const openCollisionEditor = (id: string, x: number, y: number): void => {
+const openCollisionEditor = (url: string, x: number, y: number): void => {
   editingTile.value = {
-    id,
     x,
     y,
-    url: processedImageUrl.value // Use the atlas as preview
+    url
   }
   showCollisionEditor.value = true
 }
@@ -40,7 +39,7 @@ const handleTileClick = (e: MouseEvent): void => {
 
   if (uiX < 0 || uiY < 0) return
 
-  let targetId = store.activeTab
+  let targetUrl = ''
   let targetX = uiX
   let targetY = uiY
 
@@ -48,20 +47,26 @@ const handleTileClick = (e: MouseEvent): void => {
   if (store.activeTab === 'A') {
     const mapping = iconMapping.value.find((m) => m.uiX === uiX && m.uiY === uiY)
     if (!mapping) return
-    targetId = mapping.tilesetId
+    targetUrl = mapping.url
     targetX = mapping.ox
     targetY = mapping.oy
+  } else {
+    // For Tab B-E, find the URL from the dynamic tileset list
+    const currentTs = store.tilesets.find((t) => t.id === store.activeTab)
+    if (!currentTs) return
+    targetUrl = currentTs.url
   }
 
   // Shift + Click -> Open Collision Editor
   if (e.shiftKey) {
-    openCollisionEditor(targetId, targetX, targetY)
+    if (!targetUrl) return
+    openCollisionEditor(targetUrl, targetX, targetY)
     return
   }
 
   // Normal Click -> Toggle Config
   const key = `${targetX}_${targetY}`
-  const currentConfig = store.tilesetConfigs[targetId]?.[key] || {
+  const currentConfig = store.tilesetConfigs[targetUrl]?.[key] || {
     isSolid: false,
     isHighPriority: false
   }
@@ -75,7 +80,9 @@ const handleTileClick = (e: MouseEvent): void => {
     nextConfig = { isSolid: false, isHighPriority: true }
   }
 
-  store.updateTileConfig(targetId, targetX, targetY, nextConfig)
+  if (targetUrl) {
+    store.updateTileConfig(targetUrl, targetX, targetY, nextConfig)
+  }
 }
 
 // Wrapper to dispatch between Select Mode and Edit Mode
@@ -94,25 +101,7 @@ const onContainerMouseMove = (e: MouseEvent): void => {
 }
 
 const TABS = computed(() => {
-  // If no active map or no tilesets defined (legacy), show all default
-  const allTabs = ['A', 'B', 'C', 'D', 'Roofs']
-  if (!store.activeMap || !store.activeMap.tilesets || store.activeMap.tilesets.length === 0) {
-    return allTabs
-  }
-
-  // Filter tabs based on map tilesets
-  // Map tilesets are like 'A1', 'A2', 'B', 'C'
-  // Tabs are 'A' (grouping A1-A5), B, C, D, Roofs
-  const mapTilesets = store.activeMap.tilesets
-  const availableTabs = new Set<string>()
-
-  mapTilesets.forEach((ts) => {
-    if (ts.startsWith('A')) availableTabs.add('A')
-    else availableTabs.add(ts)
-  })
-
-  // Sort based on original order
-  return allTabs.filter((t) => availableTabs.has(t))
+  return ['A', 'B', 'C', 'D', 'Roofs']
 })
 
 const tabRefs = ref<HTMLElement[]>([])
@@ -220,7 +209,7 @@ onMounted(() => {
             <!-- Tab A: Iterate over iconMapping to draw overlays at correct UI positions -->
             <template v-for="map in iconMapping" :key="`${map.uiX}_${map.uiY}`">
               <div
-                v-if="store.tilesetConfigs[map.tilesetId]?.[`${map.ox}_${map.oy}`]?.isSolid"
+                v-if="store.tilesetConfigs[map.url]?.[`${map.ox}_${map.oy}`]?.isSolid"
                 class="absolute flex items-center justify-center pointer-events-none"
                 :style="{
                   left: `${map.uiX * 48}px`,
@@ -232,7 +221,7 @@ onMounted(() => {
                 <IconX class="text-red-500 w-8 h-8 drop-shadow-md stroke-3" />
               </div>
               <div
-                v-if="store.tilesetConfigs[map.tilesetId]?.[`${map.ox}_${map.oy}`]?.isHighPriority"
+                v-if="store.tilesetConfigs[map.url]?.[`${map.ox}_${map.oy}`]?.isHighPriority"
                 class="absolute flex items-center justify-center pointer-events-none"
                 :style="{
                   left: `${map.uiX * 48}px`,
@@ -245,55 +234,61 @@ onMounted(() => {
               </div>
               <!-- Mask Indicator -->
               <div
-                v-if="store.tilesetConfigs[map.tilesetId]?.[`${map.ox}_${map.oy}`]?.collisionMask"
+                v-if="store.tilesetConfigs[map.url]?.[`${map.ox}_${map.oy}`]?.collisionMask"
                 class="absolute bottom-0 right-0 w-2 h-2 bg-purple-500 rounded-full m-1 pointer-events-none"
               ></div>
             </template>
           </template>
 
           <template v-else>
-            <!-- Single Tileset (B-E): Iterate existing configs and show them -->
-            <!-- We filter out configs that are outside the current atlas bounds to avoid phantom icons -->
-            <template v-for="(config, key) in store.tilesetConfigs[store.activeTab]" :key="key">
+            <!-- Single Tileset (B-E): Iterate existing configs for current file URL and show them -->
+            <template v-if="store.tilesets.find((t) => t.id === store.activeTab)">
               <template
-                v-if="
-                  parseInt(key.split('_')[0]) * 48 < atlasWidth &&
-                  parseInt(key.split('_')[1]) * 48 < atlasHeight
-                "
+                v-for="(config, key) in store.tilesetConfigs[
+                  store.tilesets.find((t) => t.id === store.activeTab)!.url
+                ]"
+                :key="key"
               >
-                <div
-                  v-if="config.isSolid"
-                  class="absolute flex items-center justify-center pointer-events-none"
-                  :style="{
-                    left: `${parseInt(key.split('_')[0]) * 48}px`,
-                    top: `${parseInt(key.split('_')[1]) * 48}px`,
-                    width: '48px',
-                    height: '48px'
-                  }"
+                <template
+                  v-if="
+                    parseInt(key.split('_')[0]) * 48 < atlasWidth &&
+                    parseInt(key.split('_')[1]) * 48 < atlasHeight
+                  "
                 >
-                  <IconX class="text-red-500 w-8 h-8 drop-shadow-md stroke-3" />
-                </div>
-                <div
-                  v-if="config.isHighPriority"
-                  class="absolute flex items-center justify-center pointer-events-none"
-                  :style="{
-                    left: `${parseInt(key.split('_')[0]) * 48}px`,
-                    top: `${parseInt(key.split('_')[1]) * 48}px`,
-                    width: '48px',
-                    height: '48px'
-                  }"
-                >
-                  <IconStar class="text-yellow-400 w-8 h-8 drop-shadow-md fill-current" />
-                </div>
-                <!-- Mask Indicator -->
-                <div
-                  v-if="config.collisionMask"
-                  class="absolute bottom-0 right-0 w-2 h-2 bg-purple-500 rounded-full m-1 pointer-events-none"
-                  :style="{
-                    left: `${parseInt(key.split('_')[0]) * 48}px`, // Need left/top for absolute positioning if not nested in div
-                    top: `${parseInt(key.split('_')[1]) * 48}px`
-                  }"
-                ></div>
+                  <div
+                    v-if="config.isSolid"
+                    class="absolute flex items-center justify-center pointer-events-none"
+                    :style="{
+                      left: `${parseInt(key.split('_')[0]) * 48}px`,
+                      top: `${parseInt(key.split('_')[1]) * 48}px`,
+                      width: '48px',
+                      height: '48px'
+                    }"
+                  >
+                    <IconX class="text-red-500 w-8 h-8 drop-shadow-md stroke-3" />
+                  </div>
+                  <div
+                    v-if="config.isHighPriority"
+                    class="absolute flex items-center justify-center pointer-events-none"
+                    :style="{
+                      left: `${parseInt(key.split('_')[0]) * 48}px`,
+                      top: `${parseInt(key.split('_')[1]) * 48}px`,
+                      width: '48px',
+                      height: '48px'
+                    }"
+                  >
+                    <IconStar class="text-yellow-400 w-8 h-8 drop-shadow-md fill-current" />
+                  </div>
+                  <!-- Mask Indicator -->
+                  <div
+                    v-if="config.collisionMask"
+                    class="absolute bottom-0 right-0 w-2 h-2 bg-purple-500 rounded-full m-1 pointer-events-none"
+                    :style="{
+                      left: `${parseInt(key.split('_')[0]) * 48}px`,
+                      top: `${parseInt(key.split('_')[1]) * 48}px`
+                    }"
+                  ></div>
+                </template>
               </template>
             </template>
           </template>
@@ -327,7 +322,7 @@ onMounted(() => {
     <!-- Modals -->
     <CollisionEditor
       v-if="showCollisionEditor && editingTile"
-      :tileset-id="editingTile.id"
+      :tileset-url="editingTile.url"
       :tile-x="editingTile.x"
       :tile-y="editingTile.y"
       :image-url="editingTile.url"

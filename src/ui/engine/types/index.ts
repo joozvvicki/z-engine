@@ -91,7 +91,7 @@ export interface ZMap {
     }
   >
   events: ZEvent[]
-  tilesets: string[]
+  tilesetConfig: Record<string, string> // Map slot (A1, B, etc) to URL
 }
 
 /* eslint-disable @typescript-eslint/no-unused-vars */
@@ -144,6 +144,7 @@ export interface IconMap {
   w: number
   h: number
   tilesetId: string
+  url: string
   isAuto: boolean
 }
 

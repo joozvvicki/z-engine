@@ -7,6 +7,18 @@ export class MapManager {
     this.currentMap = map
   }
 
+  private normalizeUrl(url: string): string {
+    if (!url) return ''
+    try {
+      if (url.startsWith('http')) {
+        return new URL(url).pathname
+      }
+    } catch {
+      // Fallback
+    }
+    return url
+  }
+
   public isPassable(x: number, y: number): boolean {
     if (!this.currentMap) return false
 
@@ -34,7 +46,10 @@ export class MapManager {
       if (tiles && tiles.length > 0) {
         for (const tile of tiles) {
           const configKey = `${tile.x}_${tile.y}`
-          const config = this.tilesetConfigs[tile.tilesetId]?.[configKey]
+          const tilesetUrl = this.normalizeUrl(
+            this.currentMap.tilesetConfig?.[tile.tilesetId] || tile.tilesetId
+          )
+          const config = this.tilesetConfigs[tilesetUrl]?.[configKey]
           if (config?.isSolid) return false
         }
       }
@@ -50,7 +65,10 @@ export class MapManager {
         for (let i = tiles.length - 1; i >= 0; i--) {
           const tile = tiles[i]
           const configKey = `${tile.x}_${tile.y}`
-          const config = this.tilesetConfigs[tile.tilesetId]?.[configKey]
+          const tilesetUrl = this.normalizeUrl(
+            this.currentMap.tilesetConfig?.[tile.tilesetId] || tile.tilesetId
+          )
+          const config = this.tilesetConfigs[tilesetUrl]?.[configKey]
 
           // 1. Solid -> Blocked
           if (config?.isSolid) return false
@@ -171,7 +189,10 @@ export class MapManager {
       for (let i = layerStack.length - 1; i >= 0; i--) {
         const tile = layerStack[i]
         if (!tile) continue
-        const config = configs[tile.tilesetId]?.[`${tile.x}_${tile.y}`]
+        const tilesetUrl = this.normalizeUrl(
+          this.currentMap?.tilesetConfig?.[tile.tilesetId] || tile.tilesetId
+        )
+        const config = configs[tilesetUrl]?.[`${tile.x}_${tile.y}`]
 
         if (config && config.dirBlock !== undefined) {
           if ((config.dirBlock & dirBit) !== 0) return true
