@@ -86,4 +86,10 @@ export class GridSystem implements ZSystem {
       y: Math.floor(local.y / this.tileSize)
     }
   }
+
+  public setVisible(visible: boolean): void {
+    if (this.container) {
+      this.container.visible = visible
+    }
+  }
 }

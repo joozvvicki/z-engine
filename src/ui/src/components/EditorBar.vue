@@ -18,20 +18,24 @@ import { computed, onMounted, ref, watch, nextTick } from 'vue'
 import { ZLayer, ZTool } from '@engine/types'
 
 const store = useEditorStore()
-const isPlaying = ref(false)
+
+const previousLayer = ref<ZLayer | null>(null)
 
 const togglePlay = (): void => {
-  isPlaying.value = !isPlaying.value
-  // Access ZEngine instance directly via window logic or store?
-  // Store has reference to renderSystem but maybe not engine.
-  // We need to call window.__PIXI_APP__ wrapper.
-  // Wait, ZEngine instance is not global, but app is.
-  // Actually, we need to access the ZEngine instance to call setMode.
-  // In `App.vue` or `GameViewport.vue` we initialized it.
-  // Usually we should push this state to store.
+  store.toggleTestMode()
+
+  if (store.isTestMode) {
+    previousLayer.value = store.activeLayer
+    store.setLayer(ZLayer.highest)
+  } else {
+    if (previousLayer.value) {
+      store.setLayer(previousLayer.value)
+      previousLayer.value = null
+    }
+  }
 
   if (window['$zEngine']) {
-    window['$zEngine'].setMode(isPlaying.value ? 'play' : 'edit')
+    window['$zEngine'].setMode(store.isTestMode ? 'play' : 'edit')
   }
 }
 
@@ -74,15 +78,16 @@ const handleKeydown = (e: KeyboardEvent): void => {
 
     switch (e.key) {
       case 'Z':
-        store.undo()
+        if (!store.isTestMode) store.undo()
         break
       case 'Y':
-        store.redo()
+        if (!store.isTestMode) store.redo()
         break
       case 'D':
         store.exportMapAsJSON()
         break
       case 'ArrowUp': {
+        if (store.isTestMode) break
         const currentLayerID = store.activeMap?.layers[store.activeLayer] ? store.activeLayer : null
         if (!currentLayerID) return
         const layerKeys = Object.keys(store.activeMap!.layers)
@@ -93,6 +98,7 @@ const handleKeydown = (e: KeyboardEvent): void => {
         break
       }
       case 'ArrowDown': {
+        if (store.isTestMode) break
         const currLayerID = store.activeMap?.layers[store.activeLayer] ? store.activeLayer : null
         if (!currLayerID) return
         const lKeys = Object.keys(store.activeMap!.layers)
@@ -163,7 +169,9 @@ onMounted(() => {
 
 const sortedLayers = computed(() => {
   if (!store.activeMap) return []
-  return Object.entries(store.activeMap.layers).sort((a, b) => b[1].index - a[1].index)
+  return Object.entries(store.activeMap.layers)
+    .filter(([key]) => key !== ZLayer.events) // Hide Events layer from selection
+    .sort((a, b) => b[1].index - a[1].index)
 })
 
 // Sliding Background Logic
@@ -250,8 +258,9 @@ onMounted(() => {
       <button
         v-for="action in actions"
         :key="action.name"
-        class="relative p-1 rounded-lg transition-all duration-200 cursor-pointer group"
+        class="relative p-1 rounded-lg transition-all duration-200 cursor-pointer group disabled:opacity-50 disabled:cursor-not-allowed"
         :class="'bg-transparent text-black hover:text-gray-500'"
+        :disabled="store.isTestMode"
         @click="action.action"
       >
         <component :is="action.icon" />
@@ -287,16 +296,16 @@ onMounted(() => {
     <div class="flex flex-col gap-1 bg-white/10 backdrop-blur-lg rounded-xl border border-white/5">
       <button
         class="relative p-1 rounded-lg transition-all duration-200 cursor-pointer group"
-        :class="isPlaying ? 'text-green-400' : 'text-black hover:text-green-600'"
+        :class="store.isTestMode ? 'text-green-400' : 'text-black hover:text-green-600'"
         @click="togglePlay"
       >
-        <IconPlayerStop v-if="isPlaying" />
+        <IconPlayerStop v-if="store.isTestMode" />
         <IconPlayerPlay v-else />
 
         <div
           class="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 px-2 py-1 bg-black text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap"
         >
-          {{ isPlaying ? 'Stop Game' : 'Play Game' }}
+          {{ store.isTestMode ? 'Stop Game' : 'Play Game' }}
         </div>
       </button>
     </div>
@@ -312,8 +321,9 @@ onMounted(() => {
         v-for="tool in tools"
         :key="tool.tooltip"
         ref="toolRefs"
-        class="group relative p-2 rounded-lg transition-all duration-200 cursor-pointer z-10 text-black"
+        class="group relative p-2 rounded-lg transition-all duration-200 cursor-pointer z-10 text-black disabled:opacity-50 disabled:cursor-not-allowed"
         :class="store.currentTool === tool.tool ? 'text-white' : ''"
+        :disabled="store.isTestMode"
         :title="tool.tooltip"
         @click="store.setTool(tool.tool)"
       >
@@ -341,8 +351,9 @@ onMounted(() => {
         v-for="[key, data] in sortedLayers"
         :key="key"
         ref="layerRefs"
-        class="relative p-1 rounded-lg transition-all duration-200 text-black cursor-pointer z-10"
+        class="relative p-1 rounded-lg transition-all duration-200 text-black cursor-pointer z-10 disabled:opacity-50 disabled:cursor-not-allowed"
         :class="store.activeLayer === key ? 'text-white' : ''"
+        :disabled="store.isTestMode"
         @click="store.setLayer(key as ZLayer)"
       >
         <DynamicIcon :icon="data.icon" :tooltip="key.charAt(0).toUpperCase() + key.slice(1)" />

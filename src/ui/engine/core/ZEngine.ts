@@ -70,22 +70,25 @@ export class ZEngine {
 
     const entitySystem = this.getSystem(EntityRenderSystem)
     const ghostSystem = this.getSystem(GhostSystem)
+    const gridSystem = this.getSystem(GridSystem)
 
     if (mode === 'play') {
       entitySystem?.setVisible(true)
       ghostSystem?.setVisible(false)
+      gridSystem?.setVisible(false)
 
-      // Hide Editor Events Markers (keep layer visible for Player)
-      this.renderSystem?.setEventMarkersVisible(false)
+      // Hide Editor Events Markers (keep layer visible for Player) - managed by Vue Store now
+      // this.renderSystem?.setEventMarkersVisible(false)
 
       // Reset player
       this.getSystem(PlayerSystem)?.onBoot()
     } else {
       entitySystem?.setVisible(false)
       ghostSystem?.setVisible(true)
+      gridSystem?.setVisible(true)
 
-      // Show Editor Events Markers
-      this.renderSystem?.setEventMarkersVisible(true)
+      // Show Editor Events Markers - managed by Vue Store now
+      // this.renderSystem?.setEventMarkersVisible(true)
     }
   }
 

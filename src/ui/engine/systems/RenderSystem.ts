@@ -267,12 +267,14 @@ export class RenderSystem extends ZSystem {
   }
 
   private eventMarkers: PIXI.Container[] = []
+  private showEventMarkers: boolean = false
 
   public setEventMarkersVisible(visible: boolean): void {
+    this.showEventMarkers = visible
     this.eventMarkers.forEach((c) => (c.visible = visible))
   }
 
-  public updateLayerDimming(activeLayer: ZLayer | null): void {
+  public updateLayerDimming(activeLayer: ZLayer | null, focusOnly: boolean = false): void {
     // If no active layer (or Play Mode), reset all to alpha 1
     if (!activeLayer) {
       Object.values(this.layers).forEach((c) => (c.alpha = 1))
@@ -286,6 +288,17 @@ export class RenderSystem extends ZSystem {
 
     // Loop through all layers
     Object.values(this.layers).forEach((container) => {
+      // If exclusive focus is on, DIM EVERYTHING except the active layer
+      if (focusOnly) {
+        if (container === activeContainer) {
+          container.alpha = 1
+        } else {
+          container.alpha = 0.3 // Dim everything else
+        }
+        return
+      }
+
+      // Standard Edit Mode: Dim only layers ABOVE the active one
       if (container === activeContainer) {
         container.alpha = 1
       } else if (container.zIndex > activeZ) {
@@ -312,6 +325,7 @@ export class RenderSystem extends ZSystem {
       container.x = event.x * this.tileSize
       container.y = event.y * this.tileSize
       container.zIndex = (event.y + 1) * this.tileSize
+      container.visible = this.showEventMarkers // Apply Saved Visibility State!
 
       let graphicSprite: PIXI.Sprite | null = null
 

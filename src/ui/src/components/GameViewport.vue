@@ -36,6 +36,7 @@ const onPointerDown = (event: FederatedPointerEvent): void => {
   }
 
   if (event.button !== 0 || !engine) return
+  if (store.isTestMode) return // Block Editing in Play Mode
 
   target.value = engine.gridSystem?.getTileCoords(event)
 
@@ -202,7 +203,6 @@ watch(
   () => store.currentTool,
   () => {
     if (engine?.renderSystem && engine?.gridSystem && store.activeMap) {
-      engine.renderSystem.setMap(store.activeMap)
       const isEventTool = store.currentTool === ZTool.event
       engine.gridSystem.setSize(
         isEventTool ? store.activeMap.width : 0,
@@ -212,17 +212,26 @@ watch(
   }
 )
 
-// Active Layer Dimming
+// Centralized Display Logic: Layer Dimming & Event Visibility
 watch(
-  () => [store.activeLayer, store.isTestMode],
-  ([layer, isTest]) => {
+  () => [store.activeLayer, store.isTestMode, store.currentTool],
+  ([layer, isTest, tool]) => {
     if (engine && engine.renderSystem) {
       if (isTest) {
-        // Play Mode: No Dimming
+        // Play Mode: Full Context, No Ghosts
         engine.renderSystem.updateLayerDimming(null)
+        engine.renderSystem.setEventMarkersVisible(false)
       } else {
-        // Edit Mode: Dim based on active layer
-        engine.renderSystem.updateLayerDimming(layer as ZLayer)
+        // Edit Mode
+        if (tool === ZTool.event) {
+          // Event Tool: Exclusive Focus on Events Layer + Show Markers
+          engine.renderSystem.updateLayerDimming(ZLayer.events, true)
+          engine.renderSystem.setEventMarkersVisible(true)
+        } else {
+          // Standard Tool: Dim layers above active layer + Hide Markers
+          engine.renderSystem.updateLayerDimming(layer as ZLayer, false)
+          engine.renderSystem.setEventMarkersVisible(false)
+        }
       }
     }
   },
