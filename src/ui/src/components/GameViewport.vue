@@ -5,7 +5,6 @@ import { useEditorStore } from '@ui/stores/editor'
 import { type FederatedPointerEvent } from '@engine/utils/pixi'
 import { IconAlertTriangle } from '@tabler/icons-vue'
 import EventEditor from './modal/EventEditor.vue'
-import PlayMessage from './PlayMessage.vue'
 import { ZLayer, ZTool, type TileSelection } from '@engine/types'
 import { useViewport } from '@ui/composables/useViewport'
 import { useEditorTools } from '@ui/composables/useEditorTools'
@@ -347,8 +346,6 @@ onUnmounted(() => {
       :y="activeEventCoords.y"
       @close="clearEventSelection"
     />
-
-    <PlayMessage />
   </div>
 </template>
 

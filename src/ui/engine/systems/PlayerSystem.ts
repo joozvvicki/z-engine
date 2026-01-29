@@ -98,8 +98,8 @@ export class PlayerSystem extends ZSystem {
 
     if (
       this.inputManager.isKeyDown('Enter') ||
-      this.inputManager.isKeyDown(' ') ||
-      this.inputManager.isKeyDown('z')
+      this.inputManager.isKeyDown('Space') ||
+      this.inputManager.isKeyDown('KeyZ')
     ) {
       let tx = this.x
       let ty = this.y

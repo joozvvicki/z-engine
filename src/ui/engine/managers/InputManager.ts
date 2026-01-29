@@ -22,6 +22,10 @@ export class InputManager {
     return codes.some((code) => this.isKeyDown(code))
   }
 
+  public clearKey(code: string): void {
+    this.keys.set(code, false)
+  }
+
   public destroy(): void {
     window.removeEventListener('keydown', (e) => this.onKeyDown(e))
     window.removeEventListener('keyup', (e) => this.onKeyUp(e))

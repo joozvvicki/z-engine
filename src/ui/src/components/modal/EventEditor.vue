@@ -150,22 +150,30 @@ const remove = (): void => {
 // Command Editing
 const showCommandSelector = ref(false)
 const editingCommandIndex = ref<number | null>(null)
+const selectedCommandType = ref(201) // Default to Transfer Player
 const cmdParams = ref({ mapId: 1, x: 0, y: 0 })
+const messageText = ref('')
 
 const openCommandEditor = (index: number | null = null): void => {
   editingCommandIndex.value = index
   if (index !== null && activePage.value) {
     const cmd = activePage.value.list[index]
+    selectedCommandType.value = cmd.code
+
     if (cmd.code === 201) {
       cmdParams.value = {
         mapId: cmd.parameters[0] as number,
         x: cmd.parameters[1] as number,
         y: cmd.parameters[2] as number
       }
+    } else if (cmd.code === 101) {
+      messageText.value = cmd.parameters[0] as string
     }
   } else {
     // Reset for new
+    selectedCommandType.value = 201
     cmdParams.value = { mapId: 1, x: 0, y: 0 }
+    messageText.value = ''
   }
   showCommandSelector.value = true
 }
@@ -173,9 +181,19 @@ const openCommandEditor = (index: number | null = null): void => {
 const saveCommand = (): void => {
   if (!activePage.value) return
 
-  const newCommand = {
-    code: 201, // ZCommandCode.TransferPlayer
-    parameters: [cmdParams.value.mapId, cmdParams.value.x, cmdParams.value.y]
+  let newCommand
+  if (selectedCommandType.value === 201) {
+    newCommand = {
+      code: 201, // ZCommandCode.TransferPlayer
+      parameters: [cmdParams.value.mapId, cmdParams.value.x, cmdParams.value.y]
+    }
+  } else if (selectedCommandType.value === 101) {
+    newCommand = {
+      code: 101, // ZCommandCode.ShowMessage
+      parameters: [messageText.value]
+    }
+  } else {
+    return
   }
 
   if (editingCommandIndex.value !== null) {
@@ -567,12 +585,21 @@ const saveCommand = (): void => {
                 <span class="text-slate-300 text-[10px] w-6 text-right select-none">{{
                   String(idx + 1).padStart(3, '0')
                 }}</span>
-                <!-- Command Logic Placeholder -->
+                <!-- Command Display Logic -->
                 <div class="flex items-center gap-2">
-                  <span class="w-1.5 h-1.5 rounded-full bg-blue-400"></span>
-                  <span class="text-slate-700 font-medium font-sans"
+                  <span
+                    class="w-1.5 h-1.5 rounded-full"
+                    :class="cmd.code === 101 ? 'bg-green-400' : 'bg-blue-400'"
+                  ></span>
+                  <span v-if="cmd.code === 201" class="text-slate-700 font-medium font-sans"
                     >Transfer Player (Map {{ cmd.parameters[0] }}, {{ cmd.parameters[1] }},
                     {{ cmd.parameters[2] }})</span
+                  >
+                  <span v-else-if="cmd.code === 101" class="text-slate-700 font-medium font-sans"
+                    >Show Message: "{{ cmd.parameters[0] }}"</span
+                  >
+                  <span v-else class="text-slate-400 font-medium font-sans italic"
+                    >Unknown Command ({{ cmd.code }})</span
                   >
                   <IconTrash
                     size="14"
@@ -628,18 +655,36 @@ const saveCommand = (): void => {
         </div>
 
         <div class="p-4 space-y-4">
-          <!-- Command Type (Only Transfer Player for now) -->
           <div>
-            <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1">Command</label>
-            <select
-              disabled
-              class="w-full border border-slate-200 rounded px-2 py-1.5 text-sm font-medium text-slate-700 bg-slate-50 cursor-not-allowed"
+            <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1"
+              >Command Type</label
             >
-              <option value="201">Transfer Player</option>
+            <select
+              v-model.number="selectedCommandType"
+              class="w-full border border-slate-200 rounded px-2 py-1.5 text-sm font-medium text-slate-700 bg-white"
+            >
+              <option :value="101">Show Message</option>
+              <option :value="201">Transfer Player</option>
             </select>
           </div>
 
-          <div class="grid grid-cols-3 gap-3">
+          <!-- Show Message Params -->
+          <div v-if="selectedCommandType === 101" class="space-y-3">
+            <div>
+              <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1"
+                >Message Text</label
+              >
+              <textarea
+                v-model="messageText"
+                rows="4"
+                placeholder="Enter message text..."
+                class="w-full border border-slate-200 rounded px-3 py-2 text-sm font-sans resize-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
+              ></textarea>
+            </div>
+          </div>
+
+          <!-- Transfer Player Params -->
+          <div v-if="selectedCommandType === 201" class="grid grid-cols-3 gap-3">
             <div>
               <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1"
                 >Map ID</label

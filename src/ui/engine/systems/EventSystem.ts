@@ -75,6 +75,12 @@ export class EventSystem extends ZSystem {
     }
   }
 
+  public onPostUpdate(): void {
+    // Reset flag for next frame
+    this.hasExecutedThisFrame = false
+  }
+
+  private hasExecutedThisFrame: boolean = false
   private isWaitingForMessage: boolean = false
 
   public finishMessage(): void {
@@ -115,12 +121,18 @@ export class EventSystem extends ZSystem {
   }
 
   public checkTrigger(x: number, y: number, trigger: ZEventTrigger): void {
+    console.log(
+      `[EventSystem] checkTrigger at (${x}, ${y}), trigger: ${trigger}, isProcessing: ${this.isProcessing}`
+    )
+
     if (this.isProcessing) return // Don't interrupt
 
     const map = this.mapManager.currentMap
     if (!map) return
 
     const event = map.events.find((e) => e.x === x && e.y === y)
+    console.log(`[EventSystem] Found event:`, event)
+
     if (!event) return
 
     // Find active page
@@ -133,13 +145,40 @@ export class EventSystem extends ZSystem {
       }
     }
 
+    console.log(
+      `[EventSystem] Active page:`,
+      activePage,
+      `trigger match:`,
+      activePage?.trigger === trigger
+    )
+
     if (activePage && activePage.trigger === trigger) {
       this.startEvent(event)
     }
   }
 
   private executeInterpreter(): void {
-    if (!this.activeInterpreter) return
+    if (!this.activeInterpreter) {
+      console.log('[EventSystem] executeInterpreter called but no active interpreter')
+      return
+    }
+
+    if (this.hasExecutedThisFrame) {
+      console.log('[EventSystem] executeInterpreter already executed this frame, skipping')
+      return
+    }
+
+    this.hasExecutedThisFrame = true
+
+    console.log(
+      '[EventSystem] executeInterpreter - index:',
+      this.activeInterpreter.index,
+      'length:',
+      this.activeInterpreter.list.length,
+      'isWaitingForMessage:',
+      this.isWaitingForMessage
+    )
+    console.trace('[EventSystem] executeInterpreter stack trace')
 
     // Execute commands until one yields (wait) or list ends
     while (this.activeInterpreter.index < this.activeInterpreter.list.length) {
@@ -150,19 +189,25 @@ export class EventSystem extends ZSystem {
 
       const result = this.executeCommand(cmd)
       if (result === 'wait') {
-        return // Stop processing this frame
+        console.log(
+          `[EventSystem] Command returned 'wait', pausing interpreter. isProcessing stays true`
+        )
+        // Don't clear activeInterpreter or isProcessing - we're waiting
+        return // Stop processing this frame, but keep isProcessing = true
       }
       if (result === 'stop') {
         this.activeInterpreter = null
         this.isProcessing = false
+        console.log(`[EventSystem] Command returned 'stop', ending event`)
         return
       }
+      // If result is 'continue', loop continues to next command
     }
 
-    // End of list
+    // End of list - only reached if all commands executed without 'wait' or 'stop'
     this.activeInterpreter = null
     this.isProcessing = false
-    console.log(`[EventSystem] Event finished`)
+    console.log(`[EventSystem] Event finished - reached end of command list`)
   }
 
   private executeCommand(cmd: ZEventCommand): ZCommandResult {
@@ -194,11 +239,20 @@ export class EventSystem extends ZSystem {
   // Params: [text, faceName?, faceIndex?]
   private commandShowMessage(params: unknown[]): ZCommandResult {
     const text = params[0] as string
+    console.log('[EventSystem] commandShowMessage called with text:', text)
 
     this.isWaitingForMessage = true
 
     // Emit signal for UI to show message
     this.eventBus.emit(ZEngineSignal.ShowMessage, { text })
+    console.log('[EventSystem] Emitted ShowMessage signal')
+
+    // Clear input keys to prevent immediate close
+    if (window.$zEngine?.inputManager) {
+      window.$zEngine.inputManager.clearKey('Enter')
+      window.$zEngine.inputManager.clearKey('Space')
+      window.$zEngine.inputManager.clearKey('KeyZ')
+    }
 
     return 'wait'
   }

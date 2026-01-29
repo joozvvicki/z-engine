@@ -6,6 +6,7 @@ import { GridSystem } from '../systems/GridSystem'
 import { PlayerSystem } from '../systems/PlayerSystem'
 import { EntityRenderSystem } from '../systems/EntityRenderSystem'
 import { EventSystem } from '../systems/EventSystem'
+import { MessageSystem } from '../systems/MessageSystem'
 import { initDevtools } from '@pixi/devtools'
 import { InputManager } from '../managers/InputManager'
 import { MapManager } from '../managers/MapManager'
@@ -56,6 +57,9 @@ export class ZEngine {
   public get transitionSystem(): TransitionSystem | undefined {
     return this.getSystem(TransitionSystem)
   }
+  public get messageSystem(): MessageSystem | undefined {
+    return this.getSystem(MessageSystem)
+  }
 
   private systems: Map<string, ZSystem> = new Map()
 
@@ -91,11 +95,17 @@ export class ZEngine {
     const entitySystem = this.getSystem(EntityRenderSystem)
     const ghostSystem = this.getSystem(GhostSystem)
     const gridSystem = this.getSystem(GridSystem)
+    const messageSystem = this.getSystem(MessageSystem)
 
     if (mode === 'play') {
       entitySystem?.setVisible(true)
       ghostSystem?.setVisible(false)
       gridSystem?.setVisible(false)
+
+      // Ensure MessageSystem has correct position
+      if (messageSystem) {
+        messageSystem.resize(this.app.screen.width, this.app.screen.height)
+      }
 
       // Hide Editor Events Markers (keep layer visible for Player) - managed by Vue Store now
       // this.renderSystem?.setEventMarkersVisible(false)
@@ -177,6 +187,11 @@ export class ZEngine {
 
     // EventSystem depends on PlayerSystem (for collision/triggering)
     this.addSystem(new EventSystem(this, this.mapManager, playerSystem, this.eventBus))
+
+    // MessageSystem for in-game dialogue
+    const messageSystem = new MessageSystem(this.app.stage, this.eventBus, this.inputManager)
+    this.addSystem(messageSystem)
+    messageSystem.resize(this.app.screen.width, this.app.screen.height)
 
     this.addSystem(
       new EntityRenderSystem(
