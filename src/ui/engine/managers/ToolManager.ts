@@ -3,23 +3,29 @@ import { MapManager } from './MapManager'
 import { RenderSystem } from '../systems/RenderSystem'
 import { ZDataProvider } from '@engine/types'
 import { HistoryManager } from './HistoryManager'
+import { ServiceLocator } from '../core/ServiceLocator'
 
 /**
  * Handles editor tool logic (painting, fill, etc.) inside the engine.
  */
 export class ToolManager {
-  private mapManager: MapManager
-  private historyManager: HistoryManager
-  private renderSystem: RenderSystem | null = null
+  private services: ServiceLocator
   private dataProvider: ZDataProvider | null = null
 
-  constructor(mapManager: MapManager, historyManager: HistoryManager) {
-    this.mapManager = mapManager
-    this.historyManager = historyManager
+  constructor(services: ServiceLocator) {
+    this.services = services
   }
 
-  public setRenderSystem(renderSystem: RenderSystem): void {
-    this.renderSystem = renderSystem
+  private get mapManager(): MapManager {
+    return this.services.require(MapManager)
+  }
+
+  private get historyManager(): HistoryManager {
+    return this.services.require(HistoryManager)
+  }
+
+  private get renderSystem(): RenderSystem | undefined {
+    return this.services.get(RenderSystem)
   }
 
   public setDataProvider(dataProvider: ZDataProvider): void {

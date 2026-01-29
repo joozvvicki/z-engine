@@ -21,9 +21,6 @@ import { ZEventBus } from './ZEventBus'
 import { ServiceLocator } from './ServiceLocator'
 import { ZSystem, ZDataProvider } from '@engine/types'
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type Constructor<T> = new (...args: any[]) => T
-
 export class ZEngine {
   public app: Application
   public services: ServiceLocator
@@ -32,39 +29,8 @@ export class ZEngine {
 
   public eventBus: ZEventBus
 
-  public get sceneManager(): SceneManager {
-    return this.services.require(SceneManager)
-  }
-
-  public get renderSystem(): RenderSystem | undefined {
-    return this.services.get(RenderSystem)
-  }
-  public get ghostSystem(): GhostSystem | undefined {
-    return this.services.get(GhostSystem)
-  }
-  public get gridSystem(): GridSystem | undefined {
-    return this.services.get(GridSystem)
-  }
-  public get playerSystem(): PlayerSystem | undefined {
-    return this.services.get(PlayerSystem)
-  }
-  public get entityRenderSystem(): EntityRenderSystem | undefined {
-    return this.services.get(EntityRenderSystem)
-  }
-  public get eventSystem(): EventSystem | undefined {
-    return this.services.get(EventSystem)
-  }
-  public get transitionSystem(): TransitionSystem | undefined {
-    return this.services.get(TransitionSystem)
-  }
-  public get messageSystem(): MessageSystem | undefined {
-    return this.getSystem(MessageSystem)
-  }
-
-  private systems: Map<string, ZSystem> = new Map()
-
   public boot(): void {
-    this.systems.forEach((system) => {
+    this.services.getAllInstances(ZSystem).forEach((system) => {
       system.onBoot()
       ZLogger.with(system.constructor.name).info("I'm ready!")
     })
@@ -72,14 +38,11 @@ export class ZEngine {
   }
 
   private tick(delta: number): void {
-    // Edit Mode: Update Ghost, Grid, Render
-    // Play Mode: Update Player, EntityRender, Render
-    this.systems.forEach((system) => {
-      // Filter systems based on mode
+    this.services.getAllInstances(ZSystem).forEach((system) => {
       if (this.mode === 'edit') {
         if (system instanceof PlayerSystem || system instanceof EntityRenderSystem) return
       } else {
-        if (system instanceof GhostSystem) return // Hide ghost in play mode?
+        if (system instanceof GhostSystem) return
       }
 
       system.onPreUpdate(delta)
@@ -92,38 +55,30 @@ export class ZEngine {
     this.mode = mode
     ZLogger.log(`Switched to ${mode} mode`)
 
-    const entitySystem = this.getSystem(EntityRenderSystem)
-    const ghostSystem = this.getSystem(GhostSystem)
-    const gridSystem = this.getSystem(GridSystem)
-    const messageSystem = this.getSystem(MessageSystem)
+    const entitySystem = this.services.get(EntityRenderSystem)
+    const ghostSystem = this.services.get(GhostSystem)
+    const gridSystem = this.services.get(GridSystem)
+    const messageSystem = this.services.get(MessageSystem)
 
     if (mode === 'play') {
       entitySystem?.setVisible(true)
       ghostSystem?.setVisible(false)
       gridSystem?.setVisible(false)
 
-      // Ensure MessageSystem has correct position
       if (messageSystem) {
         messageSystem.resize(this.app.screen.width, this.app.screen.height)
       }
 
-      // Hide Editor Events Markers (keep layer visible for Player) - managed by Vue Store now
-      // this.renderSystem?.setEventMarkersVisible(false)
-
-      // Reset player
-      this.getSystem(PlayerSystem)?.onBoot()
+      this.services.get(PlayerSystem)?.onBoot()
     } else {
       entitySystem?.setVisible(false)
       ghostSystem?.setVisible(true)
       gridSystem?.setVisible(true)
-
-      // Show Editor Events Markers - managed by Vue Store now
-      // this.renderSystem?.setEventMarkersVisible(true)
     }
   }
 
   public setDataProvider(provider: ZDataProvider): void {
-    this.sceneManager.setDataProvider(provider)
+    this.services.require(SceneManager).setDataProvider(provider)
     this.services.require(ToolManager).setDataProvider(provider)
     this.services.require(HistoryManager).setDataProvider(provider)
     this.services.require(GameStateManager).setDataProvider(provider)
@@ -134,28 +89,19 @@ export class ZEngine {
     this.app = new Application()
     this.services = new ServiceLocator()
 
-    // Create managers
-    const textureManager = new TextureManager()
-    const inputManager = new InputManager()
-    const tilesetManager = new TilesetManager()
-    const mapManager = new MapManager(tilesetManager)
-    const historyManager = new HistoryManager()
-    const toolManager = new ToolManager(mapManager, historyManager)
-    const sceneManager = new SceneManager(this.services)
-    const eventBus = new ZEventBus()
-    this.eventBus = eventBus
-
-    // Register all managers in ServiceLocator
-    this.services.register(TextureManager, textureManager)
-    this.services.register(InputManager, inputManager)
-    this.services.register(TilesetManager, tilesetManager)
-    this.services.register(MapManager, mapManager)
-    this.services.register(HistoryManager, historyManager)
-    this.services.register(ToolManager, toolManager)
-    this.services.register(SceneManager, sceneManager)
-    this.services.register(ZEventBus, eventBus)
+    // 1. Register Core Logic (Managers)
+    this.services.register(TextureManager, new TextureManager())
+    this.services.register(InputManager, new InputManager())
+    this.services.register(TilesetManager, new TilesetManager())
+    this.services.register(MapManager, new MapManager(this.services))
+    this.services.register(HistoryManager, new HistoryManager(this.services))
+    this.services.register(ToolManager, new ToolManager(this.services))
+    this.services.register(SceneManager, new SceneManager(this.services))
+    this.services.register(ZEventBus, new ZEventBus())
     this.services.register(GameStateManager, new GameStateManager(this.services))
     this.services.register('ZEngine', this)
+
+    this.eventBus = this.services.require(ZEventBus)
 
     ZLogger.log(
       '[ZEngine] ServiceLocator initialized with',
@@ -183,45 +129,21 @@ export class ZEngine {
     this.app.stage.hitArea = this.app.screen
     this.app.stage.sortableChildren = true
 
-    const renderSystem = new RenderSystem(this.app.stage, this.services, tileSize)
-    this.addSystem(renderSystem)
-    this.services.register(RenderSystem, renderSystem)
-    this.services.require(ToolManager).setRenderSystem(renderSystem)
-    this.services
-      .require(HistoryManager)
-      .setManagers(this.services.require(MapManager), renderSystem)
+    // 2. Register Active Systems
+    this.services.register(RenderSystem, new RenderSystem(this.app.stage, this.services, tileSize))
+    this.services.register(GhostSystem, new GhostSystem(this.app.stage, this.services, tileSize))
+    this.services.register(GridSystem, new GridSystem(this.app.stage, this.services, tileSize))
+    this.services.register(PlayerSystem, new PlayerSystem(this.services, tileSize))
+    this.services.register(EventSystem, new EventSystem(this.services))
+    this.services.register(EntityRenderSystem, new EntityRenderSystem(this.services, tileSize))
 
-    const ghostSystem = new GhostSystem(this.app.stage, this.services, tileSize)
-    this.addSystem(ghostSystem)
-    this.services.register(GhostSystem, ghostSystem)
-
-    const gridSystem = new GridSystem(this.app.stage, this.services, tileSize)
-    this.addSystem(gridSystem)
-    this.services.register(GridSystem, gridSystem)
     const transitionSystem = new TransitionSystem(this.app.stage, this.services)
-    this.addSystem(transitionSystem)
     this.services.register(TransitionSystem, transitionSystem)
-    // Initial resize to match screen
     transitionSystem.resize(this.app.screen.width, this.app.screen.height)
 
-    const playerSystem = new PlayerSystem(this.services, tileSize)
-    this.addSystem(playerSystem)
-    this.services.register(PlayerSystem, playerSystem) // Register so EventSystem can find it
-
-    // EventSystem depends on PlayerSystem (for collision/triggering)
-    const eventSystem = new EventSystem(this.services)
-    this.addSystem(eventSystem)
-    this.services.register(EventSystem, eventSystem)
-
-    // MessageSystem for in-game dialogue
     const messageSystem = new MessageSystem(this.app.stage, this.services)
-    this.addSystem(messageSystem)
     this.services.register(MessageSystem, messageSystem)
     messageSystem.resize(this.app.screen.width, this.app.screen.height)
-
-    const entityRenderSystem = new EntityRenderSystem(this.services, tileSize)
-    this.addSystem(entityRenderSystem)
-    this.services.register(EntityRenderSystem, entityRenderSystem)
 
     this.boot()
 
@@ -233,19 +155,9 @@ export class ZEngine {
     ZLogger.log('Hello 👋🏽 Everything is ready!')
   }
 
-  public addSystem<T extends ZSystem>(system: T): T {
-    this.systems.set(system.constructor.name, system)
-    return system
-  }
-
-  public getSystem<T extends ZSystem>(type: Constructor<T>): T | undefined {
-    const system = this.systems.get(type.name)
-    return system as T
-  }
-
   public destroy(): void {
     this.services.require(InputManager).destroy()
-    this.systems.forEach((s) => {
+    this.services.getAllInstances(ZSystem).forEach((s) => {
       s.onDestroy()
       ZLogger.with(s.constructor.name).info("I'm leaving!")
     })

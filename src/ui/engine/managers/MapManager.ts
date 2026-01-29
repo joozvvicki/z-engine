@@ -1,12 +1,17 @@
 import { ZMap, ZLayer } from '@engine/types'
 import { TilesetManager } from './TilesetManager'
+import { ServiceLocator } from '../core/ServiceLocator'
 
 export class MapManager {
   public currentMap: ZMap | null = null
-  private tilesetManager: TilesetManager
+  private services: ServiceLocator
 
-  constructor(tilesetManager: TilesetManager) {
-    this.tilesetManager = tilesetManager
+  constructor(services: ServiceLocator) {
+    this.services = services
+  }
+
+  private get tilesetManager(): TilesetManager {
+    return this.services.require(TilesetManager)
   }
 
   public setMap(map: ZMap): void {

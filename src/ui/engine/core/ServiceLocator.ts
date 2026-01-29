@@ -1,13 +1,15 @@
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type ServiceConstructor<T> = new (...args: any[]) => T
-export type ServiceKey<T> = ServiceConstructor<T> | string
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type AbstractServiceConstructor<T> = abstract new (...args: any[]) => T
+export type ServiceKey<T> = ServiceConstructor<T> | AbstractServiceConstructor<T> | string
 
 /**
  * ServiceLocator provides centralized access to engine services and managers.
  */
 export class ServiceLocator {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private services = new Map<ServiceKey<any>, any>()
+  private services = new Map<any, any>()
 
   /**
    * Register a service instance
@@ -58,6 +60,19 @@ export class ServiceLocator {
    */
   clear(): void {
     this.services.clear()
+  }
+
+  /**
+   * Get all registered instances that inherit from a specific base class (supports abstract classes)
+   */
+  getAllInstances<T>(baseClass: AbstractServiceConstructor<T>): T[] {
+    const results: T[] = []
+    this.services.forEach((instance) => {
+      if (instance instanceof baseClass) {
+        results.push(instance)
+      }
+    })
+    return results
   }
 
   /**

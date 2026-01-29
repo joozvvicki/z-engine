@@ -5,6 +5,8 @@ import { useEditorStore } from '@ui/stores/editor'
 import { useViewport } from './useViewport'
 import { useEditorTools } from './useEditorTools'
 import { ZTool } from '@engine/types'
+import { GridSystem } from '@engine/systems/GridSystem'
+import { GhostSystem } from '@engine/systems/GhostSystem'
 
 export const useEditorInput = (
   engine: Ref<ZEngine | null>,
@@ -48,7 +50,7 @@ export const useEditorInput = (
     if (event.button !== 0 || !engine.value) return
     if (store.isTestMode) return
 
-    target.value = engine.value.gridSystem?.getTileCoords(event)
+    target.value = engine.value.services.get(GridSystem)?.getTileCoords(event)
 
     // Alt + Click -> Pick Tile
     if (event.altKey && target.value) {
@@ -78,7 +80,7 @@ export const useEditorInput = (
     }
     if (!engine.value) return
 
-    target.value = engine.value.gridSystem?.getTileCoords(event)
+    target.value = engine.value.services.get(GridSystem)?.getTileCoords(event)
     const tool = store.currentTool
 
     if (
@@ -87,10 +89,12 @@ export const useEditorInput = (
       shapeStartPos.value
     ) {
       if (target.value)
-        engine.value.ghostSystem?.updateShape(shapeStartPos.value, target.value, tool)
+        engine.value.services.get(GhostSystem)?.updateShape(shapeStartPos.value, target.value, tool)
     } else {
       if (target.value)
-        engine.value.ghostSystem?.update(target.value.x, target.value.y, store.selection, tool)
+        engine.value.services
+          .get(GhostSystem)
+          ?.update(target.value.x, target.value.y, store.selection, tool)
 
       if (isPointerDown.value && (tool === ZTool.brush || tool === ZTool.eraser)) {
         handleInteraction(event, engine.value)
@@ -112,7 +116,7 @@ export const useEditorInput = (
     }
     isPointerDown.value = false
     shapeStartPos.value = null
-    engine.value?.ghostSystem?.hide()
+    engine.value?.services.get(GhostSystem)?.hide()
   }
 
   const onWheel = (event: WheelEvent): void => {
@@ -123,10 +127,11 @@ export const useEditorInput = (
   watch(
     () => store.selectionCoords,
     () => {
-      if (engine.value && engine.value.ghostSystem && store.selectionCoords) {
-        engine.value.ghostSystem.setSelectionBox(store.selectionCoords)
-      } else if (engine.value && engine.value.ghostSystem) {
-        engine.value.ghostSystem.setSelectionBox(null)
+      const ghostSystem = engine.value?.services.get(GhostSystem)
+      if (engine.value && ghostSystem && store.selectionCoords) {
+        ghostSystem.setSelectionBox(store.selectionCoords)
+      } else if (engine.value && ghostSystem) {
+        ghostSystem.setSelectionBox(null)
       }
     }
   )

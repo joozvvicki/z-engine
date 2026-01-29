@@ -4,6 +4,7 @@ import { useEditorStore } from '@ui/stores/editor'
 import { ZTool } from '@engine/types'
 import type { FederatedPointerEvent } from '@engine/utils/pixi'
 import { ToolManager } from '@engine/managers/ToolManager'
+import { GridSystem } from '@engine/systems/GridSystem'
 
 export const useEditorTools = (): {
   shapeStartPos: Ref<{ x: number; y: number } | null>
@@ -29,8 +30,10 @@ export const useEditorTools = (): {
     engine: ZEngine | null,
     isCommit = false
   ): void => {
-    if (!engine || !engine.gridSystem || !store.selection || !store.activeMap) return
-    const target = engine.gridSystem.getTileCoords(event)
+    if (!engine || !store.selection || !store.activeMap) return
+    const gridSystem = engine.services.get(GridSystem)
+    if (!gridSystem) return
+    const target = gridSystem.getTileCoords(event)
 
     if (
       !target ||

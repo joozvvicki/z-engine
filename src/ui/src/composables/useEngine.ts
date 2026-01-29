@@ -6,6 +6,10 @@ import { ZLayer, ZTool, type TileSelection, type ZDataProvider } from '@engine/t
 import { TextureManager } from '@engine/managers/TextureManager'
 import { TilesetManager } from '@engine/managers/TilesetManager'
 import { SceneManager } from '@engine/managers/SceneManager'
+import { RenderSystem } from '@engine/systems/RenderSystem'
+import { GridSystem } from '@engine/systems/GridSystem'
+import { PlayerSystem } from '@engine/systems/PlayerSystem'
+import { TransitionSystem } from '@engine/systems/TransitionSystem'
 
 export const useEngine = (
   canvasContainer: Ref<HTMLElement | null>
@@ -87,12 +91,14 @@ export const useEngine = (
 
     // Grid Size setup
     const isEventTool = store.currentTool === ZTool.event
-    newEngine.gridSystem?.setSize(
+    const gridSystem = newEngine.services.get(GridSystem)
+    gridSystem?.setSize(
       isEventTool ? store.activeMap.width : 0,
       isEventTool ? store.activeMap.height : 0
     )
 
-    isEngineReady.value = newEngine.renderSystem?.IsMapLoaded() ?? false
+    const renderSystem = newEngine.services.get(RenderSystem)
+    isEngineReady.value = renderSystem?.IsMapLoaded() ?? false
 
     // Setup Map Change Callback
     newEngine.services.require(SceneManager).setMapChangeCallback(async (mapId, x, y) => {
@@ -103,11 +109,12 @@ export const useEngine = (
         await nextTick()
         await until(isLoading).toBe(false)
 
-        if (newEngine.playerSystem) {
-          newEngine.playerSystem.x = x
-          newEngine.playerSystem.y = y
+        const playerSystem = newEngine.services.get(PlayerSystem)
+        if (playerSystem) {
+          playerSystem.x = x
+          playerSystem.y = y
           // @ts-ignore - snapToGrid is a custom method added at runtime or optional
-          newEngine.playerSystem.snapToGrid()
+          playerSystem.snapToGrid()
         }
       } else {
         console.error(`[GameViewport] Transfer Failed: Map ${mapId} not found`)
@@ -126,7 +133,7 @@ export const useEngine = (
         try {
           const w = store.activeMap.width * store.tileSize
           const h = store.activeMap.height * store.tileSize
-          engine.value.transitionSystem?.resize(w, h)
+          engine.value.services.get(TransitionSystem)?.resize(w, h)
 
           // Resize container
           if (canvasContainer.value) {
@@ -149,7 +156,7 @@ export const useEngine = (
     (newConfigs) => {
       if (engine.value && engine.value.services.has(TilesetManager)) {
         engine.value.services.require(TilesetManager).setConfigs(newConfigs)
-        engine.value.renderSystem?.refresh()
+        engine.value.services.get(RenderSystem)?.refresh()
       }
     },
     { deep: true, immediate: true }
@@ -159,12 +166,15 @@ export const useEngine = (
   watch(
     () => store.currentTool,
     () => {
-      if (engine.value && engine.value.gridSystem && store.activeMap) {
-        const isEventTool = store.currentTool === ZTool.event
-        engine.value.gridSystem.setSize(
-          isEventTool ? store.activeMap.width : 0,
-          isEventTool ? store.activeMap.height : 0
-        )
+      if (engine.value && store.activeMap) {
+        const gridSystem = engine.value.services.get(GridSystem)
+        if (gridSystem) {
+          const isEventTool = store.currentTool === ZTool.event
+          gridSystem.setSize(
+            isEventTool ? store.activeMap.width : 0,
+            isEventTool ? store.activeMap.height : 0
+          )
+        }
       }
     }
   )
@@ -173,19 +183,22 @@ export const useEngine = (
   watch(
     () => [store.activeLayer, store.isTestMode, store.currentTool],
     ([layer, isTest, tool]) => {
-      if (engine.value && engine.value.renderSystem) {
-        if (isTest) {
-          engine.value.setMode('play')
-          engine.value.renderSystem.updateLayerDimming(null)
-          engine.value.renderSystem.setEventMarkersVisible(false)
-        } else {
-          engine.value.setMode('edit')
-          if (tool === ZTool.event) {
-            engine.value.renderSystem.updateLayerDimming(ZLayer.events, true)
-            engine.value.renderSystem.setEventMarkersVisible(true)
+      if (engine.value) {
+        const renderSystem = engine.value.services.get(RenderSystem)
+        if (renderSystem) {
+          if (isTest) {
+            engine.value.setMode('play')
+            renderSystem.updateLayerDimming(null)
+            renderSystem.setEventMarkersVisible(false)
           } else {
-            engine.value.renderSystem.updateLayerDimming(layer as ZLayer, false)
-            engine.value.renderSystem.setEventMarkersVisible(true)
+            engine.value.setMode('edit')
+            if (tool === ZTool.event) {
+              renderSystem.updateLayerDimming(ZLayer.events, true)
+              renderSystem.setEventMarkersVisible(true)
+            } else {
+              renderSystem.updateLayerDimming(layer as ZLayer, false)
+              renderSystem.setEventMarkersVisible(true)
+            }
           }
         }
       }

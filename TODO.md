@@ -1,5 +1,9 @@
 # Z Engine - Missing features
 
+## TODO for now
+
+1. Refacor editor.ts cuz it's a mess and have a lot of responsibilities
+
 Brakujące funkjonalności w Z-Engine (w porównaniu do RPG Maker). Na podstawie analizy kodu źródłowego, brakuje następujących kluczowych elementów: (Obecnie zaimplementowany jest głównie podstawowy edytor map i prosty zarys bazy danych dla aktorów).
 
 1. System Bazy Danych (Database)

@@ -2,6 +2,7 @@ import { ZHistoryEntry, ZTileDelta, ZDataProvider, ZLayer } from '@engine/types'
 import ZLogger from '@engine/core/ZLogger'
 import { MapManager } from './MapManager'
 import { RenderSystem } from '../systems/RenderSystem'
+import { ServiceLocator } from '../core/ServiceLocator'
 
 /**
  * Manages editor history using a delta-based approach.
@@ -12,20 +13,23 @@ export class HistoryManager {
   private currentEntry: ZHistoryEntry | null = null
   private maxHistory: number = 50
   private dataProvider: ZDataProvider | null = null
-  private mapManager: MapManager | null = null
-  private renderSystem: RenderSystem | null = null
+  private services: ServiceLocator
 
-  constructor(maxHistory: number = 50) {
+  constructor(services: ServiceLocator, maxHistory: number = 50) {
+    this.services = services
     this.maxHistory = maxHistory
+  }
+
+  private get mapManager(): MapManager {
+    return this.services.require(MapManager)
+  }
+
+  private get renderSystem(): RenderSystem | undefined {
+    return this.services.get(RenderSystem)
   }
 
   public setDataProvider(dataProvider: ZDataProvider): void {
     this.dataProvider = dataProvider
-  }
-
-  public setManagers(mapManager: MapManager, renderSystem: RenderSystem): void {
-    this.mapManager = mapManager
-    this.renderSystem = renderSystem
   }
 
   /**

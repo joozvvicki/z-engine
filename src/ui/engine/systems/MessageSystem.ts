@@ -1,4 +1,5 @@
 import { ZSystem, ZEngineSignal } from '@engine/types'
+import { EventSystem } from '../systems/EventSystem'
 import { Container, Graphics, Text } from 'pixi.js'
 import { ZEventBus } from '@engine/core/ZEventBus'
 import { InputManager } from '@engine/managers/InputManager'
@@ -112,8 +113,9 @@ export class MessageSystem extends ZSystem {
     this.eventBus.emit(ZEngineSignal.MessageClosed, {})
 
     // Notify EventSystem that message is finished
-    if (window.$zEngine?.eventSystem) {
-      window.$zEngine.eventSystem.finishMessage()
+    const eventSystem = window.$zEngine?.services.get(EventSystem)
+    if (eventSystem) {
+      eventSystem.finishMessage()
     }
   }
 
