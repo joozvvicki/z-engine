@@ -1,5 +1,6 @@
 import { ref, computed, type Ref, type ComputedRef, onMounted, onUnmounted } from 'vue'
 import type { ZMap } from '@engine/types'
+import { HistoryManager } from '@engine/managers/HistoryManager'
 
 export const useHistory = (
   _activeMap: Ref<ZMap | undefined>,
@@ -26,11 +27,12 @@ export const useHistory = (
 
   const syncStatus = (): void => {
     const engine = window.$zEngine
-    if (engine?.historyManager) {
-      canUndo.value = engine.historyManager.canUndo
-      canRedo.value = engine.historyManager.canRedo
-      undoCount.value = engine.historyManager.undoCount
-      redoCount.value = engine.historyManager.redoCount
+    const historyManager = engine?.services.get(HistoryManager)
+    if (historyManager) {
+      canUndo.value = historyManager.canUndo
+      canRedo.value = historyManager.canRedo
+      undoCount.value = historyManager.undoCount
+      redoCount.value = historyManager.redoCount
     }
   }
 
@@ -44,8 +46,9 @@ export const useHistory = (
 
   const undo = (): void => {
     const engine = window.$zEngine
-    if (engine?.historyManager) {
-      engine.historyManager.undo()
+    const historyManager = engine?.services.get(HistoryManager)
+    if (historyManager) {
+      historyManager.undo()
       saveCallback()
       syncStatus()
     }
@@ -53,8 +56,9 @@ export const useHistory = (
 
   const redo = (): void => {
     const engine = window.$zEngine
-    if (engine?.historyManager) {
-      engine.historyManager.redo()
+    const historyManager = engine?.services.get(HistoryManager)
+    if (historyManager) {
+      historyManager.redo()
       saveCallback()
       syncStatus()
     }
@@ -65,8 +69,9 @@ export const useHistory = (
   // can be used to commit currently open entry.
   const recordHistory = (): void => {
     const engine = window.$zEngine
-    if (engine?.historyManager) {
-      engine.historyManager.commitEntry()
+    const historyManager = engine?.services.get(HistoryManager)
+    if (historyManager) {
+      historyManager.commitEntry()
       syncStatus()
     }
   }

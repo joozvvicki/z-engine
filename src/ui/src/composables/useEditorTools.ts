@@ -3,6 +3,7 @@ import { ZEngine } from '@engine/core/ZEngine'
 import { useEditorStore } from '@ui/stores/editor'
 import { ZTool } from '@engine/types'
 import type { FederatedPointerEvent } from '@engine/utils/pixi'
+import { ToolManager } from '@engine/managers/ToolManager'
 
 export const useEditorTools = (): {
   shapeStartPos: Ref<{ x: number; y: number } | null>
@@ -45,7 +46,7 @@ export const useEditorTools = (): {
     const isStacking = event.shiftKey
 
     if (tool === ZTool.bucket && isCommit) {
-      engine.toolManager.bucketFill(target, store.selection, layer, isStacking)
+      engine.services.require(ToolManager).bucketFill(target, store.selection, layer, isStacking)
       return
     }
 
@@ -63,14 +64,16 @@ export const useEditorTools = (): {
     }
 
     if ((tool === ZTool.rectangle || tool === ZTool.circle) && isCommit && shapeStartPos.value) {
-      engine.toolManager.drawShape(
-        shapeStartPos.value,
-        target,
-        tool as ZTool.rectangle | ZTool.circle,
-        store.selection,
-        layer,
-        isStacking
-      )
+      engine.services
+        .require(ToolManager)
+        .drawShape(
+          shapeStartPos.value,
+          target,
+          tool as ZTool.rectangle | ZTool.circle,
+          store.selection,
+          layer,
+          isStacking
+        )
       return
     }
 
@@ -88,7 +91,9 @@ export const useEditorTools = (): {
 
     // Default brush/eraser behavior
     if ((tool === ZTool.brush || tool === ZTool.eraser) && !shapeStartPos.value) {
-      engine.toolManager.brush(target, store.selection, layer, isStacking, tool === ZTool.eraser)
+      engine.services
+        .require(ToolManager)
+        .brush(target, store.selection, layer, isStacking, tool === ZTool.eraser)
       return
     }
   }
@@ -105,7 +110,7 @@ export const useEditorTools = (): {
 
     for (let dy = 0; dy < h; dy++) {
       for (let dx = 0; dx < w; dx++) {
-        engine.toolManager.applyTile(x + dx, y + dy, null, false, layer)
+        engine.services.require(ToolManager).applyTile(x + dx, y + dy, null, false, layer)
       }
     }
 

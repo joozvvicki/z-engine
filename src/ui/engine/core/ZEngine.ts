@@ -1,4 +1,4 @@
-import { Application as PIXIApplication } from '../utils/pixi'
+import { Application } from '../utils/pixi'
 import { SceneManager } from '../managers/SceneManager'
 import { TextureManager } from '../managers/TextureManager'
 import { RenderSystem } from '../systems/RenderSystem'
@@ -18,45 +18,17 @@ import { HistoryManager } from '../managers/HistoryManager'
 import ZLogger from './ZLogger'
 import { ZEventBus } from './ZEventBus'
 import { ServiceLocator } from './ServiceLocator'
-import { ZSystem, ZMap, ZDataProvider } from '@engine/types'
+import { ZSystem, ZDataProvider } from '@engine/types'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Constructor<T> = new (...args: any[]) => T
 
 export class ZEngine {
-  public app: PIXIApplication
+  public app: Application
   public services: ServiceLocator
 
-  // These properties are deprecated and replaced by ServiceLocator getters for compat
-  public get textureManager(): TextureManager {
-    return this.services.require(TextureManager)
-  }
-  public get inputManager(): InputManager {
-    return this.services.require(InputManager)
-  }
-  public get mapManager(): MapManager {
-    return this.services.require(MapManager)
-  }
-  public get tilesetManager(): TilesetManager {
-    return this.services.require(TilesetManager)
-  }
-  public get toolManager(): ToolManager {
-    return this.services.require(ToolManager)
-  }
-  public get historyManager(): HistoryManager {
-    return this.services.require(HistoryManager)
-  }
-
   public mode: 'edit' | 'play' = 'edit'
-  public set onMapChangeRequest(
-    cb: ((mapId: number, x: number, y: number) => Promise<void>) | null
-  ) {
-    if (cb) this.sceneManager.setMapChangeCallback(cb)
-  }
 
-  public get isLoading(): boolean {
-    return this.sceneManager.isLoading
-  }
   public eventBus: ZEventBus
 
   public get sceneManager(): SceneManager {
@@ -151,13 +123,13 @@ export class ZEngine {
 
   public setDataProvider(provider: ZDataProvider): void {
     this.sceneManager.setDataProvider(provider)
-    this.toolManager.setDataProvider(provider)
-    this.historyManager.setDataProvider(provider)
+    this.services.require(ToolManager).setDataProvider(provider)
+    this.services.require(HistoryManager).setDataProvider(provider)
     ZLogger.log('[ZEngine] Data Provider set')
   }
 
   constructor() {
-    this.app = new PIXIApplication()
+    this.app = new Application()
     this.services = new ServiceLocator()
 
     // Create managers
@@ -211,8 +183,10 @@ export class ZEngine {
     const renderSystem = new RenderSystem(this.app.stage, this.services, tileSize)
     this.addSystem(renderSystem)
     this.services.register(RenderSystem, renderSystem)
-    this.toolManager.setRenderSystem(renderSystem)
-    this.historyManager.setManagers(this.mapManager, renderSystem)
+    this.services.require(ToolManager).setRenderSystem(renderSystem)
+    this.services
+      .require(HistoryManager)
+      .setManagers(this.services.require(MapManager), renderSystem)
 
     const ghostSystem = new GhostSystem(this.app.stage, this.services, tileSize)
     this.addSystem(ghostSystem)
@@ -266,16 +240,8 @@ export class ZEngine {
     return system as T
   }
 
-  public async setMap(mapOrId: number | ZMap): Promise<void> {
-    return this.sceneManager.loadMap(mapOrId)
-  }
-
-  public async transferPlayer(mapId: number, x: number, y: number): Promise<void> {
-    return this.sceneManager.changeScene(mapId, x, y)
-  }
-
   public destroy(): void {
-    this.inputManager?.destroy()
+    this.services.require(InputManager).destroy()
     this.systems.forEach((s) => {
       s.onDestroy()
       ZLogger.with(s.constructor.name).info("I'm leaving!")

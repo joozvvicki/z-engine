@@ -1,0 +1,207 @@
+import { ref, shallowRef, onUnmounted, watch, nextTick, type Ref } from 'vue'
+import { until } from '@vueuse/core'
+import { ZEngine } from '@engine/core/ZEngine'
+import { useEditorStore } from '@ui/stores/editor'
+import { ZLayer, ZTool, type TileSelection, type ZDataProvider } from '@engine/types'
+import { TextureManager } from '@engine/managers/TextureManager'
+import { TilesetManager } from '@engine/managers/TilesetManager'
+import { SceneManager } from '@engine/managers/SceneManager'
+
+export const useEngine = (
+  canvasContainer: Ref<HTMLElement | null>
+): {
+  engine: Ref<ZEngine | null>
+  isEngineReady: Ref<boolean>
+  isLoading: Ref<boolean>
+  initEngine: () => Promise<void>
+} => {
+  const store = useEditorStore()
+  const engine = shallowRef<ZEngine | null>(null)
+  const isEngineReady = ref(false)
+  const isLoading = ref(false)
+
+  // Data Provider Definition
+  const dataProvider: ZDataProvider = {
+    getMap: async (id: number) => {
+      return store.maps.find((m) => m.id === id) || null
+    },
+    getTilesetConfigs: async () => {
+      return store.tilesetConfigs
+    },
+    getTilesetUrl: (slotId: string) => {
+      const ts = store.tilesets.find((t) => t.id === slotId)
+      return ts?.url || ''
+    },
+    setTileAt: (
+      x: number,
+      y: number,
+      tile: TileSelection | null,
+      isStacking: boolean,
+      layer: ZLayer
+    ) => {
+      store.setTileAt(x, y, tile, isStacking, layer)
+    }
+  }
+
+  const initEngine = async (): Promise<void> => {
+    await nextTick()
+
+    if (!canvasContainer.value || !store.activeMap) return
+    if (engine.value) engine.value.destroy()
+
+    isEngineReady.value = false
+
+    // Resize container to map
+    const w = store.activeMap.width * store.tileSize
+    const h = store.activeMap.height * store.tileSize
+    canvasContainer.value.style.width = `${w}px`
+    canvasContainer.value.style.height = `${h}px`
+
+    const newEngine = new ZEngine()
+    engine.value = newEngine
+    window.$zEngine = newEngine
+
+    newEngine.setDataProvider(dataProvider)
+
+    // Preload Characters
+    const charModules = import.meta.glob('@ui/assets/img/characters/*.png', {
+      eager: true,
+      query: '?url',
+      import: 'default'
+    })
+
+    await Promise.all(
+      Object.keys(charModules).map((path) => {
+        const name = path.split('/').pop() || path
+        // @ts-ignore - glob import type
+        const url = charModules[path].default || charModules[path]
+        return newEngine.services.require(TextureManager).loadTileset(name, url)
+      })
+    )
+
+    await newEngine.init(canvasContainer.value, store.tileSize)
+
+    if (store.activeMap) {
+      await newEngine.services.require(SceneManager).loadMap(store.activeMap)
+    }
+
+    // Grid Size setup
+    const isEventTool = store.currentTool === ZTool.event
+    newEngine.gridSystem?.setSize(
+      isEventTool ? store.activeMap.width : 0,
+      isEventTool ? store.activeMap.height : 0
+    )
+
+    isEngineReady.value = newEngine.renderSystem?.IsMapLoaded() ?? false
+
+    // Setup Map Change Callback
+    newEngine.services.require(SceneManager).setMapChangeCallback(async (mapId, x, y) => {
+      const targetMap = store.maps.find((m) => m.id === mapId)
+      if (targetMap) {
+        store.setActiveMap(mapId)
+
+        await nextTick()
+        await until(isLoading).toBe(false)
+
+        if (newEngine.playerSystem) {
+          newEngine.playerSystem.x = x
+          newEngine.playerSystem.y = y
+          // @ts-ignore - snapToGrid is a custom method added at runtime or optional
+          newEngine.playerSystem.snapToGrid()
+        }
+      } else {
+        console.error(`[GameViewport] Transfer Failed: Map ${mapId} not found`)
+      }
+    })
+  }
+
+  // --- Watchers for Sync ---
+
+  // 1. Map Switching
+  watch(
+    () => store.activeMap?.id,
+    async (newId) => {
+      if (newId && store.activeMap && engine.value) {
+        isLoading.value = true
+        try {
+          const w = store.activeMap.width * store.tileSize
+          const h = store.activeMap.height * store.tileSize
+          engine.value.transitionSystem?.resize(w, h)
+
+          // Resize container
+          if (canvasContainer.value) {
+            canvasContainer.value.style.width = `${w}px`
+            canvasContainer.value.style.height = `${h}px`
+          }
+
+          await engine.value.services.require(SceneManager).loadMap(store.activeMap)
+        } finally {
+          isLoading.value = false
+        }
+      }
+    },
+    { immediate: true } // Initial load handled by initEngine mostly, but this ensures sync
+  )
+
+  // 2. Tileset Config Sync
+  watch(
+    () => store.tilesetConfigs,
+    (newConfigs) => {
+      if (engine.value && engine.value.services.has(TilesetManager)) {
+        engine.value.services.require(TilesetManager).setConfigs(newConfigs)
+        engine.value.renderSystem?.refresh()
+      }
+    },
+    { deep: true, immediate: true }
+  )
+
+  // 3. Tool & Grid Sync
+  watch(
+    () => store.currentTool,
+    () => {
+      if (engine.value && engine.value.gridSystem && store.activeMap) {
+        const isEventTool = store.currentTool === ZTool.event
+        engine.value.gridSystem.setSize(
+          isEventTool ? store.activeMap.width : 0,
+          isEventTool ? store.activeMap.height : 0
+        )
+      }
+    }
+  )
+
+  // 4. Layer Dimming & Focus
+  watch(
+    () => [store.activeLayer, store.isTestMode, store.currentTool],
+    ([layer, isTest, tool]) => {
+      if (engine.value && engine.value.renderSystem) {
+        if (isTest) {
+          engine.value.setMode('play')
+          engine.value.renderSystem.updateLayerDimming(null)
+          engine.value.renderSystem.setEventMarkersVisible(false)
+        } else {
+          engine.value.setMode('edit')
+          if (tool === ZTool.event) {
+            engine.value.renderSystem.updateLayerDimming(ZLayer.events, true)
+            engine.value.renderSystem.setEventMarkersVisible(true)
+          } else {
+            engine.value.renderSystem.updateLayerDimming(layer as ZLayer, false)
+            engine.value.renderSystem.setEventMarkersVisible(true)
+          }
+        }
+      }
+    },
+    { immediate: true }
+  )
+
+  onUnmounted(() => {
+    engine.value?.destroy()
+    window.$zEngine = null
+  })
+
+  return {
+    engine,
+    isEngineReady,
+    isLoading,
+    initEngine
+  }
+}

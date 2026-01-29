@@ -16,6 +16,7 @@ import { PlayerSystem } from './PlayerSystem'
 import { ZEventBus } from '../core/ZEventBus'
 import { ServiceLocator } from '../core/ServiceLocator'
 import { SceneManager } from '../managers/SceneManager'
+import { InputManager } from '../managers/InputManager'
 
 export class EventSystem extends ZSystem {
   private services: ServiceLocator
@@ -65,7 +66,14 @@ export class EventSystem extends ZSystem {
     })
 
     this.eventBus.on(ZEngineSignal.InteractionRequested, ({ x, y }) => {
-      this.checkTrigger(x, y, ZEventTrigger.Action)
+      // 1. Check facing tile
+      const handled = this.checkTrigger(x, y, ZEventTrigger.Action)
+      if (handled) return
+
+      // 2. Check under player (if facing tile yielded nothing)
+      if (this.playerSystem) {
+        this.checkTrigger(this.playerSystem.x, this.playerSystem.y, ZEventTrigger.Action)
+      }
     })
 
     this.eventBus.on(ZEngineSignal.PlayerMoved, ({ x, y }) => {
@@ -115,14 +123,14 @@ export class EventSystem extends ZSystem {
     return true
   }
 
-  public checkTrigger(x: number, y: number, trigger: ZEventTrigger): void {
-    if (this.isProcessing) return // Don't interrupt
+  public checkTrigger(x: number, y: number, trigger: ZEventTrigger): boolean {
+    if (this.isProcessing) return false // Don't interrupt
 
     const map = this.mapManager.currentMap
-    if (!map) return
+    if (!map) return false
 
     const event = map.events.find((e) => e.x === x && e.y === y)
-    if (!event) return
+    if (!event) return false
 
     // Find active page
     let activePage: ZEventPage | null = null
@@ -136,7 +144,9 @@ export class EventSystem extends ZSystem {
 
     if (activePage && activePage.trigger === trigger) {
       this.startEvent(event)
+      return true
     }
+    return false
   }
 
   private executeInterpreter(): void {
@@ -201,10 +211,12 @@ export class EventSystem extends ZSystem {
     this.eventBus.emit(ZEngineSignal.ShowMessage, { text })
 
     // Clear input keys to prevent immediate close
-    if (window.$zEngine?.inputManager) {
-      window.$zEngine.inputManager.clearKey('Enter')
-      window.$zEngine.inputManager.clearKey('Space')
-      window.$zEngine.inputManager.clearKey('KeyZ')
+    // Clear input keys to prevent immediate close
+    const inputManager = this.services.get(InputManager)
+    if (inputManager) {
+      inputManager.clearKey('Enter')
+      inputManager.clearKey('Space')
+      inputManager.clearKey('KeyZ')
     }
 
     return 'wait'
