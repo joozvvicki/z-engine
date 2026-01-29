@@ -15,6 +15,19 @@ const canvasContainer = ref<HTMLElement | null>(null)
 let engine: ZEngine | null = null
 
 const store = useEditorStore()
+
+const dataProvider = {
+  getMap: async (id: number) => {
+    return store.maps.find((m) => m.id === id) || null
+  },
+  getTilesetConfigs: async () => {
+    return store.tilesetConfigs
+  },
+  getTilesetUrl: (slotId: string) => {
+    const ts = store.tilesets.find((t) => t.id === slotId)
+    return ts?.url || ''
+  }
+}
 const isPointerDown = ref(false)
 const target = ref<{ x: number; y: number } | null | undefined>(null)
 const isEngineReady = ref(false)
@@ -135,9 +148,9 @@ const initEngine = async (): Promise<void> => {
   canvasContainer.value.style.height = `${h}px`
 
   engine = new ZEngine()
-  await Promise.all(store.tilesets.map((ts) => engine!.textureManager.loadTileset(ts.id, ts.url)))
+  engine.setDataProvider(dataProvider)
 
-  // Preload Characters
+  // Preload Characters (these are global assets, not map specific)
   const charModules = import.meta.glob('@ui/assets/img/characters/*.png', {
     eager: true,
     as: 'url'
@@ -156,16 +169,12 @@ const initEngine = async (): Promise<void> => {
   engine.app.stage.on('pointerdown', onPointerDown)
   engine.app.stage.on('pointermove', onPointerMove)
   engine.app.stage.on('pointerup', onPointerUp)
-  engine.app.stage.on('pointerup', onPointerUp)
   engine.app.stage.on('pointerleave', () => engine?.ghostSystem?.hide())
 
-  const resolvedMap = JSON.parse(JSON.stringify(store.activeMap))
-  resolvedMap.tilesetConfig = {}
-  store.tilesets.forEach((ts) => {
-    resolvedMap.tilesetConfig[ts.id] = ts.url
-  })
+  if (store.activeMap) {
+    await engine.setMap(store.activeMap)
+  }
 
-  engine.renderSystem?.setMap(resolvedMap)
   const isEventTool = store.currentTool === ZTool.event
   engine.gridSystem?.setSize(
     isEventTool ? store.activeMap.width : 0,
@@ -173,11 +182,6 @@ const initEngine = async (): Promise<void> => {
   )
 
   isEngineReady.value = engine.renderSystem?.IsMapLoaded() ?? false
-
-  // Force sync configs immediately after engine creation
-  if (store.tilesetConfigs) {
-    engine.mapManager?.setTilesetConfigs(store.tilesetConfigs)
-  }
 
   engine.onMapChangeRequest = async (mapId, x, y) => {
     const targetMap = store.maps.find((m) => m.id === mapId)
@@ -203,39 +207,22 @@ const initEngine = async (): Promise<void> => {
 }
 
 watch(
-  () => store.activeMap,
-  async (newMap) => {
-    if (newMap && engine) {
+  () => store.activeMap?.id,
+  async (newId) => {
+    if (newId && store.activeMap && engine) {
       isLoading.value = true
       try {
-        // Sync transition overlay size with current map
-        const w = newMap.width * store.tileSize
-        const h = newMap.height * store.tileSize
+        const w = store.activeMap.width * store.tileSize
+        const h = store.activeMap.height * store.tileSize
         engine!.transitionSystem?.resize(w, h)
 
-        // 1. Dynamic Texture Loading from Map Config (which drives store.tilesets)
-        const tilesetPromises = store.tilesets.map((ts) =>
-          engine!.textureManager.loadTileset(ts.id, ts.url)
-        )
-        await Promise.all(tilesetPromises)
-
-        // 2. Load the map into the engine
-        // Deep clone to detach from store reactivity for stable rendering
-        const resolvedMap = JSON.parse(JSON.stringify(newMap))
-        // Inject fully resolved tilesetConfig so MapManager doesn't lose data
-        resolvedMap.tilesetConfig = {}
-        store.tilesets.forEach((ts) => {
-          resolvedMap.tilesetConfig[ts.id] = ts.url
-        })
-
-        engine.renderSystem!.setMap(resolvedMap)
-        engine?.entityRenderSystem?.loadEvents()
+        await engine.setMap(store.activeMap)
       } finally {
         isLoading.value = false
       }
     }
   },
-  { deep: true, immediate: true }
+  { immediate: true }
 )
 
 // Sync Tileset Configs
@@ -259,19 +246,8 @@ watch(
 watch(
   () => store.historyIndex,
   async () => {
-    if (engine && store.activeMap && engine.renderSystem && engine.gridSystem) {
-      const tilesetPromises = store.tilesets.map((ts) =>
-        engine!.textureManager.loadTileset(ts.id, ts.url)
-      )
-      await Promise.all(tilesetPromises)
-
-      const resolvedMap = JSON.parse(JSON.stringify(store.activeMap))
-      resolvedMap.tilesetConfig = {}
-      store.tilesets.forEach((ts) => {
-        resolvedMap.tilesetConfig[ts.id] = ts.url
-      })
-
-      engine.renderSystem.setMap(resolvedMap)
+    if (engine && store.activeMap) {
+      await engine.setMap(store.activeMap)
     }
   }
 )

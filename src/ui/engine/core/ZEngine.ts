@@ -11,7 +11,7 @@ import { InputManager } from '../managers/InputManager'
 import { MapManager } from '../managers/MapManager'
 import { TransitionSystem } from '../systems/TransitionSystem'
 import ZLogger from './ZLogger'
-import { ZSystem } from '@engine/types'
+import { ZSystem, ZMap, ZDataProvider } from '@engine/types'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Constructor<T> = new (...args: any[]) => T
@@ -23,6 +23,9 @@ export class ZEngine {
   public mapManager: MapManager
   public mode: 'edit' | 'play' = 'edit'
   public onMapChangeRequest: ((mapId: number, x: number, y: number) => Promise<void>) | null = null
+  public isLoading: boolean = false
+
+  private dataProvider: ZDataProvider | null = null
 
   public get renderSystem(): RenderSystem | undefined {
     return this.getSystem(RenderSystem)
@@ -101,11 +104,16 @@ export class ZEngine {
     }
   }
 
+  public setDataProvider(provider: ZDataProvider): void {
+    this.dataProvider = provider
+    ZLogger.log('[ZEngine] Data Provider set')
+  }
+
   constructor() {
     this.app = new PIXIApplication()
     this.textureManager = new TextureManager()
-    this.inputManager = null!
-    this.mapManager = null!
+    this.inputManager = new InputManager()
+    this.mapManager = new MapManager()
   }
 
   public async init(container: HTMLElement, tileSize: number): Promise<void> {
@@ -127,9 +135,6 @@ export class ZEngine {
     this.app.stage.hitArea = this.app.screen
     this.app.stage.sortableChildren = true
 
-    this.inputManager = new InputManager()
-    this.mapManager = new MapManager()
-
     this.addSystem(new RenderSystem(this.app.stage, this.textureManager, this.mapManager, tileSize))
     this.addSystem(new GhostSystem(this.app.stage, this.textureManager, tileSize))
     this.addSystem(new GridSystem(this.app.stage, this.textureManager, tileSize))
@@ -144,10 +149,7 @@ export class ZEngine {
     // EventSystem depends on PlayerSystem
     this.addSystem(new EventSystem(this, this.mapManager, playerSystem))
 
-    // We need RenderSystem instance to pass to EntityRenderSystem
-    const renderSystem = this.getSystem(RenderSystem)
-    if (!renderSystem) throw new Error('RenderSystem not found')
-
+    const renderSystem = this.getSystem(RenderSystem)!
     this.addSystem(
       new EntityRenderSystem(
         this.app.stage,
@@ -177,6 +179,55 @@ export class ZEngine {
   public getSystem<T extends ZSystem>(type: Constructor<T>): T | undefined {
     const system = this.systems.get(type.name)
     return system as T
+  }
+
+  public async setMap(mapOrId: number | ZMap): Promise<void> {
+    this.isLoading = true
+
+    let map: ZMap | null = null
+    if (typeof mapOrId === 'number') {
+      if (!this.dataProvider) {
+        throw new Error('[ZEngine] Cannot load map by ID: Data Provider not set')
+      }
+      map = await this.dataProvider.getMap(mapOrId)
+    } else {
+      map = mapOrId
+    }
+
+    if (!map) {
+      ZLogger.error(`[ZEngine] Failed to load map: ${mapOrId}`)
+      this.isLoading = false
+      return
+    }
+
+    // 1. Resolve full tileset URLs if not already present
+    // Often ZMap from JSON only has slot IDs or needs resolution
+    if (this.dataProvider) {
+      const resolvedConfig: Record<string, string> = {}
+      const slots = ['A1', 'A2', 'A3', 'A4', 'A5', 'B', 'C', 'D', 'Roofs']
+      slots.forEach((slot) => {
+        resolvedConfig[slot] = map!.tilesetConfig?.[slot] || this.dataProvider!.getTilesetUrl(slot)
+      })
+      map.tilesetConfig = resolvedConfig
+
+      // 2. Load Collision Configs
+      const configs = await this.dataProvider.getTilesetConfigs()
+      this.mapManager.setTilesetConfigs(configs)
+    }
+
+    // 3. Preload all required textures
+    const texturePromises = Object.entries(map.tilesetConfig).map(([id, url]) =>
+      this.textureManager.loadTileset(id, url)
+    )
+    await Promise.all(texturePromises)
+
+    // 4. Update core systems
+    this.mapManager.setMap(map)
+    this.renderSystem?.setMap(map)
+    this.getSystem(EntityRenderSystem)?.loadEvents()
+
+    this.isLoading = false
+    ZLogger.log(`[ZEngine] Map ${map.id} loaded and rendered`)
   }
 
   public async transferPlayer(mapId: number, x: number, y: number): Promise<void> {

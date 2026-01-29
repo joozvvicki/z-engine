@@ -35,12 +35,12 @@ const showContextMenu = (mapId: number, event: MouseEvent): void => {
   contextMenuPosition.value = { x: event.clientX, y: event.clientY }
 }
 
-const openNewMapModal = () => {
+const openNewMapModal = (): void => {
   editMapId.value = null
   isMapModalOpen.value = true
 }
 
-const openEditMapModal = () => {
+const openEditMapModal = (): void => {
   if (contextMapId.value) {
     editMapId.value = contextMapId.value
     isMapModalOpen.value = true

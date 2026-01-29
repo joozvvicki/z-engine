@@ -150,6 +150,8 @@ export interface IconMap {
 
 export interface TileConfig {
   isSolid: boolean
+  isHighPriority: boolean
+  dirBlock: number
   collisionMask?: boolean[] // 48x48 true/false
   sortYOffset?: number // positive = sorts lower (front), negative = sorts higher (back)
 }
@@ -158,4 +160,14 @@ export type TilesetConfig = Record<string, TileConfig> // Key is tileId ("x_y") 
 
 export enum ZCommandCode {
   TransferPlayer = 201
+}
+
+/**
+ * Interface for providing game data to the engine.
+ * Decouples engine from specific storage implementations (Vue Store, LocalStorage, JSON files).
+ */
+export interface ZDataProvider {
+  getMap(id: number): Promise<ZMap | null>
+  getTilesetConfigs(): Promise<Record<string, TilesetConfig>> // URL-indexed
+  getTilesetUrl(slotId: string): string // Resolver for slotId -> default URL
 }
