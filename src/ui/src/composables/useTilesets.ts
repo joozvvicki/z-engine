@@ -91,7 +91,9 @@ export const useTilesets = (
 
     try {
       // List files from project img/tilesets/
-      const fileNames = await ProjectService.getProjectFiles('img/tilesets')
+      const files = await ProjectService.getProjectFiles('img/tilesets') // subpath
+      console.log('UseTilesets: Found tilesets:', files)
+      const fileNames = files
 
       // Filter for images and map to structure
       tilesetFiles.value = fileNames

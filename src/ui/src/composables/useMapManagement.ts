@@ -17,11 +17,11 @@ export const createEmptyLayers = (
     return Array.from({ length: height }, () => Array.from({ length: width }, () => []))
   }
   return {
-    [ZLayer.ground]: { data: createGrid(), index: 0, icon: 'background' },
-    [ZLayer.walls]: { data: createGrid(), index: 1, icon: 'wall' },
-    [ZLayer.decoration]: { data: createGrid(), index: 2, icon: 'cactus' },
-    [ZLayer.events]: { data: createGrid(), index: 3, icon: 'box' },
-    [ZLayer.highest]: { data: createGrid(), index: 4, icon: 'star' }
+    [ZLayer.ground]: { icon: 'ground', data: createGrid(), index: 0 },
+    [ZLayer.walls]: { icon: 'wall', data: createGrid(), index: 1 },
+    [ZLayer.decoration]: { icon: 'decoration', data: createGrid(), index: 2 },
+    [ZLayer.events]: { icon: 'event', data: createGrid(), index: 3 },
+    [ZLayer.highest]: { icon: 'highest', data: createGrid(), index: 4 }
   }
 }
 

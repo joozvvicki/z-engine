@@ -46,7 +46,19 @@ watch(
           form.height = map.height
           // Merge existing config into our clean slate
           if (map.tilesetConfig) {
-            Object.assign(cleanConfig, map.tilesetConfig)
+            // Merge and sanitize
+            Object.entries(map.tilesetConfig).forEach(([key, value]) => {
+              if (value) {
+                // Fix legacy paths on the fly
+                let cleanValue = value
+                if (cleanValue.includes('/src/assets/img/tilesets/')) {
+                  cleanValue = 'img/tilesets/' + cleanValue.split('/').pop()
+                } else if (cleanValue.includes('@ui/assets/img/tilesets/')) {
+                  cleanValue = 'img/tilesets/' + cleanValue.split('/').pop()
+                }
+                cleanConfig[key] = cleanValue
+              }
+            })
           }
         }
       } else {

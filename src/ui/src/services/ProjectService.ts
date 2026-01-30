@@ -1,4 +1,4 @@
-import type { ZMap, TilesetConfig, ZSystemData } from '@engine/types'
+import type { ZMap, TilesetConfig, ZSystemData, TileSelection } from '@engine/types'
 import { VERSION } from 'pixi.js'
 
 export class ProjectService {
@@ -143,7 +143,12 @@ export class ProjectService {
     // 1. Create Directories
     await window.api.createDirectory(projectPath)
     await window.api.createDirectory(`${projectPath}/data`)
-    // await window.api.createDirectory(`${projectPath}/assets`) // Future
+    await window.api.createDirectory(`${projectPath}/img`)
+    await window.api.createDirectory(`${projectPath}/img/tilesets`)
+    await window.api.createDirectory(`${projectPath}/img/characters`)
+
+    // Copy Default Assets (Tilesets & Character)
+    await this.copyDefaultAssets(projectPath)
 
     // 2. Create Default Data Files
     const systemData = {
@@ -159,7 +164,7 @@ export class ProjectService {
     const mapInfos = [{ id: 1, name: 'MAP001', parentId: 0, order: 1 }]
 
     // Helper to create empty layer data
-    const createLayerData = (w: number, h: number) =>
+    const createLayerData = (w: number, h: number): (TileSelection[] | null)[][] =>
       Array.from({ length: h }, () => Array.from({ length: w }, () => []))
 
     const map001 = {
@@ -223,6 +228,45 @@ export class ProjectService {
       return files
     } catch {
       return []
+    }
+  }
+
+  private static async copyDefaultAssets(projectPath: string): Promise<void> {
+    // 1. Tilesets
+    const tilesets = import.meta.glob('@ui/assets/img/tilesets/*.png', { eager: true, as: 'url' })
+    for (const [path, url] of Object.entries(tilesets)) {
+      try {
+        const response = await fetch(url as string)
+        const blob = await response.blob()
+        const arrayBuffer = await blob.arrayBuffer()
+        const buffer = new Uint8Array(arrayBuffer)
+        const filename = path.split('/').pop()
+        if (filename) {
+          await window.api.writeProjectFile(`${projectPath}/img/tilesets/${filename}`, buffer)
+        }
+      } catch (e) {
+        console.error(`Failed to copy tileset ${path}`, e)
+      }
+    }
+
+    // 2. Character
+    const characters = import.meta.glob('@ui/assets/img/characters/*.png', {
+      eager: true,
+      as: 'url'
+    })
+    for (const [path, url] of Object.entries(characters)) {
+      try {
+        const response = await fetch(url as string)
+        const blob = await response.blob()
+        const arrayBuffer = await blob.arrayBuffer()
+        const buffer = new Uint8Array(arrayBuffer)
+        const filename = path.split('/').pop()
+        if (filename) {
+          await window.api.writeProjectFile(`${projectPath}/img/characters/${filename}`, buffer)
+        }
+      } catch (e) {
+        console.error(`Failed to copy character ${path}`, e)
+      }
     }
   }
 }

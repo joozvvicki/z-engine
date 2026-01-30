@@ -1,7 +1,7 @@
 export interface LocalAPI {
   selectProjectFolder: () => Promise<string | null>
   readProjectFile: (path: string) => Promise<string>
-  writeProjectFile: (path: string, content: string) => Promise<void>
+  writeProjectFile: (path: string, content: string | Uint8Array) => Promise<void>
   createDirectory: (path: string) => Promise<void>
   checkFileExists: (path: string) => Promise<boolean>
   listDirectory: (path: string) => Promise<string[]>

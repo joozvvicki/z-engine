@@ -4,7 +4,7 @@ import { contextBridge, ipcRenderer } from 'electron'
 const api = {
   selectProjectFolder: (): Promise<string | null> => ipcRenderer.invoke('dialog:openProject'),
   readProjectFile: (path: string): Promise<string> => ipcRenderer.invoke('fs:readFile', path),
-  writeProjectFile: (path: string, content: string): Promise<void> =>
+  writeProjectFile: (path: string, content: string | Uint8Array): Promise<void> =>
     ipcRenderer.invoke('fs:writeFile', path, content),
   createDirectory: (path: string): Promise<void> => ipcRenderer.invoke('fs:mkdir', path),
   checkFileExists: (path: string): Promise<boolean> => ipcRenderer.invoke('fs:exists', path),

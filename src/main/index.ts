@@ -122,7 +122,7 @@ app.whenReady().then(() => {
   })
 
   ipcMain.handle('fs:writeFile', async (_, path, content) => {
-    await fs.writeFile(path, content, 'utf-8')
+    await fs.writeFile(path, content)
   })
 
   ipcMain.handle('fs:mkdir', async (_, path) => {
