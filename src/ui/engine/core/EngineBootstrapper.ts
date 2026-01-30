@@ -16,14 +16,17 @@ import { EventSystem } from '../systems/EventSystem'
 import { EntityRenderSystem } from '../systems/EntityRenderSystem'
 import { TransitionSystem } from '../systems/TransitionSystem'
 import { MessageSystem } from '../systems/MessageSystem'
+import { PhysicsSystem } from '../systems/PhysicsSystem'
 import { Container } from 'pixi.js'
 
 export class EngineBootstrapper {
+  // ... existing methods ...
+
   public static registerManagers(services: ServiceLocator): void {
     services.register(TextureManager, new TextureManager())
     services.register(InputManager, new InputManager())
     services.register(TilesetManager, new TilesetManager())
-    services.register(MapManager, new MapManager(services))
+    services.register(MapManager, new MapManager())
     services.register(HistoryManager, new HistoryManager(services))
     services.register(ToolManager, new ToolManager(services))
     services.register(SceneManager, new SceneManager(services))
@@ -41,6 +44,7 @@ export class EngineBootstrapper {
     services.register(RenderSystem, new RenderSystem(stage, services, tileSize))
     services.register(GhostSystem, new GhostSystem(stage, services, tileSize))
     services.register(GridSystem, new GridSystem(stage, services, tileSize))
+    services.register(PhysicsSystem, new PhysicsSystem(services))
     services.register(PlayerSystem, new PlayerSystem(services, tileSize))
     services.register(EventSystem, new EventSystem(services))
     services.register(EntityRenderSystem, new EntityRenderSystem(services, tileSize))

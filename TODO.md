@@ -2,7 +2,7 @@
 
 ## 🎯 Plan na 30 June 2026 (Najbliższe kroki)
 
-### 1. Refaktoryzacja Store'a (`editor/index.ts`)
+### 1. Refaktoryzacja Store'a (`editor/index.ts`) - ZROBIONE
 
 Obecny plik `editor/index.ts` (~700 linii) jest zbyt duży. Musimy go podzielić na mniejsze moduły:
 

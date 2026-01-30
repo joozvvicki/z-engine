@@ -1,6 +1,7 @@
 import { ZSystem, ZEngineSignal } from '@engine/types'
 import { InputManager } from '@engine/managers/InputManager'
 import { MapManager } from '@engine/managers/MapManager'
+import { PhysicsSystem } from './PhysicsSystem'
 import { ZEventBus } from '@engine/core/ZEventBus'
 import { ServiceLocator } from '@engine/core/ServiceLocator'
 import ZLogger from '@engine/core/ZLogger'
@@ -8,8 +9,11 @@ import ZLogger from '@engine/core/ZLogger'
 export class PlayerSystem extends ZSystem {
   private inputManager: InputManager
   private mapManager: MapManager
+  private physicsSystem: PhysicsSystem
   private tileSize: number
+
   private eventBus: ZEventBus
+  private services: ServiceLocator
 
   // Player state (runtime)
   // In a full implementation, this should be in an Entity component
@@ -31,13 +35,28 @@ export class PlayerSystem extends ZSystem {
 
   constructor(services: ServiceLocator, tileSize: number) {
     super()
+    this.services = services
     this.inputManager = services.require(InputManager)
     this.mapManager = services.require(MapManager)
+    // Lazy load physics system to avoid circular dependency issues if any
+    // services.require(PhysicsSystem) should work if registered
+    // But PlayerSystem might be initialized BEFORE PhysicsSystem if order matters?
+    // Let's assume PhysicsSystem is registered.
+    // If services.require throws, we might need to do it in onBoot.
+    // But constructor injection is cleaner.
+    // We'll move it to onBoot to be safe, or check ServiceLocator.
+    // For now, let's keep it in onBoot to be 100% safe as per ServiceLocator pattern often used here.
+
     this.eventBus = services.require(ZEventBus)
     this.tileSize = tileSize
+    this.physicsSystem = undefined as unknown as PhysicsSystem // Will init in onBoot
   }
 
   public onBoot(): void {
+    // We already have services via constructor (saved to private property)
+    // But we need to make sure PhysicsSystem is available.
+    this.physicsSystem = this.services.require(PhysicsSystem)
+
     const startEvent = this.mapManager.currentMap?.events.find((e) => e.name === 'PlayerStart')
 
     if (startEvent) {
@@ -94,7 +113,7 @@ export class PlayerSystem extends ZSystem {
         this.direction = nextDir
       }
 
-      const result = this.mapManager.checkPassage(this.x, this.y, this.x + dx, this.y + dy)
+      const result = this.physicsSystem.checkPassage(this.x, this.y, this.x + dx, this.y + dy)
       // LOG ENABLED FORCEFULLY
       ZLogger.with('PlayerSystem').info(
         `Move to ${this.x + dx},${this.y + dy}. Passable: ${result}`
