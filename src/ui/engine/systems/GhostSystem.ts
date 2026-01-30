@@ -1,6 +1,6 @@
 import PIXI from '../utils/pixi'
 import { type TileSelection, ZTool, ZLayer } from '@engine/types'
-import { ZSystem as ZSystemCore } from '@engine/core/ZSystem'
+import { ZSystem as ZSystemCore, SystemMode } from '@engine/core/ZSystem'
 
 import { ServiceLocator } from '@engine/core/ServiceLocator'
 
@@ -22,6 +22,7 @@ export class GhostSystem extends ZSystemCore {
 
   constructor(stage: PIXI.Container, services: ServiceLocator, tileSize: number) {
     super(services)
+    this.updateMode = SystemMode.EDIT
 
     this.wrapper = stage
     this.tileSize = tileSize

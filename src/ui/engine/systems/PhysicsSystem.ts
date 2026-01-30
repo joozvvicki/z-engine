@@ -1,10 +1,11 @@
 import { ZLayer } from '@engine/types'
-import { ZSystem } from '@engine/core/ZSystem'
+import { ZSystem, SystemMode } from '@engine/core/ZSystem'
 import { ServiceLocator } from '@engine/core/ServiceLocator'
 
 export class PhysicsSystem extends ZSystem {
   constructor(services: ServiceLocator) {
     super(services)
+    this.updateMode = SystemMode.PLAY
   }
 
   public onBoot(): void {

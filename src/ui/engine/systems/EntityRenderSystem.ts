@@ -1,6 +1,6 @@
 import PIXI from '../utils/pixi'
 import { ZLayer } from '@engine/types'
-import { ZSystem as ZSystemCore } from '@engine/core/ZSystem'
+import { ZSystem as ZSystemCore, SystemMode } from '@engine/core/ZSystem'
 import { SpriteUtils } from '@engine/utils/SpriteUtils'
 import { PlayerSystem } from './PlayerSystem'
 import { RenderSystem } from './RenderSystem'
@@ -36,6 +36,7 @@ export class EntityRenderSystem extends ZSystemCore {
 
   constructor(services: ServiceLocator, tileSize: number) {
     super(services)
+    this.updateMode = SystemMode.PLAY
     this.tileSize = tileSize
 
     this.container = new PIXI.Container()

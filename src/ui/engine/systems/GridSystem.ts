@@ -1,7 +1,5 @@
 import PIXI from '../utils/pixi'
-
-import { ZSystem } from '@engine/core/ZSystem'
-
+import { ZSystem, SystemMode } from '@engine/core/ZSystem'
 import { ServiceLocator } from '@engine/core/ServiceLocator'
 
 export class GridSystem extends ZSystem {
@@ -18,6 +16,7 @@ export class GridSystem extends ZSystem {
 
   constructor(stage: PIXI.Container, services: ServiceLocator, tileSize: number) {
     super(services)
+    this.updateMode = SystemMode.EDIT
     this.wrapper = stage
     this.tileSize = tileSize
 

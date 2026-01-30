@@ -1,15 +1,13 @@
 import { Application } from '../utils/pixi'
 import { ServiceLocator } from './ServiceLocator'
-import { ZSystem } from './ZSystem'
+import { ZSystem, SystemMode } from './ZSystem'
 import ZLogger from './ZLogger'
-import { PlayerSystem } from '../systems/PlayerSystem'
-import { EntityRenderSystem } from '../systems/EntityRenderSystem'
-import { GhostSystem } from '../systems/GhostSystem'
 
 export class SystemManager {
   private services: ServiceLocator
   private app: Application
   private mode: 'edit' | 'play' = 'edit'
+  private systems: ZSystem[] = []
 
   constructor(services: ServiceLocator, app: Application) {
     this.services = services
@@ -17,10 +15,15 @@ export class SystemManager {
   }
 
   public boot(): void {
-    this.services.getAllInstances(ZSystem).forEach((system) => {
+    // 1. Cache all systems
+    this.systems = this.services.getAllInstances(ZSystem)
+
+    // 2. Boot all systems
+    this.systems.forEach((system) => {
       system.onBoot()
       ZLogger.with(system.constructor.name).info("I'm ready!")
     })
+
     this.app.ticker.add((ticker) => this.tick(ticker.deltaMS))
   }
 
@@ -29,24 +32,35 @@ export class SystemManager {
   }
 
   private tick(delta: number): void {
-    this.services.getAllInstances(ZSystem).forEach((system) => {
-      // Logic for filtering systems based on mode
-      if (this.mode === 'edit') {
-        if (system instanceof PlayerSystem || system instanceof EntityRenderSystem) return
-      } else {
-        if (system instanceof GhostSystem) return
-      }
+    // Optimized loop (no allocation)
+    for (let i = 0; i < this.systems.length; i++) {
+      const system = this.systems[i]
 
-      system.onPreUpdate(delta)
-      system.onUpdate(delta)
-      system.onPostUpdate(delta)
-    })
+      // Filter by mode
+      if (this.shouldUpdate(system)) {
+        system.onPreUpdate(delta)
+        system.onUpdate(delta)
+        system.onPostUpdate(delta)
+      }
+    }
+  }
+
+  private shouldUpdate(system: ZSystem): boolean {
+    if (system.updateMode === SystemMode.ALWAYS) return true
+
+    if (this.mode === 'play') {
+      return system.updateMode === SystemMode.PLAY
+    } else {
+      // Edit mode
+      return system.updateMode === SystemMode.EDIT
+    }
   }
 
   public destroy(): void {
-    this.services.getAllInstances(ZSystem).forEach((s) => {
+    this.systems.forEach((s) => {
       s.onDestroy()
       ZLogger.with(s.constructor.name).info("I'm leaving!")
     })
+    this.systems = []
   }
 }

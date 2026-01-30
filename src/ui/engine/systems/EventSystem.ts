@@ -9,7 +9,7 @@ import {
   type ZCommandResult,
   type ZCommandProcessor
 } from '@engine/types'
-import { ZSystem as ZSystemCore } from '@engine/core/ZSystem'
+import { ZSystem as ZSystemCore, SystemMode } from '@engine/core/ZSystem'
 import { PlayerSystem } from './PlayerSystem'
 
 import { ServiceLocator } from '../core/ServiceLocator'
@@ -34,6 +34,7 @@ export class EventSystem extends ZSystemCore {
 
   constructor(services: ServiceLocator) {
     super(services)
+    this.updateMode = SystemMode.PLAY
 
     // These will be retrieved lazily since they might not be registered yet
     this.sceneManager = undefined as unknown as SceneManager

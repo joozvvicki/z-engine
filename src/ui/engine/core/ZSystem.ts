@@ -6,8 +6,15 @@ import { TilesetManager } from '../managers/TilesetManager'
 import { GameStateManager } from '../managers/GameStateManager'
 import { ZEventBus } from './ZEventBus'
 
+export enum SystemMode {
+  ALWAYS = 'always',
+  PLAY = 'play',
+  EDIT = 'edit'
+}
+
 export abstract class ZSystem {
   protected services: ServiceLocator
+  public updateMode: SystemMode = SystemMode.ALWAYS
 
   constructor(services: ServiceLocator) {
     this.services = services

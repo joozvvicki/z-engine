@@ -1,5 +1,5 @@
 import { ZEngineSignal } from '@engine/types'
-import { ZSystem as ZSystemCore } from '@engine/core/ZSystem'
+import { ZSystem as ZSystemCore, SystemMode } from '@engine/core/ZSystem'
 import { EventSystem } from '../systems/EventSystem'
 import { Container, Graphics, Text } from 'pixi.js'
 import { ServiceLocator } from '@engine/core/ServiceLocator'
@@ -26,6 +26,7 @@ export class MessageSystem extends ZSystemCore {
 
   constructor(stage: Container, services: ServiceLocator) {
     super(services)
+    this.updateMode = SystemMode.PLAY
     this.container = new Container()
     this.container.visible = false
     this.container.zIndex = 100000 // Very high to ensure it's always on top

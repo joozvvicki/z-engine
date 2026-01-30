@@ -1,5 +1,5 @@
 import { ZEngineSignal } from '@engine/types'
-import { ZSystem } from '@engine/core/ZSystem'
+import { ZSystem, SystemMode } from '@engine/core/ZSystem'
 import { PhysicsSystem } from './PhysicsSystem'
 import { ServiceLocator } from '@engine/core/ServiceLocator'
 import ZLogger from '@engine/core/ZLogger'
@@ -28,6 +28,7 @@ export class PlayerSystem extends ZSystem {
 
   constructor(services: ServiceLocator, tileSize: number) {
     super(services)
+    this.updateMode = SystemMode.PLAY
     this.tileSize = tileSize
     this.physicsSystem = undefined as unknown as PhysicsSystem // Will init in onBoot
   }

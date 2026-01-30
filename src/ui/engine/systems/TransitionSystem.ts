@@ -1,5 +1,5 @@
 import { Container, Graphics } from '../utils/pixi'
-import { ZSystem } from '@engine/core/ZSystem'
+import { ZSystem, SystemMode } from '@engine/core/ZSystem'
 import { ServiceLocator } from '@engine/core/ServiceLocator'
 
 export class TransitionSystem extends ZSystem {
@@ -15,6 +15,7 @@ export class TransitionSystem extends ZSystem {
     services: ServiceLocator
   ) {
     super(services)
+    this.updateMode = SystemMode.PLAY
     this.overlay = new Graphics()
     // Initial size, will be updated by resize()
     this.overlay.rect(0, 0, 1, 1)
