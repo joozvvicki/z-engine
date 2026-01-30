@@ -1,8 +1,14 @@
-import { contextBridge } from 'electron'
+import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
 
 // Custom APIs for renderer
-const api = {}
+const api = {
+  selectProjectFolder: (): Promise<string | null> => ipcRenderer.invoke('dialog:openProject'),
+  readProjectFile: (path: string): Promise<string> => ipcRenderer.invoke('fs:readFile', path),
+  writeProjectFile: (path: string, content: string): Promise<void> =>
+    ipcRenderer.invoke('fs:writeFile', path, content),
+  checkFileExists: (path: string): Promise<boolean> => ipcRenderer.invoke('fs:exists', path)
+}
 
 // Use `contextBridge` APIs to expose Electron APIs to
 // renderer only if context isolation is enabled, otherwise

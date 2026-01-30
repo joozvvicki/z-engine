@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import { useLocalStorage } from '@vueuse/core'
+import { ProjectService } from '../../services/ProjectService'
 
 // --- MODUŁY LOKALNE ---
 import { useHistory } from '../../composables/useHistory'
@@ -9,7 +10,7 @@ import { useLayerEditing } from '../../composables/useLayerEditing'
 import { useEventManagement } from '../../composables/useEventManagement'
 import { useTilesets } from '../../composables/useTilesets'
 
-import { type ZMap, type TileSelection, ZTool, ZLayer } from '@engine/types'
+import { type ZMap, type TileSelection, ZTool, ZLayer, type TilesetConfig } from '@engine/types'
 
 export const useEditorStore = defineStore('editor', () => {
   // ==========================================
@@ -41,30 +42,17 @@ export const useEditorStore = defineStore('editor', () => {
   const clipboard = ref<TileSelection | null>(null)
 
   // Dane Map
-  const storedMaps = useLocalStorage<ZMap[]>('Z_Maps', [])
+  const storedMaps = ref<ZMap[]>([])
 
   // Tileset Database (Configs)
-  const storedTilesetConfigs = useLocalStorage<
-    Record<
-      string,
-      Record<
-        string,
-        {
-          isSolid: boolean
-          isHighPriority: boolean
-          sortYOffset: number
-          collisionMask: boolean[]
-          dirBlock: number // Bitmask: 1=Up, 2=Right, 4=Down, 8=Left
-        }
-      >
-    >
-  >('Z_TilesetConfigs', {})
+  // Tileset Database (Configs)
+  const storedTilesetConfigs = ref<Record<string, TilesetConfig>>({})
 
   // System Data (Database)
-  const systemSwitches = useLocalStorage<string[]>('Z_SystemSwitches', [])
-  const systemVariables = useLocalStorage<string[]>('Z_SystemVariables', [])
+  const systemSwitches = ref<string[]>([])
+  const systemVariables = ref<string[]>([])
 
-  // Ensure initial size
+  // Ensure initial size (default for new project or empty load)
   if (systemSwitches.value.length === 0) systemSwitches.value = new Array(20).fill('')
   if (systemVariables.value.length === 0) systemVariables.value = new Array(20).fill('')
 
@@ -72,13 +60,67 @@ export const useEditorStore = defineStore('editor', () => {
   const activeMap = computed(() => storedMaps.value.find((m) => m.id === activeMapID.value))
 
   // ==========================================
-  // 2. PERSISTENCE (ZAPIS)
+  // 2. PERSISTENCE (ZAPIS / ODCZYT)
   // ==========================================
-  const saveProject = (): void => {
+
+  const loadProject = async (): Promise<void> => {
+    const path = await ProjectService.selectProject()
+    if (!path) return
+
+    // 1. Load System Data
+    const sysData = await ProjectService.loadSystemData()
+    if (sysData) {
+      systemSwitches.value = sysData.switches
+      systemVariables.value = sysData.variables
+    }
+
+    // 2. Load Tilesets
+    storedTilesetConfigs.value = await ProjectService.loadTilesets()
+
+    // 3. Load Maps (Currently loading ALL, optimization needed for large projects)
+    const mapInfos = await ProjectService.loadMapInfos() // [{id, name, ...}]
+    if (mapInfos.length > 0) {
+      storedMaps.value = []
+      for (const info of mapInfos) {
+        if (info.id) {
+          const map = await ProjectService.loadMap(info.id)
+          if (map) storedMaps.value.push(map)
+        }
+      }
+    } else {
+      // Fallback: If no MapInfos, maybe try loading Map001?
+      // For new project structure, list might be empty.
+    }
+  }
+
+  const saveProject = async (): Promise<void> => {
+    if (!ProjectService.isLoaded()) {
+      await ProjectService.selectProject()
+      if (!ProjectService.isLoaded()) return // User cancelled
+    }
+
     try {
-      localStorage.setItem('Z_Maps', JSON.stringify(storedMaps.value))
+      // 1. Save System
+      await ProjectService.saveSystemData({
+        switches: systemSwitches.value,
+        variables: systemVariables.value
+      })
+
+      // 2. Save Tilesets
+      await ProjectService.saveTilesets(storedTilesetConfigs.value)
+
+      // 3. Save Map Infos
+      const mapInfos = storedMaps.value.map((m) => ({ id: m.id, name: m.name }))
+      await ProjectService.saveMapInfos(mapInfos)
+
+      // 4. Save Each Map
+      for (const map of storedMaps.value) {
+        await ProjectService.saveMap(map)
+      }
+
+      console.log('Project Saved Successfully')
     } catch (e) {
-      console.error('Save failed (quota exceeded?)', e)
+      console.error('Save failed', e)
     }
   }
 
@@ -153,6 +195,7 @@ export const useEditorStore = defineStore('editor', () => {
     setSelection: (s: TileSelection) => (selection.value = { ...s, pattern: s.pattern }),
 
     saveProject,
+    loadProject,
 
     // System
     systemSwitches,

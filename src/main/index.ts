@@ -1,4 +1,5 @@
-import { app, shell, BrowserWindow } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, dialog } from 'electron'
+import { promises as fs } from 'fs'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
@@ -49,6 +50,32 @@ app.whenReady().then(() => {
 
   app.on('browser-window-created', (_, window) => {
     optimizer.watchWindowShortcuts(window)
+  })
+
+  // IPC Handlers
+  ipcMain.handle('dialog:openProject', async () => {
+    const { canceled, filePaths } = await dialog.showOpenDialog({
+      properties: ['openDirectory']
+    })
+    if (canceled) return null
+    return filePaths[0]
+  })
+
+  ipcMain.handle('fs:readFile', async (_, path) => {
+    return await fs.readFile(path, 'utf-8')
+  })
+
+  ipcMain.handle('fs:writeFile', async (_, path, content) => {
+    await fs.writeFile(path, content, 'utf-8')
+  })
+
+  ipcMain.handle('fs:exists', async (_, path) => {
+    try {
+      await fs.access(path)
+      return true
+    } catch {
+      return false
+    }
   })
 
   createWindow()

@@ -1,24 +1,10 @@
 import { computed, type Ref, type ComputedRef } from 'vue'
 import { TILESETS } from '../stores/editor/constants'
-import type { ZMap } from '@engine/types'
+import type { ZMap, TilesetConfig } from '@engine/types'
 
 export const useTilesets = (
   activeMap: ComputedRef<ZMap | undefined>,
-  storedTilesetConfigs: Ref<
-    Record<
-      string,
-      Record<
-        string,
-        {
-          isSolid: boolean
-          isHighPriority: boolean
-          sortYOffset: number
-          collisionMask: boolean[]
-          dirBlock: number
-        }
-      >
-    >
-  >
+  storedTilesetConfigs: Ref<Record<string, TilesetConfig>>
 ): {
   updateTileConfig: (
     tilesetUrl: string,
@@ -48,14 +34,7 @@ export const useTilesets = (
       dirBlock: number
     }>
   ): void => {
-    let normalizedUrl = tilesetUrl
-    try {
-      if (tilesetUrl.startsWith('http')) {
-        normalizedUrl = new URL(tilesetUrl).pathname
-      }
-    } catch {
-      // Keep original if parsing fails
-    }
+    const normalizedUrl = tilesetUrl.startsWith('http') ? new URL(tilesetUrl).pathname : tilesetUrl
 
     if (!storedTilesetConfigs.value[normalizedUrl]) {
       storedTilesetConfigs.value[normalizedUrl] = {}
@@ -63,7 +42,8 @@ export const useTilesets = (
     const key = `${x}_${y}`
     const current = storedTilesetConfigs.value[normalizedUrl][key] || {
       isSolid: false,
-      isHighPriority: false
+      isHighPriority: false,
+      dirBlock: 0
     }
 
     storedTilesetConfigs.value[normalizedUrl][key] = {
