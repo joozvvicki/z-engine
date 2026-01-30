@@ -78,9 +78,17 @@ const handleKeydown = (e: KeyboardEvent): void => {
     }
 
     switch (e.key) {
+      case 'z':
       case 'Z':
-        if (!store.isTestMode) store.undo()
+        if (!store.isTestMode) {
+          if (e.shiftKey) {
+            store.redo()
+          } else {
+            store.undo()
+          }
+        }
         break
+      case 'y':
       case 'Y':
         if (!store.isTestMode) store.redo()
         break

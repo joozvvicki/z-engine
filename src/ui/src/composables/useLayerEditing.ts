@@ -47,9 +47,16 @@ export const useLayerEditing = (
     // Pobieramy referencję do stosu na danej pozycji
     const currentCell = map.layers[targetLayer].data[y][x]
 
+    let hasChanges = false
+    const oldStack = currentCell ? [...currentCell] : []
+    let newStack: TileSelection[] = []
+
     if (tile === null) {
-      // Gumka: czyścimy stos całkowicie
-      map.layers[targetLayer].data[y][x] = []
+      // Gumka
+      if (oldStack.length > 0) {
+        newStack = []
+        hasChanges = true
+      }
     } else {
       if (stack && currentCell) {
         // Sprawdź duplikaty
@@ -58,17 +65,44 @@ export const useLayerEditing = (
         )
 
         if (!isDuplicate) {
-          // ZAMIAST .push(tile), robimy nadpisanie nową tablicą (spread operator).
-          // To gwarantuje, że Vue "zauważy" zmianę i przerysuje kafelki.
-          map.layers[targetLayer].data[y][x] = [...currentCell, tile]
+          newStack = [...currentCell, tile]
+          hasChanges = true
+        } else {
+          newStack = currentCell // No change
         }
       } else {
         // Tryb bez Shifta: zastępujemy wszystko nowym kafelkiem
-        map.layers[targetLayer].data[y][x] = [tile]
+        newStack = [tile]
+        // Compare with old stack
+        if (!areStacksEqual(oldStack, newStack)) {
+          hasChanges = true
+        }
       }
     }
 
-    saveProject()
+    if (hasChanges) {
+      map.layers[targetLayer].data[y][x] = newStack
+      saveProject()
+    }
+  }
+
+  // Define helper locally inside the composable or outside
+  const areStacksEqual = (a: TileSelection[], b: TileSelection[]): boolean => {
+    if (a.length !== b.length) return false
+    for (let i = 0; i < a.length; i++) {
+      const tA = a[i]
+      const tB = b[i]
+      if (
+        tA.tilesetId !== tB.tilesetId ||
+        tA.x !== tB.x ||
+        tA.y !== tB.y ||
+        tA.w !== tB.w ||
+        tA.h !== tB.h
+      ) {
+        return false
+      }
+    }
+    return true
   }
 
   const clearRegion = (x: number, y: number, w: number, h: number): void => {

@@ -45,24 +45,53 @@ export class ToolManager extends ZManager {
     // 2. Trigger Render Update (After store sync, map data is updated)
     const newStack = map.layers[layer].data[y]?.[x] ? [...map.layers[layer].data[y][x]] : null
 
-    // Record delta
-    const delta: ZTileDelta = {
-      x,
-      y,
-      layer,
-      oldStack,
-      newStack
+    // Check if change actually occurred
+    if (!this.areStacksEqual(oldStack, newStack)) {
+      // Record delta
+      const delta: ZTileDelta = {
+        x,
+        y,
+        layer,
+        oldStack: oldStack || [],
+        newStack: newStack || []
+      }
+      this.historyManager.addDelta(delta)
     }
-    this.historyManager.addDelta(delta)
 
-    if (newStack) {
+    if (newStack && newStack.length > 0) {
       this.renderSystem?.requestTileUpdate(x, y, newStack, layer)
     } else {
+      // If stack is empty/null, clear the tile
       this.renderSystem?.clearTileAt(x, y, layer)
     }
 
     // 3. Refresh Neighbors for Autotiles
     this.refreshNeighbors(x, y, layer)
+  }
+
+  private areStacksEqual(
+    a: TileSelection[] | null | undefined,
+    b: TileSelection[] | null | undefined
+  ): boolean {
+    const stackA = a || []
+    const stackB = b || []
+
+    if (stackA.length !== stackB.length) return false
+
+    for (let i = 0; i < stackA.length; i++) {
+      const tA = stackA[i]
+      const tB = stackB[i]
+      if (
+        tA.tilesetId !== tB.tilesetId ||
+        tA.x !== tB.x ||
+        tA.y !== tB.y ||
+        tA.w !== tB.w ||
+        tA.h !== tB.h
+      ) {
+        return false
+      }
+    }
+    return true
   }
 
   /**
