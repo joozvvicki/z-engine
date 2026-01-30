@@ -4,10 +4,10 @@ import { useLocalStorage } from '@vueuse/core'
 
 // --- MODUŁY LOKALNE ---
 import { useHistory } from './useHistory'
-import { useMapManagement } from './useMapManagement'
-import { useLayerEditing } from './useLayerEditing'
-import { useEventManagement } from './useEventManagement'
-import { useTilesets } from './useTilesets'
+import { useMapManagement } from '../../composables/useMapManagement'
+import { useLayerEditing } from '../../composables/useLayerEditing'
+import { useEventManagement } from '../../composables/useEventManagement'
+import { useTilesets } from '../../composables/useTilesets'
 
 import { type ZMap, type TileSelection, ZTool, ZLayer } from '@engine/types'
 

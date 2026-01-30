@@ -1,5 +1,5 @@
 import { computed, type Ref, type ComputedRef } from 'vue'
-import { TILESETS } from './constants'
+import { TILESETS } from '../stores/editor/constants'
 import type { ZMap } from '@engine/types'
 
 export const useTilesets = (
