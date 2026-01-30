@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { reactive, watch } from 'vue'
 import { useEditorStore } from '@ui/stores/editor'
+import { ProjectService } from '@ui/services/ProjectService'
 import {
   IconMapPlus,
   IconX,
@@ -155,7 +156,11 @@ const handleSave = (): void => {
                     class="flex-1 bg-white border border-black/10 rounded px-2 py-1.5 text-xs text-gray-600 outline-none focus:border-blue-500"
                   >
                     <option value="">(Domyślny)</option>
-                    <option v-for="file in store.tilesetFileList" :key="file.url" :value="file.url">
+                    <option
+                      v-for="file in store.tilesetFileList"
+                      :key="file.relativePath"
+                      :value="file.relativePath"
+                    >
                       {{ file.name }}
                     </option>
                   </select>
@@ -164,7 +169,7 @@ const handleSave = (): void => {
                     class="w-8 h-8 rounded border border-black/10 overflow-hidden bg-white shrink-0 shadow-sm"
                   >
                     <img
-                      :src="form.tilesetConfig[slot]"
+                      :src="ProjectService.resolveAssetUrl(form.tilesetConfig[slot])"
                       class="w-full h-full object-cover pixelated"
                     />
                   </div>

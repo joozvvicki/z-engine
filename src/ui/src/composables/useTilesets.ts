@@ -22,7 +22,7 @@ export const useTilesets = (
   ) => void
   getTileConfig: (tilesetUrl: string, x: number, y: number) => TilesetConfig['key'] | undefined
   getTileConfigMap: (tilesetUrl: string) => Record<string, TilesetConfig['key']> | undefined
-  tilesetFileList: ComputedRef<{ name: string; url: string }[]>
+  tilesetFileList: ComputedRef<{ name: string; url: string; relativePath: string }[]>
   currentMapTilesets: ComputedRef<{ id: string; url: string }[]>
   staticTilesets: { id: string; url: string }[]
 } => {
@@ -62,7 +62,11 @@ export const useTilesets = (
     if (onUpdate) onUpdate()
   }
 
-  const getTileConfig = (tilesetUrl: string, x: number, y: number) => {
+  const getTileConfig = (
+    tilesetUrl: string,
+    x: number,
+    y: number
+  ): TilesetConfig['key'] | undefined => {
     const normalizedUrl = ProjectService.getRelativePath(tilesetUrl)
     const key = `${x}_${y}`
     return storedTilesetConfigs.value[normalizedUrl]?.[key]
@@ -85,7 +89,9 @@ export const useTilesets = (
   const tilesetFileList = computed(() => {
     return Object.entries(availableTilesetFiles).map(([path, url]) => {
       const name = path.split('/').pop() || path
-      return { name, url: url as string }
+      // Construct project-relative path (standardized key)
+      const relativePath = `img/tilesets/${name}`
+      return { name, url: url as string, relativePath }
     })
   })
 
