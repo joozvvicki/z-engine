@@ -3,7 +3,7 @@ import { computed, ref } from 'vue'
 import { useLocalStorage } from '@vueuse/core'
 
 // --- MODUŁY LOKALNE ---
-import { useHistory } from './useHistory'
+import { useHistory } from '../../composables/useHistory'
 import { useMapManagement } from '../../composables/useMapManagement'
 import { useLayerEditing } from '../../composables/useLayerEditing'
 import { useEventManagement } from '../../composables/useEventManagement'

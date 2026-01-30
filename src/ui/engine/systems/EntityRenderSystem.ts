@@ -155,13 +155,6 @@ export class EntityRenderSystem extends ZSystem {
         })
       )
 
-      // User requested height = 1.5 * tileSize
-      // We should scale the sprite PROPORTIONALLY
-      const targetHeight = this.tileSize * 1.5
-      const scale = targetHeight / this.frameHeight
-
-      this.playerSprite.scale.set(scale)
-
       // Pivot to bottom-center of the tile to align feet
       this.playerSprite.anchor.set(0.5, 1)
 
