@@ -65,8 +65,7 @@ const handleTileClick = (e: MouseEvent): void => {
   }
 
   // Normal Click -> Toggle Config
-  const key = `${targetX}_${targetY}`
-  const currentConfig = store.tilesetConfigs[targetUrl]?.[key] || {
+  const currentConfig = store.getTileConfig(targetUrl, targetX, targetY) || {
     isSolid: false,
     isHighPriority: false
   }
@@ -209,7 +208,7 @@ onMounted(() => {
             <!-- Tab A: Iterate over iconMapping to draw overlays at correct UI positions -->
             <template v-for="map in iconMapping" :key="`${map.uiX}_${map.uiY}`">
               <div
-                v-if="store.tilesetConfigs[map.url]?.[`${map.ox}_${map.oy}`]?.isSolid"
+                v-if="store.getTileConfig(map.url, map.ox, map.oy)?.isSolid"
                 class="absolute flex items-center justify-center pointer-events-none"
                 :style="{
                   left: `${map.uiX * 48}px`,
@@ -221,7 +220,7 @@ onMounted(() => {
                 <IconX class="text-red-500 w-8 h-8 drop-shadow-md stroke-3" />
               </div>
               <div
-                v-if="store.tilesetConfigs[map.url]?.[`${map.ox}_${map.oy}`]?.isHighPriority"
+                v-if="store.getTileConfig(map.url, map.ox, map.oy)?.isHighPriority"
                 class="absolute flex items-center justify-center pointer-events-none"
                 :style="{
                   left: `${map.uiX * 48}px`,
@@ -234,8 +233,12 @@ onMounted(() => {
               </div>
               <!-- Mask Indicator -->
               <div
-                v-if="store.tilesetConfigs[map.url]?.[`${map.ox}_${map.oy}`]?.collisionMask"
+                v-if="store.getTileConfig(map.url, map.ox, map.oy)?.collisionMask"
                 class="absolute bottom-0 right-0 w-2 h-2 bg-purple-500 rounded-full m-1 pointer-events-none"
+                :style="{
+                  left: `${map.uiX * 48}px`,
+                  top: `${map.uiY * 48}px`
+                }"
               ></div>
             </template>
           </template>
@@ -244,9 +247,9 @@ onMounted(() => {
             <!-- Single Tileset (B-E): Iterate existing configs for current file URL and show them -->
             <template v-if="store.tilesets.find((t) => t.id === store.activeTab)">
               <template
-                v-for="(config, key) in store.tilesetConfigs[
+                v-for="(config, key) in store.getTileConfigMap(
                   store.tilesets.find((t) => t.id === store.activeTab)!.url
-                ]"
+                ) || {}"
                 :key="key"
               >
                 <template

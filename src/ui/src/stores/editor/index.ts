@@ -175,7 +175,9 @@ export const useEditorStore = defineStore('editor', () => {
     history
   )
 
-  const tilesets = useTilesets(activeMap, storedTilesetConfigs)
+  const tilesets = useTilesets(activeMap, storedTilesetConfigs, () => {
+    ProjectService.saveTilesets(storedTilesetConfigs.value)
+  })
 
   // ==========================================
   // 5. EXPORT PUBLIC API

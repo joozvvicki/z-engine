@@ -199,10 +199,14 @@ const onSelectGraphic = (selection: any): void => {
     if ('assetId' in selection) {
       activePage.value.graphic = selection as ZEventGraphic
     } else {
-      // Adapt old format
+      // Adapt old format from CharacterSelector
+      const isCharacter = selection.tilesetId.endsWith('.png')
+      // Ensure we use the correct key format which matches TextureManager's loaded keys
+      const assetId = isCharacter ? `img/characters/${selection.tilesetId}` : selection.tilesetId
+
       activePage.value.graphic = {
-        assetId: selection.tilesetId,
-        group: selection.tilesetId.endsWith('.png') ? 'character' : 'tile',
+        assetId: assetId,
+        group: isCharacter ? 'character' : 'tile',
         x: selection.x || 0,
         y: selection.y || 0,
         w: selection.w || 1,

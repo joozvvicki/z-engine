@@ -49,6 +49,24 @@ export class ProjectService {
     return `z-proj://${this.projectPath}/${cleanPath}`
   }
 
+  public static getRelativePath(fullUrl: string): string {
+    if (!this.projectPath) return fullUrl
+    if (fullUrl.startsWith('z-proj://')) {
+      // Remove protocol and project path
+      // Format: z-proj://<projectPath>/<relativePath>
+      // We need to be careful about matching.
+      const prefix = `z-proj://${this.projectPath}/`
+      if (fullUrl.startsWith(prefix)) {
+        return fullUrl.substring(prefix.length)
+      }
+      // If path separators are mixed or encoding differs?
+      // Simple fallback: split by 'z-proj://' and then try to find project path?
+      // Actually, since we control resolveAssetUrl, strict match should work if project path is normalized.
+    }
+    // Also handle Dev/Http URLs if necessary?
+    return fullUrl
+  }
+
   public static async loadSystemData(): Promise<ZSystemData | null> {
     if (!this.projectPath) return null
     try {

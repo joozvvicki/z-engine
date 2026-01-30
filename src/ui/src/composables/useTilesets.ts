@@ -5,7 +5,8 @@ import { ProjectService } from '../services/ProjectService'
 
 export const useTilesets = (
   activeMap: ComputedRef<ZMap | undefined>,
-  storedTilesetConfigs: Ref<Record<string, TilesetConfig>>
+  storedTilesetConfigs: Ref<Record<string, TilesetConfig>>,
+  onUpdate?: () => void
 ): {
   updateTileConfig: (
     tilesetUrl: string,
@@ -19,6 +20,8 @@ export const useTilesets = (
       dirBlock: number
     }>
   ) => void
+  getTileConfig: (tilesetUrl: string, x: number, y: number) => TilesetConfig['key'] | undefined
+  getTileConfigMap: (tilesetUrl: string) => Record<string, TilesetConfig['key']> | undefined
   tilesetFileList: ComputedRef<{ name: string; url: string }[]>
   currentMapTilesets: ComputedRef<{ id: string; url: string }[]>
   staticTilesets: { id: string; url: string }[]
@@ -35,7 +38,11 @@ export const useTilesets = (
       dirBlock: number
     }>
   ): void => {
-    const normalizedUrl = tilesetUrl.startsWith('http') ? new URL(tilesetUrl).pathname : tilesetUrl
+    // We must use the project-relative path as the key for storage,
+    // because that's how it's saved in Tilesets.json and loaded back.
+    // tilesetUrl here might be a resolved absolute URL (z-proj://...)
+    // or a full http URL if running in dev mode.
+    const normalizedUrl = ProjectService.getRelativePath(tilesetUrl)
 
     if (!storedTilesetConfigs.value[normalizedUrl]) {
       storedTilesetConfigs.value[normalizedUrl] = {}
@@ -51,6 +58,21 @@ export const useTilesets = (
       ...current,
       ...config
     }
+
+    if (onUpdate) onUpdate()
+  }
+
+  const getTileConfig = (tilesetUrl: string, x: number, y: number) => {
+    const normalizedUrl = ProjectService.getRelativePath(tilesetUrl)
+    const key = `${x}_${y}`
+    return storedTilesetConfigs.value[normalizedUrl]?.[key]
+  }
+
+  const getTileConfigMap = (
+    tilesetUrl: string
+  ): Record<string, TilesetConfig['key']> | undefined => {
+    const normalizedUrl = ProjectService.getRelativePath(tilesetUrl)
+    return storedTilesetConfigs.value[normalizedUrl]
   }
 
   // Scanning available tileset files
@@ -90,6 +112,8 @@ export const useTilesets = (
 
   return {
     updateTileConfig,
+    getTileConfig,
+    getTileConfigMap,
     tilesetFileList,
     currentMapTilesets,
     staticTilesets: TILESETS

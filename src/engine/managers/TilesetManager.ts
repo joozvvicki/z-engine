@@ -37,16 +37,43 @@ export class TilesetManager {
 
   /**
    * Helper to normalize URLs for consistent lookups.
+   * Ensures 'z-proj://path/to/img/...' matches 'img/...'
    */
   private normalizeUrl(url: string): string {
     if (!url) return ''
-    try {
-      if (url.startsWith('http')) {
-        return new URL(url).pathname
+
+    // 1. Remove standard protocols
+    let clean = url
+    if (clean.startsWith('http')) {
+      try {
+        clean = new URL(clean).pathname
+      } catch {
+        /* ignore */
       }
-    } catch {
-      // Fallback
     }
-    return url
+
+    // 2. Remove z-proj:// (and potentially the project path host)
+    // Format: z-proj://<project-path>/<relative-path>
+    // We simply want to ensure we don't have the protocol.
+    // Since we don't know the project path, we rely on the fact that our keys usually start with 'img/'
+    // or we strip up to the last known common root.
+
+    // Simple approach: Strip z-proj:// prefix first
+    clean = clean.replace(/^z-proj:\/\//, '')
+
+    // If it still looks like an absolute path but contains 'img/', try to grab from 'img/'
+    const imgIndex = clean.indexOf('img/')
+    if (imgIndex !== -1) {
+      return clean.substring(imgIndex)
+    }
+
+    // Also handle src/ui/assets/img/ legacy
+    const legacyIndex = clean.indexOf('src/ui/assets/')
+    if (legacyIndex !== -1) {
+      return clean.substring(legacyIndex + 'src/ui/assets/'.length)
+    }
+
+    // Fallback: remove leading slash
+    return clean.replace(/^\/+/, '')
   }
 }

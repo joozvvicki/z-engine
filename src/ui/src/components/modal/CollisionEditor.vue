@@ -26,7 +26,7 @@ const sortYOffset = ref(0) // Default 0
 const dirBlock = ref(0) // Bitmask
 
 const initMask = (): void => {
-  const config = store.tilesetConfigs[props.tilesetUrl]?.[`${props.tileX}_${props.tileY}`]
+  const config = store.getTileConfig(props.tilesetUrl, props.tileX, props.tileY)
   if (config?.collisionMask) {
     mask.value = [...config.collisionMask]
   } else if (config?.isSolid) {
