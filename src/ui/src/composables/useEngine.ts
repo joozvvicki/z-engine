@@ -10,6 +10,7 @@ import { SceneManager } from '@engine/managers/SceneManager'
 import { RenderSystem } from '@engine/systems/RenderSystem'
 import { GridSystem } from '@engine/systems/GridSystem'
 import { PlayerSystem } from '@engine/systems/PlayerSystem'
+import { EntityRenderSystem } from '@engine/systems/EntityRenderSystem'
 import { TransitionSystem } from '@engine/systems/TransitionSystem'
 
 export const useEngine = (
@@ -79,10 +80,11 @@ export const useEngine = (
 
     await Promise.all(
       Object.keys(charModules).map((path) => {
-        const name = path.split('/').pop() || path
+        const filename = path.split('/').pop() || path
+        const key = `img/characters/${filename}`
         // @ts-ignore - glob import type
         const url = charModules[path].default || charModules[path]
-        return newEngine.services.require(TextureManager).loadTileset(name, url)
+        return newEngine.services.require(TextureManager).loadTileset(key, url)
       })
     )
     await newEngine.init(canvasContainer.value, store.tileSize)
@@ -105,6 +107,25 @@ export const useEngine = (
     const renderSystem = newEngine.services.get(RenderSystem)
     isEngineReady.value = renderSystem?.IsMapLoaded() ?? false
 
+    // Configure Entity Render System (Player Graphic)
+    const entitySystem = newEngine.services.get(EntityRenderSystem)
+    if (entitySystem) {
+      await entitySystem.setPlayerGraphic(store.systemPlayerGraphic)
+    }
+
+    // Set Initial Player Position if on Start Map
+    const playerSystem = newEngine.services.get(PlayerSystem)
+    if (playerSystem && store.activeMap) {
+      if (store.activeMap.id === store.systemStartMapId) {
+        playerSystem.x = store.systemStartX
+        playerSystem.y = store.systemStartY
+      } else {
+        playerSystem.x = 0
+        playerSystem.y = 0
+      }
+      playerSystem.snapToGrid()
+    }
+
     // Setup Map Change Callback
     newEngine.services.require(SceneManager).setMapChangeCallback(async (mapId, x, y) => {
       const targetMap = store.maps.find((m) => m.id === mapId)
@@ -118,7 +139,6 @@ export const useEngine = (
         if (playerSystem) {
           playerSystem.x = x
           playerSystem.y = y
-          // @ts-ignore - snapToGrid is a custom method added at runtime or optional
           playerSystem.snapToGrid()
         }
       } else {
@@ -204,6 +224,25 @@ export const useEngine = (
           if (isTest) {
             renderSystem.updateLayerDimming(null)
             renderSystem.setEventMarkersVisible(false)
+
+            // RESET PLAYER POSITION ON TEST START
+            // If we are on the Default Start Map, spawn at specific coordinate
+            // Otherwise, we might want to spawn at current camera center or 0,0?
+            // For now, let's respect System settings if map matches.
+            if (store.activeMap && store.activeMap.id === store.systemStartMapId) {
+              const playerSystem = eng.services.get(PlayerSystem)
+              if (playerSystem) {
+                playerSystem.x = store.systemStartX
+                playerSystem.y = store.systemStartY
+                playerSystem.snapToGrid()
+
+                // Also ensure graphic is up to date (in case unrelated watcher didn't catch it?)
+                // But initEngine handles it.
+                // We might want to force it if user changed it in DB without reloading engine.
+                const entitySystem = eng.services.get(EntityRenderSystem)
+                entitySystem?.setPlayerGraphic(store.systemPlayerGraphic)
+              }
+            }
           } else {
             if (tool === ZTool.event) {
               renderSystem.updateLayerDimming(ZLayer.events, true)

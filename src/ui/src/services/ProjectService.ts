@@ -1,4 +1,4 @@
-import type { ZMap, TilesetConfig } from '@engine/types'
+import type { ZMap, TilesetConfig, ZSystemData } from '@engine/types'
 import { VERSION } from 'pixi.js'
 
 export class ProjectService {
@@ -49,10 +49,7 @@ export class ProjectService {
     return `z-proj://${this.projectPath}/${cleanPath}`
   }
 
-  public static async loadSystemData(): Promise<{
-    switches: string[]
-    variables: string[]
-  } | null> {
+  public static async loadSystemData(): Promise<ZSystemData | null> {
     if (!this.projectPath) return null
     try {
       const content = await window.api.readProjectFile(`${this.projectPath}/data/System.json`)
@@ -63,15 +60,9 @@ export class ProjectService {
     }
   }
 
-  public static async saveSystemData(data: {
-    switches: string[]
-    variables: string[]
-  }): Promise<void> {
+  public static async saveSystemData(data: ZSystemData): Promise<void> {
     if (!this.projectPath) return
-    await window.api.writeProjectFile(
-      `${this.projectPath}/data/System.json`,
-      JSON.stringify(data, null, 2)
-    )
+    await window.api.writeProjectFile(`${this.projectPath}/data/System.json`, JSON.stringify(data))
   }
 
   public static async loadMap(id: number): Promise<ZMap | null> {
@@ -89,17 +80,14 @@ export class ProjectService {
   public static async saveMap(map: ZMap): Promise<void> {
     if (!this.projectPath) return
     const filename = `Map${map.id.toString().padStart(3, '0')}.json`
-    await window.api.writeProjectFile(
-      `${this.projectPath}/data/${filename}`,
-      JSON.stringify(map, null, 2)
-    )
+    await window.api.writeProjectFile(`${this.projectPath}/data/${filename}`, JSON.stringify(map))
   }
 
   public static async saveTilesets(configs: Record<string, TilesetConfig>): Promise<void> {
     if (!this.projectPath) return
     await window.api.writeProjectFile(
       `${this.projectPath}/data/Tilesets.json`,
-      JSON.stringify(configs, null, 2)
+      JSON.stringify(configs)
     )
   }
 
@@ -127,7 +115,7 @@ export class ProjectService {
     if (!this.projectPath) return
     await window.api.writeProjectFile(
       `${this.projectPath}/data/MapInfos.json`,
-      JSON.stringify(infos, null, 2)
+      JSON.stringify(infos)
     )
   }
 
@@ -146,7 +134,8 @@ export class ProjectService {
       actors: [],
       startMapId: 1,
       startX: 0,
-      startY: 0
+      startY: 0,
+      playerGraphic: 'img/characters/character.png'
     }
 
     const mapInfos = [{ id: 1, name: 'MAP001', parentId: 0, order: 1 }]
@@ -181,22 +170,10 @@ export class ProjectService {
       }
     }
 
-    await window.api.writeProjectFile(
-      `${projectPath}/data/System.json`,
-      JSON.stringify(systemData, null, 2)
-    )
-    await window.api.writeProjectFile(
-      `${projectPath}/data/MapInfos.json`,
-      JSON.stringify(mapInfos, null, 2)
-    )
-    await window.api.writeProjectFile(
-      `${projectPath}/data/Tilesets.json`,
-      JSON.stringify({}, null, 2)
-    )
-    await window.api.writeProjectFile(
-      `${projectPath}/data/Map001.json`,
-      JSON.stringify(map001, null, 2)
-    )
+    await window.api.writeProjectFile(`${projectPath}/data/System.json`, JSON.stringify(systemData))
+    await window.api.writeProjectFile(`${projectPath}/data/MapInfos.json`, JSON.stringify(mapInfos))
+    await window.api.writeProjectFile(`${projectPath}/data/Tilesets.json`, JSON.stringify({}))
+    await window.api.writeProjectFile(`${projectPath}/data/Map001.json`, JSON.stringify(map001))
 
     // 3. Create Project Metadata
     const meta = `Z Engine v. 0.1.0 with PIXI.js v. ${VERSION}`

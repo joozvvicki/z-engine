@@ -77,6 +77,64 @@ const filteredVariables = computed(() => {
 
     <!-- Columns Container -->
     <div class="flex-1 flex overflow-hidden divide-x divide-gray-100">
+      <!-- General Settings Column -->
+      <div class="w-64 bg-gray-50 flex flex-col border-r border-gray-100">
+        <div
+          class="p-3 border-b border-gray-100 bg-white font-bold text-gray-700 uppercase tracking-widest text-xs flex items-center gap-2"
+        >
+          <span class="w-2 h-2 rounded-full bg-green-500"></span> General
+        </div>
+        <div class="p-4 space-y-6 overflow-y-auto">
+          <!-- Player Start -->
+          <div class="space-y-3">
+            <h4 class="text-xs font-bold text-gray-500 uppercase tracking-wider">Player Start</h4>
+
+            <div class="space-y-1">
+              <label class="text-xs font-medium text-gray-600">Start Map ID</label>
+              <input
+                v-model.number="store.systemStartMapId"
+                type="number"
+                class="w-full p-2 text-xs border border-gray-200 rounded focus:border-blue-400 outline-none transition-colors"
+              />
+            </div>
+
+            <div class="grid grid-cols-2 gap-2">
+              <div class="space-y-1">
+                <label class="text-xs font-medium text-gray-600">X</label>
+                <input
+                  v-model.number="store.systemStartX"
+                  type="number"
+                  class="w-full p-2 text-xs border border-gray-200 rounded focus:border-blue-400 outline-none transition-colors"
+                />
+              </div>
+              <div class="space-y-1">
+                <label class="text-xs font-medium text-gray-600">Y</label>
+                <input
+                  v-model.number="store.systemStartY"
+                  type="number"
+                  class="w-full p-2 text-xs border border-gray-200 rounded focus:border-blue-400 outline-none transition-colors"
+                />
+              </div>
+            </div>
+          </div>
+
+          <!-- Player Graphic -->
+          <div class="space-y-3">
+            <h4 class="text-xs font-bold text-gray-500 uppercase tracking-wider">Player Graphic</h4>
+            <div class="space-y-1">
+              <label class="text-xs font-medium text-gray-600">Asset Path</label>
+              <input
+                v-model="store.systemPlayerGraphic"
+                type="text"
+                class="w-full p-2 text-xs border border-gray-200 rounded focus:border-blue-400 outline-none transition-colors"
+                placeholder="img/characters/..."
+              />
+              <p class="text-[10px] text-gray-400">Relative to project root</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Switches Column -->
       <div class="flex-1 flex flex-col min-w-0 bg-gray-50/30">
         <div class="p-3 border-b border-gray-100 bg-white sticky top-0 z-10 space-y-2">

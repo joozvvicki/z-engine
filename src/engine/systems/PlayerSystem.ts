@@ -164,7 +164,7 @@ export class PlayerSystem extends ZSystem {
     }
   }
 
-  private snapToGrid(): void {
+  public snapToGrid(): void {
     this.targetX = this.x
     this.targetY = this.y
     this.realX = this.x * this.tileSize

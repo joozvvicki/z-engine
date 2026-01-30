@@ -86,7 +86,7 @@ export class EntityRenderSystem extends ZSystemCore {
       // or we can use the data provider to resolve it if needed, but here we are inside the engine.
       // Ideally, the PlayerSystem or SceneManager should handle loading player assets.
 
-      const charPath = '@ui/assets/img/characters/character.png'
+      const charPath = 'img/characters/character.png'
       // We assume it is already loaded or we fail gracefully
 
       const graphic = {
@@ -142,6 +142,60 @@ export class EntityRenderSystem extends ZSystemCore {
       this.eventSprites.forEach((s) => (s.visible = true))
     } else {
       this.eventSprites.forEach((s) => (s.visible = false))
+    }
+  }
+
+  public async setPlayerGraphic(assetPath: string): Promise<void> {
+    if (!assetPath) return
+
+    // Check if we need to release old texture?
+    // For now, simpler to just recreate sprite.
+
+    if (this.playerSprite) {
+      this.playerSprite.destroy()
+      this.playerSprite = null
+    }
+
+    const graphic = {
+      assetId: assetPath,
+      group: 'character' as const,
+      x: 0,
+      y: 0,
+      w: 1,
+      h: 1
+    }
+
+    // Attempt to load if not already loaded?
+    // We assume TextureManager might have it or we need to generic load it.
+    // But SpriteUtils uses TextureManager synchronous getTileset usually?
+    // SpriteUtils.createEventSprite calls TextureManager.getTileset
+
+    // We might need to ensure it is loaded.
+    // If it is a generic path like 'img/characters/foo.png', we need to resolve it.
+    // We can use the data provider?
+    // But we are in a System.
+    // Let's assume for now the Bootstrapper or useEngine preloads it.
+    // useEngine preloads ALL characters in the folder.
+
+    try {
+      this.playerSprite = SpriteUtils.createEventSprite(
+        graphic,
+        this.textures,
+        this.tileSize,
+        false
+      )
+
+      if (this.playerSprite) {
+        this.frameWidth = this.playerSprite.texture.width
+        this.frameHeight = this.playerSprite.texture.height
+        this.container.addChild(this.playerSprite)
+
+        // Refresh visibility
+        this.setVisible(true) // or keep previous state?
+      }
+    } catch (e) {
+      console.warn('Could not set player graphic', assetPath, e)
+      this.createFallbackSprite()
     }
   }
 

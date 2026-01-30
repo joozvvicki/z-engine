@@ -50,6 +50,10 @@ export const useEditorStore = defineStore('editor', () => {
   // System Data (Database)
   const systemSwitches = ref<string[]>([])
   const systemVariables = ref<string[]>([])
+  const systemStartMapId = ref(1)
+  const systemStartX = ref(0)
+  const systemStartY = ref(0)
+  const systemPlayerGraphic = ref('img/characters/character.png')
 
   // Ensure initial size (default for new project or empty load)
   if (systemSwitches.value.length === 0) systemSwitches.value = new Array(20).fill('')
@@ -63,6 +67,14 @@ export const useEditorStore = defineStore('editor', () => {
   // ==========================================
 
   const loadProject = async (forceSelect = true): Promise<void> => {
+    // If we are NOT forcing a new select, and the project is ALREADY loaded in the service,
+    // we assume the Store is already synced or holding valid state.
+    // We should NOT re-load from disk and overwrite potential unsaved changes in the Store.
+    // BUT we must verify the store actually has data (e.g. after a page refresh, Service is loaded but Store is empty).
+    if (!forceSelect && ProjectService.isLoaded() && storedMaps.value.length > 0) {
+      return
+    }
+
     if (forceSelect) {
       const path = await ProjectService.selectProject()
       if (!path) return
@@ -75,6 +87,10 @@ export const useEditorStore = defineStore('editor', () => {
     if (sysData) {
       systemSwitches.value = sysData.switches
       systemVariables.value = sysData.variables
+      systemStartMapId.value = sysData.startMapId
+      systemStartX.value = sysData.startX
+      systemStartY.value = sysData.startY
+      systemPlayerGraphic.value = sysData.playerGraphic
     }
 
     // 2. Load Tilesets
@@ -90,9 +106,6 @@ export const useEditorStore = defineStore('editor', () => {
           if (map) storedMaps.value.push(map)
         }
       }
-    } else {
-      // Fallback: If no MapInfos, maybe try loading Map001?
-      // For new project structure, list might be empty.
     }
   }
 
@@ -106,7 +119,11 @@ export const useEditorStore = defineStore('editor', () => {
       // 1. Save System
       await ProjectService.saveSystemData({
         switches: systemSwitches.value,
-        variables: systemVariables.value
+        variables: systemVariables.value,
+        startMapId: systemStartMapId.value,
+        startX: systemStartX.value,
+        startY: systemStartY.value,
+        playerGraphic: systemPlayerGraphic.value
       })
 
       // 2. Save Tilesets
@@ -202,6 +219,10 @@ export const useEditorStore = defineStore('editor', () => {
 
     // System
     systemSwitches,
-    systemVariables
+    systemVariables,
+    systemStartMapId,
+    systemStartX,
+    systemStartY,
+    systemPlayerGraphic
   }
 })

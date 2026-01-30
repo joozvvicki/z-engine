@@ -10,6 +10,15 @@ export interface ZActor {
   character: string
 }
 
+export interface ZSystemData {
+  switches: string[]
+  variables: string[]
+  startMapId: number
+  startX: number
+  startY: number
+  playerGraphic: string
+}
+
 export interface TileSelection {
   x: number
   y: number
