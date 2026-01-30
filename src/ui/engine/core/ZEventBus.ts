@@ -1,12 +1,9 @@
-import { ZEngineSignal, ZSignalData } from '../types'
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { ZEngineSignal, ZSignalData } from '@engine/types'
 
 type ZSignalCallback<T extends ZEngineSignal> = (data: ZSignalData[T]) => void
 
-/**
- * Global internal event bus for decentralized communication between systems.
- */
 export class ZEventBus {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private handlers: Map<ZEngineSignal, Set<ZSignalCallback<any>>> = new Map()
 
   public on<T extends ZEngineSignal>(signal: T, callback: ZSignalCallback<T>): void {
@@ -30,9 +27,6 @@ export class ZEventBus {
     }
   }
 
-  /**
-   * Helper for one-time subscription
-   */
   public once<T extends ZEngineSignal>(signal: T, callback: ZSignalCallback<T>): void {
     const wrapper = (data: ZSignalData[T]): void => {
       this.off(signal, wrapper)

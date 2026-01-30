@@ -1,4 +1,4 @@
-import { ZMap } from '@engine/types'
+import { ZEvent, ZMap } from '@engine/types'
 
 export class MapManager {
   public currentMap: ZMap | null = null
@@ -7,7 +7,7 @@ export class MapManager {
     this.currentMap = map
   }
 
-  public getEventsAt(x: number, y: number): import('@engine/types').ZEvent[] {
+  public getEventsAt(x: number, y: number): ZEvent[] {
     if (!this.currentMap) return []
     return this.currentMap.events.filter((e) => e.x === x && e.y === y)
   }

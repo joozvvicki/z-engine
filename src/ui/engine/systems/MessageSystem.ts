@@ -1,7 +1,7 @@
+import { Container, Graphics, Text } from '@engine/utils/pixi'
 import { ZEngineSignal } from '@engine/types'
 import { ZSystem as ZSystemCore, SystemMode } from '@engine/core/ZSystem'
-import { EventSystem } from '../systems/EventSystem'
-import { Container, Graphics, Text } from 'pixi.js'
+import { EventSystem } from '@engine/systems/EventSystem'
 import { ServiceLocator } from '@engine/core/ServiceLocator'
 
 export class MessageSystem extends ZSystemCore {
@@ -99,15 +99,12 @@ export class MessageSystem extends ZSystemCore {
     this.isChoiceVisible = false
     this.container.visible = false
 
-    // Clear input state to prevent immediate re-trigger
     this.input.clearKey('Enter')
     this.input.clearKey('Space')
     this.input.clearKey('KeyZ')
 
-    // Emit signal to unblock player input
     this.bus.emit(ZEngineSignal.MessageClosed, {})
 
-    // Notify EventSystem that message is finished
     const eventSystem = window.$zEngine?.services.get(EventSystem)
     if (eventSystem) {
       eventSystem.finishMessage()
@@ -115,21 +112,16 @@ export class MessageSystem extends ZSystemCore {
   }
 
   private render(): void {
-    // Clear previous content
     this.container.removeChildren()
 
-    // Create message box background
     this.messageBox = new Graphics()
 
-    // Semi-transparent black background with modern PIXI v8 API
     this.messageBox.rect(0, 0, this.boxWidth, this.boxHeight)
     this.messageBox.fill({ color: 0x000000, alpha: 0.85 })
 
-    // White border with rounded corners
     this.messageBox.roundRect(0, 0, this.boxWidth, this.boxHeight, 12)
     this.messageBox.stroke({ width: 3, color: 0xffffff, alpha: 0.3 })
 
-    // Decorative corners
     const corner = new Graphics()
     corner.moveTo(0, 10).lineTo(0, 0).lineTo(10, 0)
     corner
@@ -149,7 +141,6 @@ export class MessageSystem extends ZSystemCore {
 
     this.container.addChild(this.messageBox)
 
-    // Create text with modern PIXI v8 API
     this.textDisplay = new Text({
       text: this.messageText,
       style: {
@@ -165,7 +156,6 @@ export class MessageSystem extends ZSystemCore {
     this.textDisplay.y = this.padding
     this.container.addChild(this.textDisplay)
 
-    // Add prompt indicator (small triangle)
     const indicator = new Graphics()
     indicator.moveTo(0, 0).lineTo(6, 0).lineTo(3, 8).closePath()
     indicator.fill({ color: 0xffffff, alpha: 0.6 })
@@ -180,7 +170,7 @@ export class MessageSystem extends ZSystemCore {
     this.choices = choices
     this.selectedChoiceIndex = 0
     this.isChoiceVisible = true
-    this.isVisible = true // Ensure container is visible
+    this.isVisible = true
     this.renderChoices()
   }
 
@@ -190,12 +180,6 @@ export class MessageSystem extends ZSystemCore {
       this.container.removeChild(this.choicesContainer)
       this.choicesContainer = null
     }
-    // We don't call close() because we want the message box to stay visible if it was there?
-    // Actually standard behavior: ShowChoices often happens AFTER a ShowMessage.
-    // If we call submitChoice, the EventSystem will finish the command.
-    // But does standard RPG Maker close the message window when a choice is made?
-    // Usually YES, unless another message follows immediately.
-    // Let's close it.
     this.close()
   }
 
@@ -208,8 +192,6 @@ export class MessageSystem extends ZSystemCore {
     this.choicesContainer = choicesContainer
     this.container.addChild(choicesContainer)
 
-    // Position choice box above the message box or to the right
-    // Let's put it on the right side of the screen, floating
     const totalHeight = this.choices.length * this.choiceHeight + this.padding * 2
     const totalWidth = this.choiceWidth + this.padding * 2
 
@@ -245,15 +227,13 @@ export class MessageSystem extends ZSystemCore {
       choicesContainer.addChild(text)
     })
 
-    // Position the whole container
     choicesContainer.x = this.boxWidth - totalWidth
-    choicesContainer.y = -totalHeight - 10 // Above the message box
+    choicesContainer.y = -totalHeight - 10
 
     this.container.visible = true
   }
 
   public resize(width: number, height: number): void {
-    // Position message box at bottom center
     this.container.x = (width - this.boxWidth) / 2
     this.container.y = height - this.boxHeight - 40
   }

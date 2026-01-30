@@ -1,20 +1,20 @@
-import PIXI from '../utils/pixi'
+/* eslint-disable @typescript-eslint/no-unused-vars */
+import { Container, FederatedPointerEvent, Graphics } from '@engine/utils/pixi'
 import { ZSystem, SystemMode } from '@engine/core/ZSystem'
 import { ServiceLocator } from '@engine/core/ServiceLocator'
 
 export class GridSystem extends ZSystem {
-  private container: PIXI.Container
-  private gridGraphics: PIXI.Graphics
+  private container: Container
+  private gridGraphics: Graphics
   private tileSize: number
 
-  private wrapper: PIXI.Container
+  private wrapper: Container
 
-  // State
   private width: number = 0
   private height: number = 0
   private dirty: boolean = false
 
-  constructor(stage: PIXI.Container, services: ServiceLocator, tileSize: number) {
+  constructor(stage: Container, services: ServiceLocator, tileSize: number) {
     super(services)
     this.updateMode = SystemMode.EDIT
     this.wrapper = stage
@@ -25,23 +25,23 @@ export class GridSystem extends ZSystem {
   }
 
   public onBoot(): void {
-    this.container = new PIXI.Container()
+    this.container = new Container()
     this.container.label = 'GridSystem'
-    this.container.zIndex = 100 // Previous ZEngine zIndex for grid
+    this.container.zIndex = 100
     this.wrapper.addChild(this.container)
 
-    this.gridGraphics = new PIXI.Graphics()
+    this.gridGraphics = new Graphics()
     this.container.addChild(this.gridGraphics)
   }
 
   public onSetup(): void {
     // Setup logic if needed
   }
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
   public onPreUpdate(_delta: number): void {
     // PreUpdate logic if needed
   }
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
   public onUpdate(_delta: number): void {
     if (!this.dirty) return
 
@@ -63,10 +63,11 @@ export class GridSystem extends ZSystem {
 
     this.dirty = false
   }
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
   public onPostUpdate(_delta: number): void {
     // PostUpdate logic if needed
   }
+
   public onDestroy(): void {
     if (this.container) {
       this.container.destroy({ children: true })
@@ -81,7 +82,7 @@ export class GridSystem extends ZSystem {
     }
   }
 
-  public getTileCoords(globalEvent: PIXI.FederatedPointerEvent): { x: number; y: number } {
+  public getTileCoords(globalEvent: FederatedPointerEvent): { x: number; y: number } {
     const local = this.wrapper.toLocal(globalEvent.global)
     return {
       x: Math.floor(local.x / this.tileSize),

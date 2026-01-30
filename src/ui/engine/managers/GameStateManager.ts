@@ -1,5 +1,5 @@
 import { ZEngineSignal } from '@engine/types'
-import { ZManager } from './ZManager'
+import { ZManager } from '@engine/managers/ZManager'
 import { ServiceLocator } from '@engine/core/ServiceLocator'
 import ZLogger from '@engine/core/ZLogger'
 

@@ -1,7 +1,7 @@
-import { Application } from '../utils/pixi'
-import { ServiceLocator } from './ServiceLocator'
-import { ZSystem, SystemMode } from './ZSystem'
-import ZLogger from './ZLogger'
+import { Application } from '@engine/utils/pixi'
+import { ServiceLocator } from '@engine/core/ServiceLocator'
+import { ZSystem, SystemMode } from '@engine/core/ZSystem'
+import ZLogger from '@engine/core/ZLogger'
 
 export class SystemManager {
   private services: ServiceLocator
@@ -15,10 +15,8 @@ export class SystemManager {
   }
 
   public boot(): void {
-    // 1. Cache all systems
     this.systems = this.services.getAllInstances(ZSystem)
 
-    // 2. Boot all systems
     this.systems.forEach((system) => {
       system.onBoot()
       ZLogger.with(system.constructor.name).info("I'm ready!")
@@ -32,11 +30,9 @@ export class SystemManager {
   }
 
   private tick(delta: number): void {
-    // Optimized loop (no allocation)
     for (let i = 0; i < this.systems.length; i++) {
       const system = this.systems[i]
 
-      // Filter by mode
       if (this.shouldUpdate(system)) {
         system.onPreUpdate(delta)
         system.onUpdate(delta)
@@ -51,7 +47,6 @@ export class SystemManager {
     if (this.mode === 'play') {
       return system.updateMode === SystemMode.PLAY
     } else {
-      // Edit mode
       return system.updateMode === SystemMode.EDIT
     }
   }

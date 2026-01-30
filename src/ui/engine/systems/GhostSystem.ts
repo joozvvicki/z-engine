@@ -1,14 +1,14 @@
-import PIXI from '../utils/pixi'
+import { Container, Graphics, Sprite, Texture, Rectangle } from '@engine/utils/pixi'
 import { type TileSelection, ZTool, ZLayer } from '@engine/types'
 import { ZSystem as ZSystemCore, SystemMode } from '@engine/core/ZSystem'
 
 import { ServiceLocator } from '@engine/core/ServiceLocator'
 
 export class GhostSystem extends ZSystemCore {
-  private container: PIXI.Container
+  private container: Container
   private tileSize: number
 
-  private wrapper: PIXI.Container
+  private wrapper: Container
 
   // State
   private active: boolean = false
@@ -20,7 +20,7 @@ export class GhostSystem extends ZSystemCore {
   private shapeEnd: { x: number; y: number } | null = null
   private isShape: boolean = false
 
-  constructor(stage: PIXI.Container, services: ServiceLocator, tileSize: number) {
+  constructor(stage: Container, services: ServiceLocator, tileSize: number) {
     super(services)
     this.updateMode = SystemMode.EDIT
 
@@ -31,7 +31,7 @@ export class GhostSystem extends ZSystemCore {
   }
 
   public onBoot(): void {
-    this.container = new PIXI.Container()
+    this.container = new Container()
     this.container.label = 'GhostContainer'
     this.container.zIndex = 999
     this.container.visible = false
@@ -91,13 +91,13 @@ export class GhostSystem extends ZSystemCore {
     const y = this.position.y * this.tileSize
 
     if (this.currentTool === ZTool.eraser) {
-      const g = new PIXI.Graphics()
+      const g = new Graphics()
         .rect(x, y, this.tileSize, this.tileSize)
         .fill({ color: 0xff0000, alpha: 0.3 })
         .stroke({ width: 1, color: 0xff0000, alpha: 0.8 })
       this.container.addChild(g)
     } else if (this.currentTool === ZTool.event) {
-      const g = new PIXI.Graphics()
+      const g = new Graphics()
         .rect(x, y, this.tileSize, this.tileSize)
         .fill({ color: 0x00ffff, alpha: 0.3 })
         .stroke({ width: 1, color: 0x00ffff, alpha: 0.8 })
@@ -247,10 +247,10 @@ export class GhostSystem extends ZSystemCore {
                           }
                         }
 
-                        const sprite = new PIXI.Sprite(
-                          new PIXI.Texture({
+                        const sprite = new Sprite(
+                          new Texture({
                             source: tex.source,
-                            frame: new PIXI.Rectangle(
+                            frame: new Rectangle(
                               tile.x * this.tileSize + srcX,
                               tile.y * this.tileSize + srcY,
                               halfSize,
@@ -266,10 +266,10 @@ export class GhostSystem extends ZSystemCore {
                     }
                   } else {
                     // Standard Tile
-                    const sprite = new PIXI.Sprite(
-                      new PIXI.Texture({
+                    const sprite = new Sprite(
+                      new Texture({
                         source: tex.source,
-                        frame: new PIXI.Rectangle(
+                        frame: new Rectangle(
                           tile.x * this.tileSize,
                           tile.y * this.tileSize,
                           this.tileSize,
@@ -296,10 +296,10 @@ export class GhostSystem extends ZSystemCore {
             if (tile) {
               const tex = this.textures.get(tile.tilesetId)
               if (tex) {
-                const sprite = new PIXI.Sprite(
-                  new PIXI.Texture({
+                const sprite = new Sprite(
+                  new Texture({
                     source: tex.source,
-                    frame: new PIXI.Rectangle(
+                    frame: new Rectangle(
                       tile.x * this.tileSize,
                       tile.y * this.tileSize,
                       this.tileSize,
@@ -329,10 +329,10 @@ export class GhostSystem extends ZSystemCore {
             this.selection.pixelH ??
             (this.selection.isAutotile ? this.tileSize : this.selection.h * this.tileSize)
 
-          const sprite = new PIXI.Sprite(
-            new PIXI.Texture({
+          const sprite = new Sprite(
+            new Texture({
               source: tex.source,
-              frame: new PIXI.Rectangle(pX, pY, pW, pH)
+              frame: new Rectangle(pX, pY, pW, pH)
             })
           )
 
@@ -371,7 +371,7 @@ export class GhostSystem extends ZSystemCore {
     this.container.x = 0
     this.container.y = 0
 
-    const g = new PIXI.Graphics()
+    const g = new Graphics()
     const x = Math.min(this.shapeStart.x, this.shapeEnd.x) * this.tileSize
     const y = Math.min(this.shapeStart.y, this.shapeEnd.y) * this.tileSize
     const w = (Math.abs(this.shapeStart.x - this.shapeEnd.x) + 1) * this.tileSize
@@ -399,7 +399,7 @@ export class GhostSystem extends ZSystemCore {
     // If we are dragging a NEW selection, we show the shape drag.
     // If we have an existing selection, we show it.
 
-    const g = new PIXI.Graphics()
+    const g = new Graphics()
     const x = this.selectionBox.x * this.tileSize
     const y = this.selectionBox.y * this.tileSize
     const w = this.selectionBox.w * this.tileSize

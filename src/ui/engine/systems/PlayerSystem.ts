@@ -1,6 +1,6 @@
 import { ZEngineSignal } from '@engine/types'
 import { ZSystem, SystemMode } from '@engine/core/ZSystem'
-import { PhysicsSystem } from './PhysicsSystem'
+import { PhysicsSystem } from '@engine/systems/PhysicsSystem'
 import { ServiceLocator } from '@engine/core/ServiceLocator'
 import ZLogger from '@engine/core/ZLogger'
 

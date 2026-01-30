@@ -20,12 +20,10 @@ export class PhysicsSystem extends ZSystem {
     const map = this.map.currentMap
     if (!map) return false
 
-    // Check boundaries
     if (x < 0 || x >= map.width || y < 0 || y >= map.height) {
       return false
     }
 
-    // Phase 1: STRICT LAYERS (Events, Decoration, Walls)
     const strictLayers = [ZLayer.events, ZLayer.decoration, ZLayer.walls]
 
     for (const layerKey of strictLayers) {
@@ -42,27 +40,22 @@ export class PhysicsSystem extends ZSystem {
       }
     }
 
-    // Phase 2: BRIDGE LAYER (Ground)
     const groundLayer = map.layers[ZLayer.ground]
     if (groundLayer) {
       const tiles = groundLayer.data[y]?.[x]
       if (tiles && tiles.length > 0) {
-        // Iterate Stack from TOP to BOTTOM
         for (let i = tiles.length - 1; i >= 0; i--) {
           const tile = tiles[i]
           if (!tile) continue
           const tilesetUrl = map.tilesetConfig?.[tile.tilesetId] || tile.tilesetId
           const config = this.tilesets.getTileConfig(tilesetUrl, tile.x, tile.y)
 
-          // 1. Solid -> Blocked
           if (config?.isSolid) return false
 
-          // 2. High Priority (Star) -> Ignore/Transparent (Look at tile below)
           if (config?.isHighPriority) {
             continue
           }
 
-          // 3. Normal -> Bridge (Passable)
           return true
         }
       }

@@ -6,7 +6,6 @@ export class TextureManager {
   private textureUrls: Map<string, string> = new Map()
 
   public async loadTileset(id: string, url: string): Promise<void> {
-    // If we already have this ID with the SAME URL, skip to avoid flicker
     if (this.textures.has(id) && this.textureUrls.get(id) === url) {
       return
     }

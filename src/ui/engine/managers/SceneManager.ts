@@ -1,11 +1,10 @@
-import { ServiceLocator } from '../core/ServiceLocator'
-import { ZManager } from './ZManager'
-import { ZEngineSignal } from '@engine/types'
-import { ZMap } from '@engine/types'
-import { RenderSystem } from '../systems/RenderSystem'
-import { EntityRenderSystem } from '../systems/EntityRenderSystem'
-import { TransitionSystem } from '../systems/TransitionSystem'
-import ZLogger from '../core/ZLogger'
+import { ServiceLocator } from '@engine/core/ServiceLocator'
+import { ZManager } from '@engine/managers/ZManager'
+import { ZEngineSignal, ZMap } from '@engine/types'
+import { RenderSystem } from '@engine/systems/RenderSystem'
+import { EntityRenderSystem } from '@engine/systems/EntityRenderSystem'
+import { TransitionSystem } from '@engine/systems/TransitionSystem'
+import ZLogger from '@engine/core/ZLogger'
 
 export class SceneManager extends ZManager {
   private onMapChangeRequest: ((mapId: number, x: number, y: number) => Promise<void>) | null = null
@@ -40,12 +39,9 @@ export class SceneManager extends ZManager {
       return
     }
 
-    // Dependencies
-    // Dependencies
     const renderSystem = this.services.get(RenderSystem)
     const entityRenderSystem = this.services.get(EntityRenderSystem)
 
-    // 1. Resolve full tileset URLs if not already present
     if (this.dataProvider) {
       const resolvedConfig: Record<string, string> = {}
       const slots = ['A1', 'A2', 'A3', 'A4', 'A5', 'B', 'C', 'D', 'Roofs']
@@ -54,18 +50,15 @@ export class SceneManager extends ZManager {
       })
       map.tilesetConfig = resolvedConfig
 
-      // 2. Load Collision Configs
       const configs = await this.dataProvider.getTilesetConfigs()
       this.tilesets.setConfigs(configs)
     }
 
-    // 3. Preload all required textures
     const texturePromises = Object.entries(map.tilesetConfig).map(([id, url]) =>
       this.textures.loadTileset(id, url)
     )
     await Promise.all(texturePromises)
 
-    // 4. Update core systems
     this.map.setMap(map)
     renderSystem?.setMap(map)
     entityRenderSystem?.loadEvents()
@@ -81,21 +74,14 @@ export class SceneManager extends ZManager {
 
     const transitionSystem = this.services.get(TransitionSystem)
 
-    // 1. Fade Out
     await transitionSystem?.fadeOut(300)
 
-    // 2. Request Map Change via Callback (Vue Store integration)
-    // The Store/Parent will call loadMap() eventually
     if (this.onMapChangeRequest) {
       await this.onMapChangeRequest(mapId, x, y)
     } else {
       ZLogger.warn('[SceneManager] onMapChangeRequest not set, transfer may fail or be incomplete')
-      // Fallback: direct load if no store sync (e.g. testing)
-      // await this.loadMap(mapId)
-      // playerSystem?.teleport(x, y)
     }
 
-    // 3. Fade In
     await transitionSystem?.fadeIn(300)
   }
 }

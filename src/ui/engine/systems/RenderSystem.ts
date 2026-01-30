@@ -1,4 +1,4 @@
-import PIXI from '../utils/pixi'
+import PIXI from '@engine/utils/pixi'
 import { AutotileSolver } from '@engine/utils/AutotileSolver'
 import { SpriteUtils } from '@engine/utils/SpriteUtils'
 import { type ZMap, type ZEventGraphic, type TileSelection, ZLayer } from '@engine/types'

@@ -1,6 +1,5 @@
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+/* eslint-disable @typescript-eslint/no-explicit-any */
 export type ServiceConstructor<T> = new (...args: any[]) => T
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type AbstractServiceConstructor<T> = abstract new (...args: any[]) => T
 export type ServiceKey<T> = ServiceConstructor<T> | AbstractServiceConstructor<T> | string
 
@@ -8,7 +7,6 @@ export type ServiceKey<T> = ServiceConstructor<T> | AbstractServiceConstructor<T
  * ServiceLocator provides centralized access to engine services and managers.
  */
 export class ServiceLocator {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private services = new Map<any, any>()
 
   /**

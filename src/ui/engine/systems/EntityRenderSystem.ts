@@ -13,23 +13,11 @@ export class EntityRenderSystem extends ZSystemCore {
 
   private playerSprite: PIXI.Sprite | null = null
 
-  // RPG Maker XP Style (4x4)
-  // Rows: Down, Left, Right, Up
-  // Cols: (Idle, Walk1, Idle, Walk2) - standard 4 frame cycle usually 0-1-2-3
-  // Wait, standard XP/VX is 4 cols: Step Left, Idle, Step Right, Idle?
-  // Let's assume standard grid 4x4.
-  // We need to define frame size.
-  // Standard XP character is 32x48 or 48x64?
-  // Let's check aspect ratio from the file we found? We can't check size easily without loading.
-  // Standard RPG Maker MV/MZ is 48x48 base tile, characters are 3 cols x 4 rows.
-  // User said "XP assets". XP characters are usually 4 cols x 4 rows.
-  // Let's implement 4 cols x 4 rows logic.
-
   private frameWidth: number = 0
   private frameHeight: number = 0
   private animationFrame: number = 0
   private animationTimer: number = 0
-  private readonly ANIMATION_SPEED: number = 150 // ms per frame
+  private readonly ANIMATION_SPEED: number = 150 // ms
 
   private renderSystem: RenderSystem
   private eventSprites: Map<string, PIXI.Container | PIXI.Sprite> = new Map()
@@ -41,13 +29,11 @@ export class EntityRenderSystem extends ZSystemCore {
 
     this.container = new PIXI.Container()
 
-    // These will be retrieved lazily in onBoot
     this.playerSystem = undefined as unknown as PlayerSystem
     this.renderSystem = undefined as unknown as RenderSystem
   }
 
   public loadEvents(): void {
-    // Clear existing events
     this.eventSprites.forEach((sprite) => {
       sprite.destroy()
     })
@@ -57,13 +43,10 @@ export class EntityRenderSystem extends ZSystemCore {
     if (!map || !map.events) return
 
     map.events.forEach((event) => {
-      if (event.name === 'PlayerStart') return // Invisible marker
+      if (event.name === 'PlayerStart') return
 
-      const activePage = event.pages[0] // Default to first page for now until Interpreter
+      const activePage = event.pages[0]
       if (!activePage || !activePage.graphic) return
-
-      // Use SpriteUtils to create the visual
-      // For Game, isEditor = false
       const sprite = SpriteUtils.createEventSprite(
         activePage.graphic,
         this.textures,
@@ -75,13 +58,10 @@ export class EntityRenderSystem extends ZSystemCore {
         sprite.x = event.x * this.tileSize
         sprite.y = event.y * this.tileSize
 
-        // If it's a character (Anchor 0.5, 1), we need to adjust position to be center-bottom of tile
         if (activePage.graphic.group === 'character') {
           sprite.x += this.tileSize / 2
           sprite.y += this.tileSize
         }
-
-        // Y-Sort: Use bottom of tile
         sprite.zIndex = (event.y + 1) * this.tileSize
 
         this.container.addChild(sprite)
@@ -91,22 +71,17 @@ export class EntityRenderSystem extends ZSystemCore {
   }
 
   public async onBoot(): Promise<void> {
-    // Retrieve dependencies lazily
     this.playerSystem = this.services.require(PlayerSystem)
     this.renderSystem = this.services.require(RenderSystem)
 
-    // We want to sort with Decoration layer (to interleave with tiles)
     this.container = this.renderSystem.getLayerContainer(ZLayer.decoration)
 
-    // Create Player Sprite
     await this.createPlayerSprite()
   }
 
   private async createPlayerSprite(): Promise<void> {
     try {
-      // Dynamic import to get the URL
       const mod = await import('@ui/assets/img/characters/character.png')
-      // Register with TextureManager
       await this.textures.loadTileset('@ui/assets/img/characters/character.png', mod.default)
 
       const graphic = {
@@ -126,11 +101,8 @@ export class EntityRenderSystem extends ZSystemCore {
       )
 
       if (this.playerSprite) {
-        // Store frame dimensions for animation
         this.frameWidth = this.playerSprite.texture.width
         this.frameHeight = this.playerSprite.texture.height
-        // Note: SpriteUtils creates a sprite with the FRAME (partial texture).
-        // So texture.width IS the frame width.
 
         this.container.addChild(this.playerSprite)
       }
@@ -145,7 +117,6 @@ export class EntityRenderSystem extends ZSystemCore {
     const graphics = new PIXI.Graphics()
     graphics.rect(0, 0, this.tileSize, this.tileSize)
     graphics.fill(0xff0000)
-    // Wrap in container to behave like sprite anchor
     const c = new PIXI.Container()
     c.addChild(graphics)
     this.playerSprite = c as unknown as PIXI.Sprite
@@ -168,7 +139,6 @@ export class EntityRenderSystem extends ZSystemCore {
   public onUpdate(delta: number): void {
     if (!this.playerSprite) return
 
-    // Self-healing: Ensure player is attached to container (RenderSystem might have cleared it)
     if (this.playerSprite.parent !== this.container) {
       this.container.addChild(this.playerSprite)
       this.eventSprites.forEach((s) => {
@@ -176,18 +146,8 @@ export class EntityRenderSystem extends ZSystemCore {
       })
     }
 
-    // Interpolate position relative to bottom-center of tile?
-    // PlayerSystem coordinates are top-left of the tile grid.
-    // We want sprite feet at bottom-center of tile.
-    // RealX/Y is top-left of tile.
-    // Center X = realX + tileSize/2
-    // Bottom Y = realY + tileSize
-
     this.playerSprite.x = this.playerSystem.realX + this.tileSize / 2
     this.playerSprite.y = this.playerSystem.realY + this.tileSize
-    // Y-sorting: zIndex = Y
-    // We strictly use Y for sorting.
-    // Any bias should be handled by the environment (Tiles) or offset.
     this.playerSprite.zIndex = this.playerSprite.y
 
     if (this.playerSprite instanceof PIXI.Sprite && this.playerSprite.texture.label !== 'EMPTY') {
@@ -198,7 +158,6 @@ export class EntityRenderSystem extends ZSystemCore {
   private updateAnimation(delta: number): void {
     if (!(this.playerSprite instanceof PIXI.Sprite)) return
 
-    // Update timer
     if (this.playerSystem.isMoving) {
       this.animationTimer += delta
       if (this.animationTimer > this.ANIMATION_SPEED) {
@@ -206,7 +165,7 @@ export class EntityRenderSystem extends ZSystemCore {
         this.animationFrame = (this.animationFrame + 1) % 4
       }
     } else {
-      this.animationFrame = 0 // Idle frame
+      this.animationFrame = 0
       this.animationTimer = 0
     }
 
@@ -219,11 +178,6 @@ export class EntityRenderSystem extends ZSystemCore {
       this.frameWidth,
       this.frameHeight
     )
-
-    // Only update if changed to avoid perf hit? PIXI handles this well.
-    // To change frame of an existing sprite, we should construct a new texture
-    // or use Texture.frame if it were mutable (it's not easily mutable deep inside).
-    // Best practice: Use a new Texture sharing the same source.
 
     const newTexture = new PIXI.Texture({
       source: this.playerSprite.texture.source,
@@ -244,7 +198,7 @@ export class EntityRenderSystem extends ZSystemCore {
       case 'up':
         return 3
       default:
-        return 0 // Should not happen
+        return 0
     }
   }
 

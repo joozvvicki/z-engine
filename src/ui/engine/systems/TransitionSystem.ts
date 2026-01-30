@@ -1,4 +1,4 @@
-import { Container, Graphics } from '../utils/pixi'
+import { Container, Graphics } from '@engine/utils/pixi'
 import { ZSystem, SystemMode } from '@engine/core/ZSystem'
 import { ServiceLocator } from '@engine/core/ServiceLocator'
 

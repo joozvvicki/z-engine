@@ -144,11 +144,11 @@ export interface TileConfig {
   isSolid: boolean
   isHighPriority: boolean
   dirBlock: number
-  collisionMask?: boolean[] // 48x48 true/false
-  sortYOffset?: number // positive = sorts lower (front), negative = sorts higher (back)
+  collisionMask?: boolean[]
+  sortYOffset?: number
 }
 
-export type TilesetConfig = Record<string, TileConfig> // Key is tileId ("x_y") -> "0_0", "1_0" etc.
+export type TilesetConfig = Record<string, TileConfig>
 
 export enum ZCommandCode {
   ShowMessage = 101,
@@ -183,10 +183,6 @@ export interface ZHistoryEntry {
   deltas: ZTileDelta[]
 }
 
-/**
- * Interface for providing game data to the engine.
- * Decouples engine from specific storage implementations (Vue Store, LocalStorage, JSON files).
- */
 export interface ZDataProvider {
   getMap(id: number): Promise<ZMap | null>
   getTilesetConfigs(): Promise<Record<string, TilesetConfig>> // URL-indexed
@@ -199,9 +195,7 @@ export interface ZDataProvider {
     layer: ZLayer
   ): void
 }
-/**
- * Core engine signals for internal communication via Event Bus.
- */
+
 export enum ZEngineSignal {
   PlayerMoved = 'player:moved',
   MapLoaded = 'map:loaded',
