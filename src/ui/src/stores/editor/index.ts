@@ -1,19 +1,15 @@
 import { defineStore } from 'pinia'
-import { computed, nextTick, ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useLocalStorage } from '@vueuse/core'
 
 // --- MODUŁY LOKALNE ---
-import { TILESETS } from './constants'
 import { useHistory } from './useHistory'
-import {
-  ZMap,
-  type TileSelection,
-  type ZEvent,
-  ZTool,
-  ZLayer,
-  type ZEventPage,
-  ZEventTrigger
-} from '@engine/types'
+import { useMapManagement } from './useMapManagement'
+import { useLayerEditing } from './useLayerEditing'
+import { useEventManagement } from './useEventManagement'
+import { useTilesets } from './useTilesets'
+
+import { type ZMap, type TileSelection, ZTool, ZLayer } from '@engine/types'
 
 export const useEditorStore = defineStore('editor', () => {
   // ==========================================
@@ -48,8 +44,6 @@ export const useEditorStore = defineStore('editor', () => {
   const storedMaps = useLocalStorage<ZMap[]>('Z_Maps', [])
 
   // Tileset Database (Configs)
-  // Record<TilesetId, Record<TileIndexKey, TileConfig>>
-  // TileIndexKey = "x_y"
   const storedTilesetConfigs = useLocalStorage<
     Record<
       string,
@@ -74,42 +68,6 @@ export const useEditorStore = defineStore('editor', () => {
   if (systemSwitches.value.length === 0) systemSwitches.value = new Array(20).fill('')
   if (systemVariables.value.length === 0) systemVariables.value = new Array(20).fill('')
 
-  const updateTileConfig = (
-    tilesetUrl: string,
-    x: number,
-    y: number,
-    config: Partial<{
-      isSolid: boolean
-      isHighPriority: boolean
-      collisionMask: boolean[]
-      sortYOffset: number
-      dirBlock: number
-    }>
-  ): void => {
-    let normalizedUrl = tilesetUrl
-    try {
-      if (tilesetUrl.startsWith('http')) {
-        normalizedUrl = new URL(tilesetUrl).pathname
-      }
-    } catch {
-      // Keep original if parsing fails
-    }
-
-    if (!storedTilesetConfigs.value[normalizedUrl]) {
-      storedTilesetConfigs.value[normalizedUrl] = {}
-    }
-    const key = `${x}_${y}`
-    const current = storedTilesetConfigs.value[normalizedUrl][key] || {
-      isSolid: false,
-      isHighPriority: false
-    }
-
-    storedTilesetConfigs.value[normalizedUrl][key] = {
-      ...current,
-      ...config
-    }
-  }
-
   // Computed: Aktualna mapa
   const activeMap = computed(() => storedMaps.value.find((m) => m.id === activeMapID.value))
 
@@ -127,503 +85,38 @@ export const useEditorStore = defineStore('editor', () => {
   // ==========================================
   // 3. HISTORY MODULE (UNDO/REDO)
   // ==========================================
-  // Używamy composable, przekazując mu referencje do stanu i funkcję zapisu
   const history = useHistory(activeMap, activeMapID, saveProject)
 
   // ==========================================
-  // 4. MAP ACTIONS (Create, Init)
+  // 4. COMPOSABLES (MODULES)
   // ==========================================
 
-  // Helper do tworzenia pustej struktury warstw
-  const createEmptyLayers = (
-    width: number,
-    height: number
-  ): Record<
-    ZLayer,
-    {
-      icon: string
-      data: (TileSelection[] | null)[][]
-      index: number
-    }
-  > => {
-    const createGrid = (): (TileSelection[] | null)[][] => {
-      return Array.from({ length: height }, () => Array(width).fill(null))
-    }
-    return {
-      [ZLayer.ground]: { data: createGrid(), index: 0, icon: 'background' },
-      [ZLayer.walls]: { data: createGrid(), index: 1, icon: 'wall' },
-      [ZLayer.decoration]: { data: createGrid(), index: 2, icon: 'cactus' },
-      [ZLayer.events]: { data: createGrid(), index: 3, icon: 'box' },
-      [ZLayer.highest]: { data: createGrid(), index: 4, icon: 'star' }
-    }
-  }
+  const mapManagement = useMapManagement(storedMaps, activeMapID, activeMap, saveProject, history)
 
-  // Scanning available tileset files
-  const availableTilesetFiles = import.meta.glob('@ui/assets/img/tilesets/*.png', {
-    eager: true,
-    as: 'url'
-  })
+  const layerEditing = useLayerEditing(
+    activeMap,
+    activeLayer,
+    selection,
+    clipboard,
+    currentTool,
+    selectionCoords,
+    activeTab,
+    saveProject
+  )
 
-  // Computed: Dynamically resolve tileset list for properties modal
-  const tilesetFileList = computed(() => {
-    return Object.entries(availableTilesetFiles).map(([path, url]) => {
-      const name = path.split('/').pop() || path
-      return { name, url: url as string }
-    })
-  })
+  const eventManagement = useEventManagement(
+    activeMap,
+    isTestMode,
+    playerPos,
+    spawnPos,
+    saveProject,
+    history
+  )
 
-  // Computed: Dynamically resolve tilesets for the current map
-  const currentMapTilesets = computed(() => {
-    if (!activeMap.value) return TILESETS
-
-    const config = activeMap.value.tilesetConfig || {}
-    const result: { id: string; url: string }[] = []
-
-    // Slots A1-A5, B, C, D, E, Roofs
-    const slots = ['A1', 'A2', 'A3', 'A4', 'A5', 'B', 'C', 'D', 'Roofs']
-    slots.forEach((slot) => {
-      if (config[slot]) {
-        result.push({ id: slot, url: config[slot] })
-      } else {
-        // Fallback to default if not set
-        const def = TILESETS.find((t) => t.id === slot)
-        if (def) result.push(def)
-      }
-    })
-    return result
-  })
-
-  const createMap = (
-    name: string,
-    width: number,
-    height: number,
-    tilesetConfig: Record<string, string> = {}
-  ): void => {
-    const newId =
-      storedMaps.value.length > 0 ? Math.max(...storedMaps.value.map((m) => m.id)) + 1 : 1
-    const newMap: ZMap = {
-      id: newId,
-      name,
-      width,
-      height,
-      layers: createEmptyLayers(width, height),
-      events: [],
-      tilesetConfig
-    }
-    storedMaps.value.push(newMap)
-    activeMapID.value = newMap.id
-
-    // Inicjalizacja historii dla nowej mapy
-    nextTick(() => history.recordHistory())
-  }
-
-  const updateMapProperties = (
-    mapId: number,
-    props: { name: string; width: number; height: number; tilesetConfig: Record<string, string> }
-  ): void => {
-    const map = storedMaps.value.find((m) => m.id === mapId)
-    if (!map) return
-
-    map.name = props.name
-    map.tilesetConfig = props.tilesetConfig
-
-    // Resize logic if dimensions changed (cropping or padding)
-    if (map.width !== props.width || map.height !== props.height) {
-      // Re-initialize layers with new size, preserving OLD data where possible
-      Object.values(map.layers).forEach((layer) => {
-        const oldData = layer.data
-        const newData = Array.from({ length: props.height }, (_, y) =>
-          Array.from({ length: props.width }, (_, x) =>
-            y < oldData.length && oldData[y] && x < oldData[y].length ? oldData[y][x] : null
-          )
-        )
-        layer.data = newData
-      })
-
-      map.width = props.width
-      map.height = props.height
-    }
-
-    saveProject()
-    history.recordHistory()
-  }
-
-  const initMap = (width: number, height: number): void => {
-    if (!activeMap.value) return
-
-    activeMap.value.width = width
-    activeMap.value.height = height
-    activeMap.value.layers = createEmptyLayers(width, height)
-
-    saveProject()
-    history.recordHistory()
-  }
-
-  const setActiveMap = (id: number): void => {
-    if (activeMapID.value === id) return
-    activeMapID.value = id
-  }
+  const tilesets = useTilesets(activeMap, storedTilesetConfigs)
 
   // ==========================================
-  // 5. EDITING ACTIONS (Brush, Pick)
-  // ==========================================
-
-  const setTileAt = (
-    x: number,
-    y: number,
-    tile: TileSelection | null,
-    stack = false,
-    layer?: ZLayer
-  ): void => {
-    const map = activeMap.value
-    if (!map || x < 0 || x >= map.width || y < 0 || y >= map.height) return
-
-    const targetLayer = layer ?? activeLayer.value
-
-    // Pobieramy referencję do stosu na danej pozycji
-    const currentCell = map.layers[targetLayer].data[y][x]
-
-    if (tile === null) {
-      // Gumka: czyścimy stos całkowicie
-      map.layers[targetLayer].data[y][x] = []
-    } else {
-      if (stack && currentCell) {
-        // Sprawdź duplikaty
-        const isDuplicate = currentCell.some(
-          (t) => t.x === tile.x && t.y === tile.y && t.tilesetId === tile.tilesetId
-        )
-
-        if (!isDuplicate) {
-          // ZAMIAST .push(tile), robimy nadpisanie nową tablicą (spread operator).
-          // To gwarantuje, że Vue "zauważy" zmianę i przerysuje kafelki.
-          map.layers[targetLayer].data[y][x] = [...currentCell, tile]
-        }
-      } else {
-        // Tryb bez Shifta: zastępujemy wszystko nowym kafelkiem
-        map.layers[targetLayer].data[y][x] = [tile]
-      }
-    }
-
-    saveProject()
-  }
-
-  const clearRegion = (x: number, y: number, w: number, h: number): void => {
-    const map = activeMap.value
-    if (!map) return
-    const layerData = map.layers[activeLayer.value].data
-
-    let changed = false
-    for (let dy = 0; dy < h; dy++) {
-      for (let dx = 0; dx < w; dx++) {
-        const tx = x + dx
-        const ty = y + dy
-        if (tx >= 0 && tx < map.width && ty >= 0 && ty < map.height) {
-          // Clear the tile stack
-          layerData[ty][tx] = []
-          changed = true
-        }
-      }
-    }
-
-    if (changed) {
-      saveProject()
-    }
-  }
-
-  const pickTile = (x: number, y: number): void => {
-    if (!activeMap.value) return
-    const stack = activeMap.value.layers[activeLayer.value].data[y]?.[x]
-    if (!stack || stack.length === 0) return
-
-    const topTile = stack[stack.length - 1]
-    selection.value = { ...topTile, w: 1, h: 1, pattern: undefined }
-
-    // Automatyczna zmiana zakładki w zależności od ID tilesetu
-    const id = topTile.tilesetId
-    if (['A1', 'A2', 'A3', 'A4', 'A5'].includes(id)) activeTab.value = 'A'
-    else if (id === 'B') activeTab.value = 'B'
-    else if (id === 'C') activeTab.value = 'C'
-    else if (id === 'D') activeTab.value = 'D'
-    else if (id === 'Roofs') activeTab.value = 'Roofs'
-  }
-
-  const setSelectionCoords = (
-    coords: { x: number; y: number; w: number; h: number } | null
-  ): void => {
-    selectionCoords.value = coords
-  }
-
-  const copySelection = (allLayers = false): void => {
-    console.log('copySelection called. allLayers:', allLayers)
-    if (!selectionCoords.value || !activeMap.value) return
-    const { x, y, w, h } = selectionCoords.value
-
-    // Helper to get top-most tile from a stack
-    const getTopTile = (layerId: ZLayer, tx: number, ty: number): TileSelection | null => {
-      const stack = activeMap.value!.layers[layerId]?.data[ty]?.[tx]
-      return stack && stack.length > 0 ? stack[stack.length - 1] : null
-    }
-
-    const pattern: (TileSelection | null)[][] = []
-    const structure: Partial<Record<ZLayer, (TileSelection[] | null)[][]>> = {}
-
-    // Capture structure for layers
-    const layersToCheck = allLayers
-      ? [ZLayer.ground, ZLayer.walls, ZLayer.decoration, ZLayer.events, ZLayer.highest]
-      : [activeLayer.value]
-
-    for (const l of layersToCheck) {
-      const layerGrid: (TileSelection[] | null)[][] = []
-      let hasData = false
-
-      for (let dy = 0; dy < h; dy++) {
-        const row: (TileSelection[] | null)[] = []
-        for (let dx = 0; dx < w; dx++) {
-          const stack = activeMap.value!.layers[l]?.data[y + dy]?.[x + dx]
-          if (stack && stack.length > 0) {
-            row.push([...stack]) // Clone stack
-            hasData = true
-          } else {
-            row.push(null)
-          }
-        }
-        layerGrid.push(row)
-      }
-
-      if (hasData) {
-        structure[l] = layerGrid
-      }
-    }
-
-    // Always generate 'pattern' (flattened or single layer) for fallback/preview
-    for (let dy = 0; dy < h; dy++) {
-      const row: (TileSelection | null)[] = []
-      for (let dx = 0; dx < w; dx++) {
-        let tile: TileSelection | null = null
-
-        if (allLayers) {
-          const layersToCheck = [ZLayer.ground, ZLayer.walls, ZLayer.decoration, ZLayer.highest]
-          for (const l of layersToCheck) {
-            const t = getTopTile(l, y + dy, x + dx)
-            if (t) tile = { ...t }
-          }
-        } else {
-          const t = getTopTile(activeLayer.value, y + dy, x + dx)
-          if (t) tile = { ...t }
-        }
-        row.push(tile)
-      }
-      pattern.push(row)
-    }
-
-    // Determine the "primary" tile (top-left) for the clipboard
-    // If the top-left is empty, we still use it as the anchor, or we could find the first non-empty.
-    // simpler is to just take 0,0 even if null, but TileSelection requires tilesetId.
-    // So we'll use the first found tile as metadata or a dummy if empty.
-    let baseTile: TileSelection | null = null
-
-    // Find first non-null tile to use as base property
-    for (const row of pattern) {
-      for (const tile of row) {
-        if (tile) {
-          baseTile = tile
-          break
-        }
-      }
-      if (baseTile) break
-    }
-
-    // If no non-null tile found (empty selection), create a dummy base tile so clipboard layout is preserved.
-    // This allows pasting "empty" space (transparent stamp) or at least doesn't break the paste action.
-    if (!baseTile) {
-      baseTile = {
-        x: 0,
-        y: 0,
-        w: 1,
-        h: 1,
-        tilesetId: 'A1', // Default dummy
-        isAutotile: false
-      }
-    }
-
-    if (baseTile) {
-      clipboard.value = {
-        ...baseTile, // Base properties
-        w,
-        h,
-        pattern: allLayers ? undefined : pattern,
-        structure, // Always include structure now
-        isMultiLayer: allLayers // Flag to distinguish paste behavior
-      }
-
-      // Auto-switch to Stamp mode (Brush with pattern)
-      selection.value = clipboard.value
-      selectionCoords.value = null
-      currentTool.value = ZTool.brush
-    }
-  }
-
-  const pasteSelection = (): void => {
-    if (!clipboard.value) return
-    selection.value = clipboard.value
-    selectionCoords.value = null // Clear selection box to avoid confusion
-    currentTool.value = ZTool.brush
-  }
-
-  // ==========================================
-  // 6. EVENT & GAMEPLAY ACTIONS
-  // ==========================================
-
-  // Helper for Default Page
-  const createDefaultPage = (graphic: TileSelection | null): ZEventPage => ({
-    id: `page_${Date.now()}`,
-    conditions: {},
-    graphic,
-    trigger: ZEventTrigger.Action, // Default: Action Button
-    options: {
-      moveRoute: null,
-      walkAnim: true,
-      stepAnim: false,
-      directionFix: false,
-      through: false
-    },
-    list: []
-  })
-
-  const addEvent = (x: number, y: number, eventData: Partial<ZEvent>): void => {
-    if (!activeMap.value) return
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const initialGraphic = (eventData as any).graphic || null
-
-    const newEvent: ZEvent = {
-      id: `ev_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
-      name: eventData.name || `EV${activeMap.value.events.length + 1}`,
-      x,
-      y,
-      // Graphic is now inside pages[0]
-      pages: [createDefaultPage(initialGraphic)]
-    }
-
-    // Enforce uniqueness for PlayerStart
-    if (newEvent.name === 'PlayerStart') {
-      activeMap.value.events = activeMap.value.events.filter((e) => e.name !== 'PlayerStart')
-    }
-
-    activeMap.value.events.push(newEvent)
-    saveProject()
-    history.recordHistory()
-  }
-
-  const updateEvent = (eventId: string, updates: Partial<ZEvent>): void => {
-    if (!activeMap.value) return
-    const ev = activeMap.value.events.find((e) => e.id === eventId)
-    if (ev) {
-      // Handle graphic update for migration/backward compatibility
-      // If 'graphic' is passed in updates (from old UI), update active page (Last page usually)
-      if ('graphic' in updates) {
-        // This is a temporary hack until UI generates pages
-        // If pages exist, update the last one? Or first?
-        if (ev.pages.length > 0) {
-          ev.pages[0].graphic = updates.graphic as TileSelection | null
-        } else {
-          ev.pages = [createDefaultPage(updates.graphic as TileSelection | null)]
-        }
-        delete updates.graphic
-      }
-
-      Object.assign(ev, updates)
-
-      // Enforce uniqueness for PlayerStart
-      if (updates.name === 'PlayerStart') {
-        activeMap.value.events = activeMap.value.events.filter(
-          (e) => e.id === eventId || e.name !== 'PlayerStart'
-        )
-      }
-
-      saveProject()
-      history.recordHistory()
-    }
-  }
-
-  const deleteEvent = (eventId: string): void => {
-    if (!activeMap.value) return
-    activeMap.value.events = activeMap.value.events.filter((e) => e.id !== eventId)
-    saveProject()
-    history.recordHistory()
-  }
-
-  const toggleTestMode = (): void => {
-    isTestMode.value = !isTestMode.value
-    if (isTestMode.value) {
-      playerPos.value = { ...spawnPos.value }
-    }
-  }
-
-  const movePlayer = (dx: number, dy: number, mapWidth: number, mapHeight: number): void => {
-    const newX = playerPos.value.x + dx
-    const newY = playerPos.value.y + dy
-    if (newX >= 0 && newX < mapWidth && newY >= 0 && newY < mapHeight) {
-      playerPos.value = { x: newX, y: newY }
-    }
-  }
-
-  // ==========================================
-  // 7. IMPORT / EXPORT
-  // ==========================================
-
-  const exportMapAsJSON = (): void => {
-    if (!activeMap.value) return
-    const dataStr = JSON.stringify(activeMap.value)
-    const blob = new Blob([dataStr], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `Map${activeMap.value.id}_${activeMap.value.name.replace(/\s+/g, '_')}.json`
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-  }
-
-  const importMapFromJSON = async (): Promise<void> => {
-    const input = document.createElement('input')
-    input.type = 'file'
-    input.accept = 'application/json'
-    input.style.display = 'none'
-    document.body.appendChild(input)
-
-    input.onchange = async () => {
-      if (input.files?.[0]) {
-        try {
-          const text = await input.files[0].text()
-          const importedMap = JSON.parse(text)
-          importedMap.id = Math.max(...storedMaps.value.map((m) => m.id), 0) + 1
-          storedMaps.value.push(importedMap)
-          nextTick(() => {
-            history.recordHistory()
-            setActiveMap(importedMap.id)
-          })
-        } catch (e) {
-          console.error('Failed to import map', e)
-        }
-      }
-      document.body.removeChild(input)
-    }
-    input.click()
-  }
-
-  const deleteMap = (mapId: number): void => {
-    storedMaps.value = storedMaps.value.filter((m) => m.id !== mapId)
-    if (activeMapID.value === mapId) {
-      activeMapID.value = storedMaps.value[0]?.id || null
-    }
-    saveProject()
-    history.recordHistory()
-  }
-
-  // ==========================================
-  // 8. EXPORT PUBLIC API
+  // 5. EXPORT PUBLIC API
   // ==========================================
   return {
     // State
@@ -634,9 +127,6 @@ export const useEditorStore = defineStore('editor', () => {
     activeTab,
     activeMapID,
     maps: storedMaps,
-    tilesets: currentMapTilesets, // Swap static for dynamic
-    staticTilesets: TILESETS,
-    tilesetFileList,
     tileSize,
     selection,
     activeLayer,
@@ -646,38 +136,24 @@ export const useEditorStore = defineStore('editor', () => {
 
     // Tileset Configs
     tilesetConfigs: storedTilesetConfigs,
-    updateTileConfig,
 
-    // History (rozpakowujemy metody z composable)
+    // Composable Exports
+    ...mapManagement,
+    ...layerEditing,
+    ...eventManagement,
+    ...tilesets,
+    tilesets: tilesets.currentMapTilesets, // Alias for backward compatibility
+
+    // History
     ...history,
 
-    // Actions
+    // Actions that remain local or simple setters
     setLayer: (l: ZLayer) => (activeLayer.value = l),
     setTool: (t: ZTool) => (currentTool.value = t),
     setSelection: (s: TileSelection) => (selection.value = { ...s, pattern: s.pattern }),
-    setActiveMap,
-    deleteMap,
-
-    initMap,
-    createMap,
-    updateMapProperties,
-    setTileAt,
-    pickTile,
-    clearRegion,
-    setSelectionCoords,
-    copySelection,
-    pasteSelection,
-
-    addEvent,
-    updateEvent,
-    deleteEvent,
-
-    toggleTestMode,
-    movePlayer,
 
     saveProject,
-    exportMapAsJSON,
-    importMapFromJSON,
+
     // System
     systemSwitches,
     systemVariables

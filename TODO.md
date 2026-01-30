@@ -1,10 +1,41 @@
-# Z Engine - Missing features
+# Z Engine - Roadmap & Tasks
 
-## TODO for now
+## 🎯 Plan na 30 June 2026 (Najbliższe kroki)
 
-1. Refacor editor.ts cuz it's a mess and have a lot of responsibilities
+### 1. Refaktoryzacja Store'a (`editor/index.ts`)
 
-Brakujące funkjonalności w Z-Engine (w porównaniu do RPG Maker). Na podstawie analizy kodu źródłowego, brakuje następujących kluczowych elementów: (Obecnie zaimplementowany jest głównie podstawowy edytor map i prosty zarys bazy danych dla aktorów).
+Obecny plik `editor/index.ts` (~700 linii) jest zbyt duży. Musimy go podzielić na mniejsze moduły:
+
+- [ ] `useMapStore.ts`: Zarządzanie mapami, warstwami i `activeMap`.
+- [ ] `useToolStore.ts`: Narzędzia, selekcja, duszki (ghosts).
+- [ ] `useDatabaseStore.ts`: Przełączniki, zmienne, aktorzy (dane statyczne).
+- [ ] `useHistoryStore.ts`: Integracja z `HistoryManager`.
+
+### 2. Rozbudowa i Polerowanie Bazy Danych
+
+Mamy już `SystemTab` (Switches/Variables) oraz `ActorsTab` (Bohaterowie) w `DatabasePage.vue`, ale wymagają one szlifu:
+
+- [ ] **Actors**: Implementacja wyboru grafiki (Face/Sprite) oraz listy cech (Traits).
+- [ ] **System**: Optymalizacja listy przełączników (np. lazy loading dla dużych ilości).
+- [ ] **Nowe Zakładki**:
+  - [ ] `ClassesTab.vue`: Statystyki i krzywe doświadczenia.
+  - [ ] `ItemsTab.vue`: Zarządzanie przedmiotami.
+- [ ] **Globalna szukajka**: Szybkie przeszukiwanie całej bazy danych.
+
+### 3. System Zapisu (Persistence)
+
+- [ ] Implementacja zapisu projektu do pliku (JSON).
+- [ ] Implementacja "Save Game" (serializacja `GameStateManager` do pliku).
+- [ ] Autozapis podczas pracy w edytorze.
+
+### 4. Szlifowanie Silnika
+
+- [ ] Naprawa ostrzeżeń `deprecated glob` podczas budowania (`npm run build`).
+- [ ] Implementacja animacji dla eventów (np. obracanie się, "stepping animation").
+
+---
+
+## 🏗️ Brakujące funkcjonalności (Long-term)
 
 1. System Bazy Danych (Database)
    Obecnie w kodzie istnieją tylko pliki-zaślepki. Brakuje edytorów oraz struktury danych dla:
