@@ -8,6 +8,17 @@ import imgC from '@ui/assets/img/tilesets/World_C.png'
 import imgD from '@ui/assets/img/tilesets/World_D.png'
 import roofs from '@ui/assets/img/tilesets/Roofs.png'
 
+import type { ZEventGraphic } from '@engine/types'
+
+export const DEFAULT_PLAYER_GRAPHIC: ZEventGraphic = {
+  assetId: '@ui/assets/img/characters/character.png',
+  group: 'character',
+  x: 0,
+  y: 0,
+  w: 1,
+  h: 1
+}
+
 export const TILESETS = [
   { id: 'A1', url: imgA1 },
   { id: 'A2', url: imgA2 },

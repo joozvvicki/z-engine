@@ -9,7 +9,13 @@ import {
   IconTrash,
   IconX
 } from '@tabler/icons-vue'
-import { ZEventTrigger, type ZEventPage, ZCommandCode, type ZEventCommand } from '@engine/types'
+import {
+  ZEventTrigger,
+  type ZEventPage,
+  ZCommandCode,
+  type ZEventCommand,
+  type ZEventGraphic
+} from '@engine/types'
 import CharacterSelector from './CharacterSelector.vue'
 
 const props = defineProps<{
@@ -49,7 +55,7 @@ if (existingEvent && existingEvent.pages && existingEvent.pages.length > 0) {
       id: `page_${Date.now()}`,
       conditions: {},
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      graphic: existingEvent ? (existingEvent as any).graphic : store.selection, // Backward compat
+      graphic: existingEvent ? ((existingEvent as any).graphic as ZEventGraphic | null) : null,
       trigger: ZEventTrigger.Action,
       options: {
         moveRoute: null,
@@ -160,15 +166,53 @@ const clearGraphic = (): void => {
 }
 
 const setGraphicFromSelection = (): void => {
-  if (activePage.value) {
-    activePage.value.graphic = { ...store.selection }
+  if (activePage.value && store.selection) {
+    // Convert TileSelection to ZEventGraphic
+    const sel = store.selection
+    // Simple heuristic: if likely a tile, use 'tile'. If likely a char, use 'character'.
+    // Use 'tile' by default for map selections.
+    activePage.value.graphic = {
+      assetId: sel.tilesetId,
+      group: 'tile',
+      x: sel.x,
+      y: sel.y,
+      w: sel.w,
+      h: sel.h,
+      srcX: sel.pixelX,
+      srcY: sel.pixelY,
+      srcW: sel.pixelW,
+      srcH: sel.pixelH
+    }
   }
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const onSelectGraphic = (selection: any): void => {
   if (activePage.value) {
-    activePage.value.graphic = selection
+    // Check if it's already ZEventGraphic or legacy partial object
+    // Assuming the picker returns a compatible structure or we adapt it.
+    // Ideally CharacterSelector should return a ZEventGraphic-compatible object.
+
+    // For now, let's assume 'selection' has tilesetId etc from old picker.
+    // If it has assetId, great. If tilesetId, adapt.
+
+    if ('assetId' in selection) {
+      activePage.value.graphic = selection as ZEventGraphic
+    } else {
+      // Adapt old format
+      activePage.value.graphic = {
+        assetId: selection.tilesetId,
+        group: selection.tilesetId.endsWith('.png') ? 'character' : 'tile',
+        x: selection.x || 0,
+        y: selection.y || 0,
+        w: selection.w || 1,
+        h: selection.h || 1,
+        srcX: selection.pixelX,
+        srcY: selection.pixelY,
+        srcW: selection.pixelW,
+        srcH: selection.pixelH
+      }
+    }
     showCharacterSelector.value = false
   }
 }
@@ -627,24 +671,21 @@ const saveCommand = (): void => {
               >
                 <template v-if="activePage.graphic">
                   <!-- Show Tile or Character -->
-                  <!-- If it's a character (string ID ending in .png), render it -->
+                  <!-- If it's a character, render it -->
                   <div
-                    v-if="
-                      typeof activePage.graphic.tilesetId === 'string' &&
-                      activePage.graphic.tilesetId.endsWith('.png')
-                    "
+                    v-if="activePage.graphic.group === 'character'"
                     class="w-full h-full relative flex items-center justify-center transform scale-75"
                   >
                     <!-- Calculate offset based on selected frame (pixel or tile) -->
                     <div
                       class="pixelated"
                       :style="{
-                        width: `${activePage.graphic.pixelW || activePage.graphic.w * 48}px`,
-                        height: `${activePage.graphic.pixelH || activePage.graphic.h * 48}px`,
-                        backgroundImage: `url(${getCharacterUrl(activePage.graphic.tilesetId)})`,
+                        width: `${activePage.graphic.srcW || activePage.graphic.w * 48}px`,
+                        height: `${activePage.graphic.srcH || activePage.graphic.h * 48}px`,
+                        backgroundImage: `url(${getCharacterUrl(activePage.graphic.assetId)})`,
                         backgroundPosition:
-                          activePage.graphic.pixelX !== undefined
-                            ? `-${activePage.graphic.pixelX}px -${activePage.graphic.pixelY}px`
+                          activePage.graphic.srcX !== undefined
+                            ? `-${activePage.graphic.srcX}px -${activePage.graphic.srcY}px`
                             : `-${activePage.graphic.x * 48}px -${activePage.graphic.y * 48}px`
                       }"
                     ></div>
@@ -657,7 +698,7 @@ const saveCommand = (): void => {
                   <div
                     class="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[9px] font-mono text-center p-0.5 truncate backdrop-blur-sm"
                   >
-                    {{ activePage.graphic.tilesetId }}
+                    {{ activePage.graphic.assetId }}
                   </div>
                 </template>
                 <div
@@ -992,11 +1033,11 @@ const saveCommand = (): void => {
 
     <CharacterSelector
       v-if="showCharacterSelector"
-      :initial-tileset-id="activePage?.graphic?.tilesetId"
+      :initial-tileset-id="activePage?.graphic?.assetId"
       :initial-x="activePage?.graphic?.x"
       :initial-y="activePage?.graphic?.y"
-      :initial-pixel-w="activePage?.graphic?.pixelW"
-      :initial-pixel-h="activePage?.graphic?.pixelH"
+      :initial-pixel-w="activePage?.graphic?.srcW"
+      :initial-pixel-h="activePage?.graphic?.srcH"
       @close="showCharacterSelector = false"
       @select="onSelectGraphic"
     />

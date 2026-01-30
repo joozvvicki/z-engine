@@ -28,6 +28,20 @@ export interface TileSelection {
   pixelH?: number
 }
 
+export interface ZEventGraphic {
+  assetId: string
+  group: 'tile' | 'character'
+  x: number // Grid X or Frame Index
+  y: number // Grid Y or Row Index
+  w: number // Width in Cells or Frames
+  h: number // Height in Cells or Frames
+  // Optional pixel overrides for rendering source
+  srcX?: number
+  srcY?: number
+  srcW?: number
+  srcH?: number
+}
+
 export interface ZEvent {
   id: string
   name: string
@@ -39,7 +53,7 @@ export interface ZEvent {
 export interface ZEventPage {
   id: string
   conditions: ZEventCondition
-  graphic: TileSelection | null
+  graphic: ZEventGraphic | null
   trigger: ZEventTrigger
   options: ZEventOptions
   list: ZEventCommand[]

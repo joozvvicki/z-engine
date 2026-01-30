@@ -4,7 +4,7 @@ import {
   type ZEvent,
   type ZEventPage,
   ZEventTrigger,
-  type TileSelection
+  type ZEventGraphic
 } from '@engine/types'
 
 export const useEventManagement = (
@@ -22,7 +22,7 @@ export const useEventManagement = (
   movePlayer: (dx: number, dy: number, mapWidth: number, mapHeight: number) => void
 } => {
   // Helper for Default Page
-  const createDefaultPage = (graphic: TileSelection | null): ZEventPage => ({
+  const createDefaultPage = (graphic: ZEventGraphic | null): ZEventPage => ({
     id: `page_${Date.now()}`,
     conditions: {},
     graphic,
@@ -72,9 +72,9 @@ export const useEventManagement = (
         // This is a temporary hack until UI generates pages
         // If pages exist, update the last one? Or first?
         if (ev.pages.length > 0) {
-          ev.pages[0].graphic = updates.graphic as TileSelection | null
+          ev.pages[0].graphic = updates.graphic as ZEventGraphic | null
         } else {
-          ev.pages = [createDefaultPage(updates.graphic as TileSelection | null)]
+          ev.pages = [createDefaultPage(updates.graphic as ZEventGraphic | null)]
         }
         delete updates.graphic
       }

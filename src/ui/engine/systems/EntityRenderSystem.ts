@@ -1,5 +1,6 @@
 import PIXI from '../utils/pixi'
 import { ZSystem, ZLayer } from '@engine/types'
+import { SpriteUtils } from '@engine/utils/SpriteUtils'
 import { PlayerSystem } from './PlayerSystem'
 import { TextureManager } from '@engine/managers/TextureManager'
 import { RenderSystem } from './RenderSystem'
@@ -61,8 +62,6 @@ export class EntityRenderSystem extends ZSystem {
     })
     this.eventSprites.clear()
 
-    this.eventSprites.clear()
-
     const map = this.mapManager.currentMap
     if (!map || !map.events) return
 
@@ -70,44 +69,30 @@ export class EntityRenderSystem extends ZSystem {
       if (event.name === 'PlayerStart') return // Invisible marker
 
       const activePage = event.pages[0] // Default to first page for now until Interpreter
-      if (!activePage) return
+      if (!activePage || !activePage.graphic) return
 
-      if (activePage.graphic) {
-        // Create visual for event
-        const tex = this.textureManager.get(activePage.graphic.tilesetId)
-        if (!tex) return
+      // Use SpriteUtils to create the visual
+      // For Game, isEditor = false
+      const sprite = SpriteUtils.createEventSprite(
+        activePage.graphic,
+        this.textureManager,
+        this.tileSize,
+        false
+      )
 
-        const frameX = activePage.graphic.pixelX ?? activePage.graphic.x * this.tileSize
-        const frameY = activePage.graphic.pixelY ?? activePage.graphic.y * this.tileSize
-        const frameW = activePage.graphic.pixelW ?? activePage.graphic.w * this.tileSize
-        const frameH = activePage.graphic.pixelH ?? activePage.graphic.h * this.tileSize
+      if (sprite) {
+        sprite.x = event.x * this.tileSize
+        sprite.y = event.y * this.tileSize
 
-        const sprite = new PIXI.Sprite(
-          new PIXI.Texture({
-            source: tex.source,
-            frame: new PIXI.Rectangle(frameX, frameY, frameW, frameH)
-          })
-        )
-
-        // Rendering Logic:
-        // If it's a character sheet (direct PNG), align Bottom-Center
-        // If it's a tile (from tileset), align Top-Left
-        const isCharacter = activePage.graphic.tilesetId.endsWith('.png')
-
-        if (isCharacter) {
-          sprite.anchor.set(0.5, 1)
-          sprite.x = (event.x + 0.5) * this.tileSize
-          sprite.y = (event.y + 1) * this.tileSize
-        } else {
-          sprite.anchor.set(0, 0)
-          sprite.x = event.x * this.tileSize
-          sprite.y = event.y * this.tileSize
+        // If it's a character (Anchor 0.5, 1), we need to adjust position to be center-bottom of tile
+        if (activePage.graphic.group === 'character') {
+          sprite.x += this.tileSize / 2
+          sprite.y += this.tileSize
         }
 
         // Y-Sort: Use bottom of tile
         sprite.zIndex = (event.y + 1) * this.tileSize
 
-        // Add to container
         this.container.addChild(sprite)
         this.eventSprites.set(event.id, sprite)
       }
@@ -127,38 +112,37 @@ export class EntityRenderSystem extends ZSystem {
   }
 
   private async createPlayerSprite(): Promise<void> {
-    // Load texture directly using import or path
-    // Since we are in Vite context, we can use direct path to public or src/assets if configured.
-    // Given the path 'assets/img/characters/character.png', it should be available via URL in dev.
-    // In many Vite setups, 'src/assets' needs import.
-    // BUT we can use PIXI loader with relative path if assets are served.
-    // Let's try importing it as a URL string if possible, or assume it's in public?
-    // Directory listing showed it in 'src/ui/src/assets'.
-    // Best way in Vite: import imageUrl from '@/assets/img/characters/character.png'
-
-    // However, I cannot insert import statement at top easily without knowing alias.
-    // Let's assume standard alias '@ui/assets' or relative.
-    // Let's try to load it via Texture.from with a likely URL.
-
     try {
       // Dynamic import to get the URL
       const mod = await import('@ui/assets/img/characters/character.png')
-      const texture = await PIXI.Assets.load(mod.default)
+      // Register with TextureManager
+      await this.textureManager.loadTileset('@ui/assets/img/characters/character.png', mod.default)
 
-      this.frameWidth = texture.width / 4
-      this.frameHeight = texture.height / 4
+      const graphic = {
+        assetId: '@ui/assets/img/characters/character.png',
+        group: 'character' as const,
+        x: 0,
+        y: 0,
+        w: 1,
+        h: 1
+      }
 
-      this.playerSprite = new PIXI.Sprite(
-        new PIXI.Texture({
-          source: texture.source,
-          frame: new PIXI.Rectangle(0, 0, this.frameWidth, this.frameHeight)
-        })
+      this.playerSprite = SpriteUtils.createEventSprite(
+        graphic,
+        this.textureManager,
+        this.tileSize,
+        false
       )
 
-      // Pivot to bottom-center of the tile to align feet
-      this.playerSprite.anchor.set(0.5, 1)
+      if (this.playerSprite) {
+        // Store frame dimensions for animation
+        this.frameWidth = this.playerSprite.texture.width
+        this.frameHeight = this.playerSprite.texture.height
+        // Note: SpriteUtils creates a sprite with the FRAME (partial texture).
+        // So texture.width IS the frame width.
 
-      this.container.addChild(this.playerSprite)
+        this.container.addChild(this.playerSprite)
+      }
     } catch (e) {
       console.error('Failed to load character texture', e)
       // Fallback

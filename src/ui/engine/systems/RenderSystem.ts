@@ -1,7 +1,9 @@
 import PIXI from '../utils/pixi'
 import { TextureManager } from '../managers/TextureManager'
 import { AutotileSolver } from '@engine/utils/AutotileSolver'
-import { ZSystem, type ZMap, type TileSelection, ZLayer } from '@engine/types'
+import { SpriteUtils } from '@engine/utils/SpriteUtils'
+import { ZSystem, type ZMap, type ZEventGraphic, type TileSelection, ZLayer } from '@engine/types'
+import { DEFAULT_PLAYER_GRAPHIC } from '../../src/stores/editor/constants'
 import { MapManager } from '@engine/managers/MapManager'
 import { TilesetManager } from '../managers/TilesetManager'
 import { ServiceLocator } from '@engine/core/ServiceLocator'
@@ -69,16 +71,16 @@ export class RenderSystem extends ZSystem {
     this.tileContainers = this.createEmptyContainerStructure(0, 0)
 
     // Load Player Texture for Editor Visualization
+    // We register it with TextureManager so SpriteUtils can find it.
     import('@ui/assets/img/characters/character.png').then((mod) => {
-      PIXI.Assets.load(mod.default).then((tex) => {
-        this.playerTexture = tex
-        // Trigger refresh once loaded
-        this.fullRenderDirty = true
-      })
+      // mod.default is the URL
+      this.textureManager
+        .loadTileset('@ui/assets/img/characters/character.png', mod.default)
+        .then(() => {
+          this.fullRenderDirty = true
+        })
     })
   }
-
-  private playerTexture: PIXI.Texture | null = null
 
   public getLayerContainer(layer: ZLayer): PIXI.Container {
     return this.layers[layer]
@@ -319,51 +321,32 @@ export class RenderSystem extends ZSystem {
 
       let graphicSprite: PIXI.Sprite | null = null
 
-      // 1. Determine Graphic
+      // 2. Determine Graphic
       const activePage = event.pages[0] // Default to first page for now until Interpreter
 
-      if (event.name === 'PlayerStart' || (activePage && activePage.graphic)) {
-        if (event.name === 'PlayerStart' && this.playerTexture) {
-          // Player Sprite (Down Idle = 0,0?)
-          // Assuming 4x4 layout, 0,0 is Down-Standing.
-          // Frame size = W/4, H/4
-          const fw = this.playerTexture.width / 4
-          const fh = this.playerTexture.height / 4
+      // Helper to construct a ZEventGraphic-like object for PlayerStart/Asset
+      let graphicData: ZEventGraphic | null = null
 
-          graphicSprite = new PIXI.Sprite(
-            new PIXI.Texture({
-              source: this.playerTexture.source,
-              frame: new PIXI.Rectangle(0, 0, fw, fh)
-            })
-          )
-          // Scale to fit within tileSize x tileSize
-          // Use smaller scale to ensure it fits inside the box completely
-          const maxDim = Math.max(fw, fh)
-          const scale = (this.tileSize / maxDim) * 0.8
-
-          graphicSprite.scale.set(scale)
-          graphicSprite.anchor.set(0.5, 0.5)
-          graphicSprite.x = this.tileSize / 2
-          graphicSprite.y = this.tileSize / 2
-        } else if (activePage && activePage.graphic) {
-          const tex = this.textureManager.get(activePage.graphic.tilesetId)
-          if (tex) {
-            graphicSprite = new PIXI.Sprite(
-              new PIXI.Texture({
-                source: tex.source,
-                frame: new PIXI.Rectangle(
-                  activePage.graphic.x * this.tileSize,
-                  activePage.graphic.y * this.tileSize,
-                  activePage.graphic.w * this.tileSize,
-                  activePage.graphic.h * this.tileSize
-                )
-              })
-            )
-          }
-        }
+      if (event.name === 'PlayerStart') {
+        graphicData = DEFAULT_PLAYER_GRAPHIC
+      } else if (activePage && activePage.graphic) {
+        graphicData = activePage.graphic
       }
 
-      // 2. Add Graphic (Bottom Layer)
+      if (graphicData) {
+        // Ensure TextureManager has this loaded?
+        // RenderSystem.onBoot preloads '@ui/assets/img/characters/character.png' manually,
+        // but TextureManager needs to know it by that KEY.
+
+        graphicSprite = SpriteUtils.createEventSprite(
+          graphicData,
+          this.textureManager,
+          this.tileSize,
+          true
+        )
+      }
+
+      // 3. Add Graphic (Bottom Layer)
       if (graphicSprite) {
         container.addChild(graphicSprite)
       }
