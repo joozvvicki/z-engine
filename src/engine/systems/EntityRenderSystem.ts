@@ -81,17 +81,26 @@ export class EntityRenderSystem extends ZSystemCore {
 
   private async createPlayerSprite(): Promise<void> {
     try {
-      const mod = await import('@ui/assets/img/characters/character.png')
-      await this.textures.loadTileset('@ui/assets/img/characters/character.png', mod.default)
+      // TODO: Use a proper asset loading system or data provider
+      // For now, we rely on the TextureManager having the asset loaded (e.g. by RenderSystem or Preloader)
+      // or we can use the data provider to resolve it if needed, but here we are inside the engine.
+      // Ideally, the PlayerSystem or SceneManager should handle loading player assets.
+
+      const charPath = '@ui/assets/img/characters/character.png'
+      // We assume it is already loaded or we fail gracefully
 
       const graphic = {
-        assetId: '@ui/assets/img/characters/character.png',
+        assetId: charPath,
         group: 'character' as const,
         x: 0,
         y: 0,
         w: 1,
         h: 1
       }
+
+      // Try to ensure it is loaded?
+      // const url = this.services.get(ZManager)?.getDataProvider().resolveAssetUrl(charPath)
+      // if (url) await this.textures.loadTileset(charPath, url)
 
       this.playerSprite = SpriteUtils.createEventSprite(
         graphic,

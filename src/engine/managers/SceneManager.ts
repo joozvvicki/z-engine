@@ -55,7 +55,7 @@ export class SceneManager extends ZManager {
     }
 
     const texturePromises = Object.entries(map.tilesetConfig).map(([id, url]) =>
-      this.textures.loadTileset(id, url)
+      this.textures.loadTileset(id, this.dataProvider?.resolveAssetUrl(url) || url)
     )
     await Promise.all(texturePromises)
 

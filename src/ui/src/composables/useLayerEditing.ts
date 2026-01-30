@@ -36,6 +36,14 @@ export const useLayerEditing = (
 
     const targetLayer = layer ?? activeLayer.value
 
+    // Ensure layer data exists and is correct size (auto-repair)
+    if (!map.layers[targetLayer].data) {
+      map.layers[targetLayer].data = []
+    }
+    if (!map.layers[targetLayer].data[y]) {
+      map.layers[targetLayer].data[y] = []
+    }
+
     // Pobieramy referencję do stosu na danej pozycji
     const currentCell = map.layers[targetLayer].data[y][x]
 

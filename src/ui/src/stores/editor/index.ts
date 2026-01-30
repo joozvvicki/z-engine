@@ -45,7 +45,6 @@ export const useEditorStore = defineStore('editor', () => {
   const storedMaps = ref<ZMap[]>([])
 
   // Tileset Database (Configs)
-  // Tileset Database (Configs)
   const storedTilesetConfigs = ref<Record<string, TilesetConfig>>({})
 
   // System Data (Database)
@@ -63,9 +62,13 @@ export const useEditorStore = defineStore('editor', () => {
   // 2. PERSISTENCE (ZAPIS / ODCZYT)
   // ==========================================
 
-  const loadProject = async (): Promise<void> => {
-    const path = await ProjectService.selectProject()
-    if (!path) return
+  const loadProject = async (forceSelect = true): Promise<void> => {
+    if (forceSelect) {
+      const path = await ProjectService.selectProject()
+      if (!path) return
+    } else if (!ProjectService.isLoaded()) {
+      return
+    }
 
     // 1. Load System Data
     const sysData = await ProjectService.loadSystemData()

@@ -10,11 +10,11 @@ import {
 } from '@tabler/icons-vue'
 
 const iconsMap = {
-  background: IconBackground,
+  ground: IconBackground,
   wall: IconWall,
-  star: IconStar,
-  cactus: IconCactus,
-  box: IconBox,
+  decoration: IconCactus,
+  event: IconBox,
+  highest: IconStar,
   home: IconHome,
   help: IconHelp
 }

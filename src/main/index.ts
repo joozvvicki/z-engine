@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow, ipcMain, dialog } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, dialog, protocol } from 'electron'
 import { promises as fs } from 'fs'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
@@ -14,7 +14,7 @@ function createWindow(): void {
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
-      sandbox: false
+      sandbox: true
     }
   })
 
@@ -36,8 +36,64 @@ function createWindow(): void {
   }
 }
 
+// Register custom protocol privileges
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: 'z-proj',
+    privileges: {
+      standard: true,
+      secure: true,
+      supportFetchAPI: true, // This allows fetch() to work with z-proj://
+      bypassCSP: true, // Optional, but helpful
+      corsEnabled: true // Allow CORS requests
+    }
+  }
+])
+
 app.whenReady().then(() => {
   electronApp.setAppUserModelId('pl.joozvvicki.z-engine')
+
+  // Register custom protocol for local file access
+  protocol.handle('z-proj', async (request) => {
+    try {
+      const parsed = new URL(request.url)
+      let filePath = parsed.pathname
+
+      // On Mac/Linux, if "z-proj://Users/..." is passed (2 slashes), "Users" becomes the hostname.
+      // We need to recover it as part of the path.
+      if (process.platform !== 'win32' && parsed.hostname) {
+        filePath = `/${parsed.hostname}${parsed.pathname}`
+      }
+
+      // Decode URL to handle spaces
+      filePath = decodeURIComponent(filePath)
+
+      // Remove leading slash on Windows if needed (e.g. /C:/...)
+      if (process.platform === 'win32' && filePath.startsWith('/') && !filePath.startsWith('//')) {
+        filePath = filePath.slice(1)
+      }
+
+      // Read file directly
+      const data = await fs.readFile(filePath)
+
+      // Guess mime type
+      const ext = filePath.split('.').pop()?.toLowerCase()
+      let mimeType = 'application/octet-stream'
+      if (ext === 'png') mimeType = 'image/png'
+      if (ext === 'jpg' || ext === 'jpeg') mimeType = 'image/jpeg'
+      if (ext === 'json') mimeType = 'application/json'
+      if (ext === 'js') mimeType = 'text/javascript'
+      if (ext === 'html') mimeType = 'text/html'
+      if (ext === 'css') mimeType = 'text/css'
+
+      return new Response(data, {
+        headers: { 'content-type': mimeType }
+      })
+    } catch (error) {
+      console.error('Failed to handle z-proj request:', error, request.url)
+      return new Response('Not Found', { status: 404 })
+    }
+  })
 
   if (process.env.NODE_ENV === 'development') {
     try {
@@ -67,6 +123,10 @@ app.whenReady().then(() => {
 
   ipcMain.handle('fs:writeFile', async (_, path, content) => {
     await fs.writeFile(path, content, 'utf-8')
+  })
+
+  ipcMain.handle('fs:mkdir', async (_, path) => {
+    await fs.mkdir(path, { recursive: true })
   })
 
   ipcMain.handle('fs:exists', async (_, path) => {

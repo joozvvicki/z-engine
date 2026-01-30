@@ -1,4 +1,12 @@
-import { ref, computed, type Ref, type ComputedRef, onMounted, onUnmounted } from 'vue'
+import {
+  ref,
+  computed,
+  type Ref,
+  type ComputedRef,
+  onMounted,
+  onUnmounted,
+  getCurrentInstance
+} from 'vue'
 import type { ZMap } from '@engine/types'
 import { HistoryManager } from '@engine/managers/HistoryManager'
 
@@ -36,13 +44,22 @@ export const useHistory = (
     }
   }
 
-  onMounted(() => {
+  const startPolling = (): void => {
     timer = setInterval(syncStatus, 200)
-  })
+  }
 
-  onUnmounted(() => {
+  const stopPolling = (): void => {
     if (timer) clearInterval(timer)
-  })
+  }
+
+  if (getCurrentInstance()) {
+    onMounted(startPolling)
+    onUnmounted(stopPolling)
+  } else {
+    // If used outside a component (e.g., inside a Pinia store initialized by Router),
+    // start polling immediately. We assume the store lives for the app's lifetime.
+    startPolling()
+  }
 
   const undo = (): void => {
     const engine = window.$zEngine

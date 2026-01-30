@@ -1,6 +1,7 @@
 import { computed, type Ref, type ComputedRef } from 'vue'
 import { TILESETS } from '../stores/editor/constants'
 import type { ZMap, TilesetConfig } from '@engine/types'
+import { ProjectService } from '../services/ProjectService'
 
 export const useTilesets = (
   activeMap: ComputedRef<ZMap | undefined>,
@@ -77,7 +78,7 @@ export const useTilesets = (
     const slots = ['A1', 'A2', 'A3', 'A4', 'A5', 'B', 'C', 'D', 'Roofs']
     slots.forEach((slot) => {
       if (config[slot]) {
-        result.push({ id: slot, url: config[slot] })
+        result.push({ id: slot, url: ProjectService.resolveAssetUrl(config[slot]) })
       } else {
         // Fallback to default if not set
         const def = TILESETS.find((t) => t.id === slot)

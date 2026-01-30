@@ -14,7 +14,9 @@ export class AutotileSolver {
     if (!mapData) return false
     if (x < 0 || x >= mapWidth || y < 0 || y >= mapHeight) return true
 
-    const tileStack = mapData.layers[layer].data[y][x]
+    const row = mapData.layers[layer].data[y]
+    if (!row) return false
+    const tileStack = row[x]
     if (!tileStack || tileStack.length <= stackIndex) return false
 
     const tile = tileStack[stackIndex]

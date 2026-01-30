@@ -2,6 +2,7 @@ import { ref, shallowRef, onUnmounted, watch, nextTick, type Ref } from 'vue'
 import { until } from '@vueuse/core'
 import { ZEngine } from '@engine/core/ZEngine'
 import { useEditorStore } from '@ui/stores/editor'
+import { ProjectService } from '../services/ProjectService'
 import { ZLayer, ZTool, type TileSelection, type ZDataProvider } from '@engine/types'
 import { TextureManager } from '@engine/managers/TextureManager'
 import { TilesetManager } from '@engine/managers/TilesetManager'
@@ -44,6 +45,9 @@ export const useEngine = (
       layer: ZLayer
     ) => {
       store.setTileAt(x, y, tile, isStacking, layer)
+    },
+    resolveAssetUrl: (path: string) => {
+      return ProjectService.resolveAssetUrl(path)
     }
   }
 

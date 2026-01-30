@@ -18,7 +18,7 @@ export default defineConfig({
     resolve: {
       alias: {
         '@ui': resolve('src/ui/src'),
-        '@engine': resolve('src/ui/engine')
+        '@engine': resolve('src/engine')
       }
     },
     plugins: [vue(), tailwindcss()]

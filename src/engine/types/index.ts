@@ -194,6 +194,7 @@ export interface ZDataProvider {
     isStacking: boolean,
     layer: ZLayer
   ): void
+  resolveAssetUrl(path: string): string
 }
 
 export enum ZEngineSignal {

@@ -3,7 +3,7 @@ import { AutotileSolver } from '@engine/utils/AutotileSolver'
 import { SpriteUtils } from '@engine/utils/SpriteUtils'
 import { type ZMap, type ZEventGraphic, type TileSelection, ZLayer } from '@engine/types'
 import { ZSystem } from '@engine/core/ZSystem'
-import { DEFAULT_PLAYER_GRAPHIC } from '../../src/stores/editor/constants'
+import { DEFAULT_PLAYER_GRAPHIC } from '../constants'
 import { ServiceLocator } from '@engine/core/ServiceLocator'
 
 export class RenderSystem extends ZSystem {
@@ -64,12 +64,17 @@ export class RenderSystem extends ZSystem {
 
     // Load Player Texture for Editor Visualization
     // We register it with TextureManager so SpriteUtils can find it.
+    // Load Player Texture for Editor Visualization
+    // We register it with TextureManager so SpriteUtils can find it.
+    // TODO: This should be data-driven via TextureManager or Engine Config
+    /*
     import('@ui/assets/img/characters/character.png').then((mod) => {
       // mod.default is the URL
       this.textures.loadTileset('@ui/assets/img/characters/character.png', mod.default).then(() => {
         this.fullRenderDirty = true
       })
     })
+    */
   }
 
   public getLayerContainer(layer: ZLayer): PIXI.Container {
@@ -229,6 +234,9 @@ export class RenderSystem extends ZSystem {
     layersOrder.forEach((layer) => {
       const grid = mapData.layers[layer].data
       for (let y = 0; y < mapData.height; y++) {
+        // Safety check for invalid map data
+        if (!grid[y]) continue
+
         for (let x = 0; x < mapData.width; x++) {
           const stack = grid[y][x]
           if (stack && stack.length > 0) {
