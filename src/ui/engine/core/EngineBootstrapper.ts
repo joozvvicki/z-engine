@@ -49,7 +49,7 @@ export class EngineBootstrapper {
     services.register(EventSystem, new EventSystem(services))
     services.register(EntityRenderSystem, new EntityRenderSystem(services, tileSize))
 
-    const transitionSystem = new TransitionSystem(stage)
+    const transitionSystem = new TransitionSystem(stage, services)
     services.register(TransitionSystem, transitionSystem)
     transitionSystem.resize(screenWidth, screenHeight)
 

@@ -1,23 +1,15 @@
 import { ZLayer, TileSelection, ZTool, ZTileDelta } from '@engine/types'
-import { MapManager } from './MapManager'
 import { RenderSystem } from '../systems/RenderSystem'
-import { ZDataProvider } from '@engine/types'
 import { HistoryManager } from './HistoryManager'
 import { ServiceLocator } from '../core/ServiceLocator'
+import { ZManager } from './ZManager'
 
 /**
  * Handles editor tool logic (painting, fill, etc.) inside the engine.
  */
-export class ToolManager {
-  private services: ServiceLocator
-  private dataProvider: ZDataProvider | null = null
-
+export class ToolManager extends ZManager {
   constructor(services: ServiceLocator) {
-    this.services = services
-  }
-
-  private get mapManager(): MapManager {
-    return this.services.require(MapManager)
+    super(services)
   }
 
   private get historyManager(): HistoryManager {
@@ -26,10 +18,6 @@ export class ToolManager {
 
   private get renderSystem(): RenderSystem | undefined {
     return this.services.get(RenderSystem)
-  }
-
-  public setDataProvider(dataProvider: ZDataProvider): void {
-    this.dataProvider = dataProvider
   }
 
   /**
@@ -42,7 +30,7 @@ export class ToolManager {
     isStacking: boolean,
     layer: ZLayer
   ): void {
-    const map = this.mapManager.currentMap
+    const map = this.map.currentMap
     if (!map) return
     if (x < 0 || x >= map.width || y < 0 || y >= map.height) return
 
@@ -162,7 +150,7 @@ export class ToolManager {
     isStacking: boolean
   ): void {
     this.historyManager.beginEntry('Bucket Fill')
-    const map = this.mapManager.currentMap
+    const map = this.map.currentMap
     if (!map) return
 
     const stack = map.layers[layer].data[target.y]?.[target.x]
@@ -247,7 +235,7 @@ export class ToolManager {
   }
 
   private refreshNeighbors(tx: number, ty: number, layer: ZLayer): void {
-    const map = this.mapManager.currentMap
+    const map = this.map.currentMap
     if (!map) return
 
     for (let dy = -1; dy <= 1; dy++) {

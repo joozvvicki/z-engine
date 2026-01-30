@@ -1,34 +1,26 @@
 import PIXI from '../utils/pixi'
-import { TextureManager } from '../managers/TextureManager'
 import { AutotileSolver } from '@engine/utils/AutotileSolver'
 import { SpriteUtils } from '@engine/utils/SpriteUtils'
-import { ZSystem, type ZMap, type ZEventGraphic, type TileSelection, ZLayer } from '@engine/types'
+import { type ZMap, type ZEventGraphic, type TileSelection, ZLayer } from '@engine/types'
+import { ZSystem } from '@engine/core/ZSystem'
 import { DEFAULT_PLAYER_GRAPHIC } from '../../src/stores/editor/constants'
-import { MapManager } from '@engine/managers/MapManager'
-import { TilesetManager } from '../managers/TilesetManager'
 import { ServiceLocator } from '@engine/core/ServiceLocator'
 
 export class RenderSystem extends ZSystem {
   private layers: Record<ZLayer, PIXI.Container>
   private tileContainers: Record<ZLayer, PIXI.Container[][][]>
 
-  private textureManager: TextureManager
   private tileSize: number
 
   private wrapper: PIXI.Container
-  private mapManager: MapManager
-  private tilesetManager: TilesetManager
 
   private fullRenderDirty: boolean = false
   private tileUpdates: { x: number; y: number; layer: ZLayer; tiles: TileSelection[] }[] = []
 
   constructor(stage: PIXI.Container, services: ServiceLocator, tileSize: number) {
-    super()
+    super(services)
     this.wrapper = stage
 
-    this.textureManager = services.require(TextureManager)
-    this.mapManager = services.require(MapManager)
-    this.tilesetManager = services.require(TilesetManager)
     this.tileSize = tileSize
 
     this.layers = null!
@@ -74,11 +66,9 @@ export class RenderSystem extends ZSystem {
     // We register it with TextureManager so SpriteUtils can find it.
     import('@ui/assets/img/characters/character.png').then((mod) => {
       // mod.default is the URL
-      this.textureManager
-        .loadTileset('@ui/assets/img/characters/character.png', mod.default)
-        .then(() => {
-          this.fullRenderDirty = true
-        })
+      this.textures.loadTileset('@ui/assets/img/characters/character.png', mod.default).then(() => {
+        this.fullRenderDirty = true
+      })
     })
   }
 
@@ -91,21 +81,15 @@ export class RenderSystem extends ZSystem {
   }
 
   public onUpdate(): void {
-    if (this.fullRenderDirty && this.mapManager.currentMap) {
-      this.performFullRender(this.mapManager.currentMap)
+    if (this.fullRenderDirty && this.map.currentMap) {
+      this.performFullRender(this.map.currentMap)
       this.fullRenderDirty = false
     }
 
     if (this.tileUpdates.length > 0) {
       const batch = this.tileUpdates.splice(0, this.tileUpdates.length)
       batch.forEach((update) => {
-        this.performDrawTile(
-          update.x,
-          update.y,
-          update.tiles,
-          update.layer,
-          this.mapManager.currentMap!
-        )
+        this.performDrawTile(update.x, update.y, update.tiles, update.layer, this.map.currentMap!)
       })
     }
   }
@@ -118,12 +102,12 @@ export class RenderSystem extends ZSystem {
   }
 
   public requestTileUpdate(x: number, y: number, tiles: TileSelection[], layer: ZLayer): void {
-    if (!this.mapManager.currentMap) return
+    if (!this.map.currentMap) return
     this.tileUpdates.push({ x, y, layer, tiles })
   }
 
   public setMap(mapData: ZMap): void {
-    this.mapManager.setMap(mapData)
+    this.map.setMap(mapData)
     this.fullRenderDirty = true
     this.tileUpdates = []
   }
@@ -142,12 +126,12 @@ export class RenderSystem extends ZSystem {
 
     // 2. Iterate each tile in the stack individually
     tiles.forEach((selection, index) => {
-      const tex = this.textureManager.get(selection.tilesetId)
+      const tex = this.textures.get(selection.tilesetId)
       if (!tex) return
 
       // --- Determine Priority & Offset for THIS tile ---
       const tilesetUrl = mapData.tilesetConfig?.[selection.tilesetId] || selection.tilesetId
-      const config = this.tilesetManager.getTileConfig(tilesetUrl, selection.x, selection.y)
+      const config = this.tilesets.getTileConfig(tilesetUrl, selection.x, selection.y)
 
       const isHighPriority = config?.isHighPriority || false
       const ySortOffset = config?.sortYOffset ? Number(config.sortYOffset) : 0
@@ -340,7 +324,7 @@ export class RenderSystem extends ZSystem {
 
         graphicSprite = SpriteUtils.createEventSprite(
           graphicData,
-          this.textureManager,
+          this.textures,
           this.tileSize,
           true
         )

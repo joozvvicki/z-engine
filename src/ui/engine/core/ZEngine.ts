@@ -26,7 +26,7 @@ export class ZEngine {
   constructor() {
     this.app = new Application()
     this.services = new ServiceLocator()
-    this.services.register('ZEngine', this)
+    this.services.register(ZEngine.name, this)
 
     EngineBootstrapper.registerManagers(this.services)
     this.lifecycle = new SystemManager(this.services, this.app)
@@ -98,7 +98,7 @@ export class ZEngine {
     this.services.require(SceneManager).setDataProvider(provider)
     this.services.require(ToolManager).setDataProvider(provider)
     this.services.require(HistoryManager).setDataProvider(provider)
-    this.services.require(GameStateManager).setDataProvider()
+    this.services.require(GameStateManager).setDataProvider(provider)
     ZLogger.log('[ZEngine] Data Provider set')
   }
 

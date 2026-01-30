@@ -1,6 +1,6 @@
 import { Application } from '../utils/pixi'
 import { ServiceLocator } from './ServiceLocator'
-import { ZSystem } from '@engine/types'
+import { ZSystem } from './ZSystem'
 import ZLogger from './ZLogger'
 import { PlayerSystem } from '../systems/PlayerSystem'
 import { EntityRenderSystem } from '../systems/EntityRenderSystem'

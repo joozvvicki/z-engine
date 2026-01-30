@@ -1,27 +1,18 @@
 import { ServiceLocator } from '../core/ServiceLocator'
+import { ZManager } from './ZManager'
 import { ZEngineSignal } from '@engine/types'
-import { ZMap, ZDataProvider } from '@engine/types'
-import { MapManager } from './MapManager'
-import { TextureManager } from './TextureManager'
-import { TilesetManager } from './TilesetManager'
+import { ZMap } from '@engine/types'
 import { RenderSystem } from '../systems/RenderSystem'
 import { EntityRenderSystem } from '../systems/EntityRenderSystem'
 import { TransitionSystem } from '../systems/TransitionSystem'
-import { ZEventBus } from '../core/ZEventBus'
 import ZLogger from '../core/ZLogger'
 
-export class SceneManager {
-  private services: ServiceLocator
-  private dataProvider: ZDataProvider | null = null
+export class SceneManager extends ZManager {
   private onMapChangeRequest: ((mapId: number, x: number, y: number) => Promise<void>) | null = null
   public isLoading: boolean = false
 
   constructor(services: ServiceLocator) {
-    this.services = services
-  }
-
-  public setDataProvider(provider: ZDataProvider): void {
-    this.dataProvider = provider
+    super(services)
   }
 
   public setMapChangeCallback(
@@ -50,12 +41,9 @@ export class SceneManager {
     }
 
     // Dependencies
-    const tilesetManager = this.services.require(TilesetManager)
-    const textureManager = this.services.require(TextureManager)
-    const mapManager = this.services.require(MapManager)
+    // Dependencies
     const renderSystem = this.services.get(RenderSystem)
     const entityRenderSystem = this.services.get(EntityRenderSystem)
-    const eventBus = this.services.require(ZEventBus)
 
     // 1. Resolve full tileset URLs if not already present
     if (this.dataProvider) {
@@ -68,24 +56,24 @@ export class SceneManager {
 
       // 2. Load Collision Configs
       const configs = await this.dataProvider.getTilesetConfigs()
-      tilesetManager.setConfigs(configs)
+      this.tilesets.setConfigs(configs)
     }
 
     // 3. Preload all required textures
     const texturePromises = Object.entries(map.tilesetConfig).map(([id, url]) =>
-      textureManager.loadTileset(id, url)
+      this.textures.loadTileset(id, url)
     )
     await Promise.all(texturePromises)
 
     // 4. Update core systems
-    mapManager.setMap(map)
+    this.map.setMap(map)
     renderSystem?.setMap(map)
     entityRenderSystem?.loadEvents()
 
     this.isLoading = false
     ZLogger.log(`[SceneManager] Map ${map.id} loaded and rendered`)
 
-    eventBus.emit(ZEngineSignal.MapLoaded, { mapId: map.id, map })
+    this.bus.emit(ZEngineSignal.MapLoaded, { mapId: map.id, map })
   }
 
   public async changeScene(mapId: number, x: number, y: number): Promise<void> {

@@ -1,5 +1,5 @@
 import { ZEngineSignal } from '@engine/types'
-import { ZEventBus } from '@engine/core/ZEventBus'
+import { ZManager } from './ZManager'
 import { ServiceLocator } from '@engine/core/ServiceLocator'
 import ZLogger from '@engine/core/ZLogger'
 
@@ -12,22 +12,13 @@ export interface GameSaveData {
   }
 }
 
-export class GameStateManager {
-  // private dataProvider: ZDataProvider | null = null // Might be needed for saving to disk later?
-
+export class GameStateManager extends ZManager {
   // Runtime State
   private switches: Map<number, boolean> = new Map()
   private variables: Map<number, number> = new Map()
 
-  // Dependencies
-  private eventBus: ZEventBus
-
   constructor(services: ServiceLocator) {
-    this.eventBus = services.require(ZEventBus)
-  }
-
-  public setDataProvider(): void {
-    // Placeholder for future persistence logic
+    super(services)
   }
 
   // --- Switches ---
@@ -42,7 +33,7 @@ export class GameStateManager {
       this.switches.set(id, value)
       // Emit generic state change signal
       // Listeners (like Active Page in EventSystem) will need to check this
-      this.eventBus.emit(ZEngineSignal.GameStateChanged, { type: 'switch', id, value })
+      this.bus.emit(ZEngineSignal.GameStateChanged, { type: 'switch', id, value })
       ZLogger.with('GameStateManager').info(`Switch ${id} set to ${value}`)
     }
   }
@@ -61,7 +52,7 @@ export class GameStateManager {
     const current = this.getVariable(id)
     if (current !== value) {
       this.variables.set(id, value)
-      this.eventBus.emit(ZEngineSignal.GameStateChanged, { type: 'variable', id, value })
+      this.bus.emit(ZEngineSignal.GameStateChanged, { type: 'variable', id, value })
       ZLogger.with('GameStateManager').info(`Variable ${id} set to ${value}`)
     }
   }
@@ -105,13 +96,13 @@ export class GameStateManager {
     }
 
     // Initial emit after load
-    this.eventBus.emit(ZEngineSignal.GameStateChanged, { type: 'load' })
+    this.bus.emit(ZEngineSignal.GameStateChanged, { type: 'load' })
     ZLogger.with('GameStateManager').info('Game Data Loaded')
   }
 
   public newGame(): void {
     this.switches.clear()
     this.variables.clear()
-    this.eventBus.emit(ZEngineSignal.GameStateChanged, { type: 'new' })
+    this.bus.emit(ZEngineSignal.GameStateChanged, { type: 'new' })
   }
 }

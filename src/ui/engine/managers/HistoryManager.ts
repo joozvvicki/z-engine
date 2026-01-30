@@ -1,35 +1,25 @@
-import { ZHistoryEntry, ZTileDelta, ZDataProvider, ZLayer } from '@engine/types'
+import { ZHistoryEntry, ZTileDelta, ZLayer } from '@engine/types'
 import ZLogger from '@engine/core/ZLogger'
-import { MapManager } from './MapManager'
 import { RenderSystem } from '../systems/RenderSystem'
 import { ServiceLocator } from '../core/ServiceLocator'
+import { ZManager } from './ZManager'
 
 /**
  * Manages editor history using a delta-based approach.
  */
-export class HistoryManager {
+export class HistoryManager extends ZManager {
   private undoStack: ZHistoryEntry[] = []
   private redoStack: ZHistoryEntry[] = []
   private currentEntry: ZHistoryEntry | null = null
   private maxHistory: number = 50
-  private dataProvider: ZDataProvider | null = null
-  private services: ServiceLocator
 
   constructor(services: ServiceLocator, maxHistory: number = 50) {
-    this.services = services
+    super(services)
     this.maxHistory = maxHistory
-  }
-
-  private get mapManager(): MapManager {
-    return this.services.require(MapManager)
   }
 
   private get renderSystem(): RenderSystem | undefined {
     return this.services.get(RenderSystem)
-  }
-
-  public setDataProvider(dataProvider: ZDataProvider): void {
-    this.dataProvider = dataProvider
   }
 
   /**
@@ -129,7 +119,7 @@ export class HistoryManager {
 
     // 2. Trigger Engine Render Update
     // After store update, the reference in mapManager should be updated too.
-    const map = this.mapManager?.currentMap
+    const map = this.map.currentMap
     if (map) {
       const newStack = map.layers[delta.layer].data[delta.y]?.[delta.x]
       if (newStack) {
@@ -142,7 +132,7 @@ export class HistoryManager {
   }
 
   private refreshNeighbors(tx: number, ty: number, layer: ZLayer): void {
-    const map = this.mapManager?.currentMap
+    const map = this.map.currentMap
     if (!map) return
 
     for (let dy = -1; dy <= 1; dy++) {

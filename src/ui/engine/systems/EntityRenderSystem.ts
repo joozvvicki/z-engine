@@ -1,13 +1,12 @@
 import PIXI from '../utils/pixi'
-import { ZSystem, ZLayer } from '@engine/types'
+import { ZLayer } from '@engine/types'
+import { ZSystem as ZSystemCore } from '@engine/core/ZSystem'
 import { SpriteUtils } from '@engine/utils/SpriteUtils'
 import { PlayerSystem } from './PlayerSystem'
-import { TextureManager } from '@engine/managers/TextureManager'
 import { RenderSystem } from './RenderSystem'
-import { MapManager } from '@engine/managers/MapManager'
 import { ServiceLocator } from '@engine/core/ServiceLocator'
 
-export class EntityRenderSystem extends ZSystem {
+export class EntityRenderSystem extends ZSystemCore {
   private container: PIXI.Container
   private playerSystem: PlayerSystem
   private tileSize: number
@@ -32,23 +31,14 @@ export class EntityRenderSystem extends ZSystem {
   private animationTimer: number = 0
   private readonly ANIMATION_SPEED: number = 150 // ms per frame
 
-  private mapManager: MapManager
   private renderSystem: RenderSystem
-  private textureManager: TextureManager
   private eventSprites: Map<string, PIXI.Container | PIXI.Sprite> = new Map()
 
-  private services: ServiceLocator
-
   constructor(services: ServiceLocator, tileSize: number) {
-    super()
-    this.services = services
+    super(services)
     this.tileSize = tileSize
 
     this.container = new PIXI.Container()
-
-    // Dependencies from services
-    this.textureManager = services.require(TextureManager)
-    this.mapManager = services.require(MapManager)
 
     // These will be retrieved lazily in onBoot
     this.playerSystem = undefined as unknown as PlayerSystem
@@ -62,7 +52,7 @@ export class EntityRenderSystem extends ZSystem {
     })
     this.eventSprites.clear()
 
-    const map = this.mapManager.currentMap
+    const map = this.map.currentMap
     if (!map || !map.events) return
 
     map.events.forEach((event) => {
@@ -75,7 +65,7 @@ export class EntityRenderSystem extends ZSystem {
       // For Game, isEditor = false
       const sprite = SpriteUtils.createEventSprite(
         activePage.graphic,
-        this.textureManager,
+        this.textures,
         this.tileSize,
         false
       )
@@ -116,7 +106,7 @@ export class EntityRenderSystem extends ZSystem {
       // Dynamic import to get the URL
       const mod = await import('@ui/assets/img/characters/character.png')
       // Register with TextureManager
-      await this.textureManager.loadTileset('@ui/assets/img/characters/character.png', mod.default)
+      await this.textures.loadTileset('@ui/assets/img/characters/character.png', mod.default)
 
       const graphic = {
         assetId: '@ui/assets/img/characters/character.png',
@@ -129,7 +119,7 @@ export class EntityRenderSystem extends ZSystem {
 
       this.playerSprite = SpriteUtils.createEventSprite(
         graphic,
-        this.textureManager,
+        this.textures,
         this.tileSize,
         false
       )

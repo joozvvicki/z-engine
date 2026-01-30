@@ -1,5 +1,4 @@
 import {
-  ZSystem,
   type ZEvent,
   type ZEventPage,
   type ZEventCondition,
@@ -10,22 +9,16 @@ import {
   type ZCommandResult,
   type ZCommandProcessor
 } from '@engine/types'
-import { MapManager } from '@engine/managers/MapManager'
+import { ZSystem as ZSystemCore } from '@engine/core/ZSystem'
 import { PlayerSystem } from './PlayerSystem'
 
-import { ZEventBus } from '../core/ZEventBus'
 import { ServiceLocator } from '../core/ServiceLocator'
 import { SceneManager } from '../managers/SceneManager'
-import { InputManager } from '../managers/InputManager'
-import { GameStateManager } from '../managers/GameStateManager'
 
-export class EventSystem extends ZSystem {
-  private services: ServiceLocator
-  private mapManager: MapManager
+export class EventSystem extends ZSystemCore {
   // @ts-ignore - playerSystem is used for positioning (WIP)
   private playerSystem: PlayerSystem
   private sceneManager: SceneManager
-  private eventBus: ZEventBus
 
   // Runtime state
   // @ts-ignore - isProcessing tracks interpreter status
@@ -40,10 +33,7 @@ export class EventSystem extends ZSystem {
   private processors: Map<number, ZCommandProcessor> = new Map()
 
   constructor(services: ServiceLocator) {
-    super()
-    this.services = services
-    this.mapManager = services.require(MapManager)
-    this.eventBus = services.require(ZEventBus)
+    super(services)
 
     // These will be retrieved lazily since they might not be registered yet
     this.sceneManager = undefined as unknown as SceneManager
@@ -70,11 +60,11 @@ export class EventSystem extends ZSystem {
     this.sceneManager = this.services.require(SceneManager)
     this.playerSystem = this.services.require(PlayerSystem)
 
-    this.eventBus.on(ZEngineSignal.EventTriggered, ({ event }) => {
+    this.bus.on(ZEngineSignal.EventTriggered, ({ event }) => {
       this.startEvent(event)
     })
 
-    this.eventBus.on(ZEngineSignal.InteractionRequested, ({ x, y }) => {
+    this.bus.on(ZEngineSignal.InteractionRequested, ({ x, y }) => {
       // 1. Check facing tile
       const handled = this.checkTrigger(x, y, ZEventTrigger.Action)
       if (handled) return
@@ -85,7 +75,7 @@ export class EventSystem extends ZSystem {
       }
     })
 
-    this.eventBus.on(ZEngineSignal.PlayerMoved, ({ x, y }) => {
+    this.bus.on(ZEngineSignal.PlayerMoved, ({ x, y }) => {
       this.checkTrigger(x, y, ZEventTrigger.PlayerTouch)
     })
   }
@@ -134,7 +124,7 @@ export class EventSystem extends ZSystem {
   }
 
   private checkPageConditions(conditions: ZEventCondition): boolean {
-    const gameState = this.services.require(GameStateManager)
+    const gameState = this.game
 
     // 1. Switch 1
     if (conditions.switch1Id) {
@@ -164,7 +154,7 @@ export class EventSystem extends ZSystem {
   public checkTrigger(x: number, y: number, trigger: ZEventTrigger): boolean {
     if (this.isProcessing) return false // Don't interrupt
 
-    const map = this.mapManager.currentMap
+    const map = this.map.currentMap
     if (!map) return false
 
     const event = map.events.find((e) => e.x === x && e.y === y)
@@ -246,11 +236,11 @@ export class EventSystem extends ZSystem {
     this.isWaitingForMessage = true
 
     // Emit signal for UI to show message
-    this.eventBus.emit(ZEngineSignal.ShowMessage, { text })
+    this.bus.emit(ZEngineSignal.ShowMessage, { text })
 
     // Clear input keys to prevent immediate close
     // Clear input keys to prevent immediate close
-    const inputManager = this.services.get(InputManager)
+    const inputManager = this.input
     if (inputManager) {
       inputManager.clearKey('Enter')
       inputManager.clearKey('Space')
@@ -263,7 +253,7 @@ export class EventSystem extends ZSystem {
   // Command 121: Control Switch
   // Params: [switchId, value (0=OFF, 1=ON, 2=TOGGLE)]
   private commandControlSwitch(params: unknown[]): ZCommandResult {
-    const gameState = this.services.require(GameStateManager)
+    const gameState = this.game
     const switchId = params[0] as number
     const operation = params[1] as number // 0=OFF, 1=ON, 2=TOGGLE
 
@@ -282,7 +272,7 @@ export class EventSystem extends ZSystem {
   // Params: [variableId, operation, value]
   // Operation: 0=Set, 1=Add, 2=Sub, 3=Mul, 4=Div, 5=Mod
   private commandControlVariable(params: unknown[]): ZCommandResult {
-    const gameState = this.services.require(GameStateManager)
+    const gameState = this.game
     const varId = params[0] as number
     const op = params[1] as number
     const value = params[2] as number
@@ -323,7 +313,7 @@ export class EventSystem extends ZSystem {
   private commandShowChoices(params: unknown[]): ZCommandResult {
     const choices = params[0] as string[]
     // Emit event for UI to show choices
-    this.eventBus.emit(ZEngineSignal.ShowChoices, { choices })
+    this.bus.emit(ZEngineSignal.ShowChoices, { choices })
     return 'wait'
   }
 
@@ -351,7 +341,7 @@ export class EventSystem extends ZSystem {
   // Type 0: Switch [id, value(1=ON, 0=OFF)]
   // Type 1: Variable [id, op(0=Eq, 1=Ge, 2=Le...), value] (Simplified for now: 0=Eq, 1=Ge)
   private commandConditionalBranch(params: unknown[]): ZCommandResult {
-    const gameState = this.services.require(GameStateManager)
+    const gameState = this.game
     const type = params[0] as number
     let result = false
 

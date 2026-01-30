@@ -1,12 +1,11 @@
 import PIXI from '../utils/pixi'
-import { TextureManager } from '../managers/TextureManager'
-import { ZSystem, type TileSelection, ZTool, ZLayer } from '@engine/types'
+import { type TileSelection, ZTool, ZLayer } from '@engine/types'
+import { ZSystem as ZSystemCore } from '@engine/core/ZSystem'
 
 import { ServiceLocator } from '@engine/core/ServiceLocator'
 
-export class GhostSystem extends ZSystem {
+export class GhostSystem extends ZSystemCore {
   private container: PIXI.Container
-  private textureManager: TextureManager
   private tileSize: number
 
   private wrapper: PIXI.Container
@@ -22,10 +21,9 @@ export class GhostSystem extends ZSystem {
   private isShape: boolean = false
 
   constructor(stage: PIXI.Container, services: ServiceLocator, tileSize: number) {
-    super()
+    super(services)
 
     this.wrapper = stage
-    this.textureManager = services.require(TextureManager)
     this.tileSize = tileSize
 
     this.container = null!
@@ -115,7 +113,7 @@ export class GhostSystem extends ZSystem {
               const stack = grid[dy]?.[dx]
               if (stack && stack.length > 0) {
                 for (const tile of stack) {
-                  const tex = this.textureManager.get(tile.tilesetId)
+                  const tex = this.textures.get(tile.tilesetId)
                   if (!tex) continue
 
                   if (tile.isAutotile) {
@@ -295,7 +293,7 @@ export class GhostSystem extends ZSystem {
           for (let dx = 0; dx < this.selection.w; dx++) {
             const tile = this.selection.pattern[dy]?.[dx]
             if (tile) {
-              const tex = this.textureManager.get(tile.tilesetId)
+              const tex = this.textures.get(tile.tilesetId)
               if (tex) {
                 const sprite = new PIXI.Sprite(
                   new PIXI.Texture({
@@ -318,7 +316,7 @@ export class GhostSystem extends ZSystem {
         }
       } else {
         // Single tile selection fallback
-        const tex = this.textureManager.get(this.selection.tilesetId)
+        const tex = this.textures.get(this.selection.tilesetId)
         if (tex) {
           // Check for pixel override
           const pX = this.selection.pixelX ?? this.selection.x * this.tileSize

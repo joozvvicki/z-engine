@@ -1,14 +1,11 @@
-import { ZSystem, ZEngineSignal } from '@engine/types'
+import { ZEngineSignal } from '@engine/types'
+import { ZSystem as ZSystemCore } from '@engine/core/ZSystem'
 import { EventSystem } from '../systems/EventSystem'
 import { Container, Graphics, Text } from 'pixi.js'
-import { ZEventBus } from '@engine/core/ZEventBus'
-import { InputManager } from '@engine/managers/InputManager'
 import { ServiceLocator } from '@engine/core/ServiceLocator'
 
-export class MessageSystem extends ZSystem {
+export class MessageSystem extends ZSystemCore {
   private container: Container
-  private inputManager: InputManager
-  private eventBus: ZEventBus
 
   private isVisible: boolean = false
   private messageText: string = ''
@@ -28,7 +25,7 @@ export class MessageSystem extends ZSystem {
   private choiceHeight: number = 40
 
   constructor(stage: Container, services: ServiceLocator) {
-    super()
+    super(services)
     this.container = new Container()
     this.container.visible = false
     this.container.zIndex = 100000 // Very high to ensure it's always on top
@@ -36,16 +33,13 @@ export class MessageSystem extends ZSystem {
     // Ensure stage can sort children by zIndex
     stage.sortableChildren = true
     stage.addChild(this.container)
-
-    this.eventBus = services.require(ZEventBus)
-    this.inputManager = services.require(InputManager)
   }
 
   public onBoot(): void {
-    this.eventBus.on(ZEngineSignal.ShowMessage, ({ text }) => {
+    this.bus.on(ZEngineSignal.ShowMessage, ({ text }) => {
       this.show(text)
     })
-    this.eventBus.on(ZEngineSignal.ShowChoices, ({ choices }) => {
+    this.bus.on(ZEngineSignal.ShowChoices, ({ choices }) => {
       this.showChoices(choices)
     })
   }
@@ -57,9 +51,9 @@ export class MessageSystem extends ZSystem {
       } else {
         // Check for input to close message
         if (
-          this.inputManager.isKeyDown('Enter') ||
-          this.inputManager.isKeyDown('Space') ||
-          this.inputManager.isKeyDown('KeyZ')
+          this.input.isKeyDown('Enter') ||
+          this.input.isKeyDown('Space') ||
+          this.input.isKeyDown('KeyZ')
         ) {
           this.close()
         }
@@ -68,28 +62,28 @@ export class MessageSystem extends ZSystem {
   }
 
   private updateChoiceSelection(): void {
-    if (this.inputManager.isKeyDown('ArrowDown') || this.inputManager.isKeyDown('KeyS')) {
+    if (this.input.isKeyDown('ArrowDown') || this.input.isKeyDown('KeyS')) {
       this.selectedChoiceIndex = (this.selectedChoiceIndex + 1) % this.choices.length
       this.renderChoices()
-      this.inputManager.clearKey('ArrowDown')
-      this.inputManager.clearKey('KeyS')
+      this.input.clearKey('ArrowDown')
+      this.input.clearKey('KeyS')
     }
-    if (this.inputManager.isKeyDown('ArrowUp') || this.inputManager.isKeyDown('KeyW')) {
+    if (this.input.isKeyDown('ArrowUp') || this.input.isKeyDown('KeyW')) {
       this.selectedChoiceIndex =
         (this.selectedChoiceIndex - 1 + this.choices.length) % this.choices.length
       this.renderChoices()
-      this.inputManager.clearKey('ArrowUp')
-      this.inputManager.clearKey('KeyW')
+      this.input.clearKey('ArrowUp')
+      this.input.clearKey('KeyW')
     }
 
     if (
-      this.inputManager.isKeyDown('Enter') ||
-      this.inputManager.isKeyDown('Space') ||
-      this.inputManager.isKeyDown('KeyZ')
+      this.input.isKeyDown('Enter') ||
+      this.input.isKeyDown('Space') ||
+      this.input.isKeyDown('KeyZ')
     ) {
       const selectedIndex = this.selectedChoiceIndex
       this.closeChoices()
-      this.eventBus.emit(ZEngineSignal.ChoiceSelected, { index: selectedIndex })
+      this.bus.emit(ZEngineSignal.ChoiceSelected, { index: selectedIndex })
     }
   }
 
@@ -105,12 +99,12 @@ export class MessageSystem extends ZSystem {
     this.container.visible = false
 
     // Clear input state to prevent immediate re-trigger
-    this.inputManager.clearKey('Enter')
-    this.inputManager.clearKey('Space')
-    this.inputManager.clearKey('KeyZ')
+    this.input.clearKey('Enter')
+    this.input.clearKey('Space')
+    this.input.clearKey('KeyZ')
 
     // Emit signal to unblock player input
-    this.eventBus.emit(ZEngineSignal.MessageClosed, {})
+    this.bus.emit(ZEngineSignal.MessageClosed, {})
 
     // Notify EventSystem that message is finished
     const eventSystem = window.$zEngine?.services.get(EventSystem)

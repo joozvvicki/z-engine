@@ -1,16 +1,10 @@
-import { ZSystem, ZLayer } from '@engine/types'
-import { MapManager } from '@engine/managers/MapManager'
-import { TilesetManager } from '@engine/managers/TilesetManager'
+import { ZLayer } from '@engine/types'
+import { ZSystem } from '@engine/core/ZSystem'
 import { ServiceLocator } from '@engine/core/ServiceLocator'
 
 export class PhysicsSystem extends ZSystem {
-  private mapManager: MapManager
-  private tilesetManager: TilesetManager
-
   constructor(services: ServiceLocator) {
-    super()
-    this.mapManager = services.require(MapManager)
-    this.tilesetManager = services.require(TilesetManager)
+    super(services)
   }
 
   public onBoot(): void {
@@ -22,7 +16,7 @@ export class PhysicsSystem extends ZSystem {
   }
 
   public isPassable(x: number, y: number): boolean {
-    const map = this.mapManager.currentMap
+    const map = this.map.currentMap
     if (!map) return false
 
     // Check boundaries
@@ -41,7 +35,7 @@ export class PhysicsSystem extends ZSystem {
       if (tiles && tiles.length > 0) {
         for (const tile of tiles) {
           const tilesetUrl = map.tilesetConfig?.[tile.tilesetId] || tile.tilesetId
-          const config = this.tilesetManager.getTileConfig(tilesetUrl, tile.x, tile.y)
+          const config = this.tilesets.getTileConfig(tilesetUrl, tile.x, tile.y)
           if (config?.isSolid) return false
         }
       }
@@ -57,7 +51,7 @@ export class PhysicsSystem extends ZSystem {
           const tile = tiles[i]
           if (!tile) continue
           const tilesetUrl = map.tilesetConfig?.[tile.tilesetId] || tile.tilesetId
-          const config = this.tilesetManager.getTileConfig(tilesetUrl, tile.x, tile.y)
+          const config = this.tilesets.getTileConfig(tilesetUrl, tile.x, tile.y)
 
           // 1. Solid -> Blocked
           if (config?.isSolid) return false
@@ -106,7 +100,7 @@ export class PhysicsSystem extends ZSystem {
   }
 
   private isDirectionBlocked(x: number, y: number, dirBit: number): boolean {
-    const map = this.mapManager.currentMap
+    const map = this.map.currentMap
     if (!map) return false
 
     const layers = [ZLayer.decoration, ZLayer.walls, ZLayer.ground]
@@ -119,7 +113,7 @@ export class PhysicsSystem extends ZSystem {
         const tile = layerStack[i]
         if (!tile) continue
         const tilesetUrl = map.tilesetConfig?.[tile.tilesetId] || tile.tilesetId
-        const config = this.tilesetManager.getTileConfig(tilesetUrl, tile.x, tile.y)
+        const config = this.tilesets.getTileConfig(tilesetUrl, tile.x, tile.y)
 
         if (config && config.dirBlock !== undefined) {
           if ((config.dirBlock & dirBit) !== 0) return true
