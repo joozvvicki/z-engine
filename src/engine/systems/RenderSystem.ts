@@ -253,9 +253,80 @@ export class RenderSystem extends ZSystem {
   private eventMarkers: PIXI.Container[] = []
   private showEventMarkers: boolean = false
 
+  private playerStartMarker: PIXI.Container | null = null
+  private showPlayerStart: boolean = false
+
   public setEventMarkersVisible(visible: boolean): void {
     this.showEventMarkers = visible
     this.eventMarkers.forEach((c) => (c.visible = visible))
+    if (this.playerStartMarker) {
+      this.playerStartMarker.visible = visible && this.showPlayerStart
+    }
+  }
+
+  public setPlayerStartMarker(x: number, y: number, graphicPath: string): void {
+    this.showPlayerStart = true
+
+    // Clean up existing
+    if (this.playerStartMarker) {
+      this.playerStartMarker.destroy({ children: true })
+      this.layers[ZLayer.events].removeChild(this.playerStartMarker)
+      this.playerStartMarker = null
+    }
+
+    const container = new PIXI.Container()
+    container.label = 'PlayerStartMarker'
+    container.x = x * this.tileSize
+    container.y = y * this.tileSize
+    container.zIndex = (y + 1) * this.tileSize
+    container.visible = this.showEventMarkers
+
+    // Helper to load graphic
+    const graphicData: ZEventGraphic = {
+      assetId: graphicPath,
+      group: 'character',
+      x: 0,
+      y: 0,
+      w: 3,
+      h: 4
+    }
+
+    const sprite = SpriteUtils.createEventSprite(graphicData, this.textures, this.tileSize, true)
+    if (sprite) {
+      sprite.alpha = 0.7 // Ghost effect
+      container.addChild(sprite)
+    }
+
+    // Add Overlay (Distinct from normal events - maybe Green?)
+    const overlay = new PIXI.Graphics()
+    overlay.rect(0, 0, this.tileSize, this.tileSize)
+    overlay.fill({ color: 0x00ff00, alpha: 0.2 }) // Green tint for Player Start
+    overlay.stroke({ color: 0x00ff00, width: 2 })
+    container.addChild(overlay)
+
+    // Add Text Label "START"
+    const style = new PIXI.TextStyle({
+      fontFamily: 'Arial',
+      fontSize: 10,
+      fill: '#00ff00',
+      stroke: { color: '#000000', width: 2 }, // Fixed V8 syntax
+      fontWeight: 'bold'
+    })
+    const text = new PIXI.Text({ text: 'START', style })
+    text.anchor.set(0.5, 1)
+    text.x = this.tileSize / 2
+    text.y = 0
+    container.addChild(text)
+
+    this.layers[ZLayer.events].addChild(container)
+    this.playerStartMarker = container
+  }
+
+  public hidePlayerStartMarker(): void {
+    this.showPlayerStart = false
+    if (this.playerStartMarker) {
+      this.playerStartMarker.visible = false
+    }
   }
 
   public updateLayerDimming(activeLayer: ZLayer | null, focusOnly: boolean = false): void {

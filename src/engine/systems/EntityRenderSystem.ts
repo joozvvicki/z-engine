@@ -191,7 +191,10 @@ export class EntityRenderSystem extends ZSystemCore {
         this.container.addChild(this.playerSprite)
 
         // Refresh visibility
-        this.setVisible(true) // or keep previous state?
+        this.setVisible(true)
+      } else {
+        console.warn('SpriteUtils returned null for asset:', assetPath)
+        this.createFallbackSprite()
       }
     } catch (e) {
       console.warn('Could not set player graphic', assetPath, e)

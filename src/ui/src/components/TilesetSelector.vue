@@ -137,7 +137,10 @@ onMounted(() => {
 
 <template>
   <div
-    class="flex relative flex-col h-full border-l border-white/5 select-none rounded-xl overflow-hidden bg-white"
+    :class="[
+      'flex relative flex-col h-full border-l border-white/5 select-none rounded-xl overflow-hidden bg-white',
+      store.isTestMode && 'pointer-events-none opacity-50'
+    ]"
   >
     <!-- Top Bar: Edit Mode Toggle & Instructions -->
     <div

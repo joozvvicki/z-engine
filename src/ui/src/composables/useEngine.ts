@@ -71,22 +71,21 @@ export const useEngine = (
 
     newEngine.setDataProvider(dataProvider)
 
-    // Preload Characters
-    const charModules = import.meta.glob('@ui/assets/img/characters/*.png', {
-      eager: true,
-      query: '?url',
-      import: 'default'
-    })
+    // Preload Characters from Project Folder
+    try {
+      const charFiles = await ProjectService.getProjectFiles('img/characters')
+      const pngFiles = charFiles.filter((f) => f.endsWith('.png'))
 
-    await Promise.all(
-      Object.keys(charModules).map((path) => {
-        const filename = path.split('/').pop() || path
-        const key = `img/characters/${filename}`
-        // @ts-ignore - glob import type
-        const url = charModules[path].default || charModules[path]
-        return newEngine.services.require(TextureManager).loadTileset(key, url)
-      })
-    )
+      await Promise.all(
+        pngFiles.map((filename) => {
+          const key = `img/characters/${filename}`
+          const url = ProjectService.resolveAssetUrl(key)
+          return newEngine.services.require(TextureManager).loadTileset(key, url)
+        })
+      )
+    } catch (e) {
+      console.warn('Failed to preload character textures:', e)
+    }
     await newEngine.init(canvasContainer.value, store.tileSize)
 
     if (store.activeMap) {
@@ -130,11 +129,13 @@ export const useEngine = (
     newEngine.services.require(SceneManager).setMapChangeCallback(async (mapId, x, y) => {
       const targetMap = store.maps.find((m) => m.id === mapId)
       if (targetMap) {
+        // Update store to reflect new active map (for UI sync)
         store.setActiveMap(mapId)
 
-        await nextTick()
-        await until(isLoading).toBe(false)
+        // Load the map through SceneManager (handles tilesets, rendering, etc.)
+        await newEngine.services.require(SceneManager).loadMap(targetMap)
 
+        // Set player position after map is loaded
         const playerSystem = newEngine.services.get(PlayerSystem)
         if (playerSystem) {
           playerSystem.x = x
@@ -154,6 +155,12 @@ export const useEngine = (
     () => store.activeMap?.id,
     async (newId) => {
       if (newId && store.activeMap && engine.value) {
+        // Skip automatic loading in play mode to avoid race conditions
+        // In play mode, SceneManager handles all map loading via setMapChangeCallback
+        if (store.isTestMode) {
+          return
+        }
+
         isLoading.value = true
         try {
           const w = store.activeMap.width * store.tileSize
@@ -210,9 +217,10 @@ export const useEngine = (
       eng: engine.value,
       layer: store.activeLayer,
       isTest: store.isTestMode,
-      tool: store.currentTool
+      tool: store.currentTool,
+      _mapId: store.activeMap?.id // Track map ID to refresh markers on map change
     }),
-    ({ eng, layer, isTest, tool }, old) => {
+    async ({ eng, layer, isTest, tool }, old) => {
       if (eng) {
         const renderSystem = eng.services.get(RenderSystem)
         if (renderSystem) {
@@ -224,32 +232,56 @@ export const useEngine = (
           if (isTest) {
             renderSystem.updateLayerDimming(null)
             renderSystem.setEventMarkersVisible(false)
+            renderSystem.hidePlayerStartMarker()
 
-            // RESET PLAYER POSITION ON TEST START
-            // If we are on the Default Start Map, spawn at specific coordinate
-            // Otherwise, we might want to spawn at current camera center or 0,0?
-            // For now, let's respect System settings if map matches.
-            if (store.activeMap && store.activeMap.id === store.systemStartMapId) {
-              const playerSystem = eng.services.get(PlayerSystem)
-              if (playerSystem) {
-                playerSystem.x = store.systemStartX
-                playerSystem.y = store.systemStartY
-                playerSystem.snapToGrid()
+            // GAME START LOGIC
+            const systemStartMapId = store.systemStartMapId
 
-                // Also ensure graphic is up to date (in case unrelated watcher didn't catch it?)
-                // But initEngine handles it.
-                // We might want to force it if user changed it in DB without reloading engine.
-                const entitySystem = eng.services.get(EntityRenderSystem)
-                entitySystem?.setPlayerGraphic(store.systemPlayerGraphic)
-              }
+            // If current map is NOT the start map, load the start map
+            if (store.activeMap && store.activeMap.id !== systemStartMapId) {
+              console.log('[GameStart] Switching to Start Map:', systemStartMapId)
+
+              // 1. Trigger Map Switch
+              store.setActiveMap(systemStartMapId)
+
+              // 2. Wait for loading to finish
+              await nextTick()
+              await until(isLoading).toBe(false)
+            }
+
+            // 3. Set Player Position (Now we are on the correct map)
+            const playerSystem = eng.services.get(PlayerSystem)
+            if (playerSystem) {
+              playerSystem.x = store.systemStartX
+              playerSystem.y = store.systemStartY
+              playerSystem.snapToGrid()
+
+              // Force graphic update
+              const entitySystem = eng.services.get(EntityRenderSystem)
+              entitySystem?.setPlayerGraphic(store.systemPlayerGraphic)
+              // Ensure entity is visible
+              entitySystem?.setVisible(true)
             }
           } else {
+            // EDIT MODE
             if (tool === ZTool.event) {
               renderSystem.updateLayerDimming(ZLayer.events, true)
               renderSystem.setEventMarkersVisible(true)
+
+              // Show Player Start Marker if we are on the start map
+              if (store.activeMap && store.activeMap.id === store.systemStartMapId) {
+                renderSystem.setPlayerStartMarker(
+                  store.systemStartX,
+                  store.systemStartY,
+                  store.systemPlayerGraphic
+                )
+              } else {
+                renderSystem.hidePlayerStartMarker()
+              }
             } else {
               renderSystem.updateLayerDimming(layer as ZLayer, false)
               renderSystem.setEventMarkersVisible(false)
+              renderSystem.hidePlayerStartMarker()
             }
           }
         }

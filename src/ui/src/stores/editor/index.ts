@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useLocalStorage } from '@vueuse/core'
 import { ProjectService } from '../../services/ProjectService'
 
@@ -143,6 +143,66 @@ export const useEditorStore = defineStore('editor', () => {
       console.error('Save failed', e)
     }
   }
+
+  // Auto-Save System Data Changes
+  watch(
+    [
+      systemSwitches,
+      systemVariables,
+      systemStartMapId,
+      systemStartX,
+      systemStartY,
+      systemPlayerGraphic
+    ],
+    () => {
+      // Only save if project is actually loaded and we are not in initial load phase?
+      // ProjectService.isLoaded() check is good.
+      if (ProjectService.isLoaded()) {
+        const sysData: import('@engine/types').ZSystemData = {
+          switches: systemSwitches.value,
+          variables: systemVariables.value,
+          startMapId: systemStartMapId.value,
+          startX: systemStartX.value,
+          startY: systemStartY.value,
+          playerGraphic: systemPlayerGraphic.value
+        }
+        ProjectService.saveSystemData(sysData).catch((err) =>
+          console.error('Auto-save system failed', err)
+        )
+      }
+    },
+    { deep: true }
+  )
+
+  // Auto-Save System Data Changes
+  watch(
+    [
+      systemSwitches,
+      systemVariables,
+      systemStartMapId,
+      systemStartX,
+      systemStartY,
+      systemPlayerGraphic
+    ],
+    () => {
+      // Only save if project is actually loaded and we are not in initial load phase?
+      // ProjectService.isLoaded() check is good.
+      if (ProjectService.isLoaded()) {
+        const sysData: import('@engine/types').ZSystemData = {
+          switches: systemSwitches.value,
+          variables: systemVariables.value,
+          startMapId: systemStartMapId.value,
+          startX: systemStartX.value,
+          startY: systemStartY.value,
+          playerGraphic: systemPlayerGraphic.value
+        }
+        ProjectService.saveSystemData(sysData).catch((err) =>
+          console.error('Auto-save system failed', err)
+        )
+      }
+    },
+    { deep: true }
+  )
 
   // ==========================================
   // 3. HISTORY MODULE (UNDO/REDO)

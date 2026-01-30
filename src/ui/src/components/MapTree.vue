@@ -56,16 +56,24 @@ const openEditMapModal = (): void => {
 
       <div class="flex gap-2">
         <button
+          :disabled="store.isTestMode"
           :class="[
-            'flex items-center justify-center gap-2 p-1 rounded-md  cursor-pointer transition-colors hover:text-black hover:bg-gray-100'
+            'flex items-center justify-center gap-2 p-1 rounded-md transition-colors',
+            store.isTestMode
+              ? 'opacity-50 cursor-not-allowed'
+              : 'cursor-pointer hover:text-black hover:bg-gray-100'
           ]"
           @click="openNewMapModal"
         >
           <IconPlus :size="24" />
         </button>
         <button
+          :disabled="store.isTestMode"
           :class="[
-            'flex items-center justify-center gap-2 p-1 rounded-md cursor-pointer transition-colors hover:text-black hover:bg-gray-100'
+            'flex items-center justify-center gap-2 p-1 rounded-md transition-colors',
+            store.isTestMode
+              ? 'opacity-50 cursor-not-allowed'
+              : 'cursor-pointer hover:text-black hover:bg-gray-100'
           ]"
           @click="store.importMapFromJSON"
         >
@@ -78,12 +86,13 @@ const openEditMapModal = (): void => {
       v-for="map in store.maps"
       :key="map.id"
       :class="[
-        'flex items-center gap-2 px-3 py-2 rounded-md  cursor-pointer transition-colors',
+        'flex items-center gap-2 px-3 py-2 rounded-md transition-colors',
+        store.isTestMode ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer',
         map.id === store.activeMapID
           ? 'bg-black text-white hover:bg-black hover:text-white shadow-[0_0_10px_rgba(0,0,0,0.3)]'
-          : 'hover:text-black hover:bg-gray-100'
+          : !store.isTestMode && 'hover:text-black hover:bg-gray-100'
       ]"
-      @click="store.setActiveMap(map.id)"
+      @click="!store.isTestMode && store.setActiveMap(map.id)"
     >
       <div class="flex items-center gap-2 w-1/2">
         <IconMap :size="24" />
@@ -97,10 +106,14 @@ const openEditMapModal = (): void => {
           >{{ getMapSizeInKB(map).toPrecision(2) }} KB</span
         >
         <button
+          :disabled="store.isTestMode"
           :class="[
-            'flex items-center justify-center gap-2 rounded-md cursor-pointer transition-all duration-150 hover:text-gray-500 '
+            'flex items-center justify-center gap-2 rounded-md transition-all duration-150',
+            store.isTestMode
+              ? 'opacity-50 cursor-not-allowed'
+              : 'cursor-pointer hover:text-gray-500'
           ]"
-          @click.stop="showContextMenu(map.id, $event)"
+          @click.stop="!store.isTestMode && showContextMenu(map.id, $event)"
         >
           <IconDotsVertical :size="18" />
         </button>
