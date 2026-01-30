@@ -1,5 +1,4 @@
-import { ref, shallowRef, onUnmounted, watch, nextTick, type Ref } from 'vue'
-import { until } from '@vueuse/core'
+import { ref, shallowRef, onUnmounted, watch, type Ref } from 'vue'
 import { ZEngine } from '@engine/core/ZEngine'
 import { useEditorStore } from '@ui/stores/editor'
 import { ProjectService } from '../services/ProjectService'
@@ -12,6 +11,7 @@ import { GridSystem } from '@engine/systems/GridSystem'
 import { PlayerSystem } from '@engine/systems/PlayerSystem'
 import { EntityRenderSystem } from '@engine/systems/EntityRenderSystem'
 import { TransitionSystem } from '@engine/systems/TransitionSystem'
+import { nextTick } from 'vue'
 
 export const useEngine = (
   canvasContainer: Ref<HTMLElement | null>
@@ -235,21 +235,8 @@ export const useEngine = (
             renderSystem.hidePlayerStartMarker()
 
             // GAME START LOGIC
-            const systemStartMapId = store.systemStartMapId
-
-            // If current map is NOT the start map, load the start map
-            if (store.activeMap && store.activeMap.id !== systemStartMapId) {
-              console.log('[GameStart] Switching to Start Map:', systemStartMapId)
-
-              // 1. Trigger Map Switch
-              store.setActiveMap(systemStartMapId)
-
-              // 2. Wait for loading to finish
-              await nextTick()
-              await until(isLoading).toBe(false)
-            }
-
-            // 3. Set Player Position (Now we are on the correct map)
+            // Map is already switched to start map by EditorBar.togglePlay()
+            // Just set player position
             const playerSystem = eng.services.get(PlayerSystem)
             if (playerSystem) {
               playerSystem.x = store.systemStartX

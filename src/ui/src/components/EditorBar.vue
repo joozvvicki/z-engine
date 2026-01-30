@@ -21,7 +21,16 @@ const store = useEditorStore()
 
 const previousLayer = ref<ZLayer | null>(null)
 
-const togglePlay = (event?: MouseEvent): void => {
+const togglePlay = async (event?: MouseEvent): Promise<void> => {
+  // Before entering test mode, switch to start map if not already there
+  if (!store.isTestMode && store.activeMapID !== store.systemStartMapId) {
+    console.log('[EditorBar] Switching to start map:', store.systemStartMapId)
+    store.setActiveMap(store.systemStartMapId)
+
+    // Wait for map to load
+    await new Promise((resolve) => setTimeout(resolve, 100))
+  }
+
   store.toggleTestMode()
 
   if (store.isTestMode) {
