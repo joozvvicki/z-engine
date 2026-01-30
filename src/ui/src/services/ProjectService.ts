@@ -209,4 +209,20 @@ export class ProjectService {
     }
     return path
   }
+
+  public static async getProjectFiles(subpath: string): Promise<string[]> {
+    if (!this.projectPath) return []
+    try {
+      // subpath e.g. "img/tilesets"
+      // We need absolute path for listDirectory? No, our IPC is simple fs.readdir.
+      // But IPC wrapper fs:listDirectory expects a full path or we resolve it?
+      // In main.ts: return await fs.readdir(path) -- it takes whatever path.
+      // So front-end needs to construct full path.
+      const fullDir = `${this.projectPath}/${subpath}`
+      const files = await window.api.listDirectory(fullDir)
+      return files
+    } catch {
+      return []
+    }
+  }
 }

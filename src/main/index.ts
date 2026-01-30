@@ -138,6 +138,15 @@ app.whenReady().then(() => {
     }
   })
 
+  ipcMain.handle('fs:listDirectory', async (_, path) => {
+    try {
+      // Return filenames only
+      return await fs.readdir(path)
+    } catch {
+      return []
+    }
+  })
+
   createWindow()
 
   app.on('activate', function () {

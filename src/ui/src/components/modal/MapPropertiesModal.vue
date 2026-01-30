@@ -33,6 +33,7 @@ watch(
   () => props.isOpen,
   (open) => {
     if (open) {
+      store.refreshTilesetList() // Refresh file list from project
       // Clear/Reset the config object with all slots
       const cleanConfig: Record<string, string> = {}
       TILESET_SLOTS.forEach((slot) => (cleanConfig[slot] = ''))

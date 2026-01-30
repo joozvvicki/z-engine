@@ -14,7 +14,7 @@ export const createEmptyLayers = (
   }
 > => {
   const createGrid = (): (TileSelection[] | null)[][] => {
-    return Array.from({ length: height }, () => Array(width).fill(null))
+    return Array.from({ length: height }, () => Array.from({ length: width }, () => []))
   }
   return {
     [ZLayer.ground]: { data: createGrid(), index: 0, icon: 'background' },

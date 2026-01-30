@@ -7,7 +7,8 @@ const api = {
   writeProjectFile: (path: string, content: string): Promise<void> =>
     ipcRenderer.invoke('fs:writeFile', path, content),
   createDirectory: (path: string): Promise<void> => ipcRenderer.invoke('fs:mkdir', path),
-  checkFileExists: (path: string): Promise<boolean> => ipcRenderer.invoke('fs:exists', path)
+  checkFileExists: (path: string): Promise<boolean> => ipcRenderer.invoke('fs:exists', path),
+  listDirectory: (path: string): Promise<string[]> => ipcRenderer.invoke('fs:listDirectory', path)
 }
 
 // Use `contextBridge` APIs to expose Electron APIs to

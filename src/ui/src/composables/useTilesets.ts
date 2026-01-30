@@ -1,4 +1,4 @@
-import { computed, type Ref, type ComputedRef } from 'vue'
+import { computed, ref, type Ref, type ComputedRef } from 'vue'
 import { TILESETS } from '../stores/editor/constants'
 import type { ZMap, TilesetConfig } from '@engine/types'
 import { ProjectService } from '../services/ProjectService'
@@ -20,6 +20,7 @@ export const useTilesets = (
       dirBlock: number
     }>
   ) => void
+  refreshTilesetList: () => Promise<void>
   getTileConfig: (tilesetUrl: string, x: number, y: number) => TilesetConfig['key'] | undefined
   getTileConfigMap: (tilesetUrl: string) => Record<string, TilesetConfig['key']> | undefined
   tilesetFileList: ComputedRef<{ name: string; url: string; relativePath: string }[]>
@@ -79,21 +80,40 @@ export const useTilesets = (
     return storedTilesetConfigs.value[normalizedUrl]
   }
 
-  // Scanning available tileset files
-  const availableTilesetFiles = import.meta.glob('@ui/assets/img/tilesets/*.png', {
-    eager: true,
-    as: 'url'
-  })
+  // Reactive state for file list
+  const tilesetFiles = ref<{ name: string; url: string; relativePath: string }[]>([])
 
-  // Computed: Dynamically resolve tileset list for properties modal
-  const tilesetFileList = computed(() => {
-    return Object.entries(availableTilesetFiles).map(([path, url]) => {
-      const name = path.split('/').pop() || path
-      // Construct project-relative path (standardized key)
-      const relativePath = `img/tilesets/${name}`
-      return { name, url: url as string, relativePath }
-    })
-  })
+  const refreshTilesetList = async () => {
+    if (!ProjectService.isLoaded()) {
+      tilesetFiles.value = []
+      return
+    }
+
+    try {
+      // List files from project img/tilesets/
+      const fileNames = await ProjectService.getProjectFiles('img/tilesets')
+
+      // Filter for images and map to structure
+      tilesetFiles.value = fileNames
+        .filter((f) => f.match(/\.(png|jpe?g)$/i))
+        .map((name) => {
+          const relativePath = `img/tilesets/${name}`
+          return {
+            name,
+            url: ProjectService.resolveAssetUrl(relativePath), // Pre-resolved for UI if needed, though Modal resolves it again?
+            relativePath
+          }
+        })
+    } catch (e) {
+      console.error('Failed to load tilesets', e)
+      tilesetFiles.value = []
+    }
+  }
+
+  // Initial load
+  refreshTilesetList()
+
+  const tilesetFileList = computed(() => tilesetFiles.value)
 
   // Computed: Dynamically resolve tilesets for the current map
   const currentMapTilesets = computed(() => {
@@ -118,6 +138,7 @@ export const useTilesets = (
 
   return {
     updateTileConfig,
+    refreshTilesetList,
     getTileConfig,
     getTileConfigMap,
     tilesetFileList,
