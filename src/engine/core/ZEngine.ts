@@ -16,6 +16,7 @@ import { MessageSystem } from '@engine/systems/MessageSystem'
 import { PlayerSystem } from '@engine/systems/PlayerSystem'
 import { RenderSystem } from '@engine/systems/RenderSystem'
 import { TransitionSystem } from '@engine/systems/TransitionSystem'
+import { ErrorSystem } from '@engine/systems/ErrorSystem'
 import { TextureManager } from '@engine/managers/TextureManager'
 import ZLogger from '@engine/core/ZLogger'
 
@@ -55,41 +56,49 @@ export class ZEngine {
     this.app.stage.hitArea = this.app.screen
     this.app.stage.sortableChildren = true
 
-    EngineBootstrapper.registerSystems(
-      this.services,
-      this.app.stage,
-      tileSize,
-      this.app.screen.width,
-      this.app.screen.height
-    )
+    try {
+      EngineBootstrapper.registerSystems(
+        this.services,
+        this.app.stage,
+        tileSize,
+        this.app.screen.width,
+        this.app.screen.height
+      )
 
-    this.lifecycle.boot()
+      this.lifecycle.boot()
 
-    // TODO: Add devtools
-
-    ZLogger.log('Hello 👋🏽 Everything is ready!')
+      ZLogger.log('Hello 👋🏽 Everything is ready!')
+    } catch (e) {
+      console.error('ZEngine Init Error:', e)
+      this.services.get(ErrorSystem)?.show(e as Error)
+    }
   }
 
   public async setMode(mode: 'edit' | 'play'): Promise<void> {
-    this.mode = mode
-    this.lifecycle.setMode(mode)
-    ZLogger.log(`Switched to ${mode} mode`)
+    try {
+      this.mode = mode
+      this.lifecycle.setMode(mode)
+      ZLogger.log(`Switched to ${mode} mode`)
 
-    const entitySystem = this.services.get(EntityRenderSystem)
-    const ghostSystem = this.services.get(GhostSystem)
-    const gridSystem = this.services.get(GridSystem)
-    const messageSystem = this.services.get(MessageSystem)
+      const entitySystem = this.services.get(EntityRenderSystem)
+      const ghostSystem = this.services.get(GhostSystem)
+      const gridSystem = this.services.get(GridSystem)
+      const messageSystem = this.services.get(MessageSystem)
 
-    if (mode === 'play') {
-      await entitySystem?.setVisible(true)
-      ghostSystem?.setVisible(false)
-      gridSystem?.setVisible(false)
-      messageSystem?.resize(this.app.screen.width, this.app.screen.height)
-      this.services.get(PlayerSystem)?.onBoot()
-    } else {
-      await entitySystem?.setVisible(false)
-      ghostSystem?.setVisible(true)
-      gridSystem?.setVisible(true)
+      if (mode === 'play') {
+        await entitySystem?.setVisible(true)
+        ghostSystem?.setVisible(false)
+        gridSystem?.setVisible(false)
+        messageSystem?.resize(this.app.screen.width, this.app.screen.height)
+        this.services.get(PlayerSystem)?.onBoot()
+      } else {
+        await entitySystem?.setVisible(false)
+        ghostSystem?.setVisible(true)
+        gridSystem?.setVisible(true)
+      }
+    } catch (e) {
+      console.error('ZEngine SetMode Error:', e)
+      this.services.get(ErrorSystem)?.show(e as Error)
     }
   }
 
@@ -103,23 +112,29 @@ export class ZEngine {
   }
 
   public resize(width: number, height: number): void {
-    const transitionSystem = this.services.get(TransitionSystem)
-    const gridSystem = this.services.get(GridSystem)
-    const messageSystem = this.services.get(MessageSystem)
+    try {
+      const transitionSystem = this.services.get(TransitionSystem)
+      const gridSystem = this.services.get(GridSystem)
+      const messageSystem = this.services.get(MessageSystem)
+      const errorSystem = this.services.get(ErrorSystem)
 
-    // Notify systems
-    transitionSystem?.resize(width, height)
-    messageSystem?.resize(width, height)
+      // Notify systems
+      transitionSystem?.resize(width, height)
+      messageSystem?.resize(width, height)
+      errorSystem?.resize(width, height)
 
-    // Grid system uses tile dimensions
-    const tileSize = this.services.get(RenderSystem)?.['tileSize'] || 48
-    gridSystem?.setSize(width / tileSize, height / tileSize)
+      // Grid system uses tile dimensions
+      const tileSize = this.services.get(RenderSystem)?.['tileSize'] || 48
+      gridSystem?.setSize(width / tileSize, height / tileSize)
 
-    // Update PIXI internals
-    this.app.resize()
-    this.app.stage.hitArea = this.app.screen
+      // Update PIXI internals
+      this.app.resize()
+      this.app.stage.hitArea = this.app.screen
 
-    ZLogger.with('ZEngine').info(`Resized to ${width}x${height}`)
+      ZLogger.with('ZEngine').info(`Resized to ${width}x${height}`)
+    } catch (e) {
+      this.services.get(ErrorSystem)?.show(e as Error)
+    }
   }
 
   public destroy(): void {

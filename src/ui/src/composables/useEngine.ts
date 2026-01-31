@@ -67,10 +67,10 @@ export const useEngine = (
 
     const newEngine = new ZEngine()
     window.$zEngine = newEngine
+    globalThis.__PIXI_APP__ = newEngine.app
 
     newEngine.setDataProvider(dataProvider)
 
-    // Preload Characters from Project Folder
     try {
       const charFiles = await ProjectService.getProjectFiles('img/characters')
       const pngFiles = charFiles.filter((f) => f.endsWith('.png'))

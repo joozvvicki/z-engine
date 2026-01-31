@@ -17,6 +17,7 @@ import { EntityRenderSystem } from '@engine/systems/EntityRenderSystem'
 import { TransitionSystem } from '@engine/systems/TransitionSystem'
 import { MessageSystem } from '@engine/systems/MessageSystem'
 import { PhysicsSystem } from '@engine/systems/PhysicsSystem'
+import { ErrorSystem } from '@engine/systems/ErrorSystem'
 import { Container } from '@engine/utils/pixi'
 
 export class EngineBootstrapper {
@@ -54,5 +55,9 @@ export class EngineBootstrapper {
     const messageSystem = new MessageSystem(stage, services)
     services.register(MessageSystem, messageSystem)
     messageSystem.resize(screenWidth, screenHeight)
+
+    const errorSystem = new ErrorSystem(stage, services)
+    services.register(ErrorSystem, errorSystem)
+    errorSystem.resize(screenWidth, screenHeight)
   }
 }
