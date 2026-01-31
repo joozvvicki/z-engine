@@ -131,6 +131,8 @@ export class RenderSystem extends ZSystem {
 
     // 2. Iterate each tile in the stack individually
     tiles.forEach((selection, index) => {
+      if (!selection || !selection.tilesetId) return
+
       const tex = this.textures.get(selection.tilesetId)
       if (!tex) return
 

@@ -13,6 +13,8 @@ export class SpriteUtils {
     tileSize: number,
     isEditor: boolean = false
   ): PIXI.Sprite | null {
+    if (!graphic || !graphic.assetId) return null
+
     const tex = textureManager.get(graphic.assetId)
     if (!tex) return null
 

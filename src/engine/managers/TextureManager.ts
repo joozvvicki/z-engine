@@ -35,6 +35,10 @@ export class TextureManager {
   }
 
   public get(id: string): PIXI.Texture | undefined {
+    if (!id || id === 'undefined') {
+      return undefined
+    }
+
     const texture = this.textures.get(id)
     if (!texture) {
       ZLogger.with('TextureManager').warn(`Texture ${id} not found`)
