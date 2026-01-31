@@ -4,20 +4,56 @@ import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import installExtension from 'electron-devtools-installer'
-import { BuildService } from './BuildService'
+import { BuildService } from './services/build.service'
+import Store from 'electron-store'
+
+// @ts-ignore - electron-store might be imported as { default: Store } depending on build config
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const StoreConstructor = typeof Store === 'function' ? Store : (Store as any).default
+const store = new StoreConstructor()
 
 function createWindow(): void {
-  const mainWindow = new BrowserWindow({
+  const windowState = store.get('windowState', {
     width: 1600,
     height: 900,
+    x: undefined,
+    y: undefined,
+    isMaximized: false
+  }) as { width: number; height: number; x?: number; y?: number; isMaximized: boolean }
+
+  const mainWindow = new BrowserWindow({
+    width: windowState.width,
+    height: windowState.height,
+    x: windowState.x,
+    y: windowState.y,
     show: false,
     autoHideMenuBar: true,
-    ...(process.platform === 'linux' ? { icon } : {}),
+    ...(process.platform === 'linux' || process.platform === 'darwin' ? { icon } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: true
     }
   })
+
+  const saveState = (): void => {
+    const isMaximized = mainWindow.isMaximized()
+    if (!isMaximized) {
+      store.set('windowState', {
+        ...mainWindow.getBounds(),
+        isMaximized: false
+      })
+    } else {
+      store.set('windowState.isMaximized', true)
+    }
+  }
+
+  mainWindow.on('resize', saveState)
+  mainWindow.on('move', saveState)
+  mainWindow.on('close', saveState)
+
+  if (windowState.isMaximized) {
+    mainWindow.maximize()
+  }
 
   mainWindow.on('ready-to-show', async () => {
     mainWindow.show()

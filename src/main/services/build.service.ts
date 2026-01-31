@@ -172,11 +172,12 @@ export class BuildService {
         const { stdout, stderr } = await execAsync('npx tauri build', { cwd: buildDir, env })
         console.log('[BuildService] Build stdout:', stdout)
         if (stderr) console.warn('[BuildService] Build stderr:', stderr)
-      } catch (e: any) {
-        console.error('[BuildService] Build failed with error:', e.message)
-        console.error('[BuildService] Build stdout:', e.stdout)
-        console.error('[BuildService] Build stderr:', e.stderr)
-        throw e
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } catch (err: any) {
+        console.error('[BuildService] Build failed with error:', err.message)
+        console.error('[BuildService] Build stdout:', err.stdout)
+        console.error('[BuildService] Build stderr:', err.stderr)
+        throw err
       }
 
       // 6. Move Output
@@ -205,7 +206,7 @@ export class BuildService {
           console.log('[BuildService] Removing macOS quarantine attributes...')
           try {
             await execAsync(`xattr -cr "${distDir}"`)
-          } catch (e) {
+          } catch {
             // Ignore error if no attributes found
           }
         }
