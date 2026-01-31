@@ -83,7 +83,7 @@ export const useTilesets = (
   // Reactive state for file list
   const tilesetFiles = ref<{ name: string; url: string; relativePath: string }[]>([])
 
-  const refreshTilesetList = async () => {
+  const refreshTilesetList = async (): Promise<void> => {
     if (!ProjectService.isLoaded()) {
       tilesetFiles.value = []
       return

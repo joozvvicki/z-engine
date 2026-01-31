@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import type { ZMap, TilesetConfig, ZSystemData, TileSelection } from '@engine/types'
 import { VERSION } from 'pixi.js'
 
@@ -233,7 +234,11 @@ export class ProjectService {
 
   private static async copyDefaultAssets(projectPath: string): Promise<void> {
     // 1. Tilesets
-    const tilesets = import.meta.glob('@ui/assets/img/tilesets/*.png', { eager: true, as: 'url' })
+    const tilesets = import.meta.glob('@ui/assets/img/tilesets/*.png', {
+      eager: true,
+      query: '?url',
+      import: 'default'
+    })
     for (const [path, url] of Object.entries(tilesets)) {
       try {
         const response = await fetch(url as string)
@@ -252,7 +257,8 @@ export class ProjectService {
     // 2. Character
     const characters = import.meta.glob('@ui/assets/img/characters/*.png', {
       eager: true,
-      as: 'url'
+      query: '?url',
+      import: 'default'
     })
     for (const [path, url] of Object.entries(characters)) {
       try {
