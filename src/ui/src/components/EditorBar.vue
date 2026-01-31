@@ -113,23 +113,25 @@ const handleKeydown = (e: KeyboardEvent): void => {
         break
       case 'ArrowUp': {
         if (store.isTestMode) break
-        const currentLayerID = store.activeMap?.layers[store.activeLayer] ? store.activeLayer : null
-        if (!currentLayerID) return
-        const layerKeys = Object.keys(store.activeMap!.layers)
-        const currentIndex = layerKeys.indexOf(currentLayerID)
-        const nextIndex = (currentIndex + 1) % layerKeys.length
-        store.setLayer(layerKeys[nextIndex] as ZLayer)
+        const layerKeys = sortedLayers.value.map(([key]) => key as ZLayer)
+        if (layerKeys.length === 0) return
+
+        const currentIndex = layerKeys.indexOf(store.activeLayer)
+        // If current layer isn't in visible list (like 'events'), start from first visible
+        const nextIndex =
+          currentIndex === -1 ? 0 : (currentIndex - 1 + layerKeys.length) % layerKeys.length
+        store.setLayer(layerKeys[nextIndex])
         e.preventDefault()
         break
       }
       case 'ArrowDown': {
         if (store.isTestMode) break
-        const currLayerID = store.activeMap?.layers[store.activeLayer] ? store.activeLayer : null
-        if (!currLayerID) return
-        const lKeys = Object.keys(store.activeMap!.layers)
-        const currIndex = lKeys.indexOf(currLayerID)
-        const prevIndex = (currIndex - 1 + lKeys.length) % lKeys.length
-        store.setLayer(lKeys[prevIndex] as ZLayer)
+        const layerKeys = sortedLayers.value.map(([key]) => key as ZLayer)
+        if (layerKeys.length === 0) return
+
+        const currentIndex = layerKeys.indexOf(store.activeLayer)
+        const nextIndex = currentIndex === -1 ? 0 : (currentIndex + 1) % layerKeys.length
+        store.setLayer(layerKeys[nextIndex])
         e.preventDefault()
         break
       }
