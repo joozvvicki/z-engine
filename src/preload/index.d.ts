@@ -5,6 +5,8 @@ export interface LocalAPI {
   createDirectory: (path: string) => Promise<void>
   checkFileExists: (path: string) => Promise<boolean>
   listDirectory: (path: string) => Promise<string[]>
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  buildGame: (options: any) => Promise<{ success: boolean; message: string }>
 }
 
 declare global {

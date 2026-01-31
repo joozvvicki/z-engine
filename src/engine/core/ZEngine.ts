@@ -14,7 +14,7 @@ import { GhostSystem } from '@engine/systems/GhostSystem'
 import { GridSystem } from '@engine/systems/GridSystem'
 import { MessageSystem } from '@engine/systems/MessageSystem'
 import { PlayerSystem } from '@engine/systems/PlayerSystem'
-import { initDevtools } from '@pixi/devtools'
+import { TextureManager } from '@engine/managers/TextureManager'
 import ZLogger from '@engine/core/ZLogger'
 
 export class ZEngine {
@@ -63,15 +63,12 @@ export class ZEngine {
 
     this.lifecycle.boot()
 
-    if (import.meta.env.DEV) {
-      window.__PIXI_APP__ = this.app
-      initDevtools({ app: this.app })
-    }
+    // TODO: Add devtools
 
     ZLogger.log('Hello 👋🏽 Everything is ready!')
   }
 
-  public setMode(mode: 'edit' | 'play'): void {
+  public async setMode(mode: 'edit' | 'play'): Promise<void> {
     this.mode = mode
     this.lifecycle.setMode(mode)
     ZLogger.log(`Switched to ${mode} mode`)
@@ -82,19 +79,20 @@ export class ZEngine {
     const messageSystem = this.services.get(MessageSystem)
 
     if (mode === 'play') {
-      entitySystem?.setVisible(true)
+      await entitySystem?.setVisible(true)
       ghostSystem?.setVisible(false)
       gridSystem?.setVisible(false)
       messageSystem?.resize(this.app.screen.width, this.app.screen.height)
       this.services.get(PlayerSystem)?.onBoot()
     } else {
-      entitySystem?.setVisible(false)
+      await entitySystem?.setVisible(false)
       ghostSystem?.setVisible(true)
       gridSystem?.setVisible(true)
     }
   }
 
   public setDataProvider(provider: ZDataProvider): void {
+    this.services.require(TextureManager).setDataProvider(provider)
     this.services.require(SceneManager).setDataProvider(provider)
     this.services.require(ToolManager).setDataProvider(provider)
     this.services.require(HistoryManager).setDataProvider(provider)

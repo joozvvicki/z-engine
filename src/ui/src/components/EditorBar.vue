@@ -11,15 +11,22 @@ import {
   IconBox,
   IconScan,
   IconPlayerPlay,
-  IconPlayerStop
+  IconPlayerStop,
+  IconPackage // Added IconPackage
 } from '@tabler/icons-vue'
 import DynamicIcon from './DynamicIcon.vue'
+import BuildGameModal from './BuildGameModal.vue' // Added BuildGameModal import
 import { computed, onMounted, ref, watch, nextTick } from 'vue'
 import { ZLayer, ZTool } from '@engine/types'
 
 const store = useEditorStore()
 
 const previousLayer = ref<ZLayer | null>(null)
+const buildModal = ref<InstanceType<typeof BuildGameModal> | null>(null) // Added buildModal ref
+
+const buildGame = () => {
+  buildModal.value?.open()
+}
 
 const togglePlay = async (event?: MouseEvent): Promise<void> => {
   // Before entering test mode, switch to start map if not already there
@@ -310,6 +317,19 @@ onMounted(() => {
     </div>
     <div class="flex flex-col gap-1 bg-white/10 backdrop-blur-lg rounded-xl border border-white/5">
       <button
+        class="relative p-1 rounded-lg transition-all duration-200 cursor-pointer group text-blue-400 hover:text-blue-300"
+        @click="buildGame"
+        title="Build Game"
+      >
+        <IconPackage />
+        <div
+          class="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 px-2 py-1 bg-black text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap"
+        >
+          Build Game
+        </div>
+      </button>
+
+      <button
         class="relative p-1 rounded-lg transition-all duration-200 cursor-pointer group"
         :class="store.isTestMode ? 'text-green-400' : 'text-black hover:text-green-600'"
         @click="togglePlay"
@@ -375,4 +395,5 @@ onMounted(() => {
       </button>
     </div>
   </div>
+  <BuildGameModal ref="buildModal" />
 </template>

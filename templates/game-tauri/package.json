@@ -1,0 +1,18 @@
+{
+  "name": "z-engine-game",
+  "version": "1.0.0",
+  "description": "Z-Engine Game",
+  "scripts": {
+    "dev": "tauri dev",
+    "build": "vite build && tauri build",
+    "bundle": "vite build"
+  },
+  "dependencies": {
+    "@z-engine/core": "workspace:*",
+    "pixi.js": "^8.0.0"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.2.0",
+    "vite": "^5.0.0"
+  }
+}

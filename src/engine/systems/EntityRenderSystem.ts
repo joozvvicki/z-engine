@@ -33,7 +33,7 @@ export class EntityRenderSystem extends ZSystemCore {
     this.renderSystem = undefined as unknown as RenderSystem
   }
 
-  public loadEvents(): void {
+  public async loadEvents(): Promise<void> {
     this.eventSprites.forEach((sprite) => {
       sprite.destroy()
     })
@@ -42,11 +42,15 @@ export class EntityRenderSystem extends ZSystemCore {
     const map = this.map.currentMap
     if (!map || !map.events) return
 
-    map.events.forEach((event) => {
-      if (event.name === 'PlayerStart') return
+    for (const event of map.events) {
+      if (event.name === 'PlayerStart') continue
 
       const activePage = event.pages[0]
-      if (!activePage || !activePage.graphic) return
+      if (!activePage || !activePage.graphic) continue
+
+      // Ensure texture is loaded
+      await this.textures.load(activePage.graphic.assetId)
+
       const sprite = SpriteUtils.createEventSprite(
         activePage.graphic,
         this.textures,
@@ -67,7 +71,7 @@ export class EntityRenderSystem extends ZSystemCore {
         this.container.addChild(sprite)
         this.eventSprites.set(event.id, sprite)
       }
-    })
+    }
   }
 
   public async onBoot(): Promise<void> {
@@ -81,13 +85,10 @@ export class EntityRenderSystem extends ZSystemCore {
 
   private async createPlayerSprite(): Promise<void> {
     try {
-      // TODO: Use a proper asset loading system or data provider
-      // For now, we rely on the TextureManager having the asset loaded (e.g. by RenderSystem or Preloader)
-      // or we can use the data provider to resolve it if needed, but here we are inside the engine.
-      // Ideally, the PlayerSystem or SceneManager should handle loading player assets.
-
       const charPath = 'img/characters/character.png'
-      // We assume it is already loaded or we fail gracefully
+
+      // Ensure texture is loaded
+      await this.textures.load(charPath)
 
       const graphic = {
         assetId: charPath,
@@ -97,10 +98,6 @@ export class EntityRenderSystem extends ZSystemCore {
         w: 1,
         h: 1
       }
-
-      // Try to ensure it is loaded?
-      // const url = this.services.get(ZManager)?.getDataProvider().resolveAssetUrl(charPath)
-      // if (url) await this.textures.loadTileset(charPath, url)
 
       this.playerSprite = SpriteUtils.createEventSprite(
         graphic,
@@ -148,9 +145,6 @@ export class EntityRenderSystem extends ZSystemCore {
   public async setPlayerGraphic(assetPath: string): Promise<void> {
     if (!assetPath) return
 
-    // Check if we need to release old texture?
-    // For now, simpler to just recreate sprite.
-
     if (this.playerSprite) {
       this.playerSprite.destroy()
       this.playerSprite = null
@@ -165,19 +159,10 @@ export class EntityRenderSystem extends ZSystemCore {
       h: 1
     }
 
-    // Attempt to load if not already loaded?
-    // We assume TextureManager might have it or we need to generic load it.
-    // But SpriteUtils uses TextureManager synchronous getTileset usually?
-    // SpriteUtils.createEventSprite calls TextureManager.getTileset
-
-    // We might need to ensure it is loaded.
-    // If it is a generic path like 'img/characters/foo.png', we need to resolve it.
-    // We can use the data provider?
-    // But we are in a System.
-    // Let's assume for now the Bootstrapper or useEngine preloads it.
-    // useEngine preloads ALL characters in the folder.
-
     try {
+      // Ensure texture is loaded
+      await this.textures.load(assetPath)
+
       this.playerSprite = SpriteUtils.createEventSprite(
         graphic,
         this.textures,

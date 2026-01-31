@@ -61,7 +61,7 @@ export class SceneManager extends ZManager {
 
     this.map.setMap(map)
     renderSystem?.setMap(map)
-    entityRenderSystem?.loadEvents()
+    await entityRenderSystem?.loadEvents()
 
     this.isLoading = false
     ZLogger.log(`[SceneManager] Map ${map.id} loaded and rendered`)

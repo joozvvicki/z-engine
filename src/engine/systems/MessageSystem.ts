@@ -105,7 +105,7 @@ export class MessageSystem extends ZSystemCore {
 
     this.bus.emit(ZEngineSignal.MessageClosed, {})
 
-    const eventSystem = window.$zEngine?.services.get(EventSystem)
+    const eventSystem = this.services.get(EventSystem)
     if (eventSystem) {
       eventSystem.finishMessage()
     }

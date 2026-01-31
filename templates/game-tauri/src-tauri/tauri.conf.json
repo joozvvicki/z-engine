@@ -1,0 +1,39 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Z-Engine Game",
+  "version": "1.0.0",
+  "identifier": "pl.z-engine.game",
+  "build": {
+    "beforeDevCommand": "npm run bundle",
+    "beforeBuildCommand": "npm run bundle",
+    "devUrl": "http://localhost:1420",
+    "frontendDist": "../dist"
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": ["icons/icon.png"],
+    "resources": [],
+    "macOS": {
+      "minimumSystemVersion": "10.13"
+    }
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Z-Engine Game",
+        "width": 1280,
+        "height": 720,
+        "resizable": true,
+        "fullscreen": false,
+        "center": true,
+        "minWidth": 800,
+        "minHeight": 600,
+        "devtools": true
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  }
+}

@@ -1,6 +1,7 @@
 class ZLogger {
   private tag: string
-  private isDebugging: boolean = import.meta.env.DEV
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private isDebugging: boolean = (import.meta as any).env?.DEV
 
   constructor(tag: string) {
     this.tag = tag

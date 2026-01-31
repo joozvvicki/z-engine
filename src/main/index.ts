@@ -4,6 +4,7 @@ import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import installExtension from 'electron-devtools-installer'
+import { BuildService } from './BuildService'
 
 function createWindow(): void {
   const mainWindow = new BrowserWindow({
@@ -52,6 +53,9 @@ protocol.registerSchemesAsPrivileged([
 
 app.whenReady().then(() => {
   electronApp.setAppUserModelId('pl.joozvvicki.z-engine')
+
+  // Initialize Services
+  new BuildService()
 
   // Register custom protocol for local file access
   protocol.handle('z-proj', async (request) => {

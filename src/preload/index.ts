@@ -8,7 +8,10 @@ const api = {
     ipcRenderer.invoke('fs:writeFile', path, content),
   createDirectory: (path: string): Promise<void> => ipcRenderer.invoke('fs:mkdir', path),
   checkFileExists: (path: string): Promise<boolean> => ipcRenderer.invoke('fs:exists', path),
-  listDirectory: (path: string): Promise<string[]> => ipcRenderer.invoke('fs:listDirectory', path)
+  listDirectory: (path: string): Promise<string[]> => ipcRenderer.invoke('fs:listDirectory', path),
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  buildGame: (options: any): Promise<{ success: boolean; message: string }> =>
+    ipcRenderer.invoke('project:buildGame', options)
 }
 
 // Use `contextBridge` APIs to expose Electron APIs to

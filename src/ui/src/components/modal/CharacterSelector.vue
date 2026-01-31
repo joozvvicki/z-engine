@@ -22,7 +22,11 @@ const frameHeight = ref(props.initialPixelH || 48)
 // For simpler UX, we stick to index-based selection but the grid changes.
 
 // Use relative path for glob to ensure it works without alias issues
-const modules = import.meta.glob('../../assets/img/characters/*.png', { eager: true, as: 'url' })
+const modules = import.meta.glob('../../assets/img/characters/*.png', {
+  eager: true,
+  query: '?url',
+  import: 'default'
+})
 
 // Prepare file list
 const files = Object.keys(modules).map((path) => {
