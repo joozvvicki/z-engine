@@ -1,10 +1,10 @@
 {
-  "name": "z-engine",
+  "name": "invarts-studio-creator",
   "version": "0.1.0",
-  "description": "A 2D tile-based game engine",
+  "description": "Editor for InvArts Studio",
   "main": "./out/main/index.js",
   "author": "Dominik Jóźwicki <joozvvicki@gmail.com>",
-  "homepage": "https://github.com/joozvvicki/z-engine",
+  "homepage": "https://github.com/joozvvicki/invarts-studio-creator",
   "scripts": {
     "format": "prettier --write .",
     "lint": "eslint --cache .",

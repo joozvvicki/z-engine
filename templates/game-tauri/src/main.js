@@ -59,6 +59,18 @@ async function init() {
   sceneManager.setMapChangeCallback(async (mapId, x, y) => {
     const nextMap = await provider.getMap(mapId)
     if (nextMap) {
+      // Sync size for the target map
+      const tileSize = 48 // Standard
+      const w = nextMap.width * tileSize
+      const h = nextMap.height * tileSize
+
+      // Update container style
+      container.style.width = `${w}px`
+      container.style.height = `${h}px`
+
+      // Notify engine
+      engine.resize(w, h)
+
       await sceneManager.loadMap(nextMap)
       playerSystem.x = x
       playerSystem.y = y

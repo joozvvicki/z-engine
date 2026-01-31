@@ -2,7 +2,7 @@ import { ref, shallowRef, onUnmounted, watch, type Ref } from 'vue'
 import { ZEngine } from '@engine/core/ZEngine'
 import { useEditorStore } from '@ui/stores/editor'
 import { ProjectService } from '../services/ProjectService'
-import { ZLayer, ZTool, type TileSelection, type ZDataProvider } from '@engine/types'
+import { ZLayer, ZTool, type TileSelection, type ZDataProvider, type ZMap } from '@engine/types'
 import { TextureManager } from '@engine/managers/TextureManager'
 import { TilesetManager } from '@engine/managers/TilesetManager'
 import { SceneManager } from '@engine/managers/SceneManager'
@@ -10,7 +10,6 @@ import { RenderSystem } from '@engine/systems/RenderSystem'
 import { GridSystem } from '@engine/systems/GridSystem'
 import { PlayerSystem } from '@engine/systems/PlayerSystem'
 import { EntityRenderSystem } from '@engine/systems/EntityRenderSystem'
-import { TransitionSystem } from '@engine/systems/TransitionSystem'
 import { nextTick } from 'vue'
 
 export const useEngine = (
@@ -88,6 +87,9 @@ export const useEngine = (
     }
     await newEngine.init(canvasContainer.value, store.tileSize)
 
+    // Initial sync
+    syncCanvasSize(newEngine)
+
     if (store.activeMap) {
       await newEngine.services.require(SceneManager).loadMap(store.activeMap)
     }
@@ -96,12 +98,7 @@ export const useEngine = (
     engine.value = newEngine
 
     // Grid Size setup
-    const isEventTool = store.currentTool === ZTool.event
-    const gridSystem = newEngine.services.get(GridSystem)
-    gridSystem?.setSize(
-      isEventTool ? store.activeMap.width : 0,
-      isEventTool ? store.activeMap.height : 0
-    )
+    syncGridSize(newEngine)
 
     const renderSystem = newEngine.services.get(RenderSystem)
     isEngineReady.value = renderSystem?.IsMapLoaded() ?? false
@@ -132,6 +129,10 @@ export const useEngine = (
         // Update store to reflect new active map (for UI sync)
         store.setActiveMap(mapId)
 
+        // Sync size for the target map before loading logic?
+        // Or after loadMap? Better before or during.
+        syncCanvasSize(newEngine, targetMap)
+
         // Load the map through SceneManager (handles tilesets, rendering, etc.)
         await newEngine.services.require(SceneManager).loadMap(targetMap)
 
@@ -148,38 +149,74 @@ export const useEngine = (
     })
   }
 
+  const syncCanvasSize = (eng: ZEngine, targetMapOverride?: ZMap): void => {
+    const map = targetMapOverride || store.activeMap
+    if (!map || !canvasContainer.value) return
+
+    const w = map.width * store.tileSize
+    const h = map.height * store.tileSize
+
+    // 1. Update Container CSS
+    canvasContainer.value.style.width = `${w}px`
+    canvasContainer.value.style.height = `${h}px`
+
+    // 2. Notify Engine
+    eng.resize(w, h)
+  }
+
+  const syncGridSize = (eng: ZEngine): void => {
+    if (!store.activeMap) return
+    const gridSystem = eng.services.get(GridSystem)
+    if (gridSystem) {
+      const isEventTool = store.currentTool === ZTool.event
+      gridSystem.setSize(
+        isEventTool ? store.activeMap.width : 0,
+        isEventTool ? store.activeMap.height : 0
+      )
+    }
+  }
+
   // --- Watchers for Sync ---
 
-  // 1. Map Switching
+  // 1. Map Switching & Resizing
   watch(
-    () => store.activeMap?.id,
-    async (newId) => {
-      if (newId && store.activeMap && engine.value) {
-        // Skip automatic loading in play mode to avoid race conditions
-        // In play mode, SceneManager handles all map loading via setMapChangeCallback
-        if (store.isTestMode) {
-          return
-        }
+    () => ({
+      id: store.activeMap?.id,
+      w: store.activeMap?.width,
+      h: store.activeMap?.height
+    }),
+    async (curr, prev) => {
+      if (curr.id && store.activeMap && engine.value) {
+        // Handle Resize even in play mode if dimensions changed?
+        // User reports that resizing in UI doesn't adjust canvas.
+        const sizeChanged = curr.w !== prev?.w || curr.h !== prev?.h
+        const mapChanged = curr.id !== prev?.id
 
-        isLoading.value = true
-        try {
-          const w = store.activeMap.width * store.tileSize
-          const h = store.activeMap.height * store.tileSize
-          engine.value.services.get(TransitionSystem)?.resize(w, h)
-
-          // Resize container
-          if (canvasContainer.value) {
-            canvasContainer.value.style.width = `${w}px`
-            canvasContainer.value.style.height = `${h}px`
+        if (mapChanged || sizeChanged) {
+          // Skip automatic loading in play mode ONLY IF it's just a map change (SceneManager handles that)
+          // BUT if it's a size change in the editor UI, we want to sync it.
+          if (store.isTestMode && mapChanged) {
+            return
           }
 
-          await engine.value.services.require(SceneManager).loadMap(store.activeMap)
-        } finally {
-          isLoading.value = false
+          isLoading.value = true
+          try {
+            syncCanvasSize(engine.value)
+
+            if (mapChanged) {
+              await engine.value.services.require(SceneManager).loadMap(store.activeMap)
+            } else {
+              // Just a resize? Refresh render
+              engine.value.services.get(RenderSystem)?.refresh()
+              syncGridSize(engine.value)
+            }
+          } finally {
+            isLoading.value = false
+          }
         }
       }
     },
-    { immediate: true } // Initial load handled by initEngine mostly, but this ensures sync
+    { immediate: true }
   )
 
   // 2. Tileset Config Sync

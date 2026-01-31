@@ -14,6 +14,8 @@ import { GhostSystem } from '@engine/systems/GhostSystem'
 import { GridSystem } from '@engine/systems/GridSystem'
 import { MessageSystem } from '@engine/systems/MessageSystem'
 import { PlayerSystem } from '@engine/systems/PlayerSystem'
+import { RenderSystem } from '@engine/systems/RenderSystem'
+import { TransitionSystem } from '@engine/systems/TransitionSystem'
 import { TextureManager } from '@engine/managers/TextureManager'
 import ZLogger from '@engine/core/ZLogger'
 
@@ -98,6 +100,26 @@ export class ZEngine {
     this.services.require(HistoryManager).setDataProvider(provider)
     this.services.require(GameStateManager).setDataProvider(provider)
     ZLogger.log('[ZEngine] Data Provider set')
+  }
+
+  public resize(width: number, height: number): void {
+    const transitionSystem = this.services.get(TransitionSystem)
+    const gridSystem = this.services.get(GridSystem)
+    const messageSystem = this.services.get(MessageSystem)
+
+    // Notify systems
+    transitionSystem?.resize(width, height)
+    messageSystem?.resize(width, height)
+
+    // Grid system uses tile dimensions
+    const tileSize = this.services.get(RenderSystem)?.['tileSize'] || 48
+    gridSystem?.setSize(width / tileSize, height / tileSize)
+
+    // Update PIXI internals
+    this.app.resize()
+    this.app.stage.hitArea = this.app.screen
+
+    ZLogger.with('ZEngine').info(`Resized to ${width}x${height}`)
   }
 
   public destroy(): void {

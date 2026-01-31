@@ -24,7 +24,7 @@ const store = useEditorStore()
 const previousLayer = ref<ZLayer | null>(null)
 const buildModal = ref<InstanceType<typeof BuildGameModal> | null>(null) // Added buildModal ref
 
-const buildGame = () => {
+const buildGame = (): void => {
   buildModal.value?.open()
 }
 
@@ -318,8 +318,8 @@ onMounted(() => {
     <div class="flex flex-col gap-1 bg-white/10 backdrop-blur-lg rounded-xl border border-white/5">
       <button
         class="relative p-1 rounded-lg transition-all duration-200 cursor-pointer group text-blue-400 hover:text-blue-300"
-        @click="buildGame"
         title="Build Game"
+        @click="buildGame"
       >
         <IconPackage />
         <div
