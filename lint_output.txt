@@ -1,4 +1,0 @@
-yarn run v1.22.22
-warning package.json: No license field
-warning ../package.json: No license field
-$ eslint --cache .
