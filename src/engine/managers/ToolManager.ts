@@ -1,8 +1,8 @@
 import { ZLayer, TileSelection, ZTool, ZTileDelta } from '@engine/types'
 import { ServiceLocator } from '@engine/core/ServiceLocator'
 import { ZManager } from '@engine/core/ZManager'
-import { RenderSystem } from '@engine/systems'
-import { HistoryManager } from '@engine/managers'
+import { RenderSystem } from '@engine/systems/RenderSystem'
+import { HistoryManager } from '@engine/managers/HistoryManager'
 
 /**
  * Handles editor tool logic (painting, fill, etc.) inside the engine.

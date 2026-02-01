@@ -2,7 +2,7 @@ import { Container } from '@engine/utils/pixi'
 import { ServiceLocator } from '@engine/core/ServiceLocator'
 import { ZScene } from '@engine/core/ZScene'
 import { ZManager } from '@engine/core/ZManager'
-import { TransitionSystem } from '@engine/systems'
+import { TransitionSystem } from '@engine/systems/TransitionSystem'
 import ZLogger from '@engine/utils/ZLogger'
 
 export class SceneManager extends ZManager {

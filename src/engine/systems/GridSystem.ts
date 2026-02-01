@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { Container, FederatedPointerEvent, Graphics } from '@engine/utils/pixi'
-import { ZSystem, SystemMode, ServiceLocator } from '@engine/core'
+import { ZSystem, SystemMode } from '@engine/core/ZSystem'
+import { ServiceLocator } from '@engine/core/ServiceLocator'
 
 export class GridSystem extends ZSystem {
   public container: Container

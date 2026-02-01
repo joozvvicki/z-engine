@@ -1,24 +1,24 @@
 import { Application, Container } from '@engine/utils/pixi'
 import ZLogger from '@engine/utils/ZLogger'
-import { ServiceLocator, SystemManager, EngineBootstrapper, ZEventBus } from '@engine/core'
+import { ServiceLocator } from '@engine/core/ServiceLocator'
+import { SystemManager } from '@engine/core/SystemManager'
+import { EngineBootstrapper } from '@engine/core/EngineBootstrapper'
+import { ZEventBus } from '@engine/core/ZEventBus'
 import { ZDataProvider, ZSystemData } from '@engine/types'
-import {
-  SceneManager,
-  ToolManager,
-  HistoryManager,
-  GameStateManager,
-  InputManager,
-  TextureManager
-} from '@engine/managers'
-import {
-  EntityRenderSystem,
-  GhostSystem,
-  GridSystem,
-  MessageSystem,
-  TransitionSystem,
-  ErrorSystem
-} from '@engine/systems'
-import { SceneMap, SceneBoot } from '@engine/scenes'
+import { SceneManager } from '@engine/managers/SceneManager'
+import { ToolManager } from '@engine/managers/ToolManager'
+import { HistoryManager } from '@engine/managers/HistoryManager'
+import { GameStateManager } from '@engine/managers/GameStateManager'
+import { InputManager } from '@engine/managers/InputManager'
+import { TextureManager } from '@engine/managers/TextureManager'
+import { EntityRenderSystem } from '@engine/systems/EntityRenderSystem'
+import { GhostSystem } from '@engine/systems/GhostSystem'
+import { GridSystem } from '@engine/systems/GridSystem'
+import { MessageSystem } from '@engine/systems/MessageSystem'
+import { TransitionSystem } from '@engine/systems/TransitionSystem'
+import { ErrorSystem } from '@engine/systems/ErrorSystem'
+import { SceneMap } from '@engine/scenes/SceneMap'
+import { SceneBoot } from '@engine/scenes/SceneBoot'
 
 export class ZEngine {
   public app: Application

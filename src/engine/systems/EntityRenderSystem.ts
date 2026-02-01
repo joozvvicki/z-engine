@@ -2,8 +2,10 @@ import { Container, Sprite, Rectangle, Graphics, Texture } from '@engine/utils/p
 import ZLogger from '@engine/utils/ZLogger'
 import { SpriteUtils } from '@engine/utils/SpriteUtils'
 import { ZLayer } from '@engine/types'
-import { ZSystem, SystemMode, ServiceLocator } from '@engine/core'
-import { PlayerSystem, RenderSystem } from '@engine/systems'
+import { ZSystem, SystemMode } from '@engine/core/ZSystem'
+import { ServiceLocator } from '@engine/core/ServiceLocator'
+import { PlayerSystem } from '@engine/systems/PlayerSystem'
+import { RenderSystem } from '@engine/systems/RenderSystem'
 
 export class EntityRenderSystem extends ZSystem {
   public container: Container

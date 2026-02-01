@@ -1,15 +1,15 @@
 import { ZEngineSignal, ZMap, ZLayer } from '@engine/types'
 import ZLogger from '@engine/utils/ZLogger'
-import { ServiceLocator, ZScene } from '@engine/core'
-import { TilesetManager, TextureManager } from '@engine/managers'
-import {
-  RenderSystem,
-  EntityRenderSystem,
-  ErrorSystem,
-  PlayerSystem,
-  GridSystem,
-  GhostSystem
-} from '@engine/systems'
+import { ServiceLocator } from '@engine/core/ServiceLocator'
+import { ZScene } from '@engine/core/ZScene'
+import { TilesetManager } from '@engine/managers/TilesetManager'
+import { TextureManager } from '@engine/managers/TextureManager'
+import { RenderSystem } from '@engine/systems/RenderSystem'
+import { EntityRenderSystem } from '@engine/systems/EntityRenderSystem'
+import { ErrorSystem } from '@engine/systems/ErrorSystem'
+import { PlayerSystem } from '@engine/systems/PlayerSystem'
+import { GridSystem } from '@engine/systems/GridSystem'
+import { GhostSystem } from '@engine/systems/GhostSystem'
 
 export class SceneMap extends ZScene {
   public currentMap: ZMap | null = null

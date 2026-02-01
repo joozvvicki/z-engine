@@ -1,7 +1,8 @@
 import ZLogger from '@engine/utils/ZLogger'
-import { ZScene, ServiceLocator } from '@engine/core'
-import { SceneManager } from '@engine/managers'
-import { SceneTitle } from '@engine/scenes'
+import { ZScene } from '@engine/core/ZScene'
+import { ServiceLocator } from '@engine/core/ServiceLocator'
+import { SceneManager } from '@engine/managers/SceneManager'
+import { SceneTitle } from '@engine/scenes/SceneTitle'
 
 export class SceneBoot extends ZScene {
   constructor(services: ServiceLocator) {

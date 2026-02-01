@@ -1,7 +1,8 @@
 import { ZEngineSignal } from '@engine/types'
 import ZLogger from '@engine/utils/ZLogger'
-import { ZSystem, SystemMode, ServiceLocator } from '@engine/core'
-import { PhysicsSystem } from '@engine/systems'
+import { ZSystem, SystemMode } from '@engine/core/ZSystem'
+import { ServiceLocator } from '@engine/core/ServiceLocator'
+import { PhysicsSystem } from '@engine/systems/PhysicsSystem'
 
 export class PlayerSystem extends ZSystem {
   private physicsSystem: PhysicsSystem

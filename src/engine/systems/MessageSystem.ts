@@ -1,7 +1,8 @@
 import { Container, Graphics, Text } from '@engine/utils/pixi'
 import { ZEngineSignal } from '@engine/types'
-import { ZSystem, SystemMode, ServiceLocator } from '@engine/core'
-import { EventSystem } from '@engine/systems'
+import { ZSystem, SystemMode } from '@engine/core/ZSystem'
+import { ServiceLocator } from '@engine/core/ServiceLocator'
+import { EventSystem } from '@engine/systems/EventSystem'
 
 export class MessageSystem extends ZSystem {
   public container: Container

@@ -1,5 +1,6 @@
 import { Graphics } from '@engine/utils/pixi'
-import { ZSystem, SystemMode, ServiceLocator } from '@engine/core'
+import { ZSystem, SystemMode } from '@engine/core/ZSystem'
+import { ServiceLocator } from '@engine/core/ServiceLocator'
 
 export class TransitionSystem extends ZSystem {
   public container: Graphics

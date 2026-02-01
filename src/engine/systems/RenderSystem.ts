@@ -2,7 +2,8 @@ import PIXI from '@engine/utils/pixi'
 import { AutotileSolver } from '@engine/utils/AutotileSolver'
 import { SpriteUtils } from '@engine/utils/SpriteUtils'
 import { type ZMap, type ZEventGraphic, type TileSelection, ZLayer } from '@engine/types'
-import { ZSystem, ServiceLocator } from '@engine/core'
+import { ZSystem } from '@engine/core/ZSystem'
+import { ServiceLocator } from '@engine/core/ServiceLocator'
 import { DEFAULT_PLAYER_GRAPHIC } from '@engine/constants'
 
 export class RenderSystem extends ZSystem {

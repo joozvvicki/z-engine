@@ -1,12 +1,11 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import { ServiceLocator, ZEventBus } from '@engine/core'
-import {
-  MapManager,
-  InputManager,
-  TextureManager,
-  TilesetManager,
-  GameStateManager
-} from '@engine/managers'
+import { ServiceLocator } from '@engine/core/ServiceLocator'
+import { ZEventBus } from '@engine/core/ZEventBus'
+import { MapManager } from '@engine/managers/MapManager'
+import { InputManager } from '@engine/managers/InputManager'
+import { TextureManager } from '@engine/managers/TextureManager'
+import { TilesetManager } from '@engine/managers/TilesetManager'
+import { GameStateManager } from '@engine/managers/GameStateManager'
 
 export enum SystemMode {
   ALWAYS = 'always',

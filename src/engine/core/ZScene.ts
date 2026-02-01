@@ -1,6 +1,7 @@
 import { Container, Application } from '@engine/utils/pixi'
-import { ServiceLocator, ZEventBus } from '@engine/core'
-import { InputManager } from '@engine/managers'
+import { ServiceLocator } from '@engine/core/ServiceLocator'
+import { ZEventBus } from '@engine/core/ZEventBus'
+import { InputManager } from '@engine/managers/InputManager'
 
 /**
  * ZScene is the base class for all game states (Title, Map, Battle, etc.)

@@ -1,6 +1,7 @@
 import PIXI from '@engine/utils/pixi'
 import ZLogger from '@engine/utils/ZLogger'
-import { ZSystem, SystemMode, ServiceLocator } from '@engine/core'
+import { ZSystem, SystemMode } from '@engine/core/ZSystem'
+import { ServiceLocator } from '@engine/core/ServiceLocator'
 
 export class ErrorSystem extends ZSystem {
   public container: PIXI.Container
