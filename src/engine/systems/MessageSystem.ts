@@ -5,8 +5,7 @@ import { EventSystem } from '@engine/systems/EventSystem'
 import { ServiceLocator } from '@engine/core/ServiceLocator'
 
 export class MessageSystem extends ZSystemCore {
-  private container: Container
-
+  public container: Container
   private isVisible: boolean = false
   private messageText: string = ''
   private messageBox: Graphics | null = null
@@ -24,16 +23,12 @@ export class MessageSystem extends ZSystemCore {
   private choiceWidth: number = 200
   private choiceHeight: number = 40
 
-  constructor(stage: Container, services: ServiceLocator) {
+  constructor(services: ServiceLocator) {
     super(services)
     this.updateMode = SystemMode.PLAY
     this.container = new Container()
     this.container.visible = false
     this.container.zIndex = 100000 // Very high to ensure it's always on top
-
-    // Ensure stage can sort children by zIndex
-    stage.sortableChildren = true
-    stage.addChild(this.container)
   }
 
   public onBoot(): void {

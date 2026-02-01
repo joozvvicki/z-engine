@@ -4,16 +4,13 @@ import { ServiceLocator } from '@engine/core/ServiceLocator'
 import ZLogger from '@engine/core/ZLogger'
 
 export class ErrorSystem extends ZSystem {
-  private container: PIXI.Container
+  public container: PIXI.Container
   private background: PIXI.Graphics
   private titleText: PIXI.Text
   private messageText: PIXI.Text
   private isVisible: boolean = false
 
-  constructor(
-    private stage: PIXI.Container,
-    services: ServiceLocator
-  ) {
+  constructor(services: ServiceLocator) {
     super(services)
     this.updateMode = SystemMode.ALWAYS
 
@@ -47,8 +44,6 @@ export class ErrorSystem extends ZSystem {
     this.messageText = new PIXI.Text({ text: '', style: messageStyle })
     this.messageText.anchor.set(0.5, 0)
     this.container.addChild(this.messageText)
-
-    this.stage.addChild(this.container)
   }
 
   public show(error: Error | string): void {

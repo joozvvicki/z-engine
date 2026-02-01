@@ -58,8 +58,9 @@ export const useEditorInput = (
 
     if (event.button !== 0 || !engine.value) return
     if (store.isTestMode) return
-
-    target.value = engine.value.services.get(GridSystem)?.getTileCoords(event)
+    if (engine.value) {
+      target.value = engine.value.services.get(GridSystem)?.getTileCoords(event)
+    }
 
     // Alt + Click -> Pick Tile
     if (event.altKey && target.value) {
@@ -137,7 +138,7 @@ export const useEditorInput = (
     handleWheel(event, canvasContainer.value)
   }
 
-  // Sync selection box with ghost system
+  // 1. Sync selection box with ghost system
   watch(
     () => store.selectionCoords,
     () => {
@@ -146,6 +147,17 @@ export const useEditorInput = (
         ghostSystem.setSelectionBox(store.selectionCoords)
       } else if (engine.value && ghostSystem) {
         ghostSystem.setSelectionBox(null)
+      }
+    }
+  )
+
+  // 1.5 Reset viewport when entering play mode
+  watch(
+    () => store.isTestMode,
+    (isTest) => {
+      if (isTest) {
+        console.log('[useEditorInput] Entering Play Mode, resetting viewport')
+        resetViewport(canvasContainer.value)
       }
     }
   )

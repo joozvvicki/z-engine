@@ -14,6 +14,7 @@ import { PlayerSystem } from '@engine/systems/PlayerSystem'
 
 import { ServiceLocator } from '@engine/core/ServiceLocator'
 import { SceneManager } from '@engine/managers/SceneManager'
+import { Scene_Map } from '@engine/scenes/Scene_Map'
 
 export class EventSystem extends ZSystemCore {
   private playerSystem: PlayerSystem
@@ -197,7 +198,7 @@ export class EventSystem extends ZSystemCore {
     const mapId = params[0] as number
     const x = params[1] as number
     const y = params[2] as number
-    this.sceneManager.changeScene(mapId, x, y)
+    this.sceneManager.goto(Scene_Map, { mapOrId: mapId, playerX: x, playerY: y })
 
     return 'stop'
   }

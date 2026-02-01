@@ -5,9 +5,10 @@ import { SpriteUtils } from '@engine/utils/SpriteUtils'
 import { PlayerSystem } from './PlayerSystem'
 import { RenderSystem } from './RenderSystem'
 import { ServiceLocator } from '@engine/core/ServiceLocator'
+import ZLogger from '@engine/core/ZLogger'
 
 export class EntityRenderSystem extends ZSystemCore {
-  private container: PIXI.Container
+  public container: PIXI.Container
   private playerSystem: PlayerSystem
   private tileSize: number
 
@@ -18,8 +19,6 @@ export class EntityRenderSystem extends ZSystemCore {
   private animationFrame: number = 0
   private animationTimer: number = 0
   private readonly ANIMATION_SPEED: number = 150 // ms
-
-  private renderSystem: RenderSystem
   private eventSprites: Map<string, PIXI.Container | PIXI.Sprite> = new Map()
 
   constructor(services: ServiceLocator, tileSize: number) {
@@ -28,9 +27,10 @@ export class EntityRenderSystem extends ZSystemCore {
     this.tileSize = tileSize
 
     this.container = new PIXI.Container()
+    this.container.label = 'EntityLayer'
+    this.container.sortableChildren = true
 
     this.playerSystem = undefined as unknown as PlayerSystem
-    this.renderSystem = undefined as unknown as RenderSystem
   }
 
   public async loadEvents(): Promise<void> {
@@ -76,9 +76,10 @@ export class EntityRenderSystem extends ZSystemCore {
 
   public async onBoot(): Promise<void> {
     this.playerSystem = this.services.require(PlayerSystem)
-    this.renderSystem = this.services.require(RenderSystem)
+    const renderSystem = this.services.require(RenderSystem)
 
-    this.container = this.renderSystem.getLayerContainer(ZLayer.decoration)
+    // Entities share the decoration layer for Y-sorting with tiles
+    this.container = renderSystem.getLayerContainer(ZLayer.decoration)
 
     await this.createPlayerSprite()
   }
@@ -109,6 +110,8 @@ export class EntityRenderSystem extends ZSystemCore {
       if (this.playerSprite) {
         this.frameWidth = this.playerSprite.texture.width
         this.frameHeight = this.playerSprite.texture.height
+        this.playerSprite.visible = true
+        this.playerSprite.alpha = 1
 
         this.container.addChild(this.playerSprite)
       }
@@ -132,11 +135,15 @@ export class EntityRenderSystem extends ZSystemCore {
   public setVisible(visible: boolean): void {
     if (this.playerSprite) {
       this.playerSprite.visible = visible
+      if (visible) this.playerSprite.alpha = 1
     }
 
     if (visible) {
       this.loadEvents()
-      this.eventSprites.forEach((s) => (s.visible = true))
+      this.eventSprites.forEach((s) => {
+        s.visible = true
+        s.alpha = 1
+      })
     } else {
       this.eventSprites.forEach((s) => (s.visible = false))
     }
@@ -190,16 +197,26 @@ export class EntityRenderSystem extends ZSystemCore {
   public onUpdate(delta: number): void {
     if (!this.playerSprite) return
 
+    // Ensure sprites are in the correct container (e.g., after map switch or layer clear)
     if (this.playerSprite.parent !== this.container) {
+      ZLogger.with('EntityRenderSystem').log('Re-adding player sprite to container')
       this.container.addChild(this.playerSprite)
-      this.eventSprites.forEach((s) => {
-        if (s.parent !== this.container) this.container.addChild(s)
-      })
     }
+
+    this.eventSprites.forEach((s) => {
+      if (s.parent !== this.container) {
+        this.container.addChild(s)
+      }
+    })
 
     this.playerSprite.x = this.playerSystem.realX + this.tileSize / 2
     this.playerSprite.y = this.playerSystem.realY + this.tileSize
-    this.playerSprite.zIndex = this.playerSprite.y
+
+    // Y-sorting
+    this.playerSprite.zIndex = this.playerSprite.y + 0.1
+
+    // Force sorting of the decoration layer to reflect zIndex changes
+    this.container.sortChildren()
 
     if (this.playerSprite instanceof PIXI.Sprite && this.playerSprite.texture.label !== 'EMPTY') {
       this.updateAnimation(delta)

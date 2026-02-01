@@ -1,4 +1,4 @@
-import { Application } from '@engine/utils/pixi'
+import { Application, Container } from '@engine/utils/pixi'
 import { ServiceLocator } from '@engine/core/ServiceLocator'
 import { ZDataProvider } from '@engine/types'
 import { SystemManager } from '@engine/core/SystemManager'
@@ -16,19 +16,31 @@ import { MessageSystem } from '@engine/systems/MessageSystem'
 import { TransitionSystem } from '@engine/systems/TransitionSystem'
 import { ErrorSystem } from '@engine/systems/ErrorSystem'
 import { TextureManager } from '@engine/managers/TextureManager'
+import { Scene_Map } from '@engine/scenes/Scene_Map'
+import { Scene_Boot } from '@engine/scenes/Scene_Boot'
 import ZLogger from '@engine/core/ZLogger'
 
 export class ZEngine {
   public app: Application
   public services: ServiceLocator
+  public dataProvider: ZDataProvider | null = null
   private lifecycle: SystemManager
   public mode: 'edit' | 'play' = 'edit'
   private isBooted: boolean = false
+
+  // Layers
+  private sceneLayer: Container
+  private globalLayer: Container
 
   constructor() {
     this.app = new Application()
     this.services = new ServiceLocator()
     this.services.register(ZEngine.name, this)
+
+    this.sceneLayer = new Container()
+    this.sceneLayer.label = 'SceneLayer'
+    this.globalLayer = new Container()
+    this.globalLayer.label = 'GlobalLayer'
 
     EngineBootstrapper.registerManagers(this.services)
     this.lifecycle = new SystemManager(this.services, this.app)
@@ -55,17 +67,38 @@ export class ZEngine {
     this.app.stage.hitArea = this.app.screen
     this.app.stage.sortableChildren = true
 
+    // Add Layers
+    this.app.stage.addChild(this.sceneLayer)
+    this.app.stage.addChild(this.globalLayer)
+
     try {
       EngineBootstrapper.registerSystems(
         this.services,
-        this.app.stage,
+        this.sceneLayer, // Primary systems go to sceneLayer? Actually some might stay on stage or go to global
         tileSize,
         this.app.screen.width,
         this.app.screen.height
       )
 
+      // Override stage for global systems
+      const transitionSystem = this.services.get(TransitionSystem)
+      const messageSystem = this.services.get(MessageSystem)
+      const errorSystem = this.services.get(ErrorSystem)
+
+      if (transitionSystem) {
+        this.globalLayer.addChild(transitionSystem.container)
+      }
+      if (messageSystem) {
+        this.globalLayer.addChild(messageSystem.container)
+      }
+      if (errorSystem) {
+        this.globalLayer.addChild(errorSystem.container)
+      }
+
+      this.services.require(SceneManager).setSceneLayer(this.sceneLayer)
+
       this.lifecycle.boot()
-      this.isBooted = true // Set isBooted to true after successful boot
+      this.isBooted = true
 
       ZLogger.log('Hello 👋🏽 Everything is ready!')
     } catch (e) {
@@ -79,6 +112,18 @@ export class ZEngine {
       this.mode = mode
       this.lifecycle.setMode(mode)
       ZLogger.log(`Switched to ${mode} mode`)
+
+      const sceneManager = this.services.require(SceneManager)
+
+      if (mode === 'play') {
+        // Start play mode from boot
+        await sceneManager.goto(Scene_Boot)
+      } else {
+        // Editor mode always stays on Scene_Map (rely on useEngine for initial map load)
+        if (!(sceneManager.currentScene instanceof Scene_Map)) {
+          // We'll let useEngine handle the goto(Scene_Map) triggered by watchers
+        }
+      }
 
       const entitySystem = this.services.get(EntityRenderSystem)
       const ghostSystem = this.services.get(GhostSystem)
@@ -102,6 +147,7 @@ export class ZEngine {
   }
 
   public setDataProvider(provider: ZDataProvider): void {
+    this.dataProvider = provider
     this.services.require(TextureManager).setDataProvider(provider)
     this.services.require(SceneManager).setDataProvider(provider)
     this.services.require(ToolManager).setDataProvider(provider)
@@ -133,7 +179,7 @@ export class ZEngine {
   }
 
   public destroy(): void {
-    if (!this.isBooted) return // Prevent destroying if not booted
+    if (!this.isBooted) return
     this.services.require(InputManager).destroy()
     this.lifecycle.destroy()
     this.app.destroy({ removeView: true })

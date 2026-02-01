@@ -4,20 +4,17 @@ import { ZSystem, SystemMode } from '@engine/core/ZSystem'
 import { ServiceLocator } from '@engine/core/ServiceLocator'
 
 export class GridSystem extends ZSystem {
-  private container: Container
+  public container: Container
   private gridGraphics: Graphics
   private tileSize: number
-
-  private wrapper: Container
 
   private width: number = 0
   private height: number = 0
   private dirty: boolean = false
 
-  constructor(stage: Container, services: ServiceLocator, tileSize: number) {
+  constructor(_stage: Container, services: ServiceLocator, tileSize: number) {
     super(services)
     this.updateMode = SystemMode.EDIT
-    this.wrapper = stage
     this.tileSize = tileSize
 
     this.container = null!
@@ -28,7 +25,7 @@ export class GridSystem extends ZSystem {
     this.container = new Container()
     this.container.label = 'GridSystem'
     this.container.zIndex = 100
-    this.wrapper.addChild(this.container)
+    // No longer adding to wrapper here, scene will mount it
 
     this.gridGraphics = new Graphics()
     this.container.addChild(this.gridGraphics)
@@ -80,7 +77,7 @@ export class GridSystem extends ZSystem {
   }
 
   public getTileCoords(globalEvent: FederatedPointerEvent): { x: number; y: number } {
-    const local = this.wrapper.toLocal(globalEvent.global)
+    const local = this.container.toLocal(globalEvent.global)
     return {
       x: Math.floor(local.x / this.tileSize),
       y: Math.floor(local.y / this.tileSize)

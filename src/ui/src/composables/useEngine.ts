@@ -10,6 +10,7 @@ import { RenderSystem } from '@engine/systems/RenderSystem'
 import { GridSystem } from '@engine/systems/GridSystem'
 import { PlayerSystem } from '@engine/systems/PlayerSystem'
 import { EntityRenderSystem } from '@engine/systems/EntityRenderSystem'
+import { Scene_Map } from '@engine/scenes/Scene_Map'
 import { nextTick } from 'vue'
 
 export const useEngine = (
@@ -89,9 +90,10 @@ export const useEngine = (
 
     // Initial sync
     syncCanvasSize(newEngine)
-
     if (store.activeMap) {
-      await newEngine.services.require(SceneManager).loadMap(store.activeMap)
+      await newEngine.services.require(SceneManager).goto(Scene_Map, {
+        mapOrId: store.activeMap
+      })
     }
 
     // Now set the engine ref to trigger watchers with a fully initialized engine
@@ -129,20 +131,15 @@ export const useEngine = (
         // Update store to reflect new active map (for UI sync)
         store.setActiveMap(mapId)
 
-        // Sync size for the target map before loading logic?
-        // Or after loadMap? Better before or during.
+        // Sync size for the target map before loading logic
         syncCanvasSize(newEngine, targetMap)
 
-        // Load the map through SceneManager (handles tilesets, rendering, etc.)
-        await newEngine.services.require(SceneManager).loadMap(targetMap)
-
-        // Set player position after map is loaded
-        const playerSystem = newEngine.services.get(PlayerSystem)
-        if (playerSystem) {
-          playerSystem.x = x
-          playerSystem.y = y
-          playerSystem.snapToGrid()
-        }
+        // Load the map through SceneManager
+        await newEngine.services.require(SceneManager).goto(Scene_Map, {
+          mapOrId: targetMap,
+          playerX: x,
+          playerY: y
+        })
       } else {
         console.error(`[GameViewport] Transfer Failed: Map ${mapId} not found`)
       }
@@ -156,17 +153,25 @@ export const useEngine = (
       return
     }
 
-    const w = map.width * store.tileSize
-    const h = map.height * store.tileSize
+    if (store.isTestMode) {
+      // In Play Mode, we want the canvas to fill the viewport (100%)
+      // We rely on the parent container (GameViewport) to provide the size via CSS
+      canvasContainer.value.style.width = '100%'
+      canvasContainer.value.style.height = '100%'
 
-    console.log(`[useEngine] Syncing canvas size: ${w}x${h} for map ${map.name}`)
+      // Use the actual client dimensions for the engine
+      const rect = canvasContainer.value.getBoundingClientRect()
+      eng.resize(rect.width, rect.height)
+    } else {
+      // In Editor Mode, we want the canvas to be the size of the map
+      const w = map.width * store.tileSize
+      const h = map.height * store.tileSize
 
-    // 1. Update Container CSS
-    canvasContainer.value.style.width = `${w}px`
-    canvasContainer.value.style.height = `${h}px`
+      canvasContainer.value.style.width = `${w}px`
+      canvasContainer.value.style.height = `${h}px`
 
-    // 2. Notify Engine
-    eng.resize(w, h)
+      eng.resize(w, h)
+    }
   }
 
   const syncGridSize = (eng: ZEngine): void => {
@@ -210,7 +215,9 @@ export const useEngine = (
             syncCanvasSize(engine.value)
 
             if (mapChanged) {
-              await engine.value.services.require(SceneManager).loadMap(store.activeMap)
+              await engine.value.services.require(SceneManager).goto(Scene_Map, {
+                mapOrId: store.activeMap
+              })
             }
             syncGridSize(engine.value)
           } finally {

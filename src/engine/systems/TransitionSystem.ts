@@ -1,28 +1,24 @@
-import { Container, Graphics } from '@engine/utils/pixi'
+import { Graphics } from '@engine/utils/pixi'
 import { ZSystem, SystemMode } from '@engine/core/ZSystem'
 import { ServiceLocator } from '@engine/core/ServiceLocator'
 
 export class TransitionSystem extends ZSystem {
-  private overlay: Graphics
+  public container: Graphics
   private isFading: boolean = false
   private fadeTarget: number = 0
   private fadeDuration: number = 0
   private fadeTimer: number = 0
   private resolvePromise: ((value: void | PromiseLike<void>) => void) | null = null
 
-  constructor(
-    private stage: Container,
-    services: ServiceLocator
-  ) {
+  constructor(services: ServiceLocator) {
     super(services)
     this.updateMode = SystemMode.PLAY
-    this.overlay = new Graphics()
+    this.container = new Graphics()
     // Initial size, will be updated by resize()
-    this.overlay.rect(0, 0, 1, 1)
-    this.overlay.fill(0x000000)
-    this.overlay.alpha = 0
-    this.overlay.zIndex = 10000 // Ensure it's on top of everything
-    this.stage.addChild(this.overlay)
+    this.container.rect(0, 0, 1, 1)
+    this.container.fill(0x000000)
+    this.container.alpha = 0
+    this.container.zIndex = 10000 // Ensure it's on top of everything
   }
 
   public fadeOut(duration: number = 300): Promise<void> {
@@ -35,7 +31,7 @@ export class TransitionSystem extends ZSystem {
 
   private startFade(target: number, duration: number): Promise<void> {
     // If already at target, resolve immediately
-    if (this.overlay.alpha === target && !this.isFading) {
+    if (this.container.alpha === target && !this.isFading) {
       return Promise.resolve()
     }
 
@@ -50,9 +46,9 @@ export class TransitionSystem extends ZSystem {
   }
 
   public resize(width: number, height: number): void {
-    this.overlay.clear()
-    this.overlay.rect(0, 0, width, height)
-    this.overlay.fill(0x000000)
+    this.container.clear()
+    this.container.rect(0, 0, width, height)
+    this.container.fill(0x000000)
   }
 
   onUpdate(delta: number): void {
@@ -61,10 +57,10 @@ export class TransitionSystem extends ZSystem {
       const progress = Math.min(this.fadeTimer / this.fadeDuration, 1)
 
       const startAlpha = this.fadeTarget === 1 ? 0 : 1
-      this.overlay.alpha = startAlpha + (this.fadeTarget - startAlpha) * progress
+      this.container.alpha = startAlpha + (this.fadeTarget - startAlpha) * progress
 
       if (progress >= 1) {
-        this.overlay.alpha = this.fadeTarget
+        this.container.alpha = this.fadeTarget
         this.isFading = false
         if (this.resolvePromise) {
           const resolve = this.resolvePromise

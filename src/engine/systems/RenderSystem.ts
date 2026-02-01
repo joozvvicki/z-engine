@@ -54,11 +54,8 @@ export class RenderSystem extends ZSystem {
     this.layers[ZLayer.events].sortableChildren = true
     this.layers[ZLayer.highest].sortableChildren = true
 
-    const sortedLayers = Object.values(this.layers)
-    this.wrapper.addChild(...sortedLayers)
-    // Since wrapper (Stage) has sortableChildren=true, zIndex will be respected.
-    this.wrapper.sortableChildren = true
-
+    // Since wrapper (Stage) has sortableChildren=true, zIndex will be respected?
+    // Actually, Scene_Map will now manage these layers.
     this.tileContainers = this.createEmptyContainerStructure(0, 0)
 
     // Load Player Texture for Editor Visualization

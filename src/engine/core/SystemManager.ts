@@ -1,6 +1,8 @@
 import { Application } from '@engine/utils/pixi'
 import { ServiceLocator } from '@engine/core/ServiceLocator'
 import { ZSystem, SystemMode } from '@engine/core/ZSystem'
+import { SceneManager } from '@engine/managers/SceneManager'
+import { InputManager } from '@engine/managers/InputManager'
 import ZLogger from '@engine/core/ZLogger'
 
 export class SystemManager {
@@ -30,6 +32,7 @@ export class SystemManager {
   }
 
   private tick(delta: number): void {
+    // 1. Update Systems
     for (let i = 0; i < this.systems.length; i++) {
       const system = this.systems[i]
 
@@ -39,6 +42,12 @@ export class SystemManager {
         system.onPostUpdate(delta)
       }
     }
+
+    // 2. Update Current Scene
+    this.services.get(SceneManager)?.update(delta)
+
+    // 3. Update Input (Record state for NEXT frame)
+    this.services.require(InputManager).update()
   }
 
   private shouldUpdate(system: ZSystem): boolean {

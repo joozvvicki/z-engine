@@ -48,15 +48,15 @@ export class EngineBootstrapper {
     services.register(EventSystem, new EventSystem(services))
     services.register(EntityRenderSystem, new EntityRenderSystem(services, tileSize))
 
-    const transitionSystem = new TransitionSystem(stage, services)
+    const transitionSystem = new TransitionSystem(services)
     services.register(TransitionSystem, transitionSystem)
     transitionSystem.resize(screenWidth, screenHeight)
 
-    const messageSystem = new MessageSystem(stage, services)
+    const messageSystem = new MessageSystem(services)
     services.register(MessageSystem, messageSystem)
     messageSystem.resize(screenWidth, screenHeight)
 
-    const errorSystem = new ErrorSystem(stage, services)
+    const errorSystem = new ErrorSystem(services)
     services.register(ErrorSystem, errorSystem)
     errorSystem.resize(screenWidth, screenHeight)
   }

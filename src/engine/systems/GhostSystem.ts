@@ -5,10 +5,8 @@ import { ZSystem as ZSystemCore, SystemMode } from '@engine/core/ZSystem'
 import { ServiceLocator } from '@engine/core/ServiceLocator'
 
 export class GhostSystem extends ZSystemCore {
-  private container: Container
+  public container: Container
   private tileSize: number
-
-  private wrapper: Container
 
   // State
   private active: boolean = false
@@ -20,11 +18,10 @@ export class GhostSystem extends ZSystemCore {
   private shapeEnd: { x: number; y: number } | null = null
   private isShape: boolean = false
 
-  constructor(stage: Container, services: ServiceLocator, tileSize: number) {
+  constructor(_stage: Container, services: ServiceLocator, tileSize: number) {
     super(services)
     this.updateMode = SystemMode.EDIT
 
-    this.wrapper = stage
     this.tileSize = tileSize
 
     this.container = null!
@@ -36,7 +33,7 @@ export class GhostSystem extends ZSystemCore {
     this.container.zIndex = 999
     this.container.visible = false
     this.container.eventMode = 'none' // Ensure ghost doesn't block interactions
-    this.wrapper.addChild(this.container)
+    // No longer adding to wrapper here, scene will mount it
   }
 
   public onDestroy(): void {
@@ -135,12 +132,12 @@ export class GhostSystem extends ZSystemCore {
                           )
                             return false
 
-                          const neighborStack = grid[ny]?.[nx]
+                          const neighborStack: TileSelection[] | null = grid[ny]?.[nx]
                           if (!neighborStack) return false
 
                           // Check if any tile in neighbor stack matches
                           return neighborStack.some(
-                            (n) =>
+                            (n: TileSelection) =>
                               n.tilesetId === tile.tilesetId && n.x === tile.x && n.y === tile.y
                           )
                         }
