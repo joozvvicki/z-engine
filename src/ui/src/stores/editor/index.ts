@@ -179,36 +179,6 @@ export const useEditorStore = defineStore('editor', () => {
     { deep: true }
   )
 
-  // Auto-Save System Data Changes
-  watch(
-    [
-      systemSwitches,
-      systemVariables,
-      systemStartMapId,
-      systemStartX,
-      systemStartY,
-      systemPlayerGraphic
-    ],
-    () => {
-      // Only save if project is actually loaded and we are not in initial load phase?
-      // ProjectService.isLoaded() check is good.
-      if (ProjectService.isLoaded()) {
-        const sysData: import('@engine/types').ZSystemData = {
-          switches: systemSwitches.value,
-          variables: systemVariables.value,
-          startMapId: systemStartMapId.value,
-          startX: systemStartX.value,
-          startY: systemStartY.value,
-          playerGraphic: systemPlayerGraphic.value
-        }
-        ProjectService.saveSystemData(sysData).catch((err) =>
-          console.error('Auto-save system failed', err)
-        )
-      }
-    },
-    { deep: true }
-  )
-
   // ==========================================
   // 3. HISTORY MODULE (UNDO/REDO)
   // ==========================================

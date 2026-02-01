@@ -13,7 +13,6 @@ import { EntityRenderSystem } from '@engine/systems/EntityRenderSystem'
 import { GhostSystem } from '@engine/systems/GhostSystem'
 import { GridSystem } from '@engine/systems/GridSystem'
 import { MessageSystem } from '@engine/systems/MessageSystem'
-import { PlayerSystem } from '@engine/systems/PlayerSystem'
 import { TransitionSystem } from '@engine/systems/TransitionSystem'
 import { ErrorSystem } from '@engine/systems/ErrorSystem'
 import { TextureManager } from '@engine/managers/TextureManager'
@@ -24,6 +23,7 @@ export class ZEngine {
   public services: ServiceLocator
   private lifecycle: SystemManager
   public mode: 'edit' | 'play' = 'edit'
+  private isBooted: boolean = false
 
   constructor() {
     this.app = new Application()
@@ -65,6 +65,7 @@ export class ZEngine {
       )
 
       this.lifecycle.boot()
+      this.isBooted = true // Set isBooted to true after successful boot
 
       ZLogger.log('Hello 👋🏽 Everything is ready!')
     } catch (e) {
@@ -89,7 +90,6 @@ export class ZEngine {
         ghostSystem?.setVisible(false)
         gridSystem?.setVisible(false)
         messageSystem?.resize(this.app.screen.width, this.app.screen.height)
-        this.services.get(PlayerSystem)?.onBoot()
       } else {
         await entitySystem?.setVisible(false)
         ghostSystem?.setVisible(true)
@@ -133,6 +133,7 @@ export class ZEngine {
   }
 
   public destroy(): void {
+    if (!this.isBooted) return // Prevent destroying if not booted
     this.services.require(InputManager).destroy()
     this.lifecycle.destroy()
     this.app.destroy({ removeView: true })

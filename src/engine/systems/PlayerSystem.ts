@@ -15,6 +15,7 @@ export class PlayerSystem extends ZSystem {
   public direction: 'down' | 'left' | 'right' | 'up' = 'down'
   public isMoving: boolean = false
   public moveSpeed: number = 2 // pixels per frame
+  private isBooted: boolean = false
 
   // Visual offset for smooth movement
   public realX: number = 0
@@ -34,6 +35,8 @@ export class PlayerSystem extends ZSystem {
   }
 
   public onBoot(): void {
+    if (this.isBooted) return
+    this.isBooted = true
     // We already have services via constructor (saved to private property)
     // But we need to make sure PhysicsSystem is available.
     this.physicsSystem = this.services.require(PhysicsSystem)
@@ -43,9 +46,6 @@ export class PlayerSystem extends ZSystem {
     if (startEvent) {
       this.x = startEvent.x
       this.y = startEvent.y
-    } else {
-      this.x = 5
-      this.y = 5
     }
 
     this.realX = this.x * this.tileSize

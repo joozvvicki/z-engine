@@ -270,7 +270,7 @@ export const useEngine = (
         if (renderSystem) {
           // Only trigger mode switch if isTest actually changed OR if engine just became available
           if (isTest !== old?.isTest || eng !== old?.eng) {
-            eng.setMode(isTest ? 'play' : 'edit')
+            await eng.setMode(isTest ? 'play' : 'edit')
           }
 
           if (isTest) {
