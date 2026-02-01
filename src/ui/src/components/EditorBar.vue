@@ -33,14 +33,6 @@ const togglePlay = async (event?: MouseEvent): Promise<void> => {
   if (store.isTestMode) {
     playtestModal.value?.close()
   } else {
-    // Before entering test mode, switch to start map if not already there
-    if (store.activeMapID !== store.systemStartMapId) {
-      console.log('[EditorBar] Switching to start map:', store.systemStartMapId)
-      store.setActiveMap(store.systemStartMapId)
-
-      // Wait for map to load
-      await new Promise((resolve) => setTimeout(resolve, 100))
-    }
     playtestModal.value?.open()
   }
 

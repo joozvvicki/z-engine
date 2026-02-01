@@ -152,16 +152,6 @@ export const useEditorInput = (
     }
   )
 
-  // 1.5 Reset viewport when entering play mode
-  watch(
-    () => store.isTestMode,
-    (isTest) => {
-      if (isTest) {
-        resetViewport(canvasContainer.value)
-      }
-    }
-  )
-
   // --- Viewport Persistence Logic ---
 
   // 1. Load state when switching maps

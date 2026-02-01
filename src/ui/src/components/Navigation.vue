@@ -17,7 +17,10 @@ import {
   IconUsers,
   IconLayoutGrid
 } from '@tabler/icons-vue'
+import { useEditorStore } from '@ui/stores/editor'
 import NavButton from './NavButton.vue'
+
+const store = useEditorStore()
 
 const route = useRoute()
 const router = useRouter()
@@ -58,7 +61,8 @@ const settings = [
 
 <template>
   <div
-    class="min-w-16 relative z-2000 h-full bg-white backdrop-blur-2xl flex flex-col items-center border-r border-gray-200 py-2"
+    v-show="!store.isTestMode"
+    class="min-w-16 relative z-2000 h-full bg-white backdrop-blur-2xl flex flex-col items-center border-r border-gray-200 py-2 transition-all duration-300"
   >
     <img :src="logo" class="w-8 h-8 mb-4 cursor-pointer" @click="router.push('/')" />
 
