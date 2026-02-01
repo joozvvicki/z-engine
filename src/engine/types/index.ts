@@ -5,6 +5,55 @@ export interface ZClass {
   description?: string
 }
 
+export interface ZSkill {
+  id: number
+  name: string
+  description: string
+  icon?: string
+}
+
+export interface ZItem {
+  id: number
+  name: string
+  description: string
+  icon?: string
+  price: number
+}
+
+export interface ZWeapon {
+  id: number
+  name: string
+  description: string
+  icon?: string
+  price: number
+  attack: number
+}
+
+export interface ZArmor {
+  id: number
+  name: string
+  description: string
+  icon?: string
+  price: number
+  defense: number
+}
+
+export interface ZEnemy {
+  id: number
+  name: string
+  mhp: number
+  mmp: number
+  atk: number
+  def: number
+  mat: number
+  mdf: number
+  agi: number
+  luk: number
+  exp: number
+  gold: number
+  battlerName?: string
+}
+
 export interface ZActor {
   id: number
   name: string

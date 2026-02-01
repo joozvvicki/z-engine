@@ -38,27 +38,27 @@ const router = createRouter({
         {
           path: 'skills',
           name: 'database-skills',
-          component: () => import('@ui/components/database/PlaceholderTab.vue')
+          component: () => import('@ui/components/database/SkillsTab.vue')
         },
         {
           path: 'items',
           name: 'database-items',
-          component: () => import('@ui/components/database/PlaceholderTab.vue')
+          component: () => import('@ui/components/database/ItemsTab.vue')
         },
         {
           path: 'weapons',
           name: 'database-weapons',
-          component: () => import('@ui/components/database/PlaceholderTab.vue')
+          component: () => import('@ui/components/database/WeaponsTab.vue')
         },
         {
           path: 'armors',
           name: 'database-armors',
-          component: () => import('@ui/components/database/PlaceholderTab.vue')
+          component: () => import('@ui/components/database/ArmorsTab.vue')
         },
         {
           path: 'enemies',
           name: 'database-enemies',
-          component: () => import('@ui/components/database/PlaceholderTab.vue')
+          component: () => import('@ui/components/database/EnemiesTab.vue')
         },
         {
           path: 'system',
