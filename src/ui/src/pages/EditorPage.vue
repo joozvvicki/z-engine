@@ -1,13 +1,17 @@
 <script setup lang="ts">
-import { ref, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import EditorBar from '@ui/components/EditorBar.vue'
 import GameViewport from '@ui/components/GameViewport.vue'
 import MapTree from '@ui/components/MapTree.vue'
 import TilesetSelector from '@ui/components/TilesetSelector.vue'
 import LayerPanel from '@ui/components/LayerPanel.vue'
 import StatusBar from '@ui/components/StatusBar.vue'
+import LayerQuickSwitch from '@ui/components/LayerQuickSwitch.vue'
 import { IconPackage, IconMap, IconLayersIntersect } from '@tabler/icons-vue'
+import { useEditorStore } from '@ui/stores/editor'
+import { ZLayer } from '@engine/types'
 
+const store = useEditorStore()
 const sidebarWidth = ref(400)
 const isResizing = ref(false)
 const activeSidebarTab = ref<'assets' | 'maps' | 'layers'>('assets')
@@ -30,8 +34,61 @@ const stopResizing = (): void => {
   document.removeEventListener('mouseup', stopResizing)
 }
 
+const handleKeyDown = (e: KeyboardEvent): void => {
+  // Don't trigger if user is typing in an input or textarea
+  if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
+
+  // 1. Sidebar Tabs (Alt + 1/2/3)
+  if (e.altKey) {
+    if (e.key === '1') activeSidebarTab.value = 'assets'
+    if (e.key === '2') activeSidebarTab.value = 'maps'
+    if (e.key === '3') activeSidebarTab.value = 'layers'
+  }
+
+  // 2. Layer Switching (1-5)
+  if (!e.altKey && !e.ctrlKey && !e.metaKey) {
+    const layerKeys: ZLayer[] = [
+      ZLayer.ground,
+      ZLayer.walls,
+      ZLayer.decoration,
+      ZLayer.events,
+      ZLayer.highest
+    ]
+    const num = parseInt(e.key)
+    if (num >= 1 && num <= 5) {
+      store.setLayer(layerKeys[num - 1])
+    }
+  }
+
+  // 3. Map Cycling (Alt + Up/Down)
+  if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+    e.preventDefault()
+    const allMaps = store.maps
+    if (allMaps.length <= 1) return
+
+    const currentIndex = allMaps.findIndex((m) => m.id === store.activeMapID)
+    let nextIndex = currentIndex
+
+    if (e.key === 'ArrowUp') {
+      nextIndex = currentIndex <= 0 ? allMaps.length - 1 : currentIndex - 1
+    } else {
+      nextIndex = currentIndex >= allMaps.length - 1 ? 0 : currentIndex + 1
+    }
+
+    const nextMap = allMaps[nextIndex]
+    if (nextMap) {
+      store.activeMapID = nextMap.id
+    }
+  }
+}
+
+onMounted(() => {
+  window.addEventListener('keydown', handleKeyDown)
+})
+
 onUnmounted(() => {
   stopResizing()
+  window.removeEventListener('keydown', handleKeyDown)
 })
 
 const tabs = [
@@ -50,7 +107,7 @@ const tabs = [
         :style="{ width: sidebarWidth + 'px' }"
       >
         <!-- Sidebar Navigation -->
-        <div class="flex border-b border-black/5 p-1 bg-black/[0.02]">
+        <div class="flex border-b border-black/5 p-1 bg-black/2">
           <button
             v-for="tab in tabs"
             :key="tab.id"
@@ -58,7 +115,7 @@ const tabs = [
             :class="
               activeSidebarTab === tab.id
                 ? 'bg-white shadow-sm'
-                : 'hover:bg-black/[0.03] opacity-40 hover:opacity-100'
+                : 'hover:bg-black/3 opacity-40 hover:opacity-100'
             "
             @click="activeSidebarTab = tab.id as any"
           >
@@ -93,11 +150,15 @@ const tabs = [
         ></div>
       </aside>
 
-      <!-- Main Editor Viewport -->
       <main class="flex-1 relative flex flex-col bg-[#f0f1f3]">
         <div class="flex-1 relative overflow-hidden">
           <GameViewport />
-          <EditorBar />
+
+          <!-- Unified Bottom Toolbar -->
+          <div class="absolute bottom-6 left-6 flex items-center gap-4 pointer-events-none z-30">
+            <LayerQuickSwitch />
+            <EditorBar />
+          </div>
         </div>
       </main>
     </div>

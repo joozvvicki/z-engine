@@ -14,7 +14,6 @@ import {
   IconPlayerStop,
   IconPackage // Added IconPackage
 } from '@tabler/icons-vue'
-import DynamicIcon from './DynamicIcon.vue'
 import BuildGameModal from './BuildGameModal.vue'
 import PlaytestModal from './modal/PlaytestModal.vue'
 import { computed, onMounted, ref, watch, nextTick } from 'vue'
@@ -190,17 +189,11 @@ const sortedLayers = computed(() => {
 // Sliding Background Logic
 
 const toolRefs = ref<HTMLElement[]>([])
-const layerRefs = ref<HTMLElement[]>([])
 
 const toolHighlightStyle = ref({
-  top: '0px',
-  height: '0px',
+  left: '0px',
+  width: '0px',
   backgroundColor: store.currentTool === ZTool.eraser ? 'red !important' : 'black'
-})
-
-const layerHighlightStyle = ref({
-  top: '0px',
-  height: '0px'
 })
 
 const updateToolHighlight = (): void => {
@@ -215,28 +208,6 @@ const updateToolHighlight = (): void => {
     }
   }
 }
-
-const updateLayerHighlight = (): void => {
-  if (!sortedLayers.value.length) return
-
-  const activeIndex = sortedLayers.value.findIndex(([key]) => key === store.activeLayer)
-  const el = layerRefs.value[activeIndex]
-
-  if (el) {
-    layerHighlightStyle.value = {
-      top: `${el.offsetTop}px`,
-      height: `${el.offsetHeight}px`
-    }
-  }
-}
-
-watch(
-  () => store.currentTool,
-  () => {
-    nextTick(updateToolHighlight)
-  },
-  { immediate: true }
-)
 
 watch(
   () => store.currentTool,
@@ -260,25 +231,25 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="absolute bottom-10 left-10 z-20 flex items-center gap-4">
+  <div class="flex items-center gap-4 pointer-events-auto">
     <!-- Tools -->
     <div
-      class="relative flex gap-1 bg-white/80 backdrop-blur-2xl p-2 rounded-2xl shadow-2xl shadow-black/5 border border-black/5"
+      class="relative flex gap-1 bg-white/80 backdrop-blur-2xl p-1.5 rounded-2xl border border-black/5"
     >
       <div
-        class="absolute top-2 bottom-2 bg-black rounded-xl transition-all duration-300 ease-out z-0"
+        class="absolute top-1.5 bottom-1.5 bg-black rounded-xl transition-all duration-300 ease-out z-0"
         :style="toolHighlightStyle"
       ></div>
       <button
         v-for="tool in tools"
         :key="tool.tooltip"
         ref="toolRefs"
-        class="group relative p-2.5 rounded-xl transition-all duration-200 cursor-pointer z-10 text-black disabled:opacity-30 disabled:cursor-not-allowed"
+        class="group relative p-2 rounded-xl transition-all duration-200 cursor-pointer z-10 text-black disabled:opacity-30 disabled:cursor-not-allowed"
         :class="store.currentTool === tool.tool ? 'text-white' : 'hover:bg-black/5'"
         :disabled="store.isTestMode"
         @click="store.setTool(tool.tool)"
       >
-        <component :is="tool.icon" :size="20" stroke-width="2.5" />
+        <component :is="tool.icon" :size="18" stroke-width="2.5" />
 
         <!-- Tooltip -->
         <div
@@ -292,16 +263,16 @@ onMounted(() => {
     <!-- Actions (Undo/Redo) -->
     <div
       v-if="store.undoCount > 0 || store.redoCount > 0"
-      class="flex gap-1 bg-white/80 backdrop-blur-2xl p-2 rounded-2xl shadow-2xl shadow-black/5 border border-black/5"
+      class="flex gap-1 bg-white/80 backdrop-blur-2xl p-1.5 rounded-2xl border border-black/5"
     >
       <button
         v-for="action in actions"
         :key="action.name"
-        class="relative p-2.5 rounded-xl transition-all duration-200 cursor-pointer group disabled:opacity-30 disabled:cursor-not-allowed text-black hover:bg-black/5"
+        class="relative p-2 rounded-xl transition-all duration-200 cursor-pointer group disabled:opacity-30 disabled:cursor-not-allowed text-black hover:bg-black/5"
         :disabled="store.isTestMode"
         @click="action.action"
       >
-        <component :is="action.icon" :size="20" stroke-width="2.5" />
+        <component :is="action.icon" :size="18" stroke-width="2.5" />
         <div
           v-if="['Undo', 'Redo'].includes(action.name)"
           class="text-white text-[8px] font-black absolute -top-1 -right-1 flex items-center justify-center ring-2 ring-white"
@@ -321,23 +292,21 @@ onMounted(() => {
     </div>
 
     <!-- Play/Build -->
-    <div
-      class="flex gap-1 bg-white/80 backdrop-blur-2xl p-2 rounded-2xl shadow-2xl shadow-black/5 border border-black/5"
-    >
+    <div class="flex gap-1 bg-white/80 backdrop-blur-2xl p-1.5 rounded-2xl border border-black/5">
       <button
-        class="relative p-2.5 rounded-xl transition-all duration-200 cursor-pointer group text-blue-600 hover:bg-black/5"
+        class="relative p-2 rounded-xl transition-all duration-200 cursor-pointer group text-blue-600 hover:bg-black/5"
         @click="buildGame"
       >
-        <IconPackage :size="20" stroke-width="2.5" />
+        <IconPackage :size="18" stroke-width="2.5" />
       </button>
 
       <button
-        class="relative p-2.5 rounded-xl transition-all duration-200 cursor-pointer group"
+        class="relative p-2 rounded-xl transition-all duration-200 cursor-pointer group"
         :class="store.isTestMode ? 'text-red-500' : 'text-green-600 hover:bg-black/5'"
         @click="togglePlay"
       >
-        <IconPlayerStop v-if="store.isTestMode" :size="20" stroke-width="2.5" />
-        <IconPlayerPlay v-else :size="20" stroke-width="2.5" />
+        <IconPlayerStop v-if="store.isTestMode" :size="18" stroke-width="2.5" />
+        <IconPlayerPlay v-else :size="18" stroke-width="2.5" />
       </button>
     </div>
   </div>
