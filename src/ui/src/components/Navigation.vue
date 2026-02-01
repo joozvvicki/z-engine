@@ -26,6 +26,7 @@ const route = useRoute()
 const router = useRouter()
 
 const options = [
+  { icon: IconLayoutGrid, label: 'Dashboard', path: '/' },
   { icon: IconMap, label: 'Editor', path: '/editor' },
   { icon: IconFolder, label: 'Resources', path: '/resources' },
   { icon: IconDatabase, label: 'Database', path: '/database' }
@@ -64,7 +65,11 @@ const settings = [
     v-show="!store.isTestMode"
     class="min-w-16 relative z-2000 h-full bg-white backdrop-blur-2xl flex flex-col items-center border-r border-gray-200 py-2 transition-all duration-300"
   >
-    <img :src="logo" class="w-8 h-8 mb-4 cursor-pointer" @click="router.push('/')" />
+    <img
+      :src="logo"
+      class="w-10 h-10 mb-6 cursor-pointer hover:scale-110 transition-transform active:scale-95 duration-300"
+      @click="router.push('/')"
+    />
 
     <nav class="flex flex-col gap-2 relative z-999">
       <NavButton

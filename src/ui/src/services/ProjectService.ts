@@ -9,7 +9,7 @@ export class ProjectService {
     const path = await window.api.selectProjectFolder()
     if (path) {
       this.projectPath = path
-      localStorage.setItem('Z_LastProjectPath', path)
+      this.addToHistory(path)
     }
     return path
   }
@@ -20,11 +20,39 @@ export class ProjectService {
 
   public static clearProject(): void {
     this.projectPath = null
-    localStorage.removeItem('Z_LastProjectPath')
   }
 
-  public static isLoaded(): boolean {
-    return this.projectPath !== null
+  private static addToHistory(path: string): void {
+    const history = this.getHistory()
+    const newHistory = [path, ...history.filter((p) => p !== path)].slice(0, 5)
+    localStorage.setItem('Z_ProjectHistory', JSON.stringify(newHistory))
+    localStorage.setItem('Z_LastProjectPath', path)
+  }
+
+  public static getHistory(): string[] {
+    try {
+      const history = localStorage.getItem('Z_ProjectHistory')
+      return history ? JSON.parse(history) : []
+    } catch {
+      return []
+    }
+  }
+
+  public static removeFromHistory(path: string): void {
+    const history = this.getHistory()
+    const newHistory = history.filter((p) => p !== path)
+    localStorage.setItem('Z_ProjectHistory', JSON.stringify(newHistory))
+    if (localStorage.getItem('Z_LastProjectPath') === path) {
+      localStorage.removeItem('Z_LastProjectPath')
+    }
+  }
+
+  public static loadLastProject(): string | null {
+    const path = localStorage.getItem('Z_LastProjectPath')
+    if (path) {
+      this.projectPath = path
+    }
+    return path
   }
 
   public static resolveAssetUrl(relativePath: string): string {
@@ -204,16 +232,12 @@ export class ProjectService {
     await window.api.writeProjectFile(`${projectPath}/Game.zproj`, meta)
 
     this.projectPath = projectPath
-    localStorage.setItem('Z_LastProjectPath', projectPath)
+    this.addToHistory(projectPath)
     return projectPath
   }
 
-  public static loadLastProject(): string | null {
-    const path = localStorage.getItem('Z_LastProjectPath')
-    if (path) {
-      this.projectPath = path
-    }
-    return path
+  public static isLoaded(): boolean {
+    return this.projectPath !== null
   }
 
   public static async getProjectFiles(subpath: string): Promise<string[]> {

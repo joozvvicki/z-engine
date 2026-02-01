@@ -1,3 +1,4 @@
+import DashboardPage from '@ui/pages/DashboardPage.vue'
 import DatabasePage from '@ui/pages/DatabasePage.vue'
 import EditorPage from '@ui/pages/EditorPage.vue'
 import ProjectLauncher from '@ui/pages/ProjectLauncher.vue'
@@ -12,6 +13,11 @@ const router = createRouter({
   routes: [
     {
       path: '/',
+      name: 'dashboard',
+      component: DashboardPage
+    },
+    {
+      path: '/launcher',
       name: 'launcher',
       component: ProjectLauncher
     },
