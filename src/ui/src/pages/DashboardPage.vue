@@ -93,8 +93,8 @@ const welcomeMessage = computed(() => {
 
       <div v-if="isLoaded" class="flex gap-4">
         <button
-          @click="router.push('/editor')"
           class="bg-black text-white px-8 py-4 rounded-2xl font-black uppercase tracking-widest text-xs flex items-center gap-3 hover:scale-105 transition-all shadow-2xl shadow-black/20 cursor-pointer"
+          @click="router.push('/editor')"
         >
           <IconPlayerPlay :size="18" stroke-width="3" />
           Continue Development
@@ -147,8 +147,8 @@ const welcomeMessage = computed(() => {
         <!-- Quick Actions (If Not Loaded) -->
         <div v-else class="grid grid-cols-2 gap-8">
           <button
-            @click="openProject()"
             class="h-64 bg-black text-white rounded-[2rem] p-10 flex flex-col justify-between hover:scale-[1.02] transition-all cursor-pointer shadow-xl"
+            @click="openProject()"
           >
             <IconFolder :size="48" stroke-width="1.5" />
             <div>
@@ -158,8 +158,8 @@ const welcomeMessage = computed(() => {
           </button>
 
           <button
-            @click="router.push('/')"
             class="h-64 bg-white border-2 border-dashed border-black/10 rounded-[2rem] p-10 flex flex-col justify-between hover:border-black/40 transition-all cursor-pointer group"
+            @click="router.push('/')"
           >
             <IconPlus
               :size="48"
@@ -204,8 +204,8 @@ const welcomeMessage = computed(() => {
                 </div>
               </div>
               <button
-                @click.stop="removeHistory(path)"
                 class="opacity-0 group-hover:opacity-100 p-2 text-black/20 hover:text-red-500 transition-all"
+                @click.stop="removeHistory(path)"
               >
                 <IconTrash :size="14" />
               </button>
