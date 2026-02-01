@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useEditorStore } from '@ui/stores/editor'
 import { ZLayer } from '@engine/types'
-import { IconCircle, IconWall, IconStar, IconPackage, IconCloud } from '@tabler/icons-vue'
+import { IconCircle, IconWall, IconStar, IconCloud } from '@tabler/icons-vue'
 
 const store = useEditorStore()
 
@@ -9,7 +9,6 @@ const layers = [
   { id: ZLayer.ground, icon: IconCircle, label: 'Ground' },
   { id: ZLayer.walls, icon: IconWall, label: 'Walls' },
   { id: ZLayer.decoration, icon: IconStar, label: 'Decorations' },
-  { id: ZLayer.events, icon: IconPackage, label: 'Events' },
   { id: ZLayer.highest, icon: IconCloud, label: 'Highest' }
 ]
 

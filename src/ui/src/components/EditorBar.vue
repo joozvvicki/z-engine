@@ -42,13 +42,13 @@ const togglePlay = async (event?: MouseEvent): Promise<void> => {
 }
 
 const tools = [
-  { tool: ZTool.brush, icon: IconPencil, tooltip: 'Pędzel (Ctrl + 1)' },
-  { tool: ZTool.select, icon: IconScan, tooltip: 'Zaznacz (Ctrl + S)' },
-  { tool: ZTool.bucket, icon: IconBucketDroplet, tooltip: 'Wypełniacz (Ctrl + 2)' },
-  { tool: ZTool.rectangle, icon: IconRectangle, tooltip: 'Prostokąt (Ctrl + 3)' },
-  { tool: ZTool.circle, icon: IconCircle, tooltip: 'Okrąg (Ctrl + 4)' },
-  { tool: ZTool.event, icon: IconBox, tooltip: 'Zdarzenie (Ctrl + 5)' },
-  { tool: ZTool.eraser, icon: IconEraser, tooltip: 'Gumka (Ctrl + 6)', isCritical: true }
+  { tool: ZTool.brush, icon: IconPencil, tooltip: 'Pędzel (1)' },
+  { tool: ZTool.select, icon: IconScan, tooltip: 'Zaznacz (S)' },
+  { tool: ZTool.bucket, icon: IconBucketDroplet, tooltip: 'Wypełniacz (2)' },
+  { tool: ZTool.rectangle, icon: IconRectangle, tooltip: 'Prostokąt (3)' },
+  { tool: ZTool.circle, icon: IconCircle, tooltip: 'Okrąg (4)' },
+  { tool: ZTool.event, icon: IconBox, tooltip: 'Zdarzenie (5)' },
+  { tool: ZTool.eraser, icon: IconEraser, tooltip: 'Gumka (6)', isCritical: true }
 ]
 
 const actions = [
@@ -120,42 +120,43 @@ const handleKeydown = (e: KeyboardEvent): void => {
         e.preventDefault()
         break
       }
-      case '1':
-        store.setTool(ZTool.brush)
-        e.preventDefault()
-        break
-      case '2':
-        store.setTool(ZTool.bucket)
-        e.preventDefault()
-        break
-      case '3':
-        store.setTool(ZTool.rectangle)
-        e.preventDefault()
-        break
-      case '4':
-        store.setTool(ZTool.circle)
-        e.preventDefault()
-        break
-      case '5':
-        store.setTool(ZTool.event)
-        e.preventDefault()
-        break
-      case '6':
-        store.setTool(ZTool.eraser)
-        e.preventDefault()
-        break
-      case 's':
-      case 'S':
-        store.setTool(ZTool.select)
+      case 'V':
+        store.pasteSelection()
         e.preventDefault()
     }
   } else {
-    // Shortcuts without modifiers or with other modifiers
-    if (e.key === 'Escape') {
-      store.setSelectionCoords(null)
-      // Reset selection pattern if it exists (stop stamping)
-      if (store.selection && store.selection.pattern) {
-        store.setSelection({ ...store.selection, pattern: undefined, w: 1, h: 1 })
+    // Shortcuts without modifiers (Tools)
+    if (!e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey) {
+      switch (e.key) {
+        case '1':
+          store.setTool(ZTool.brush)
+          break
+        case '2':
+          store.setTool(ZTool.bucket)
+          break
+        case '3':
+          store.setTool(ZTool.rectangle)
+          break
+        case '4':
+          store.setTool(ZTool.circle)
+          break
+        case '5':
+          store.setTool(ZTool.event)
+          break
+        case '6':
+          store.setTool(ZTool.eraser)
+          break
+        case 's':
+        case 'S':
+          store.setTool(ZTool.select)
+          break
+        case 'Escape':
+          store.setSelectionCoords(null)
+          // Reset selection pattern if it exists (stop stamping)
+          if (store.selection && store.selection.pattern) {
+            store.setSelection({ ...store.selection, pattern: undefined, w: 1, h: 1 })
+          }
+          break
       }
     }
   }
@@ -181,9 +182,7 @@ onMounted(() => {
 
 const sortedLayers = computed(() => {
   if (!store.activeMap) return []
-  return Object.entries(store.activeMap.layers)
-    .filter(([key]) => key !== ZLayer.events) // Hide Events layer from selection
-    .sort((a, b) => b[1].index - a[1].index)
+  return Object.entries(store.activeMap.layers).sort((a, b) => b[1].index - a[1].index)
 })
 
 // Sliding Background Logic

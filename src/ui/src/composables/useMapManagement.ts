@@ -20,8 +20,7 @@ export const createEmptyLayers = (
     [ZLayer.ground]: { icon: 'ground', data: createGrid(), index: 0 },
     [ZLayer.walls]: { icon: 'wall', data: createGrid(), index: 1 },
     [ZLayer.decoration]: { icon: 'decoration', data: createGrid(), index: 2 },
-    [ZLayer.events]: { icon: 'event', data: createGrid(), index: 3 },
-    [ZLayer.highest]: { icon: 'highest', data: createGrid(), index: 4 }
+    [ZLayer.highest]: { icon: 'highest', data: createGrid(), index: 3 }
   }
 }
 

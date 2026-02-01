@@ -194,7 +194,6 @@ export enum ZLayer {
   ground = 'ground',
   walls = 'walls',
   decoration = 'decoration',
-  events = 'events',
   highest = 'highest'
 }
 

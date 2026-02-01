@@ -8,6 +8,7 @@ import { DEFAULT_PLAYER_GRAPHIC } from '@engine/constants'
 
 export class RenderSystem extends ZSystem {
   private layers: Record<ZLayer, PIXI.Container>
+  private eventMarkersLayer: PIXI.Container // Dedicated layer for editor event markers
   private tileContainers: Record<ZLayer, PIXI.Container[][][]>
   public tileSize: number
 
@@ -23,6 +24,7 @@ export class RenderSystem extends ZSystem {
     this.tileSize = tileSize
 
     this.layers = null!
+    this.eventMarkersLayer = null!
     this.tileContainers = null!
   }
 
@@ -38,20 +40,20 @@ export class RenderSystem extends ZSystem {
       [ZLayer.ground]: new PIXI.Container({ label: 'GroundLayer' }),
       [ZLayer.walls]: new PIXI.Container({ label: 'WallsLayer' }),
       [ZLayer.decoration]: new PIXI.Container({ label: 'DecorationLayer' }),
-      [ZLayer.events]: new PIXI.Container({ label: 'EventsLayer' }),
       [ZLayer.highest]: new PIXI.Container({ label: 'HighestLayer' })
     }
+    this.eventMarkersLayer = new PIXI.Container({ label: 'EventMarkersLayer' })
 
     this.layers[ZLayer.ground].zIndex = 0
     this.layers[ZLayer.walls].zIndex = 100
     this.layers[ZLayer.decoration].zIndex = 200
-    this.layers[ZLayer.events].zIndex = 300
+    this.eventMarkersLayer.zIndex = 300
     this.layers[ZLayer.highest].zIndex = 500
 
     // Enable Y-sorting / Priority sorting
     this.layers[ZLayer.walls].sortableChildren = true
     this.layers[ZLayer.decoration].sortableChildren = true
-    this.layers[ZLayer.events].sortableChildren = true
+    this.eventMarkersLayer.sortableChildren = true
     this.layers[ZLayer.highest].sortableChildren = true
 
     // Since wrapper (Stage) has sortableChildren=true, zIndex will be respected?
@@ -77,6 +79,10 @@ export class RenderSystem extends ZSystem {
     return this.layers[layer]
   }
 
+  public getEventMarkersContainer(): PIXI.Container {
+    return this.eventMarkersLayer
+  }
+
   public refresh(): void {
     this.fullRenderDirty = true
   }
@@ -100,6 +106,8 @@ export class RenderSystem extends ZSystem {
       this.wrapper.removeChild(layer)
       layer.destroy({ children: true })
     })
+    this.wrapper.removeChild(this.eventMarkersLayer)
+    this.eventMarkersLayer.destroy({ children: true })
   }
 
   public requestTileUpdate(x: number, y: number, tiles: TileSelection[], layer: ZLayer): void {
@@ -225,13 +233,7 @@ export class RenderSystem extends ZSystem {
   private performFullRender(mapData: ZMap): void {
     this.resetLayers(mapData.width, mapData.height)
 
-    const layersOrder: ZLayer[] = [
-      ZLayer.ground,
-      ZLayer.walls,
-      ZLayer.decoration,
-      ZLayer.events,
-      ZLayer.highest
-    ]
+    const layersOrder: ZLayer[] = [ZLayer.ground, ZLayer.walls, ZLayer.decoration, ZLayer.highest]
 
     layersOrder.forEach((layer) => {
       const grid = mapData.layers[layer].data
@@ -333,7 +335,7 @@ export class RenderSystem extends ZSystem {
     text.y = 0
     container.addChild(text)
 
-    this.layers[ZLayer.events].addChild(container)
+    this.eventMarkersLayer.addChild(container)
     this.playerStartMarker = container
   }
 
@@ -345,16 +347,16 @@ export class RenderSystem extends ZSystem {
   }
 
   public updateLayerDimming(activeLayer: ZLayer | null, focusOnly: boolean = false): void {
-    // If no active layer (or Play Mode), reset all to alpha 1
-    if (!activeLayer) {
+    const activeContainer = activeLayer ? this.layers[activeLayer] : null
+    const activeZ = activeContainer ? activeContainer.zIndex : -1
+
+    if (!activeLayer && !focusOnly) {
       Object.values(this.layers).forEach((c) => (c.alpha = 1))
+      this.eventMarkersLayer.alpha = 1
       return
     }
 
-    const activeContainer = this.layers[activeLayer]
-    if (!activeContainer) return
-
-    const activeZ = activeContainer.zIndex
+    this.eventMarkersLayer.alpha = 1 // Events markers usually stays visible
 
     // Loop through all layers
     Object.values(this.layers).forEach((container) => {
@@ -436,7 +438,7 @@ export class RenderSystem extends ZSystem {
       overlay.stroke({ color: 0x000000, width: 2 })
       container.addChild(overlay)
 
-      this.layers[ZLayer.events].addChild(container)
+      this.eventMarkersLayer.addChild(container)
       this.eventMarkers.push(container)
     })
   }
@@ -514,6 +516,7 @@ export class RenderSystem extends ZSystem {
 
   private resetLayers(w: number, h: number): void {
     Object.values(this.layers).forEach((c) => c.removeChildren())
+    this.eventMarkersLayer.removeChildren()
     this.tileContainers = this.createEmptyContainerStructure(w, h)
   }
 
@@ -528,7 +531,6 @@ export class RenderSystem extends ZSystem {
       [ZLayer.ground]: create(),
       [ZLayer.walls]: create(),
       [ZLayer.decoration]: create(),
-      [ZLayer.events]: create(),
       [ZLayer.highest]: create()
     } as Record<ZLayer, PIXI.Container[][][]>
   }

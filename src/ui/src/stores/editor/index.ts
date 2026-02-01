@@ -20,6 +20,8 @@ export const useEditorStore = defineStore('editor', () => {
   const playerPos = ref({ x: 0, y: 0 })
   const spawnPos = ref({ x: 5, y: 5 })
   const tileSize = ref(48) // Standard MV/MZ
+  const cursorX = ref(0)
+  const cursorY = ref(0)
 
   // Stan UI Edytora
   const activeTab = useLocalStorage('Z_ActiveTab', 'A')
@@ -129,6 +131,8 @@ export const useEditorStore = defineStore('editor', () => {
     try {
       // 1. Save System
       await ProjectService.saveSystemData({
+        projectName: 'My Z Project',
+        version: '1.0.0',
         switches: systemSwitches.value,
         variables: systemVariables.value,
         startMapId: systemStartMapId.value,
@@ -174,6 +178,8 @@ export const useEditorStore = defineStore('editor', () => {
       // ProjectService.isLoaded() check is good.
       if (ProjectService.isLoaded()) {
         const sysData: import('@engine/types').ZSystemData = {
+          projectName: 'My Z Project',
+          version: '1.0.0',
           switches: systemSwitches.value,
           variables: systemVariables.value,
           startMapId: systemStartMapId.value,
@@ -245,6 +251,8 @@ export const useEditorStore = defineStore('editor', () => {
     currentTool,
     selectionCoords,
     clipboard,
+    cursorX,
+    cursorY,
 
     // Viewport States
     mapViewportStates,

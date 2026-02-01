@@ -18,8 +18,8 @@ const currentMapId = computed(() => store.activeMapID || '-')
 const projectPath = computed(() => ProjectService.currentPath || 'None')
 const activeLayerName = computed(() => store.activeLayer)
 
-// Mock coordinates for now, as we'd need to emit them from GameViewport
-const coords = computed(() => ({ x: store.playerPos.x, y: store.playerPos.y }))
+// Cursor coordinates from store
+const coords = computed(() => ({ x: store.cursorX, y: store.cursorY }))
 
 // Quick Jump Logic
 const isMapMenuOpen = ref(false)

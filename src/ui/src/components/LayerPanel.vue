@@ -2,23 +2,14 @@
 import { computed } from 'vue'
 import { useEditorStore } from '@ui/stores/editor'
 import { ZLayer } from '@engine/types'
-import {
-  IconLayersIntersect,
-  IconEye,
-  IconPlus,
-  IconTrash,
-  IconSettings,
-  IconX
-} from '@tabler/icons-vue'
+import { IconLayersIntersect, IconEye } from '@tabler/icons-vue'
 import DynamicIcon from './DynamicIcon.vue'
 
 const store = useEditorStore()
 
 const layers = computed(() => {
   if (!store.activeMap) return []
-  return Object.entries(store.activeMap.layers)
-    .filter(([key]) => key !== ZLayer.events)
-    .sort((a, b) => b[1].index - a[1].index)
+  return Object.entries(store.activeMap.layers).sort((a, b) => b[1].index - a[1].index)
 })
 
 const selectLayer = (key: string): void => {

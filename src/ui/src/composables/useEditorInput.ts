@@ -94,6 +94,11 @@ export const useEditorInput = (
     target.value = engine.value.services.get(GridSystem)?.getTileCoords(event)
     const tool = store.currentTool
 
+    if (target.value) {
+      store.cursorX = target.value.x
+      store.cursorY = target.value.y
+    }
+
     if (
       [ZTool.rectangle, ZTool.circle, ZTool.select].includes(tool) &&
       isPointerDown.value &&

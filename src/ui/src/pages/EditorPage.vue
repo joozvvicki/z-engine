@@ -38,30 +38,24 @@ const handleKeyDown = (e: KeyboardEvent): void => {
   // Don't trigger if user is typing in an input or textarea
   if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
 
-  // 1. Sidebar Tabs (Alt + 1/2/3)
-  if (e.altKey) {
-    if (e.key === '1') activeSidebarTab.value = 'assets'
-    if (e.key === '2') activeSidebarTab.value = 'maps'
-    if (e.key === '3') activeSidebarTab.value = 'layers'
+  // 1. Sidebar Tabs (Alt + 1/2/3) - Using e.code to avoid Mac Option character issues
+  if (e.altKey && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
+    if (e.code === 'Digit1') activeSidebarTab.value = 'assets'
+    if (e.code === 'Digit2') activeSidebarTab.value = 'maps'
+    if (e.code === 'Digit3') activeSidebarTab.value = 'layers'
   }
 
-  // 2. Layer Switching (1-5)
-  if (!e.altKey && !e.ctrlKey && !e.metaKey) {
-    const layerKeys: ZLayer[] = [
-      ZLayer.ground,
-      ZLayer.walls,
-      ZLayer.decoration,
-      ZLayer.events,
-      ZLayer.highest
-    ]
+  // 2. Layer Switching (Shift + 1-4)
+  if (e.shiftKey && !e.altKey && !e.ctrlKey && !e.metaKey) {
+    const layerKeys: ZLayer[] = [ZLayer.ground, ZLayer.walls, ZLayer.decoration, ZLayer.highest]
     const num = parseInt(e.key)
-    if (num >= 1 && num <= 5) {
+    if (num >= 1 && num <= 4) {
       store.setLayer(layerKeys[num - 1])
     }
   }
 
   // 3. Map Cycling (Alt + Up/Down)
-  if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+  if (e.altKey && !e.shiftKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
     e.preventDefault()
     const allMaps = store.maps
     if (allMaps.length <= 1) return

@@ -166,7 +166,7 @@ export const useLayerEditing = (
 
     // Capture structure for layers
     const layersToCheck = allLayers
-      ? [ZLayer.ground, ZLayer.walls, ZLayer.decoration, ZLayer.events, ZLayer.highest]
+      ? [ZLayer.ground, ZLayer.walls, ZLayer.decoration, ZLayer.highest]
       : [activeLayer.value]
 
     for (const l of layersToCheck) {

@@ -205,8 +205,7 @@ export class ProjectService {
         ground: { icon: 'ground', data: createLayerData(20, 15), index: 0 },
         walls: { icon: 'wall', data: createLayerData(20, 15), index: 1 },
         decoration: { icon: 'decoration', data: createLayerData(20, 15), index: 2 },
-        events: { icon: 'event', data: createLayerData(20, 15), index: 3 },
-        highest: { icon: 'highest', data: createLayerData(20, 15), index: 4 }
+        highest: { icon: 'highest', data: createLayerData(20, 15), index: 3 }
       },
       events: [],
       tilesetConfig: {

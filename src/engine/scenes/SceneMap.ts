@@ -98,7 +98,7 @@ export class SceneMap extends ZScene {
     this.container.addChild(renderSystem.getLayerContainer(ZLayer.walls))
     this.container.addChild(renderSystem.getLayerContainer(ZLayer.decoration))
 
-    this.container.addChild(renderSystem.getLayerContainer(ZLayer.events))
+    this.container.addChild(renderSystem.getEventMarkersContainer())
     this.container.addChild(renderSystem.getLayerContainer(ZLayer.highest))
 
     // Ensure entities are visible in play mode

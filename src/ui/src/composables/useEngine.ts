@@ -272,7 +272,7 @@ export const useEngine = (
         const renderSystem = eng.services.get(RenderSystem)
         if (renderSystem) {
           if (tool === ZTool.event) {
-            renderSystem.updateLayerDimming(ZLayer.events, true)
+            renderSystem.updateLayerDimming(null, true)
             renderSystem.setEventMarkersVisible(true)
             if (store.activeMap && store.activeMap.id === store.systemStartMapId) {
               renderSystem.setPlayerStartMarker(
