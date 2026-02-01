@@ -7,7 +7,7 @@ const options = [
   {
     icon: IconMap,
     label: 'Editor',
-    path: '/'
+    path: '/editor'
   },
   {
     icon: IconFolder,
@@ -37,9 +37,9 @@ const settings = [
 
 <template>
   <div
-    class="w-16 relative z-2000 h-full bg-white backdrop-blur-2xl flex flex-col items-center border-r border-gray-200 py-2"
+    class="min-w-16 relative z-2000 h-full bg-white backdrop-blur-2xl flex flex-col items-center border-r border-gray-200 py-2"
   >
-    <img :src="logo" class="w-8 h-8 mb-4" />
+    <img :src="logo" class="w-8 h-8 mb-4 cursor-pointer" @click="$router.push('/')" />
 
     <nav class="flex flex-col gap-2 relative z-999">
       <NavButton
