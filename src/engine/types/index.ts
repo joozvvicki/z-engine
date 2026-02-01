@@ -222,7 +222,9 @@ export enum ZEngineSignal {
 
 export interface ZSignalData {
   [ZEngineSignal.PlayerMoved]: { x: number; y: number; prevX: number; prevY: number }
+  [ZEngineSignal.MapWillLoad]: { mapId: number; map: ZMap }
   [ZEngineSignal.MapLoaded]: { mapId: number; map: ZMap }
+  [ZEngineSignal.MapLoadFailed]: { mapId: number; error: Error }
   [ZEngineSignal.EventTriggered]: { event: ZEvent; trigger: ZEventTrigger }
   [ZEngineSignal.InteractionRequested]: { x: number; y: number }
   [ZEngineSignal.ShowMessage]: { text: string }

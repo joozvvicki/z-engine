@@ -75,6 +75,10 @@ export class SceneManager extends ZManager {
       console.log(`[SceneManager] Map loaded successfully: ${map.name}`)
     } catch (e) {
       console.error('[SceneManager] Map Load Error:', e)
+      this.bus.emit(ZEngineSignal.MapLoadFailed, {
+        mapId: typeof mapOrId === 'number' ? mapOrId : mapOrId.id,
+        error: e as Error
+      })
       this.services.get(ErrorSystem)?.show(e as Error)
     } finally {
       this.isLoading = false
