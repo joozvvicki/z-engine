@@ -1,3 +1,10 @@
+export interface ZClass {
+  id: number
+  name: string
+  nickname?: string
+  description?: string
+}
+
 export interface ZActor {
   id: number
   name: string

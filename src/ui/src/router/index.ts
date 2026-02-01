@@ -1,9 +1,6 @@
-import ActorsPage from '@ui/pages/ActorsPage.vue'
 import DatabasePage from '@ui/pages/DatabasePage.vue'
-import EnemiesPage from '@ui/pages/EnemiesPage.vue'
 import EditorPage from '@ui/pages/EditorPage.vue'
 import ProjectLauncher from '@ui/pages/ProjectLauncher.vue'
-import PluginsPage from '@ui/pages/PluginsPage.vue'
 import ResourcesPage from '@ui/pages/ResourcesPage.vue'
 import SettingsPage from '@ui/pages/SettingsPage.vue'
 import { createRouter, createWebHashHistory } from 'vue-router'
@@ -25,28 +22,67 @@ const router = createRouter({
     },
     {
       path: '/database',
-      name: 'database',
-      component: DatabasePage
+      component: DatabasePage,
+      children: [
+        { path: '', redirect: '/database/actors' },
+        {
+          path: 'actors',
+          name: 'database-actors',
+          component: () => import('@ui/components/database/ActorsTab.vue')
+        },
+        {
+          path: 'classes',
+          name: 'database-classes',
+          component: () => import('@ui/components/database/ClassesTab.vue')
+        },
+        {
+          path: 'skills',
+          name: 'database-skills',
+          component: () => import('@ui/components/database/PlaceholderTab.vue')
+        },
+        {
+          path: 'items',
+          name: 'database-items',
+          component: () => import('@ui/components/database/PlaceholderTab.vue')
+        },
+        {
+          path: 'weapons',
+          name: 'database-weapons',
+          component: () => import('@ui/components/database/PlaceholderTab.vue')
+        },
+        {
+          path: 'armors',
+          name: 'database-armors',
+          component: () => import('@ui/components/database/PlaceholderTab.vue')
+        },
+        {
+          path: 'enemies',
+          name: 'database-enemies',
+          component: () => import('@ui/components/database/PlaceholderTab.vue')
+        },
+        {
+          path: 'system',
+          name: 'database-system',
+          component: () => import('@ui/components/database/SystemTab.vue')
+        }
+      ]
     },
     {
       path: '/resources',
-      name: 'resources',
-      component: ResourcesPage
-    },
-    {
-      path: '/actors',
-      name: 'actors',
-      component: ActorsPage
-    },
-    {
-      path: '/enemies',
-      name: 'enemies',
-      component: EnemiesPage
-    },
-    {
-      path: '/plugins',
-      name: 'plugins',
-      component: PluginsPage
+      component: ResourcesPage,
+      children: [
+        { path: '', redirect: '/resources/tilesets' },
+        {
+          path: 'tilesets',
+          name: 'resources-tilesets',
+          component: () => import('@ui/pages/ResourcesPage.vue')
+        },
+        {
+          path: 'characters',
+          name: 'resources-characters',
+          component: () => import('@ui/pages/ResourcesPage.vue')
+        }
+      ]
     },
     {
       path: '/settings',

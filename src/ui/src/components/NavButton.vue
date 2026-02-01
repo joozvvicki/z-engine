@@ -11,14 +11,16 @@ defineProps<{
 <template>
   <div class="group relative flex items-center z-5000">
     <button
-      class="rounded-md focus:bg-white/10 hover:bg-white/10 duration-300 hover:cursor-pointer px-2 py-2 text-slate-600 hover:text-slate-300"
+      class="rounded-xl transition-all duration-300 hover:cursor-pointer p-2.5"
       :aria-label="tooltip"
-      :class="{
-        'bg-black/10! text-black!': $route.path === path
-      }"
-      @click="$router.push({ path })"
+      :class="
+        path && $route.path.startsWith(path) && path !== '/'
+          ? 'bg-black text-white shadow-xl shadow-black/20'
+          : 'text-gray-400 hover:text-gray-900 hover:bg-gray-100'
+      "
+      @click="path && $router.push({ path })"
     >
-      <component :is="icon" :size="20" stroke-width="1.5" />
+      <component :is="icon" :size="20" stroke-width="1.8" />
     </button>
 
     <div

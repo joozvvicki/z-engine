@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { useLocalStorage } from '@vueuse/core'
-import type { ZActor } from '@engine/types'
+import type { ZActor, ZClass } from '@engine/types'
 
 export const useDatabaseStore = defineStore('database', () => {
   const actors = useLocalStorage<ZActor[]>('Z_DB_Actors', [
@@ -28,6 +28,12 @@ export const useDatabaseStore = defineStore('database', () => {
     }
   ])
 
+  const classes = useLocalStorage<ZClass[]>('Z_DB_Classes', [
+    { id: 1, name: 'Paladin', description: 'A holy warrior with high defense.' },
+    { id: 2, name: 'Sorcerer', description: 'A master of arcane arts.' },
+    { id: 3, name: 'Ranger', description: 'A swift woodlander skilled with bows.' }
+  ])
+
   // Akcje
   const addActor = (): void => {
     const newId = actors.value.length > 0 ? Math.max(...actors.value.map((a) => a.id)) + 1 : 1
@@ -49,9 +55,26 @@ export const useDatabaseStore = defineStore('database', () => {
     if (idx !== -1) actors.value.splice(idx, 1)
   }
 
+  const addClass = (): void => {
+    const newId = classes.value.length > 0 ? Math.max(...classes.value.map((c) => c.id)) + 1 : 1
+    classes.value.push({
+      id: newId,
+      name: `Class ${newId}`,
+      description: ''
+    })
+  }
+
+  const deleteClass = (id: number): void => {
+    const idx = classes.value.findIndex((c) => c.id === id)
+    if (idx !== -1) classes.value.splice(idx, 1)
+  }
+
   return {
     actors,
     addActor,
-    deleteActor
+    deleteActor,
+    classes,
+    addClass,
+    deleteClass
   }
 })

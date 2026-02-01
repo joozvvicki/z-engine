@@ -63,15 +63,10 @@ const filteredVariables = computed(() => {
 <template>
   <div class="w-full h-full flex flex-col overflow-hidden text-sm text-gray-800 bg-white">
     <!-- Header -->
-    <div class="px-6 py-4 border-b border-gray-100 bg-white shadow-sm z-10">
-      <h2
-        class="text-2xl font-bold bg-clip-text text-transparent bg-linear-to-r from-blue-600 to-indigo-600"
-      >
-        System Database
-      </h2>
-      <p class="text-gray-500 mt-1 text-xs">
-        Manage global state persistence (Switches & Variables). These can be referenced in Event
-        Conditions.
+    <div class="px-8 py-6 border-b border-gray-100 bg-white/50 backdrop-blur-md sticky top-0 z-10">
+      <h2 class="text-2xl font-bold text-gray-900 tracking-tight">System Configuration</h2>
+      <p class="text-sm text-gray-500 mt-1">
+        Manage global game settings, switches, and variables.
       </p>
     </div>
 
@@ -82,7 +77,7 @@ const filteredVariables = computed(() => {
         <div
           class="p-3 border-b border-gray-100 bg-white font-bold text-gray-700 uppercase tracking-widest text-xs flex items-center gap-2"
         >
-          <span class="w-2 h-2 rounded-full bg-green-500"></span> General
+          <span class="w-1.5 h-1.5 rounded-full bg-black"></span> General
         </div>
         <div class="p-4 space-y-6 overflow-y-auto">
           <!-- Player Start -->
@@ -178,7 +173,7 @@ const filteredVariables = computed(() => {
             <h3
               class="font-bold text-gray-700 uppercase tracking-widest text-xs flex items-center gap-2"
             >
-              <span class="w-2 h-2 rounded-full bg-blue-500"></span> Switches
+              <span class="w-1.5 h-1.5 rounded-full bg-black"></span> Switches
             </h3>
             <span class="text-[10px] font-mono text-gray-400"
               >{{ filteredSwitches.length }} / {{ store.systemSwitches.length }}</span
@@ -188,13 +183,13 @@ const filteredVariables = computed(() => {
           <div class="relative group">
             <IconSearch
               :size="14"
-              class="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-blue-500 transition-colors"
+              class="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-black transition-colors"
             />
             <input
               v-model="searchSwitches"
               type="text"
               placeholder="Search ID or Name..."
-              class="w-full pl-8 pr-3 py-1.5 text-xs bg-gray-100 border border-transparent rounded-md focus:bg-white focus:border-blue-200 focus:ring-2 focus:ring-blue-100 outline-none transition-all"
+              class="w-full pl-8 pr-3 py-1.5 text-xs bg-gray-100 border border-transparent rounded-lg focus:bg-white focus:border-black/10 focus:ring-4 focus:ring-black/5 outline-none transition-all"
             />
           </div>
         </div>
@@ -207,7 +202,7 @@ const filteredVariables = computed(() => {
               class="flex items-center gap-3 p-1 rounded hover:bg-white hover:shadow-sm border border-transparent hover:border-gray-100 focus-within:bg-white focus-within:border-blue-100 focus-within:ring-2 focus-within:ring-blue-50 transition-all group"
             >
               <span
-                class="w-10 text-right font-mono text-xs text-gray-400 select-none group-focus-within:text-blue-500"
+                class="w-10 text-right font-mono text-xs text-gray-400 select-none group-focus-within:text-black"
               >
                 {{ String(item.index + 1).padStart(3, '0') }}
               </span>
@@ -245,7 +240,7 @@ const filteredVariables = computed(() => {
             <h3
               class="font-bold text-gray-700 uppercase tracking-widest text-xs flex items-center gap-2"
             >
-              <span class="w-2 h-2 rounded-full bg-indigo-500"></span> Variables
+              <span class="w-1.5 h-1.5 rounded-full bg-black"></span> Variables
             </h3>
             <span class="text-[10px] font-mono text-gray-400"
               >{{ filteredVariables.length }} / {{ store.systemVariables.length }}</span
@@ -255,13 +250,13 @@ const filteredVariables = computed(() => {
           <div class="relative group">
             <IconSearch
               :size="14"
-              class="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-indigo-500 transition-colors"
+              class="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-black transition-colors"
             />
             <input
               v-model="searchVariables"
               type="text"
               placeholder="Search ID or Name..."
-              class="w-full pl-8 pr-3 py-1.5 text-xs bg-gray-100 border border-transparent rounded-md focus:bg-white focus:border-indigo-200 focus:ring-2 focus:ring-indigo-100 outline-none transition-all"
+              class="w-full pl-8 pr-3 py-1.5 text-xs bg-gray-100 border border-transparent rounded-lg focus:bg-white focus:border-black/10 focus:ring-4 focus:ring-black/5 outline-none transition-all"
             />
           </div>
         </div>
@@ -274,7 +269,7 @@ const filteredVariables = computed(() => {
               class="flex items-center gap-3 p-1 rounded hover:bg-gray-50 hover:shadow-sm border border-transparent hover:border-gray-100 focus-within:bg-gray-50 focus-within:border-indigo-100 focus-within:ring-2 focus-within:ring-indigo-50 transition-all group"
             >
               <span
-                class="w-10 text-right font-mono text-xs text-gray-400 select-none group-focus-within:text-indigo-500"
+                class="w-10 text-right font-mono text-xs text-gray-400 select-none group-focus-within:text-black"
               >
                 {{ String(item.index + 1).padStart(3, '0') }}
               </span>
