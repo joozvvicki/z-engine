@@ -105,12 +105,17 @@ export const useEditorInput = (
       shapeStartPos.value
     ) {
       if (target.value)
-        engine.value.services.get(GhostSystem)?.updateShape(shapeStartPos.value, target.value, tool)
+        engine.value.services
+          .get(GhostSystem)
+          ?.updateShape(shapeStartPos.value, target.value, tool, store.selection)
     } else {
-      if (target.value)
+      if (target.value) {
         engine.value.services
           .get(GhostSystem)
           ?.update(target.value.x, target.value.y, store.selection, tool)
+      } else {
+        engine.value.services.get(GhostSystem)?.hide()
+      }
 
       if (isPointerDown.value && (tool === ZTool.brush || tool === ZTool.eraser)) {
         handleInteraction(event, engine.value)

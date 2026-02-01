@@ -17,12 +17,12 @@ export class GhostSystem extends ZSystem {
   private shapeEnd: { x: number; y: number } | null = null
   private isShape: boolean = false
 
+  private selectionBox: { x: number; y: number; w: number; h: number } | null = null
+
   constructor(_stage: Container, services: ServiceLocator, tileSize: number) {
     super(services)
     this.updateMode = SystemMode.EDIT
-
     this.tileSize = tileSize
-
     this.container = null!
   }
 
@@ -31,8 +31,7 @@ export class GhostSystem extends ZSystem {
     this.container.label = 'GhostContainer'
     this.container.zIndex = 999
     this.container.visible = false
-    this.container.eventMode = 'none' // Ensure ghost doesn't block interactions
-    // No longer adding to wrapper here, scene will mount it
+    this.container.eventMode = 'none'
   }
 
   public onDestroy(): void {
@@ -41,7 +40,7 @@ export class GhostSystem extends ZSystem {
     }
   }
 
-  public update(x: number, y: number, sel: TileSelection, tool: ZTool): void {
+  public update(x: number, y: number, sel: TileSelection | null, tool: ZTool): void {
     this.active = true
     this.isShape = false
     this.position = { x, y }
@@ -53,13 +52,15 @@ export class GhostSystem extends ZSystem {
   public updateShape(
     start: { x: number; y: number },
     end: { x: number; y: number },
-    tool: ZTool
+    tool: ZTool,
+    sel: TileSelection | null = null
   ): void {
     this.active = true
     this.isShape = true
     this.shapeStart = start
     this.shapeEnd = end
     this.currentTool = tool
+    this.selection = sel
     this.dirty = true
   }
 
@@ -76,15 +77,30 @@ export class GhostSystem extends ZSystem {
     }
   }
 
+  public setSelectionBox(box: { x: number; y: number; w: number; h: number } | null): void {
+    this.selectionBox = box
+    this.dirty = true
+  }
+
   private renderSingleGhost(): void {
-    if (!this.selection) return
-
-    // Keep container at 0,0
-    this.container.x = 0
-    this.container.y = 0
-
+    const sel = this.selection
     const x = this.position.x * this.tileSize
     const y = this.position.y * this.tileSize
+
+    if (!sel) {
+      // 1x1 Guide for Brush/Eraser when no selection
+      const isPickableTool = [ZTool.brush, ZTool.eraser, ZTool.rectangle, ZTool.circle].includes(
+        this.currentTool
+      )
+      if (isPickableTool) {
+        const g = new Graphics()
+          .rect(x, y, this.tileSize, this.tileSize)
+          .stroke({ width: 1, color: 0xffffff, alpha: 0.5 })
+          .stroke({ width: 1, color: 0x000000, alpha: 0.2, alignment: 1 })
+        this.container.addChild(g)
+      }
+      return
+    }
 
     if (this.currentTool === ZTool.eraser) {
       const g = new Graphics()
@@ -98,335 +114,184 @@ export class GhostSystem extends ZSystem {
         .fill({ color: 0x00ffff, alpha: 0.3 })
         .stroke({ width: 1, color: 0x00ffff, alpha: 0.8 })
       this.container.addChild(g)
-    } else if (this.currentTool === ZTool.brush || this.currentTool === ZTool.bucket) {
-      if (this.selection.structure) {
-        // Render multi-layer structure (prioritize over flat pattern)
-        for (const layerKey in this.selection.structure) {
-          const grid = this.selection.structure[layerKey as ZLayer]
-          if (!grid) continue
-
-          for (let dy = 0; dy < this.selection.h; dy++) {
-            for (let dx = 0; dx < this.selection.w; dx++) {
-              const stack = grid[dy]?.[dx]
-              if (stack && stack.length > 0) {
-                for (const tile of stack) {
-                  const tex = this.textures.get(tile.tilesetId)
-                  if (!tex) continue
-
-                  if (tile.isAutotile) {
-                    // Autotile interaction logic for GHOST structure
-                    const halfSize = this.tileSize / 2
-
-                    for (let qy = 0; qy < 2; qy++) {
-                      for (let qx = 0; qx < 2; qx++) {
-                        // Check neighbors within the CURRENT LAYER GRID
-                        const check = (odx: number, ody: number): boolean => {
-                          const nx = dx + odx
-                          const ny = dy + ody
-                          if (
-                            nx < 0 ||
-                            nx >= this.selection!.w ||
-                            ny < 0 ||
-                            ny >= this.selection!.h
-                          )
-                            return false
-
-                          const neighborStack: TileSelection[] | null = grid[ny]?.[nx]
-                          if (!neighborStack) return false
-
-                          // Check if any tile in neighbor stack matches
-                          return neighborStack.some(
-                            (n: TileSelection) =>
-                              n.tilesetId === tile.tilesetId && n.x === tile.x && n.y === tile.y
-                          )
-                        }
-
-                        // Logic copied/adapted from AutotileSolver
-                        const ndx = qx === 0 ? -1 : 1
-                        const ndy = qy === 0 ? -1 : 1
-
-                        const hasH = check(ndx, 0)
-                        const hasV = check(0, ndy)
-                        const hasD = check(ndx, ndy)
-
-                        const isA3 = tile.tilesetId === 'A3'
-                        const isA4Wall =
-                          tile.tilesetId === 'A4' && (tile.y === 3 || tile.y === 8 || tile.y === 13)
-
-                        let srcX = 0
-                        let srcY = 0
-
-                        if (isA3 || isA4Wall) {
-                          if (qx === 0 && qy === 0) {
-                            srcX = hasH ? halfSize : 0
-                            srcY = hasV ? halfSize : 0
-                          } else if (qx === 1 && qy === 0) {
-                            srcX = hasH ? this.tileSize : this.tileSize * 1.5
-                            srcY = hasV ? halfSize : 0
-                          } else if (qx === 0 && qy === 1) {
-                            srcX = hasH ? halfSize : 0
-                            srcY = !hasV ? this.tileSize * 1.5 : halfSize
-                          } else if (qx === 1 && qy === 1) {
-                            srcX = hasH ? this.tileSize : this.tileSize * 1.5
-                            srcY = !hasV ? this.tileSize * 1.5 : halfSize
-                          }
-                        } else {
-                          // Standard Autotile
-                          if (qx === 0 && qy === 0) {
-                            if (!hasH && !hasV) {
-                              srcX = 0
-                              srcY = this.tileSize
-                            } else if (hasH && !hasV) {
-                              srcX = this.tileSize
-                              srcY = this.tileSize
-                            } else if (!hasH && hasV) {
-                              srcX = 0
-                              srcY = this.tileSize * 2
-                            } else if (hasH && hasV && !hasD) {
-                              srcX = this.tileSize
-                              srcY = 0
-                            } else {
-                              srcX = this.tileSize
-                              srcY = this.tileSize * 2
-                            }
-                          } else if (qx === 1 && qy === 0) {
-                            if (!hasH && !hasV) {
-                              srcX = this.tileSize * 1.5
-                              srcY = this.tileSize
-                            } else if (hasH && !hasV) {
-                              srcX = halfSize
-                              srcY = this.tileSize
-                            } else if (!hasH && hasV) {
-                              srcX = this.tileSize * 1.5
-                              srcY = this.tileSize * 2
-                            } else if (hasH && hasV && !hasD) {
-                              srcX = this.tileSize * 1.5
-                              srcY = 0
-                            } else {
-                              srcX = halfSize
-                              srcY = this.tileSize * 2
-                            }
-                          } else if (qx === 0 && qy === 1) {
-                            if (!hasH && !hasV) {
-                              srcX = 0
-                              srcY = this.tileSize * 2.5
-                            } else if (hasH && !hasV) {
-                              srcX = this.tileSize
-                              srcY = this.tileSize * 2.5
-                            } else if (!hasH && hasV) {
-                              srcX = 0
-                              srcY = this.tileSize * 1.5
-                            } else if (hasH && hasV && !hasD) {
-                              srcX = this.tileSize
-                              srcY = halfSize
-                            } else {
-                              srcX = this.tileSize
-                              srcY = this.tileSize * 1.5
-                            }
-                          } else if (qx === 1 && qy === 1) {
-                            if (!hasH && !hasV) {
-                              srcX = this.tileSize * 1.5
-                              srcY = this.tileSize * 2.5
-                            } else if (hasH && !hasV) {
-                              srcX = halfSize
-                              srcY = this.tileSize * 2.5
-                            } else if (!hasH && hasV) {
-                              srcX = this.tileSize * 1.5
-                              srcY = this.tileSize * 1.5
-                            } else if (hasH && hasV && !hasD) {
-                              srcX = this.tileSize * 1.5
-                              srcY = halfSize
-                            } else {
-                              srcX = halfSize
-                              srcY = this.tileSize * 1.5
-                            }
-                          }
-                        }
-
-                        const sprite = new Sprite(
-                          new Texture({
-                            source: tex.source,
-                            frame: new Rectangle(
-                              tile.x * this.tileSize + srcX,
-                              tile.y * this.tileSize + srcY,
-                              halfSize,
-                              halfSize
-                            )
-                          })
-                        )
-                        sprite.x = x + dx * this.tileSize + qx * halfSize
-                        sprite.y = y + dy * this.tileSize + qy * halfSize
-                        sprite.alpha = 0.5
-                        this.container.addChild(sprite)
-                      }
-                    }
-                  } else {
-                    // Standard Tile
-                    const sprite = new Sprite(
-                      new Texture({
-                        source: tex.source,
-                        frame: new Rectangle(
-                          tile.x * this.tileSize,
-                          tile.y * this.tileSize,
-                          this.tileSize,
-                          this.tileSize
-                        )
-                      })
-                    )
-                    sprite.x = x + dx * this.tileSize
-                    sprite.y = y + dy * this.tileSize
-                    sprite.alpha = 0.5
-                    this.container.addChild(sprite)
-                  }
-                }
-              }
-            }
-          }
-        }
-      } else if (this.selection.pattern) {
-        // Fallback or legacy pattern
-        // (This code block is mostly redundant now since we always populate structure, but kept for safety)
-        for (let dy = 0; dy < this.selection.h; dy++) {
-          for (let dx = 0; dx < this.selection.w; dx++) {
-            const tile = this.selection.pattern[dy]?.[dx]
-            if (tile) {
-              const tex = this.textures.get(tile.tilesetId)
-              if (tex) {
-                const sprite = new Sprite(
-                  new Texture({
-                    source: tex.source,
-                    frame: new Rectangle(
-                      tile.x * this.tileSize,
-                      tile.y * this.tileSize,
-                      this.tileSize,
-                      this.tileSize
-                    )
-                  })
-                )
-                sprite.x = x + dx * this.tileSize
-                sprite.y = y + dy * this.tileSize
-                sprite.alpha = 0.5
-                this.container.addChild(sprite)
-              }
-            }
-          }
-        }
-      } else {
-        // Single tile selection fallback
-        const tex = this.textures.get(this.selection.tilesetId)
-        if (tex) {
-          // Check for pixel override
-          const pX = this.selection.pixelX ?? this.selection.x * this.tileSize
-          const pY = this.selection.pixelY ?? this.selection.y * this.tileSize
-          const pW =
-            this.selection.pixelW ??
-            (this.selection.isAutotile ? this.tileSize : this.selection.w * this.tileSize)
-          const pH =
-            this.selection.pixelH ??
-            (this.selection.isAutotile ? this.tileSize : this.selection.h * this.tileSize)
-
-          const sprite = new Sprite(
-            new Texture({
-              source: tex.source,
-              frame: new Rectangle(pX, pY, pW, pH)
-            })
-          )
-
-          // Center-bottom align if it looks like a character (png)
-          const isCharacter = this.selection.tilesetId.endsWith('.png')
-
-          if (isCharacter) {
-            sprite.anchor.set(0.5, 1)
-            // Ghost position is top-left of the target tile.
-            // We want the sprite bottom-center to be at the bottom-center of the target tile.
-            sprite.x = x + this.tileSize / 2
-            sprite.y = y + this.tileSize
-          } else {
-            sprite.x = x
-            sprite.y = y
-          }
-
-          sprite.alpha = 0.5
-          this.container.addChild(sprite)
-        }
-      }
+    } else if (
+      this.currentTool === ZTool.brush ||
+      this.currentTool === ZTool.bucket ||
+      this.currentTool === ZTool.rectangle ||
+      this.currentTool === ZTool.circle
+    ) {
+      this.renderTileSelectionAt(this.position.x, this.position.y, sel)
     }
-  }
-
-  private selectionBox: { x: number; y: number; w: number; h: number } | null = null
-
-  public setSelectionBox(box: { x: number; y: number; w: number; h: number } | null): void {
-    this.selectionBox = box
-    this.dirty = true
-    this.active = true // Ensure render loop runs
   }
 
   private renderShape(): void {
     if (!this.shapeStart || !this.shapeEnd) return
 
-    this.container.x = 0
-    this.container.y = 0
+    const xOrigin = Math.min(this.shapeStart.x, this.shapeEnd.x)
+    const yOrigin = Math.min(this.shapeStart.y, this.shapeEnd.y)
+    const xMax = Math.max(this.shapeStart.x, this.shapeEnd.x)
+    const yMax = Math.max(this.shapeStart.y, this.shapeEnd.y)
 
+    const w = (xMax - xOrigin + 1) * this.tileSize
+    const h = (yMax - yOrigin + 1) * this.tileSize
+    const x = xOrigin * this.tileSize
+    const y = yOrigin * this.tileSize
+
+    // 1. Render Tiled Content if selection exists
+    const sel = this.selection
+    if (sel && (this.currentTool === ZTool.rectangle || this.currentTool === ZTool.circle)) {
+      const selW = sel.w || 1
+      const selH = sel.h || 1
+
+      for (let sy = yOrigin; sy <= yMax; sy++) {
+        for (let sx = xOrigin; sx <= xMax; sx++) {
+          if (this.currentTool === ZTool.circle) {
+            const cx = (xOrigin + xMax) / 2
+            const cy = (yOrigin + yMax) / 2
+            const rx = (xMax - xOrigin) / 2 + 0.5
+            const ry = (yMax - yOrigin) / 2 + 0.5
+            if (Math.pow((sx - cx) / rx, 2) + Math.pow((sy - cy) / ry, 2) > 1) continue
+          }
+
+          const dx = (sx - xOrigin) % selW
+          const dy = (sy - yOrigin) % selH
+          this.renderTileGhostAt(sx, sy, sel, dx, dy)
+        }
+      }
+    }
+
+    // 2. Render Shape Border/Outline
     const g = new Graphics()
-    const x = Math.min(this.shapeStart.x, this.shapeEnd.x) * this.tileSize
-    const y = Math.min(this.shapeStart.y, this.shapeEnd.y) * this.tileSize
-    const w = (Math.abs(this.shapeStart.x - this.shapeEnd.x) + 1) * this.tileSize
-    const h = (Math.abs(this.shapeStart.y - this.shapeEnd.y) + 1) * this.tileSize
-
     if (this.currentTool === ZTool.rectangle) {
       g.rect(x, y, w, h)
-      g.fill({ color: 0x00ff00, alpha: 0.2 }).stroke({ width: 2, color: 0x00ff00, alpha: 0.6 })
+      g.fill({ color: 0x00ff00, alpha: 0.05 }).stroke({ width: 2, color: 0x00ff00, alpha: 0.8 })
     } else if (this.currentTool === ZTool.circle) {
       g.ellipse(x + w / 2, y + h / 2, w / 2, h / 2)
-      g.fill({ color: 0x00ff00, alpha: 0.2 }).stroke({ width: 2, color: 0x00ff00, alpha: 0.6 })
+      g.fill({ color: 0x00ff00, alpha: 0.05 }).stroke({ width: 2, color: 0x00ff00, alpha: 0.8 })
     } else if (this.currentTool === ZTool.select) {
       g.rect(x, y, w, h)
-      g.fill({ color: 0x0000ff, alpha: 0.1 }).stroke({ width: 2, color: 0x3399ff, alpha: 0.8 })
+      g.fill({ color: 0x0000ff, alpha: 0.05 }).stroke({ width: 2, color: 0x3399ff, alpha: 0.9 })
     }
 
     this.container.addChild(g)
   }
 
+  private renderTileSelectionAt(mapX: number, mapY: number, sel: TileSelection): void {
+    const { w, h } = sel
+    for (let dy = 0; dy < h; dy++) {
+      for (let dx = 0; dx < w; dx++) {
+        this.renderTileGhostAt(mapX + dx, mapY + dy, sel, dx, dy)
+      }
+    }
+  }
+
+  private renderTileGhostAt(
+    mapX: number,
+    mapY: number,
+    sel: TileSelection,
+    selOffsetX: number = 0,
+    selOffsetY: number = 0
+  ): void {
+    const x = mapX * this.tileSize
+    const y = mapY * this.tileSize
+
+    if (sel.structure) {
+      for (const layerKey in sel.structure) {
+        const grid = sel.structure[layerKey as ZLayer]
+        if (!grid) continue
+
+        const stack = grid[selOffsetY]?.[selOffsetX]
+        if (stack && stack.length > 0) {
+          for (const tile of stack) {
+            this.renderSingleTileSource(tile, x, y)
+          }
+        }
+      }
+    } else if (sel.pattern) {
+      const tile = sel.pattern[selOffsetY]?.[selOffsetX]
+      if (tile) {
+        this.renderSingleTileSource(tile, x, y)
+      }
+    } else {
+      // Single tile or simple selection
+      // Note: mapping source coordinates for simple multi-tile selection
+      const tile = {
+        ...sel,
+        x: sel.isAutotile ? sel.x : sel.x + selOffsetX,
+        y: sel.isAutotile ? sel.y : sel.y + selOffsetY
+      } as TileSelection
+
+      // CRITICAL: If we are rendering a sub-tile from a larger selection,
+      // we MUST clear any pixel overrides that refer to the whole selection area.
+      if (selOffsetX !== 0 || selOffsetY !== 0 || sel.w > 1 || sel.h > 1) {
+        tile.pixelX = undefined
+        tile.pixelY = undefined
+        tile.pixelW = undefined
+        tile.pixelH = undefined
+      }
+
+      this.renderSingleTileSource(tile, x, y)
+    }
+  }
+
+  private renderSingleTileSource(tile: TileSelection, absX: number, absY: number): void {
+    const tex = this.textures.get(tile.tilesetId)
+    if (!tex) return
+
+    const pX = tile.pixelX ?? tile.x * this.tileSize
+    const pY = tile.pixelY ?? tile.y * this.tileSize
+    const pW = tile.pixelW ?? this.tileSize
+    const pH = tile.pixelH ?? this.tileSize
+
+    const sprite = new Sprite(
+      new Texture({
+        source: tex.source,
+        frame: new Rectangle(pX, pY, pW, pH)
+      })
+    )
+
+    const isCharacter = tile.tilesetId.endsWith('.png')
+    if (isCharacter) {
+      sprite.anchor.set(0.5, 1)
+      sprite.x = absX + this.tileSize / 2
+      sprite.y = absY + this.tileSize
+    } else {
+      sprite.x = absX
+      sprite.y = absY
+    }
+
+    sprite.alpha = 0.5
+    this.container.addChild(sprite)
+  }
+
   private renderSelectionBox(): void {
     if (!this.selectionBox) return
-
-    // Don't render selection box if we are currently dragging a shape (avoid double render)
-    // Actually, selection box is persistent, shape drag is temporary.
-    // If we are dragging a NEW selection, we show the shape drag.
-    // If we have an existing selection, we show it.
-
     const g = new Graphics()
     const x = this.selectionBox.x * this.tileSize
     const y = this.selectionBox.y * this.tileSize
     const w = this.selectionBox.w * this.tileSize
     const h = this.selectionBox.h * this.tileSize
-
     g.rect(x, y, w, h)
-    // Styling for persistent selection: animated ants would be cool, but simple dashed line for now or solid.
     g.stroke({ width: 2, color: 0xffffff, alpha: 0.9 })
     g.rect(x, y, w, h)
-    g.stroke({ width: 2, color: 0x000000, alpha: 0.5, alignment: 1 }) // Double stroke for visibility
-
+    g.stroke({ width: 2, color: 0x000000, alpha: 0.5, alignment: 1 })
     this.container.addChild(g)
   }
 
   public onUpdate(): void {
     if (!this.dirty) return
-
     this.container.removeChildren()
     this.container.visible = this.active
+    this.container.x = 0
+    this.container.y = 0
 
     if (this.isShape && this.shapeStart && this.shapeEnd) {
       this.renderShape()
-    } else if (!this.isShape && this.selection) {
+    } else {
       this.renderSingleGhost()
     }
 
-    // Always render selection box if it exists
     this.renderSelectionBox()
-
-    // If usage of selectionBox keeps active true, we might need to handle 'dirty' carefully.
-    // Ideally we only redraw on change.
     this.dirty = false
   }
 }
