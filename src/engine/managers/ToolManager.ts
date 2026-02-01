@@ -209,7 +209,18 @@ export class ToolManager extends ZManager {
       }
 
       if (match) {
-        this.applyTile(current.x, current.y, selection, isStacking, layer)
+        const dx = (current.x - target.x) % (selection.w || 1)
+        const dy = (current.y - target.y) % (selection.h || 1)
+
+        const tile = {
+          ...selection,
+          x: selection.isAutotile ? selection.x : selection.x + (dx < 0 ? dx + selection.w : dx),
+          y: selection.isAutotile ? selection.y : selection.y + (dy < 0 ? dy + selection.h : dy),
+          w: 1,
+          h: 1
+        }
+
+        this.applyTile(current.x, current.y, tile, isStacking, layer)
 
         const neighbors = [
           { x: current.x + 1, y: current.y },
@@ -257,7 +268,20 @@ export class ToolManager extends ZManager {
           if (Math.pow((x - cx) / rx, 2) + Math.pow((y - cy) / ry, 2) <= 1) shouldDraw = true
         }
 
-        if (shouldDraw) this.applyTile(x, y, selection, isStacking, layer)
+        if (shouldDraw) {
+          const dx = (x - xMin) % (selection.w || 1)
+          const dy = (y - yMin) % (selection.h || 1)
+
+          const tile = {
+            ...selection,
+            x: selection.isAutotile ? selection.x : selection.x + dx,
+            y: selection.isAutotile ? selection.y : selection.y + dy,
+            w: 1,
+            h: 1
+          }
+
+          this.applyTile(x, y, tile, isStacking, layer)
+        }
       }
     }
     this.historyManager.commitEntry()

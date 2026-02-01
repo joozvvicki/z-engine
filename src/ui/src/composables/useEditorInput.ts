@@ -162,6 +162,19 @@ export const useEditorInput = (
     }
   )
 
+  // 1.5. Force immediate ghost update when selection or tool changes
+  watch(
+    [() => store.selection, () => store.currentTool],
+    () => {
+      if (engine.value && target.value) {
+        engine.value.services
+          .get(GhostSystem)
+          ?.update(target.value.x, target.value.y, store.selection, store.currentTool)
+      }
+    },
+    { deep: true }
+  )
+
   // --- Viewport Persistence Logic ---
 
   // 1. Load state when switching maps

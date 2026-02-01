@@ -88,10 +88,14 @@ export class GhostSystem extends ZSystem {
     const y = this.position.y * this.tileSize
 
     if (!sel) {
-      // 1x1 Guide for Brush/Eraser when no selection
-      const isPickableTool = [ZTool.brush, ZTool.eraser, ZTool.rectangle, ZTool.circle].includes(
-        this.currentTool
-      )
+      // 1x1 Guide for Brush/Eraser/Select/Shapes when no selection
+      const isPickableTool = [
+        ZTool.brush,
+        ZTool.eraser,
+        ZTool.rectangle,
+        ZTool.circle,
+        ZTool.select
+      ].includes(this.currentTool)
       if (isPickableTool) {
         const g = new Graphics()
           .rect(x, y, this.tileSize, this.tileSize)
@@ -120,7 +124,12 @@ export class GhostSystem extends ZSystem {
       this.currentTool === ZTool.rectangle ||
       this.currentTool === ZTool.circle
     ) {
-      this.renderTileSelectionAt(this.position.x, this.position.y, sel)
+      if (sel.tilesetId.endsWith('.png')) {
+        // Render large object (character) as a single unit at the foot position
+        this.renderSingleTileSource(sel, this.position.x, this.position.y)
+      } else {
+        this.renderTileSelectionAt(this.position.x, this.position.y, sel)
+      }
     }
   }
 
@@ -155,7 +164,15 @@ export class GhostSystem extends ZSystem {
 
           const dx = (sx - xOrigin) % selW
           const dy = (sy - yOrigin) % selH
-          this.renderTileGhostAt(sx, sy, sel, dx, dy)
+
+          if (sel.tilesetId.endsWith('.png')) {
+            // Characters in shapes: render one full character per "tiled slot" if it's the top-left of the slot
+            if (dx === 0 && dy === 0) {
+              this.renderSingleTileSource(sel, sx, sy)
+            }
+          } else {
+            this.renderTileGhostAt(sx, sy, sel, dx, dy)
+          }
         }
       }
     }
@@ -164,13 +181,13 @@ export class GhostSystem extends ZSystem {
     const g = new Graphics()
     if (this.currentTool === ZTool.rectangle) {
       g.rect(x, y, w, h)
-      g.fill({ color: 0x00ff00, alpha: 0.05 }).stroke({ width: 2, color: 0x00ff00, alpha: 0.8 })
+      g.fill({ color: 0x00ff00, alpha: 0.1 }).stroke({ width: 2, color: 0x00ff00, alpha: 0.8 })
     } else if (this.currentTool === ZTool.circle) {
       g.ellipse(x + w / 2, y + h / 2, w / 2, h / 2)
-      g.fill({ color: 0x00ff00, alpha: 0.05 }).stroke({ width: 2, color: 0x00ff00, alpha: 0.8 })
+      g.fill({ color: 0x00ff00, alpha: 0.1 }).stroke({ width: 2, color: 0x00ff00, alpha: 0.8 })
     } else if (this.currentTool === ZTool.select) {
       g.rect(x, y, w, h)
-      g.fill({ color: 0x0000ff, alpha: 0.05 }).stroke({ width: 2, color: 0x3399ff, alpha: 0.9 })
+      g.fill({ color: 0x0000ff, alpha: 0.1 }).stroke({ width: 2, color: 0x3399ff, alpha: 0.9 })
     }
 
     this.container.addChild(g)
@@ -192,8 +209,8 @@ export class GhostSystem extends ZSystem {
     selOffsetX: number = 0,
     selOffsetY: number = 0
   ): void {
-    const x = mapX * this.tileSize
-    const y = mapY * this.tileSize
+    const absX = mapX * this.tileSize
+    const absY = mapY * this.tileSize
 
     if (sel.structure) {
       for (const layerKey in sel.structure) {
@@ -203,54 +220,67 @@ export class GhostSystem extends ZSystem {
         const stack = grid[selOffsetY]?.[selOffsetX]
         if (stack && stack.length > 0) {
           for (const tile of stack) {
-            this.renderSingleTileSource(tile, x, y)
+            this.renderSingleTileSource(tile, absX, absY)
           }
         }
       }
     } else if (sel.pattern) {
       const tile = sel.pattern[selOffsetY]?.[selOffsetX]
       if (tile) {
-        this.renderSingleTileSource(tile, x, y)
+        this.renderSingleTileSource(tile, absX, absY)
       }
     } else {
       // Single tile or simple selection
-      // Note: mapping source coordinates for simple multi-tile selection
-      const tile = {
-        ...sel,
-        x: sel.isAutotile ? sel.x : sel.x + selOffsetX,
-        y: sel.isAutotile ? sel.y : sel.y + selOffsetY
-      } as TileSelection
+      const tex = this.textures.get(sel.tilesetId)
+      if (!tex) return
 
-      // CRITICAL: If we are rendering a sub-tile from a larger selection,
-      // we MUST clear any pixel overrides that refer to the whole selection area.
-      if (selOffsetX !== 0 || selOffsetY !== 0 || sel.w > 1 || sel.h > 1) {
-        tile.pixelX = undefined
-        tile.pixelY = undefined
-        tile.pixelW = undefined
-        tile.pixelH = undefined
+      // Use grid-based calculation or pixel overrides
+      // If we are sub-sampling (selOffsetX/Y > 0 or multi-tile), we calculate per chunk
+      const sW = this.tileSize
+      const sH = this.tileSize
+      let sX = (sel.x + selOffsetX) * this.tileSize
+      let sY = (sel.y + selOffsetY) * this.tileSize
+
+      if (!sel.isAutotile && sel.pixelX !== undefined && sel.pixelY !== undefined) {
+        // If we have pixel coordinates, they represent the TOP-LEFT of the WHOLE selection.
+        // We add the offset in pixels to get the sub-tile source.
+        sX = sel.pixelX + selOffsetX * this.tileSize
+        sY = sel.pixelY + selOffsetY * this.tileSize
       }
 
-      this.renderSingleTileSource(tile, x, y)
+      // CRITICAL: We render exactly ONE tile size piece here to avoid duplicate drawing
+      this.renderSourceTile(sel.tilesetId, sX, sY, sW, sH, absX, absY)
     }
   }
 
   private renderSingleTileSource(tile: TileSelection, absX: number, absY: number): void {
-    const tex = this.textures.get(tile.tilesetId)
-    if (!tex) return
-
     const pX = tile.pixelX ?? tile.x * this.tileSize
     const pY = tile.pixelY ?? tile.y * this.tileSize
     const pW = tile.pixelW ?? this.tileSize
     const pH = tile.pixelH ?? this.tileSize
+    this.renderSourceTile(tile.tilesetId, pX, pY, pW, pH, absX, absY)
+  }
+
+  private renderSourceTile(
+    tilesetId: string,
+    sX: number,
+    sY: number,
+    sW: number,
+    sH: number,
+    absX: number,
+    absY: number
+  ): void {
+    const tex = this.textures.get(tilesetId)
+    if (!tex) return
 
     const sprite = new Sprite(
       new Texture({
         source: tex.source,
-        frame: new Rectangle(pX, pY, pW, pH)
+        frame: new Rectangle(sX, sY, sW, sH)
       })
     )
 
-    const isCharacter = tile.tilesetId.endsWith('.png')
+    const isCharacter = tilesetId.endsWith('.png')
     if (isCharacter) {
       sprite.anchor.set(0.5, 1)
       sprite.x = absX + this.tileSize / 2
