@@ -1,13 +1,21 @@
-import { defineConfig } from 'eslint/config'
 import tseslint from '@electron-toolkit/eslint-config-ts'
 import eslintConfigPrettier from '@electron-toolkit/eslint-config-prettier'
 import eslintPluginVue from 'eslint-plugin-vue'
 import vueParser from 'vue-eslint-parser'
 
-export default defineConfig(
-  { ignores: ['**/node_modules', '**/dist', '**/out', '**/src/engine'] },
-  tseslint.configs.recommended,
-  eslintPluginVue.configs['flat/recommended'],
+export default [
+  {
+    ignores: [
+      '**/node_modules/**',
+      '**/dist/**',
+      '**/out/**',
+      'build/**',
+      'resources/**',
+      'templates/**'
+    ]
+  },
+  ...tseslint.configs.recommended,
+  ...eslintPluginVue.configs['flat/recommended'],
   {
     files: ['**/*.vue'],
     languageOptions: {
@@ -37,4 +45,4 @@ export default defineConfig(
     }
   },
   eslintConfigPrettier
-)
+]

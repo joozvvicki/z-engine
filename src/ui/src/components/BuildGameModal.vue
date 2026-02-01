@@ -108,8 +108,8 @@ const build = async (): Promise<void> => {
   try {
     const result = await ProjectService.buildGame(platform.value, gameName.value)
     buildResult.value = result
-  } catch (e: any) {
-    buildResult.value = { success: false, message: e.message || 'Unknown error' }
+  } catch (e) {
+    buildResult.value = { success: false, message: (e as Error).message || 'Unknown error' }
   }
 }
 
