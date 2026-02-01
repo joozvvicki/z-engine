@@ -19,8 +19,6 @@ const {
   onPointerMove,
   onPointerUp,
   onWheel,
-  scale,
-  target,
   activeEventCoords,
   activeEventId,
   clearEventSelection,
@@ -83,15 +81,6 @@ onMounted(async () => {
         'opacity-0': isLoading
       }"
     ></div>
-
-    <!-- Stats Bar -->
-    <div
-      class="absolute bottom-0 px-4 py-1 w-full pointer-events-none flex items-center bg-white/50 backdrop-blur-sm justify-between text-[10px] text-black/40 font-mono uppercase z-10"
-    >
-      <span class="w-1/3 text-left">Location: {{ target?.x ?? '-' }}, {{ target?.y ?? '-' }}</span>
-      <span class="w-1/3 text-center">Zoom: {{ Math.round(scale * 100) }}%</span>
-      <span class="w-1/3 text-right text-black/60 font-black italic">Z Creator v0.1.0</span>
-    </div>
 
     <!-- Event Editor Modal -->
     <EventEditor

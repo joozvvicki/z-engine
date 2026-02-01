@@ -209,8 +209,8 @@ const updateToolHighlight = (): void => {
 
   if (el) {
     toolHighlightStyle.value = {
-      top: `${el.offsetTop}px`,
-      height: `${el.offsetHeight}px`,
+      left: `${el.offsetLeft}px`,
+      width: `${el.offsetWidth}px`,
       backgroundColor: store.currentTool === ZTool.eraser ? 'red !important' : 'black'
     }
   }
@@ -239,147 +239,105 @@ watch(
 )
 
 watch(
-  () => [store.activeLayer, sortedLayers.value],
+  () => store.currentTool,
   () => {
-    nextTick(updateLayerHighlight)
+    nextTick(updateToolHighlight)
   },
-  { immediate: true, deep: true }
+  { immediate: true }
 )
 
 onMounted(() => {
   window.addEventListener('keydown', handleKeydown)
 
-  // Using window event for simplicity as per previous implementation
   window.addEventListener('resize', () => {
     updateToolHighlight()
-    updateLayerHighlight()
   })
 
   nextTick(() => {
     updateToolHighlight()
-    updateLayerHighlight()
   })
 })
 </script>
 
 <template>
-  <div class="absolute bottom-6 left-0 z-20 flex flex-col items-center justify-end gap-4 p-2">
+  <div class="absolute bottom-10 left-10 z-20 flex items-center gap-4">
+    <!-- Tools -->
     <div
-      v-if="store.undoCount > 0 || store.redoCount > 0"
-      class="flex flex-col gap-1 bg-black/10 backdrop-blur-lg rounded-xl border border-white/5"
-    >
-      <button
-        v-for="action in actions"
-        :key="action.name"
-        class="relative p-1 rounded-lg transition-all duration-200 cursor-pointer group disabled:opacity-50 disabled:cursor-not-allowed"
-        :class="'bg-transparent text-black hover:text-gray-500'"
-        :disabled="store.isTestMode"
-        @click="action.action"
-      >
-        <component :is="action.icon" />
-        <div
-          v-if="['Undo', 'Redo'].includes(action.name)"
-          class="text-white text-[0.5rem] absolute -top-1 -right-1 flex items-center justify-center"
-        >
-          <span
-            v-if="action.name === 'Undo' && store.undoCount > 0"
-            class="w-3 h-3 bg-red-500 rounded-full"
-            >{{ store.undoCount }}</span
-          >
-          <span
-            v-if="action.name === 'Redo' && store.redoCount > 0"
-            class="w-3 h-3 bg-red-500 rounded-full"
-            >{{ store.redoCount }}</span
-          >
-        </div>
-        <div
-          v-if="action.tooltip"
-          class="absolute top-1 z-1000 left-full ml-2 px-2 py-1 bg-black text-white text-xs rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap border border-white/5"
-        >
-          {{ action.tooltip.split(' ')[0] }}
-          <div
-            class="absolute z-1001 top-1/2 -left-1 -translate-y-1/2 w-2 h-2 bg-black rotate-45 border-l border-b border-white/5"
-          ></div>
-        </div>
-      </button>
-    </div>
-    <div class="flex flex-col gap-1 bg-white/10 backdrop-blur-lg rounded-xl border border-white/5">
-      <button
-        class="relative p-1 rounded-lg transition-all duration-200 cursor-pointer group text-blue-400 hover:text-blue-300"
-        title="Build Game"
-        @click="buildGame"
-      >
-        <IconPackage />
-        <div
-          class="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 px-2 py-1 bg-black text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap"
-        >
-          Build Game
-        </div>
-      </button>
-
-      <button
-        class="relative p-1 rounded-lg transition-all duration-200 cursor-pointer group"
-        :class="store.isTestMode ? 'text-green-400' : 'text-black hover:text-green-600'"
-        @click="togglePlay"
-      >
-        <IconPlayerStop v-if="store.isTestMode" />
-        <IconPlayerPlay v-else />
-
-        <div
-          class="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 px-2 py-1 bg-black text-white text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap"
-        >
-          {{ store.isTestMode ? 'Stop Game' : 'Play Game' }}
-        </div>
-      </button>
-    </div>
-
-    <div
-      class="relative flex flex-col gap-1 bg-black/10 backdrop-blur-lg text-white rounded-xl border border-white/5"
+      class="relative flex gap-1 bg-white/80 backdrop-blur-2xl p-2 rounded-2xl shadow-2xl shadow-black/5 border border-black/5"
     >
       <div
-        class="absolute left-0 right-0 bg-black rounded-lg transition-all duration-300 ease-out z-0"
+        class="absolute top-2 bottom-2 bg-black rounded-xl transition-all duration-300 ease-out z-0"
         :style="toolHighlightStyle"
       ></div>
       <button
         v-for="tool in tools"
         :key="tool.tooltip"
         ref="toolRefs"
-        class="group relative p-2 rounded-lg transition-all duration-200 cursor-pointer z-10 text-black disabled:opacity-50 disabled:cursor-not-allowed"
-        :class="store.currentTool === tool.tool ? 'text-white' : ''"
+        class="group relative p-2.5 rounded-xl transition-all duration-200 cursor-pointer z-10 text-black disabled:opacity-30 disabled:cursor-not-allowed"
+        :class="store.currentTool === tool.tool ? 'text-white' : 'hover:bg-black/5'"
         :disabled="store.isTestMode"
-        :title="tool.tooltip"
         @click="store.setTool(tool.tool)"
       >
-        <component :is="tool.icon" :size="18" />
+        <component :is="tool.icon" :size="20" stroke-width="2.5" />
+
+        <!-- Tooltip -->
         <div
-          class="absolute top-1 z-1000 left-full ml-2 px-2 py-1 bg-black text-white text-xs rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap border border-white/5"
+          class="absolute bottom-full mb-3 left-1/2 -translate-x-1/2 px-3 py-1.5 bg-black text-white text-[10px] font-black uppercase tracking-widest rounded-lg opacity-0 group-hover:opacity-100 transition-all pointer-events-none whitespace-nowrap shadow-xl"
         >
           {{ tool.tooltip.split(' ')[0] }}
-          <div
-            class="absolute z-1001 top-1/2 -left-1 -translate-y-1/2 w-2 h-2 bg-black rotate-45 border-l border-b border-white/5"
-          ></div>
         </div>
       </button>
     </div>
 
+    <!-- Actions (Undo/Redo) -->
     <div
-      v-if="sortedLayers.length"
-      class="relative flex flex-col gap-1 bg-black/10 backdrop-blur-lg rounded-xl border border-white/5"
+      v-if="store.undoCount > 0 || store.redoCount > 0"
+      class="flex gap-1 bg-white/80 backdrop-blur-2xl p-2 rounded-2xl shadow-2xl shadow-black/5 border border-black/5"
     >
-      <div
-        class="absolute left-0 right-0 bg-black rounded-lg transition-all duration-300 ease-out z-0"
-        :style="layerHighlightStyle"
-      ></div>
       <button
-        v-for="[key, data] in sortedLayers"
-        :key="key"
-        ref="layerRefs"
-        class="relative p-1 rounded-lg transition-all duration-200 text-black cursor-pointer z-10 disabled:opacity-50 disabled:cursor-not-allowed"
-        :class="store.activeLayer === key ? 'text-white' : ''"
+        v-for="action in actions"
+        :key="action.name"
+        class="relative p-2.5 rounded-xl transition-all duration-200 cursor-pointer group disabled:opacity-30 disabled:cursor-not-allowed text-black hover:bg-black/5"
         :disabled="store.isTestMode"
-        @click="store.setLayer(key as ZLayer)"
+        @click="action.action"
       >
-        <DynamicIcon :icon="data.icon" :tooltip="key.charAt(0).toUpperCase() + key.slice(1)" />
+        <component :is="action.icon" :size="20" stroke-width="2.5" />
+        <div
+          v-if="['Undo', 'Redo'].includes(action.name)"
+          class="text-white text-[8px] font-black absolute -top-1 -right-1 flex items-center justify-center ring-2 ring-white"
+        >
+          <span
+            v-if="action.name === 'Undo' && store.undoCount > 0"
+            class="w-4 h-4 bg-black rounded-full flex items-center justify-center"
+            >{{ store.undoCount }}</span
+          >
+          <span
+            v-if="action.name === 'Redo' && store.redoCount > 0"
+            class="w-4 h-4 bg-black rounded-full flex items-center justify-center"
+            >{{ store.redoCount }}</span
+          >
+        </div>
+      </button>
+    </div>
+
+    <!-- Play/Build -->
+    <div
+      class="flex gap-1 bg-white/80 backdrop-blur-2xl p-2 rounded-2xl shadow-2xl shadow-black/5 border border-black/5"
+    >
+      <button
+        class="relative p-2.5 rounded-xl transition-all duration-200 cursor-pointer group text-blue-600 hover:bg-black/5"
+        @click="buildGame"
+      >
+        <IconPackage :size="20" stroke-width="2.5" />
+      </button>
+
+      <button
+        class="relative p-2.5 rounded-xl transition-all duration-200 cursor-pointer group"
+        :class="store.isTestMode ? 'text-red-500' : 'text-green-600 hover:bg-black/5'"
+        @click="togglePlay"
+      >
+        <IconPlayerStop v-if="store.isTestMode" :size="20" stroke-width="2.5" />
+        <IconPlayerPlay v-else :size="20" stroke-width="2.5" />
       </button>
     </div>
   </div>

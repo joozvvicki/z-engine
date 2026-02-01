@@ -50,9 +50,9 @@ const openEditMapModal = (): void => {
 </script>
 
 <template>
-  <div class="overflow-y-auto p-2 flex flex-col gap-2 px-3">
-    <div class="flex gap-2 justify-between items-center px-1">
-      <h1 class="text-xl font-bold">Mapy</h1>
+  <div class="flex-1 overflow-y-auto px-4 py-6 space-y-4">
+    <div class="flex gap-2 justify-between items-center px-1 mb-4">
+      <h2 class="text-xs font-black uppercase tracking-widest text-black/40">Project Maps</h2>
 
       <div class="flex gap-2">
         <button
