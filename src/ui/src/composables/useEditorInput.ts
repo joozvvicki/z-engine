@@ -107,12 +107,12 @@ export const useEditorInput = (
       if (target.value)
         engine.value.services
           .get(GhostSystem)
-          ?.updateShape(shapeStartPos.value, target.value, tool, store.selection)
+          ?.updateShape(shapeStartPos.value, target.value, tool, store.selection, store.activeLayer)
     } else {
       if (target.value) {
         engine.value.services
           .get(GhostSystem)
-          ?.update(target.value.x, target.value.y, store.selection, tool)
+          ?.update(target.value.x, target.value.y, store.selection, tool, store.activeLayer)
       } else {
         engine.value.services.get(GhostSystem)?.hide()
       }
@@ -169,7 +169,13 @@ export const useEditorInput = (
       if (engine.value && target.value) {
         engine.value.services
           .get(GhostSystem)
-          ?.update(target.value.x, target.value.y, store.selection, store.currentTool)
+          ?.update(
+            target.value.x,
+            target.value.y,
+            store.selection,
+            store.currentTool,
+            store.activeLayer
+          )
       }
     },
     { deep: true }

@@ -18,6 +18,7 @@ export class GhostSystem extends ZSystem {
   private shapeStart: { x: number; y: number } | null = null
   private shapeEnd: { x: number; y: number } | null = null
   private isShape: boolean = false
+  private activeLayer: ZLayer = ZLayer.ground
 
   private selectionBox: { x: number; y: number; w: number; h: number } | null = null
 
@@ -42,12 +43,13 @@ export class GhostSystem extends ZSystem {
     }
   }
 
-  public update(x: number, y: number, sel: TileSelection | null, tool: ZTool): void {
+  public update(x: number, y: number, sel: TileSelection | null, tool: ZTool, layer: ZLayer): void {
     this.active = true
     this.isShape = false
     this.position = { x, y }
     this.selection = sel
     this.currentTool = tool
+    this.activeLayer = layer
     this.dirty = true
   }
 
@@ -55,7 +57,8 @@ export class GhostSystem extends ZSystem {
     start: { x: number; y: number },
     end: { x: number; y: number },
     tool: ZTool,
-    sel: TileSelection | null = null
+    sel: TileSelection | null = null,
+    layer: ZLayer = ZLayer.ground
   ): void {
     this.active = true
     this.isShape = true
@@ -63,6 +66,7 @@ export class GhostSystem extends ZSystem {
     this.shapeEnd = end
     this.currentTool = tool
     this.selection = sel
+    this.activeLayer = layer
     this.dirty = true
   }
 
@@ -212,9 +216,17 @@ export class GhostSystem extends ZSystem {
 
   private renderTileSelectionAt(mapX: number, mapY: number, sel: TileSelection): void {
     const { w, h } = sel
-    for (let dy = 0; dy < h; dy++) {
-      for (let dx = 0; dx < w; dx++) {
-        this.renderTileGhostAt(mapX + dx, mapY + dy, sel, dx, dy)
+    for (let sy = 0; sy < h; sy++) {
+      for (let sx = 0; sx < w; sx++) {
+        const mx = mapX + sx
+        const my = mapY + sy
+
+        if (sel.isAutotile) {
+          const checkAtPos = (tx: number, ty: number): boolean => tx === mx && ty === my
+          this.renderAutotileGhostAt(mx, my, sel, checkAtPos)
+        } else {
+          this.renderTileGhostAt(mx, my, sel, sx, sy)
+        }
       }
     }
   }
@@ -302,7 +314,7 @@ export class GhostSystem extends ZSystem {
           qy,
           this.tileSize,
           sel,
-          ZLayer.ground, // Default layer for ghost check?
+          this.activeLayer,
           currentMap,
           currentMap.width,
           currentMap.height,
