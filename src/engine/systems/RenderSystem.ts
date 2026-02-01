@@ -47,8 +47,8 @@ export class RenderSystem extends ZSystem {
     this.layers[ZLayer.ground].zIndex = 0
     this.layers[ZLayer.walls].zIndex = 100
     this.layers[ZLayer.decoration].zIndex = 200
-    this.eventMarkersLayer.zIndex = 300
     this.layers[ZLayer.highest].zIndex = 500
+    this.eventMarkersLayer.zIndex = 1000 // Always on top in editor
 
     // Enable Y-sorting / Priority sorting
     this.layers[ZLayer.walls].sortableChildren = true
@@ -362,10 +362,13 @@ export class RenderSystem extends ZSystem {
     Object.values(this.layers).forEach((container) => {
       // If exclusive focus is on, DIM EVERYTHING except the active layer
       if (focusOnly) {
-        if (container === activeContainer) {
+        if (activeContainer && container === activeContainer) {
+          container.alpha = 1
+        } else if (!activeContainer) {
+          // If focusOnly is true but no layer is active (e.g. Event Tool), keep all full opacity
           container.alpha = 1
         } else {
-          container.alpha = 0.3 // Dim everything else
+          container.alpha = 0.3 // Dim everything else if there IS an active layer
         }
         return
       }
