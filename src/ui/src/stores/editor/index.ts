@@ -44,6 +44,11 @@ export const useEditorStore = defineStore('editor', () => {
   // Dane Map
   const storedMaps = ref<ZMap[]>([])
 
+  // Viewport Settings per Map
+  const mapViewportStates = useLocalStorage<
+    Record<number, { scale: number; pan: { x: number; y: number } }>
+  >('Z_MapViewportStates', {})
+
   // Tileset Database (Configs)
   const storedTilesetConfigs = ref<Record<string, TilesetConfig>>({})
 
@@ -257,6 +262,9 @@ export const useEditorStore = defineStore('editor', () => {
     currentTool,
     selectionCoords,
     clipboard,
+
+    // Viewport States
+    mapViewportStates,
 
     // Tileset Configs
     tilesetConfigs: storedTilesetConfigs,

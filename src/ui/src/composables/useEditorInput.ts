@@ -1,4 +1,4 @@
-import { ref, watch, type Ref } from 'vue'
+import { ref, watch, nextTick, type Ref } from 'vue'
 import type { FederatedPointerEvent } from '@engine/utils/pixi'
 import { ZEngine } from '@engine/core/ZEngine'
 import { useEditorStore } from '@ui/stores/editor'
@@ -28,8 +28,17 @@ export const useEditorInput = (
   const isPointerDown = ref(false)
   const target = ref<{ x: number; y: number } | null | undefined>(null)
 
-  const { scale, isPanning, handleWheel, startPan, updatePan, endPan, resetViewport } =
-    useViewport()
+  const {
+    scale,
+    pan,
+    isPanning,
+    handleWheel,
+    startPan,
+    updatePan,
+    endPan,
+    resetViewport,
+    updateTransform
+  } = useViewport()
 
   const {
     shapeStartPos,
@@ -139,6 +148,55 @@ export const useEditorInput = (
         ghostSystem.setSelectionBox(null)
       }
     }
+  )
+
+  // --- Viewport Persistence Logic ---
+
+  // 1. Load state when switching maps
+  watch(
+    () => store.activeMapID,
+    (newId) => {
+      if (newId === null) return
+      const saved = store.mapViewportStates[newId]
+      if (saved) {
+        console.log(`[useEditorInput] Loading viewport for map ${newId}:`, saved)
+        scale.value = saved.scale
+        pan.value = { ...saved.pan }
+      } else {
+        console.log(`[useEditorInput] No saved viewport for map ${newId}, resetting`)
+        scale.value = 1
+        pan.value = { x: 0, y: 0 }
+      }
+      // Apply to DOM on next tick to ensure canvasContainer is ready
+      nextTick(() => updateTransform(canvasContainer.value))
+    },
+    { immediate: true }
+  )
+
+  // 1.5. Force transform update when container mounts/re-mounts
+  watch(
+    () => canvasContainer.value,
+    (el) => {
+      if (el) {
+        console.log('[useEditorInput] Canvas container mounted, applying transform')
+        updateTransform(el)
+      }
+    }
+  )
+
+  // 2. Save state when it changes
+  watch(
+    [scale, () => pan.value.x, () => pan.value.y],
+    () => {
+      if (store.activeMapID === null) return
+      // Don't save if values are default and we don't have a record yet?
+      // Actually, simple overwrite is fine.
+      store.mapViewportStates[store.activeMapID] = {
+        scale: scale.value,
+        pan: { ...pan.value }
+      }
+    },
+    { deep: true }
   )
 
   return {
