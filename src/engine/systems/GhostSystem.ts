@@ -1,7 +1,9 @@
 import { type TileSelection, ZTool, ZLayer } from '@engine/types'
-import { Container, Graphics, Sprite, Texture, Rectangle } from '@engine/utils/pixi'
+import { Container, Graphics, Sprite, Texture, Rectangle, AnimatedSprite } from '@engine/utils/pixi'
 import { ZSystem, SystemMode } from '@engine/core/ZSystem'
 import { ServiceLocator } from '@engine/core/ServiceLocator'
+import { AutotileSolver } from '@engine/utils/AutotileSolver'
+import { MapManager } from '@engine/managers/MapManager'
 
 export class GhostSystem extends ZSystem {
   public container: Container
@@ -170,6 +172,21 @@ export class GhostSystem extends ZSystem {
             if (dx === 0 && dy === 0) {
               this.renderSingleTileSource(sel, sx, sy)
             }
+          } else if (sel.isAutotile) {
+            // New logic: Autotile solver for shape ghosts
+            const checkInShape = (tx: number, ty: number): boolean => {
+              if (this.currentTool === ZTool.rectangle) {
+                return tx >= xOrigin && tx <= xMax && ty >= yOrigin && ty <= yMax
+              } else if (this.currentTool === ZTool.circle) {
+                const cx = (xOrigin + xMax) / 2
+                const cy = (yOrigin + yMax) / 2
+                const rx = (xMax - xOrigin) / 2 + 0.5
+                const ry = (yMax - yOrigin) / 2 + 0.5
+                return Math.pow((tx - cx) / rx, 2) + Math.pow((ty - cy) / ry, 2) <= 1
+              }
+              return false
+            }
+            this.renderAutotileGhostAt(sx, sy, sel, checkInShape)
           } else {
             this.renderTileGhostAt(sx, sy, sel, dx, dy)
           }
@@ -250,6 +267,80 @@ export class GhostSystem extends ZSystem {
 
       // CRITICAL: We render exactly ONE tile size piece here to avoid duplicate drawing
       this.renderSourceTile(sel.tilesetId, sX, sY, sW, sH, absX, absY)
+    }
+  }
+
+  private renderAutotileGhostAt(
+    mapX: number,
+    mapY: number,
+    sel: TileSelection,
+    checkOverride: (x: number, y: number) => boolean
+  ): void {
+    const tex = this.textures.get(sel.tilesetId)
+    if (!tex) return
+
+    const absX = mapX * this.tileSize
+    const absY = mapY * this.tileSize
+
+    const mapManager = this.services.get(MapManager)
+    const currentMap = mapManager?.currentMap
+    if (!currentMap) return
+
+    const isA1 = sel.tilesetId === 'A1'
+    let frameCount = 1
+    if (isA1) {
+      const blockXIndex = Math.floor(sel.x / 2)
+      if (blockXIndex !== 3 && blockXIndex !== 7) frameCount = 3
+    }
+
+    for (let qy = 0; qy < 2; qy++) {
+      for (let qx = 0; qx < 2; qx++) {
+        const offset = AutotileSolver.getQuadrantOffset(
+          mapX,
+          mapY,
+          qx,
+          qy,
+          this.tileSize,
+          sel,
+          ZLayer.ground, // Default layer for ghost check?
+          currentMap,
+          currentMap.width,
+          currentMap.height,
+          0,
+          checkOverride
+        )
+
+        const textures: Texture[] = []
+        for (let i = 0; i < frameCount; i++) {
+          const animOffset = isA1 ? i * (this.tileSize * 2) : 0
+          textures.push(
+            new Texture({
+              source: tex.source,
+              frame: new Rectangle(
+                sel.x * this.tileSize + animOffset + offset.x,
+                sel.y * this.tileSize + offset.y,
+                this.tileSize / 2,
+                this.tileSize / 2
+              )
+            })
+          )
+        }
+
+        let spr: Sprite
+        if (textures.length > 1) {
+          const anim = new AnimatedSprite(textures)
+          anim.animationSpeed = 0.025
+          anim.play()
+          spr = anim
+        } else {
+          spr = new Sprite(textures[0])
+        }
+
+        spr.x = absX + qx * (this.tileSize / 2)
+        spr.y = absY + qy * (this.tileSize / 2)
+        spr.alpha = 0.5
+        this.container.addChild(spr)
+      }
     }
   }
 

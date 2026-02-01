@@ -9,8 +9,10 @@ export class AutotileSolver {
     layer: ZLayer,
     sel: TileSelection,
     mapData: ZMap | null,
-    stackIndex: number = 0
+    stackIndex: number = 0,
+    customCheck?: (x: number, y: number) => boolean
   ): boolean {
+    if (customCheck && customCheck(x, y)) return true
     if (!mapData) return false
     if (x < 0 || x >= mapWidth || y < 0 || y >= mapHeight) return true
 
@@ -38,10 +40,21 @@ export class AutotileSolver {
     mapData: ZMap,
     mapWidth: number,
     mapHeight: number,
-    stackIndex: number = 0
+    stackIndex: number = 0,
+    customCheck?: (x: number, y: number) => boolean
   ): { x: number; y: number } {
     const check = (dx: number, dy: number): boolean =>
-      this.isSameTile(x + dx, y + dy, mapWidth, mapHeight, layer, sel, mapData, stackIndex)
+      this.isSameTile(
+        x + dx,
+        y + dy,
+        mapWidth,
+        mapHeight,
+        layer,
+        sel,
+        mapData,
+        stackIndex,
+        customCheck
+      )
 
     const dx = qx === 0 ? -1 : 1
     const dy = qy === 0 ? -1 : 1
