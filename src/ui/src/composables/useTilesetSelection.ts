@@ -40,8 +40,8 @@ export const useTilesetSelection = (
           store.setSelection({
             x: found.ox,
             y: found.oy,
-            w: found.w,
-            h: found.h,
+            w: 1,
+            h: 1,
             tilesetId: found.tilesetId,
             isAutotile: true
           })
