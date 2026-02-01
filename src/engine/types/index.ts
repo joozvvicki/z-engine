@@ -208,7 +208,9 @@ export interface ZDataProvider {
 
 export enum ZEngineSignal {
   PlayerMoved = 'player:moved',
+  MapWillLoad = 'map:will-load',
   MapLoaded = 'map:loaded',
+  MapLoadFailed = 'map:load-failed',
   EventTriggered = 'event:triggered',
   InteractionRequested = 'interaction:requested',
   ShowMessage = 'ui:show-message',

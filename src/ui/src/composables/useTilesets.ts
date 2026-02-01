@@ -132,7 +132,12 @@ export const useTilesets = (
       } else {
         // Fallback to default if not set
         const def = TILESETS.find((t) => t.id === slot)
-        if (def) result.push(def)
+        if (def) {
+          result.push({
+            id: slot,
+            url: ProjectService.resolveAssetUrl(def.url)
+          })
+        }
       }
     })
     return result

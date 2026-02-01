@@ -50,7 +50,7 @@ onMounted(async () => {
 
 <template>
   <div
-    class="w-full h-full overflow-hidden relative bg-white flex items-center justify-center outline-none"
+    class="w-full h-full overflow-hidden relative bg-white outline-none"
     tabindex="0"
     @wheel.prevent="onWheel"
   >
@@ -78,7 +78,7 @@ onMounted(async () => {
     <div
       v-else
       ref="canvasContainer"
-      class="shadow-2xl bg-white border border-black/50 border-box"
+      class="shadow-2xl bg-white border border-black/50 box-border relative"
       :class="{ 'opacity-0': isLoading }"
     ></div>
 

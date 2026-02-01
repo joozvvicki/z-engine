@@ -128,13 +128,17 @@ export const useTilesetAtlas = (): {
     } else {
       const ts = store.tilesets.find((t) => t.id === store.activeTab)
       if (ts) {
-        const img = await loadImage(ts.url)
-        canvas.width = img.width
-        canvas.height = img.height
-        ctx.drawImage(img, 0, 0)
-
-        // Populate iconMapping for non-A tabs too?
-        // TilesetSelector currently uses a different loop for B-E.
+        try {
+          const img = await loadImage(ts.url)
+          canvas.width = img.width
+          canvas.height = img.height
+          ctx.drawImage(img, 0, 0)
+        } catch (e) {
+          console.error(`[useTilesetAtlas] Load error for tab ${store.activeTab}:`, e, ts.url)
+          // Set some fallback size so it doesn't break UI too much
+          canvas.width = GRID_SIZE
+          canvas.height = GRID_SIZE
+        }
       }
     }
     processedImageUrl.value = canvas.toDataURL()

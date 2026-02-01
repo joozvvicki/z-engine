@@ -151,10 +151,15 @@ export const useEngine = (
 
   const syncCanvasSize = (eng: ZEngine, targetMapOverride?: ZMap): void => {
     const map = targetMapOverride || store.activeMap
-    if (!map || !canvasContainer.value) return
+    if (!map || !canvasContainer.value) {
+      console.warn('[useEngine] syncCanvasSize failed: map or container missing')
+      return
+    }
 
     const w = map.width * store.tileSize
     const h = map.height * store.tileSize
+
+    console.log(`[useEngine] Syncing canvas size: ${w}x${h} for map ${map.name}`)
 
     // 1. Update Container CSS
     canvasContainer.value.style.width = `${w}px`

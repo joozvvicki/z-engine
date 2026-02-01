@@ -9,8 +9,7 @@ import { ServiceLocator } from '@engine/core/ServiceLocator'
 export class RenderSystem extends ZSystem {
   private layers: Record<ZLayer, PIXI.Container>
   private tileContainers: Record<ZLayer, PIXI.Container[][][]>
-
-  private tileSize: number
+  public tileSize: number
 
   private wrapper: PIXI.Container
 
@@ -201,6 +200,10 @@ export class RenderSystem extends ZSystem {
       }
 
       // Track it
+      if (!this.tileContainers[layer]) {
+        console.warn(`[RenderSystem] Layer ${layer} not initialized in tileContainers`)
+        return
+      }
       if (!this.tileContainers[layer][y]) this.tileContainers[layer][y] = []
       if (!this.tileContainers[layer][y][x]) this.tileContainers[layer][y][x] = []
 

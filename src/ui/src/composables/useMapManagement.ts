@@ -73,6 +73,9 @@ export const useMapManagement = (
     storedMaps.value.push(newMap)
     activeMapID.value = newMap.id
 
+    // Save project to make the new map persistent
+    saveProject()
+
     // Inicjalizacja historii dla nowej mapy
     nextTick(() => history.recordHistory())
   }
@@ -94,7 +97,7 @@ export const useMapManagement = (
         const oldData = layer.data
         const newData = Array.from({ length: props.height }, (_, y) =>
           Array.from({ length: props.width }, (_, x) =>
-            y < oldData.length && oldData[y] && x < oldData[y].length ? oldData[y][x] : null
+            y < oldData.length && oldData[y] && x < oldData[y].length ? oldData[y][x] : []
           )
         )
         layer.data = newData

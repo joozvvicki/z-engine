@@ -1,34 +1,47 @@
-# z-engine
+# 🎨 InvArts Studio Creator
 
-An Electron application with Vue and TypeScript
+**InvArts Studio Creator** to potężne, nowoczesne środowisko do tworzenia gier 2D, zaprojektowane z myślą o szybkości, elastyczności i przyjemnej pracy twórczej. Sercem edytora jest autorski silnik **Z Engine**, który zapewnia płynność i profesjonalną jakość Twoich gier.
 
-## Recommended IDE Setup
+---
 
-- [VSCode](https://code.visualstudio.com/) + [ESLint](https://marketplace.visualstudio.com/items?itemName=dbaeumer.vscode-eslint) + [Prettier](https://marketplace.visualstudio.com/items?itemName=esbenp.prettier-vscode) + [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar)
+## ⚡ Serce Projektu: Z Engine
 
-## Project Setup
+**Z Engine** to lekki, zorientowany na systemy (ECS-like architecture) silnik renderingu gier 2D oparty o **PIXI.js**. Został zbudowany od podstaw, aby dostarczyć:
 
-### Install
+- **Wybitną Wydajność**: Optymalizacja kafelkowa i inteligentny system warstw.
+- **System Zdarzeń (Eventing)**: Interpreter wzorowany na klasykach RPG, pozwalający na tworzenie skomplikowanej logiki bez pisania kodu.
+- **Fizykę Grid-Based**: Zaawansowane kolizje kafelkowe, blokowanie kierunkowe i priorytety warstw.
+- **Autotiling**: Dynamiczne łączenie kafelków w czasie rzeczywistym.
+- **Z-Sorting**: Prawidłowe sortowanie głębi dla postaci i obiektów na mapie.
 
-```bash
-$ yarn
-```
+---
 
-### Development
+## 🛠 InvArts Studio Creator
 
-```bash
-$ yarn dev
-```
+Nasz edytor to centrum dowodzenia dla twórcy, oferujące:
 
-### Build
+- **Intuicyjny Map Editor**: Narzędzia pędzla, wypełniania, kształtów oraz wielowarstwowe operacje na kafelkach (Copy/Paste Stamps).
+- **Zintegrowany Event Editor**: Wizualne tworzenie interakcji, dialogów i transferów.
+- **Dynamiczne Zarządzanie Projektami**: Natychmiastowe przełączanie między trybem edycji a testowaniem gry (**Play Mode**).
+- **Universal Build Pipeline**: Eksportowanie gotowych gier na pulpity komputerów dzięki integracji z **Tauri**.
 
-```bash
-# For windows
-$ yarn build:win
+---
 
-# For macOS
-$ yarn build:mac
+## 🏗 Technologia
 
-# For Linux
-$ yarn build:linux
-```
+Projekt łączy w sobie nowoczesne technologie webowe i systemowe:
+
+- **Frontend**: Vue 3 + Pinia + Vite
+- **Silnik**: PIXI.js + TypeScript
+- **Desktop**: Electron (Editor) & Tauri (Built Games)
+- **Stylizacja**: Vanilla CSS (Modern Aesthetics)
+
+---
+
+## 🚀 Nasza Wizja
+
+Chcemy stworzyć narzędzie, które zaciera granice między profesjonalnym silnikiem a prostotą obsługi. **InvArts Studio Creator** to miejsce, gdzie Twoja wyobraźnia spotyka się z technologią bez zbędnych barier.
+
+---
+
+_Created with ❤️ by InvArts Studio Team & Antigravity AI_

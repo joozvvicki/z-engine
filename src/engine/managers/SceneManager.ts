@@ -5,11 +5,15 @@ import { RenderSystem } from '@engine/systems/RenderSystem'
 import { EntityRenderSystem } from '@engine/systems/EntityRenderSystem'
 import { TransitionSystem } from '@engine/systems/TransitionSystem'
 import { ErrorSystem } from '@engine/systems/ErrorSystem'
+import { TilesetManager } from '@engine/managers/TilesetManager'
+import { TextureManager } from '@engine/managers/TextureManager'
+import { GridSystem } from '@engine/systems/GridSystem'
 import ZLogger from '@engine/core/ZLogger'
 
 export class SceneManager extends ZManager {
   private onMapChangeRequest: ((mapId: number, x: number, y: number) => Promise<void>) | null = null
   public isLoading: boolean = false
+  public currentMap: ZMap | null = null
 
   constructor(services: ServiceLocator) {
     super(services)
@@ -36,37 +40,45 @@ export class SceneManager extends ZManager {
       }
 
       if (!map) {
-        ZLogger.error(`[SceneManager] Failed to load map: ${mapOrId}`)
-        this.isLoading = false
-        return
+        throw new Error(`Map with id ${mapOrId} not found.`)
       }
 
-      const renderSystem = this.services.get(RenderSystem)
-      const entityRenderSystem = this.services.get(EntityRenderSystem)
+      console.log(`[SceneManager] Loading map: ${map.name} (${map.width}x${map.height})`)
 
-      if (this.dataProvider) {
-        const resolvedConfig: Record<string, string> = {}
-        const slots = ['A1', 'A2', 'A3', 'A4', 'A5', 'B', 'C', 'D', 'Roofs']
-        slots.forEach((slot) => {
-          resolvedConfig[slot] =
-            map!.tilesetConfig?.[slot] || this.dataProvider!.getTilesetUrl(slot)
-        })
-        map.tilesetConfig = resolvedConfig
+      this.currentMap = map
+      this.bus.emit(ZEngineSignal.MapWillLoad, { mapId: map.id, map })
 
-        const configs = await this.dataProvider.getTilesetConfigs()
-        this.tilesets.setConfigs(configs)
-      }
+      // Load tileset configs
+      const tilesetConfigs = await this.dataProvider?.getTilesetConfigs()
+      const tilesetManager = this.services.require(TilesetManager)
+      tilesetManager.setConfigs(tilesetConfigs || {})
 
-      const texturePromises = Object.entries(map.tilesetConfig).map(([id, url]) =>
-        this.textures.loadTileset(id, this.dataProvider?.resolveAssetUrl(url) || url)
-      )
+      // Resolve and Load Textures
+      const textureManager = this.services.require(TextureManager)
+      const texturePromises = Object.entries(map.tilesetConfig).map(([id, url]) => {
+        const resolvedUrl = this.dataProvider?.resolveAssetUrl(url) || url
+        return textureManager.loadTileset(id, resolvedUrl)
+      })
       await Promise.all(texturePromises)
 
-      this.map.setMap(map)
-      renderSystem?.setMap(map)
+      // Optimize GridSystem rendering
+      const gridSystem = this.services.get(GridSystem)
+      if (gridSystem) {
+        gridSystem.setSize(map.width, map.height)
+      }
+
+      // Load map tiles in RenderSystem
+      const renderSystem = this.services.get(RenderSystem)
+      if (renderSystem) {
+        renderSystem.setMap(map)
+      }
+
+      // Load events
+      const entityRenderSystem = this.services.get(EntityRenderSystem)
       await entityRenderSystem?.loadEvents()
 
       this.bus.emit(ZEngineSignal.MapLoaded, { mapId: map.id, map })
+      console.log(`[SceneManager] Map loaded successfully: ${map.name}`)
     } catch (e) {
       console.error('[SceneManager] Map Load Error:', e)
       this.services.get(ErrorSystem)?.show(e as Error)

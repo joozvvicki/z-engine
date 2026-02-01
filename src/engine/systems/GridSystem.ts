@@ -48,17 +48,14 @@ export class GridSystem extends ZSystem {
     const g = this.gridGraphics
     g.clear()
 
-    if (this.width > 0 && this.height > 0) {
+    if (this.width > 0 && this.height > 0 && isFinite(this.width) && isFinite(this.height)) {
       for (let x = 0; x <= this.width; x++) {
-        g.moveTo(x * this.tileSize, 0)
-          .lineTo(x * this.tileSize, this.height * this.tileSize)
-          .stroke({ width: 1, color: 0x000000, alpha: 0.1 })
+        g.moveTo(x * this.tileSize, 0).lineTo(x * this.tileSize, this.height * this.tileSize)
       }
       for (let y = 0; y <= this.height; y++) {
-        g.moveTo(0, y * this.tileSize)
-          .lineTo(this.width * this.tileSize, y * this.tileSize)
-          .stroke({ width: 1, color: 0x000000, alpha: 0.1 })
+        g.moveTo(0, y * this.tileSize).lineTo(this.width * this.tileSize, y * this.tileSize)
       }
+      g.stroke({ width: 1, color: 0x000000, alpha: 0.1 })
     }
 
     this.dirty = false

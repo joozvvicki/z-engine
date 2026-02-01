@@ -1,15 +1,6 @@
 <script setup lang="ts">
 import logo from '@ui/assets/logo.png'
-import {
-  IconDatabase,
-  IconFolder,
-  IconLogout,
-  IconMap,
-  IconPlug,
-  IconSettings,
-  IconSnowman,
-  IconUsersGroup
-} from '@tabler/icons-vue'
+import { IconDatabase, IconFolder, IconLogout, IconMap, IconSettings } from '@tabler/icons-vue'
 import NavButton from './NavButton.vue'
 
 const options = [
@@ -27,21 +18,6 @@ const options = [
     icon: IconDatabase,
     label: 'Database',
     path: '/database'
-  },
-  {
-    icon: IconUsersGroup,
-    label: 'Actors',
-    path: '/actors'
-  },
-  {
-    icon: IconSnowman,
-    label: 'Enemies',
-    path: '/enemies'
-  },
-  {
-    icon: IconPlug,
-    label: 'Plugins',
-    path: '/plugins'
   }
 ]
 
@@ -61,9 +37,9 @@ const settings = [
 
 <template>
   <div
-    class="min-w-16 relative z-2000 h-full bg-white backdrop-blur-2xl flex flex-col items-center border-r border-gray-200 py-2"
+    class="w-16 relative z-2000 h-full bg-white backdrop-blur-2xl flex flex-col items-center border-r border-gray-200 py-2"
   >
-    <img :src="logo" class="w-16" />
+    <img :src="logo" class="w-8 h-8 mb-4" />
 
     <nav class="flex flex-col gap-2 relative z-999">
       <NavButton

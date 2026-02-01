@@ -113,6 +113,7 @@ export class ZEngine {
 
   public resize(width: number, height: number): void {
     try {
+      console.log(`[ZEngine] Resizing to ${width}x${height}`)
       const transitionSystem = this.services.get(TransitionSystem)
       const gridSystem = this.services.get(GridSystem)
       const messageSystem = this.services.get(MessageSystem)
@@ -124,8 +125,10 @@ export class ZEngine {
       errorSystem?.resize(width, height)
 
       // Grid system uses tile dimensions
-      const tileSize = this.services.get(RenderSystem)?.['tileSize'] || 48
-      gridSystem?.setSize(width / tileSize, height / tileSize)
+      const renderSystem = this.services.get(RenderSystem)
+      if (renderSystem && gridSystem) {
+        gridSystem.setSize(width / renderSystem.tileSize, height / renderSystem.tileSize)
+      }
 
       // Update PIXI internals
       this.app.resize()
