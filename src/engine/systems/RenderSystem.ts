@@ -253,6 +253,9 @@ export class RenderSystem extends ZSystem {
 
     // Render Object Events
     this.renderEvents(mapData)
+
+    // Ensure startups are restored (they are cleared by resetLayers)
+    this.drawPlayerStartMarker()
   }
 
   private eventMarkers: PIXI.Container[] = []
@@ -260,6 +263,9 @@ export class RenderSystem extends ZSystem {
 
   private playerStartMarker: PIXI.Container | null = null
   private showPlayerStart: boolean = false
+  private playerStartX: number = 0
+  private playerStartY: number = 0
+  private playerStartGraphic: string = ''
 
   public setEventMarkersVisible(visible: boolean): void {
     this.showEventMarkers = visible
@@ -270,25 +276,32 @@ export class RenderSystem extends ZSystem {
   }
 
   public setPlayerStartMarker(x: number, y: number, graphicPath: string): void {
+    this.playerStartX = x
+    this.playerStartY = y
+    this.playerStartGraphic = graphicPath
     this.showPlayerStart = true
+    this.drawPlayerStartMarker()
+  }
+
+  private drawPlayerStartMarker(): void {
+    if (!this.showPlayerStart || !this.layers) return
 
     // Clean up existing
     if (this.playerStartMarker) {
       this.playerStartMarker.destroy({ children: true })
-      this.layers[ZLayer.events].removeChild(this.playerStartMarker)
       this.playerStartMarker = null
     }
 
     const container = new PIXI.Container()
     container.label = 'PlayerStartMarker'
-    container.x = x * this.tileSize
-    container.y = y * this.tileSize
-    container.zIndex = (y + 1) * this.tileSize
+    container.x = this.playerStartX * this.tileSize
+    container.y = this.playerStartY * this.tileSize
+    container.zIndex = (this.playerStartY + 1) * this.tileSize
     container.visible = this.showEventMarkers
 
     // Helper to load graphic
     const graphicData: ZEventGraphic = {
-      assetId: graphicPath,
+      assetId: this.playerStartGraphic,
       group: 'character',
       x: 0,
       y: 0,

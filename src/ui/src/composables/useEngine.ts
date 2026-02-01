@@ -258,7 +258,11 @@ export const useEngine = (
       layer: store.activeLayer,
       isTest: store.isTestMode,
       tool: store.currentTool,
-      _mapId: store.activeMap?.id // Track map ID to refresh markers on map change
+      _mapId: store.activeMap?.id, // Track map ID to refresh markers on map change
+      _startX: store.systemStartX,
+      _startY: store.systemStartY,
+      _startMap: store.systemStartMapId,
+      _startGraphic: store.systemPlayerGraphic
     }),
     async ({ eng, layer, isTest, tool }, old) => {
       if (eng) {
