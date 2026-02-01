@@ -9,14 +9,14 @@ import {
   ZEngineSignal,
   ZEventTrigger
 } from '@engine/types'
-import { ZSystem as ZSystemCore, SystemMode } from '@engine/core/ZSystem'
+import { ZSystem, SystemMode } from '@engine/core/ZSystem'
 import { PlayerSystem } from '@engine/systems/PlayerSystem'
 
 import { ServiceLocator } from '@engine/core/ServiceLocator'
 import { SceneManager } from '@engine/managers/SceneManager'
-import { Scene_Map } from '@engine/scenes/Scene_Map'
+import { SceneMap } from '@engine/scenes/SceneMap'
 
-export class EventSystem extends ZSystemCore {
+export class EventSystem extends ZSystem {
   private playerSystem: PlayerSystem
   private sceneManager: SceneManager
 
@@ -198,7 +198,7 @@ export class EventSystem extends ZSystemCore {
     const mapId = params[0] as number
     const x = params[1] as number
     const y = params[2] as number
-    this.sceneManager.goto(Scene_Map, { mapOrId: mapId, playerX: x, playerY: y })
+    this.sceneManager.goto(SceneMap, { mapOrId: mapId, playerX: x, playerY: y })
 
     return 'stop'
   }

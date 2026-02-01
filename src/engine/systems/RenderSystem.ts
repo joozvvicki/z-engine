@@ -2,9 +2,8 @@ import PIXI from '@engine/utils/pixi'
 import { AutotileSolver } from '@engine/utils/AutotileSolver'
 import { SpriteUtils } from '@engine/utils/SpriteUtils'
 import { type ZMap, type ZEventGraphic, type TileSelection, ZLayer } from '@engine/types'
-import { ZSystem } from '@engine/core/ZSystem'
-import { DEFAULT_PLAYER_GRAPHIC } from '../constants'
-import { ServiceLocator } from '@engine/core/ServiceLocator'
+import { ZSystem, ServiceLocator } from '@engine/core'
+import { DEFAULT_PLAYER_GRAPHIC } from '@engine/constants'
 
 export class RenderSystem extends ZSystem {
   private layers: Record<ZLayer, PIXI.Container>
@@ -55,7 +54,7 @@ export class RenderSystem extends ZSystem {
     this.layers[ZLayer.highest].sortableChildren = true
 
     // Since wrapper (Stage) has sortableChildren=true, zIndex will be respected?
-    // Actually, Scene_Map will now manage these layers.
+    // Actually, SceneMap will now manage these layers.
     this.tileContainers = this.createEmptyContainerStructure(0, 0)
 
     // Load Player Texture for Editor Visualization
@@ -523,8 +522,6 @@ export class RenderSystem extends ZSystem {
   ): Record<ZLayer, PIXI.Container[][][]> {
     const create = (): PIXI.Container[][][] =>
       Array.from({ length: h }, () => Array.from({ length: w }, () => []))
-    // Note: Array(w).fill([]) would share the same empty array reference! Must use Array.from or loop logic.
-    // Array.from({length: w}, () => []) creates fresh arrays.
 
     return {
       [ZLayer.ground]: create(),

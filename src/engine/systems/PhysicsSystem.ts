@@ -1,6 +1,5 @@
 import { ZLayer } from '@engine/types'
-import { ZSystem, SystemMode } from '@engine/core/ZSystem'
-import { ServiceLocator } from '@engine/core/ServiceLocator'
+import { ZSystem, SystemMode, ServiceLocator } from '@engine/core'
 
 export class PhysicsSystem extends ZSystem {
   constructor(services: ServiceLocator) {

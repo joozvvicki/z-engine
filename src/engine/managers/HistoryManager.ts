@@ -1,8 +1,8 @@
 import { ZHistoryEntry, ZTileDelta, ZLayer } from '@engine/types'
-import ZLogger from '@engine/core/ZLogger'
-import { RenderSystem } from '@engine/systems/RenderSystem'
+import ZLogger from '@engine/utils/ZLogger'
 import { ServiceLocator } from '@engine/core/ServiceLocator'
-import { ZManager } from '@engine/managers/ZManager'
+import { ZManager } from '@engine/core/ZManager'
+import { RenderSystem } from '@engine/systems'
 
 /**
  * Manages editor history using a delta-based approach.

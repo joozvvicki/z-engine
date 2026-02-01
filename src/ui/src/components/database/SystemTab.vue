@@ -132,6 +132,42 @@ const filteredVariables = computed(() => {
               <p class="text-[10px] text-gray-400">Relative to project root</p>
             </div>
           </div>
+
+          <!-- Screen Resolution -->
+          <div class="space-y-3">
+            <h4 class="text-xs font-bold text-gray-500 uppercase tracking-wider">
+              Screen Resolution
+            </h4>
+            <div class="grid grid-cols-2 gap-2">
+              <div class="space-y-1">
+                <label class="text-xs font-medium text-gray-600">Width</label>
+                <input
+                  v-model.number="store.systemScreenWidth"
+                  type="number"
+                  class="w-full p-2 text-xs border border-gray-200 rounded focus:border-blue-400 outline-none transition-colors"
+                />
+              </div>
+              <div class="space-y-1">
+                <label class="text-xs font-medium text-gray-600">Height</label>
+                <input
+                  v-model.number="store.systemScreenHeight"
+                  type="number"
+                  class="w-full p-2 text-xs border border-gray-200 rounded focus:border-blue-400 outline-none transition-colors"
+                />
+              </div>
+            </div>
+            <div class="space-y-1">
+              <label class="text-xs font-medium text-gray-600">Default Zoom</label>
+              <input
+                v-model.number="store.systemScreenZoom"
+                type="number"
+                step="0.1"
+                min="0.1"
+                class="w-full p-2 text-xs border border-gray-200 rounded focus:border-blue-400 outline-none transition-colors"
+              />
+            </div>
+            <p class="text-[10px] text-gray-400">Fixed internal scale in Play Mode</p>
+          </div>
         </div>
       </div>
 

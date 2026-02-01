@@ -1,7 +1,7 @@
-import { ZEngineSignal } from '@engine/types'
-import { ZManager } from '@engine/managers/ZManager'
 import { ServiceLocator } from '@engine/core/ServiceLocator'
-import ZLogger from '@engine/core/ZLogger'
+import { ZManager } from '@engine/core/ZManager'
+import ZLogger from '@engine/utils/ZLogger'
+import { ZEngineSignal } from '@engine/types'
 
 export interface GameSaveData {
   switches: Record<number, boolean>

@@ -15,6 +15,7 @@ class ZLogger {
       ...messages
     )
   }
+
   error(...messages: unknown[]): void {
     if (!this.isDebugging) return
     console.error(
@@ -23,6 +24,7 @@ class ZLogger {
       ...messages
     )
   }
+
   warn(...messages: unknown[]): void {
     if (!this.isDebugging) return
     console.warn(
@@ -31,6 +33,7 @@ class ZLogger {
       ...messages
     )
   }
+
   info(...messages: unknown[]): void {
     if (!this.isDebugging) return
     console.info(
@@ -39,6 +42,16 @@ class ZLogger {
       ...messages
     )
   }
+
+  debug(...messages: unknown[]): void {
+    if (!this.isDebugging) return
+    console.debug(
+      `%c${this.tag}`,
+      'background-color: #00aaff; border-radius: 4px; padding: 2px 4px; color: #fff',
+      ...messages
+    )
+  }
+
   with(tag: string): ZLogger {
     return new ZLogger(tag)
   }

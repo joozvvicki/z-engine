@@ -1,17 +1,17 @@
-import { ZScene } from '@engine/core/ZScene'
-import { ServiceLocator } from '@engine/core/ServiceLocator'
 import { ZEngineSignal, ZMap, ZLayer } from '@engine/types'
-import { RenderSystem } from '@engine/systems/RenderSystem'
-import { EntityRenderSystem } from '@engine/systems/EntityRenderSystem'
-import { ErrorSystem } from '@engine/systems/ErrorSystem'
-import { TilesetManager } from '@engine/managers/TilesetManager'
-import { TextureManager } from '@engine/managers/TextureManager'
-import { PlayerSystem } from '@engine/systems/PlayerSystem'
-import { GridSystem } from '@engine/systems/GridSystem'
-import { GhostSystem } from '@engine/systems/GhostSystem'
-import ZLogger from '@engine/core/ZLogger'
+import ZLogger from '@engine/utils/ZLogger'
+import { ServiceLocator, ZScene } from '@engine/core'
+import { TilesetManager, TextureManager } from '@engine/managers'
+import {
+  RenderSystem,
+  EntityRenderSystem,
+  ErrorSystem,
+  PlayerSystem,
+  GridSystem,
+  GhostSystem
+} from '@engine/systems'
 
-export class Scene_Map extends ZScene {
+export class SceneMap extends ZScene {
   public currentMap: ZMap | null = null
 
   constructor(services: ServiceLocator) {
@@ -34,7 +34,7 @@ export class Scene_Map extends ZScene {
       let map: ZMap | null = null
       if (typeof mapOrId === 'number') {
         if (!dataProvider)
-          throw new Error('[Scene_Map] Cannot load map by ID: Data Provider not set')
+          throw new Error('[SceneMap] Cannot load map by ID: Data Provider not set')
         map = await dataProvider.getMap(mapOrId)
       } else {
         map = mapOrId
@@ -79,9 +79,9 @@ export class Scene_Map extends ZScene {
       }
 
       this.bus.emit(ZEngineSignal.MapLoaded, { mapId: map.id, map })
-      ZLogger.log(`[Scene_Map] Map loaded successfully: ${map.name}`)
+      ZLogger.with('SceneMap').log(`Map loaded successfully: ${map.name}`)
     } catch (e) {
-      ZLogger.error('[Scene_Map] Map Load Error:', e)
+      ZLogger.with('SceneMap').error('Map Load Error:', e)
       this.bus.emit(ZEngineSignal.MapLoadFailed, {
         mapId: typeof mapOrId === 'number' ? mapOrId : mapOrId.id,
         error: e as Error
@@ -120,8 +120,10 @@ export class Scene_Map extends ZScene {
       }
     }
 
-    ZLogger.log('[Scene_Map] Started & Layers Mounted')
+    ZLogger.with('SceneMap').log('Started & Layers Mounted')
   }
+
+  private zoomLevel: number = 1.0
 
   public update(): void {
     if (this.mode === 'play' && this.currentMap) {
@@ -129,48 +131,52 @@ export class Scene_Map extends ZScene {
       const renderSystem = this.services.get(RenderSystem)
       if (playerSystem && renderSystem) {
         const tileSize = renderSystem.tileSize
+        const scale = this.zoomLevel
 
         // 1. Calculate Target Position (Player Center)
         let targetX = playerSystem.realX + tileSize / 2
         let targetY = playerSystem.realY + tileSize / 2
 
         // 2. Camera Clamping Logic
-        // We want to avoid showing areas outside the map boundaries [0, mapWidth*tileSize]
+        // We need to account for SCALE. If scale is 2.0, we see HALF the pixels.
         const screenW = this.app.screen.width
         const screenH = this.app.screen.height
+
+        // Effective screen size in world (map) coordinates
+        const viewW = screenW / scale
+        const viewH = screenH / scale
+
         const mapW = this.currentMap.width * tileSize
         const mapH = this.currentMap.height * tileSize
 
-        // Only clamp if map is larger than screen
-        if (mapW > screenW) {
-          targetX = Math.max(screenW / 2, Math.min(targetX, mapW - screenW / 2))
+        // Only clamp if map is larger than effectively visible view
+        if (mapW > viewW) {
+          targetX = Math.max(viewW / 2, Math.min(targetX, mapW - viewW / 2))
         } else {
           targetX = mapW / 2
         }
 
-        if (mapH > screenH) {
-          targetY = Math.max(screenH / 2, Math.min(targetY, mapH - screenH / 2))
+        if (mapH > viewH) {
+          targetY = Math.max(viewH / 2, Math.min(targetY, mapH - viewH / 2))
         } else {
           targetY = mapH / 2
         }
 
         // 3. Apply Camera Transform
+        this.container.scale.set(scale)
         this.container.pivot.x = targetX
         this.container.pivot.y = targetY
         this.container.x = screenW / 2
         this.container.y = screenH / 2
       }
     } else {
-      // In Editor Mode, reset internal transforms if they were touched?
-      // Actually, useEditorInput handles panning/scaling via the wrapper's STYLE or similar?
-      // Wait, SceneManager adds this.container to sceneLayer.
-      // useViewport.ts probably manipulates sceneLayer OR the wrapper.
-      // Let's check useViewport.ts.
+      // Reset scale in editor if needed (though SceneManager usually clears it)
+      this.container.scale.set(1)
     }
   }
 
   public stop(): void {
-    ZLogger.log('[Scene_Map] Stopped & Unmounting Layers')
+    ZLogger.with('SceneMap').log('Stopped & Unmounting Layers')
     // Detach system containers so they aren't destroyed when the scene container is destroyed
     this.container.removeChildren()
   }

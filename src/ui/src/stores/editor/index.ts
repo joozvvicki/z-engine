@@ -59,6 +59,9 @@ export const useEditorStore = defineStore('editor', () => {
   const systemStartX = ref(0)
   const systemStartY = ref(0)
   const systemPlayerGraphic = ref('img/characters/character.png')
+  const systemScreenWidth = ref(1280)
+  const systemScreenHeight = ref(720)
+  const systemScreenZoom = ref(1.0)
 
   // Ensure initial size (default for new project or empty load)
   if (systemSwitches.value.length === 0) systemSwitches.value = new Array(20).fill('')
@@ -96,6 +99,9 @@ export const useEditorStore = defineStore('editor', () => {
       systemStartX.value = sysData.startX
       systemStartY.value = sysData.startY
       systemPlayerGraphic.value = sysData.playerGraphic
+      systemScreenWidth.value = sysData.screenWidth || 1280
+      systemScreenHeight.value = sysData.screenHeight || 720
+      systemScreenZoom.value = sysData.screenZoom || 1.0
     }
 
     // 2. Load Tilesets
@@ -128,7 +134,10 @@ export const useEditorStore = defineStore('editor', () => {
         startMapId: systemStartMapId.value,
         startX: systemStartX.value,
         startY: systemStartY.value,
-        playerGraphic: systemPlayerGraphic.value
+        playerGraphic: systemPlayerGraphic.value,
+        screenWidth: systemScreenWidth.value,
+        screenHeight: systemScreenHeight.value,
+        screenZoom: systemScreenZoom.value
       })
 
       // 2. Save Tilesets
@@ -142,8 +151,6 @@ export const useEditorStore = defineStore('editor', () => {
       for (const map of storedMaps.value) {
         await ProjectService.saveMap(map)
       }
-
-      console.log('Project Saved Successfully')
     } catch (e) {
       console.error('Save failed', e)
     }
@@ -157,7 +164,10 @@ export const useEditorStore = defineStore('editor', () => {
       systemStartMapId,
       systemStartX,
       systemStartY,
-      systemPlayerGraphic
+      systemPlayerGraphic,
+      systemScreenWidth,
+      systemScreenHeight,
+      systemScreenZoom
     ],
     () => {
       // Only save if project is actually loaded and we are not in initial load phase?
@@ -169,7 +179,10 @@ export const useEditorStore = defineStore('editor', () => {
           startMapId: systemStartMapId.value,
           startX: systemStartX.value,
           startY: systemStartY.value,
-          playerGraphic: systemPlayerGraphic.value
+          playerGraphic: systemPlayerGraphic.value,
+          screenWidth: systemScreenWidth.value,
+          screenHeight: systemScreenHeight.value,
+          screenZoom: systemScreenZoom.value
         }
         ProjectService.saveSystemData(sysData).catch((err) =>
           console.error('Auto-save system failed', err)
@@ -263,6 +276,9 @@ export const useEditorStore = defineStore('editor', () => {
     systemStartMapId,
     systemStartX,
     systemStartY,
-    systemPlayerGraphic
+    systemPlayerGraphic,
+    systemScreenWidth,
+    systemScreenHeight,
+    systemScreenZoom
   }
 })

@@ -1,32 +1,30 @@
-import PIXI from '../utils/pixi'
-import { ZLayer } from '@engine/types'
-import { ZSystem as ZSystemCore, SystemMode } from '@engine/core/ZSystem'
+import { Container, Sprite, Rectangle, Graphics, Texture } from '@engine/utils/pixi'
+import ZLogger from '@engine/utils/ZLogger'
 import { SpriteUtils } from '@engine/utils/SpriteUtils'
-import { PlayerSystem } from './PlayerSystem'
-import { RenderSystem } from './RenderSystem'
-import { ServiceLocator } from '@engine/core/ServiceLocator'
-import ZLogger from '@engine/core/ZLogger'
+import { ZLayer } from '@engine/types'
+import { ZSystem, SystemMode, ServiceLocator } from '@engine/core'
+import { PlayerSystem, RenderSystem } from '@engine/systems'
 
-export class EntityRenderSystem extends ZSystemCore {
-  public container: PIXI.Container
+export class EntityRenderSystem extends ZSystem {
+  public container: Container
   private playerSystem: PlayerSystem
   private tileSize: number
 
-  private playerSprite: PIXI.Sprite | null = null
+  private playerSprite: Sprite | null = null
 
   private frameWidth: number = 0
   private frameHeight: number = 0
   private animationFrame: number = 0
   private animationTimer: number = 0
   private readonly ANIMATION_SPEED: number = 150 // ms
-  private eventSprites: Map<string, PIXI.Container | PIXI.Sprite> = new Map()
+  private eventSprites: Map<string, Container | Sprite> = new Map()
 
   constructor(services: ServiceLocator, tileSize: number) {
     super(services)
     this.updateMode = SystemMode.PLAY
     this.tileSize = tileSize
 
-    this.container = new PIXI.Container()
+    this.container = new Container()
     this.container.label = 'EntityLayer'
     this.container.sortableChildren = true
 
@@ -123,12 +121,12 @@ export class EntityRenderSystem extends ZSystemCore {
   }
 
   private createFallbackSprite(): void {
-    const graphics = new PIXI.Graphics()
+    const graphics = new Graphics()
     graphics.rect(0, 0, this.tileSize, this.tileSize)
     graphics.fill(0xff0000)
-    const c = new PIXI.Container()
+    const c = new Container()
     c.addChild(graphics)
-    this.playerSprite = c as unknown as PIXI.Sprite
+    this.playerSprite = c as unknown as Sprite
     this.container.addChild(this.playerSprite)
   }
 
@@ -218,13 +216,13 @@ export class EntityRenderSystem extends ZSystemCore {
     // Force sorting of the decoration layer to reflect zIndex changes
     this.container.sortChildren()
 
-    if (this.playerSprite instanceof PIXI.Sprite && this.playerSprite.texture.label !== 'EMPTY') {
+    if (this.playerSprite instanceof Sprite && this.playerSprite.texture.label !== 'EMPTY') {
       this.updateAnimation(delta)
     }
   }
 
   private updateAnimation(delta: number): void {
-    if (!(this.playerSprite instanceof PIXI.Sprite)) return
+    if (!(this.playerSprite instanceof Sprite)) return
 
     if (this.playerSystem.isMoving) {
       this.animationTimer += delta
@@ -240,14 +238,14 @@ export class EntityRenderSystem extends ZSystemCore {
     const row = this.getDirectionRow(this.playerSystem.direction)
     const col = this.animationFrame
 
-    const rect = new PIXI.Rectangle(
+    const rect = new Rectangle(
       col * this.frameWidth,
       row * this.frameHeight,
       this.frameWidth,
       this.frameHeight
     )
 
-    const newTexture = new PIXI.Texture({
+    const newTexture = new Texture({
       source: this.playerSprite.texture.source,
       frame: rect
     })

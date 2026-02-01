@@ -1,18 +1,20 @@
+import ZLogger from './utils/ZLogger'
+
 // Core
 export { ZEngine } from './core/ZEngine'
+export { ZManager } from './core/ZManager'
 export { ZSystem, SystemMode } from './core/ZSystem'
 export { ServiceLocator } from './core/ServiceLocator'
-export { default as ZLogger } from './core/ZLogger'
+export { ZLogger }
 export { ZEventBus } from './core/ZEventBus'
 
 // Managers
-export { ZManager } from './managers/ZManager'
 export { SceneManager } from './managers/SceneManager'
 export { MapManager } from './managers/MapManager'
 export { TextureManager } from './managers/TextureManager'
 export { TilesetManager } from './managers/TilesetManager'
-export { GameStateManager } from './managers/GameStateManager'
 export { InputManager } from './managers/InputManager'
+export { GameStateManager } from './managers/GameStateManager'
 
 // Systems
 export { RenderSystem } from './systems/RenderSystem'

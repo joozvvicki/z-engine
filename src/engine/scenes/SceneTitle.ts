@@ -1,17 +1,16 @@
-import { ZScene } from '@engine/core/ZScene'
-import { ServiceLocator } from '@engine/core/ServiceLocator'
-import { SceneManager } from '@engine/managers/SceneManager'
-import { Scene_Map } from '@engine/scenes/Scene_Map'
-import ZLogger from '@engine/core/ZLogger'
 import { Text } from '@engine/utils/pixi'
+import ZLogger from '@engine/utils/ZLogger'
+import { ZScene, ServiceLocator } from '@engine/core'
+import { SceneManager } from '@engine/managers'
+import { SceneMap } from '@engine/scenes'
 
-export class Scene_Title extends ZScene {
+export class SceneTitle extends ZScene {
   constructor(services: ServiceLocator) {
     super(services)
   }
 
   public async init(): Promise<void> {
-    ZLogger.with('Scene_Title').log('Initializing UI...')
+    ZLogger.with('SceneTitle').log('Initializing UI...')
   }
 
   public start(): void {
@@ -49,7 +48,7 @@ export class Scene_Title extends ZScene {
     subText.y = centerY + 80
     this.container.addChild(subText)
 
-    ZLogger.with('Scene_Title').log("I'm ready!")
+    ZLogger.with('SceneTitle').log("I'm ready!")
   }
 
   private isStarting: boolean = false
@@ -62,10 +61,10 @@ export class Scene_Title extends ZScene {
 
     if (pressed) {
       this.isStarting = true
-      ZLogger.with('Scene_Title').log(`Starting Game... (Key: ${pressed})`)
+      ZLogger.with('SceneTitle').log(`Starting Game... (Key: ${pressed})`)
       // Transition to first map
       const sceneManager = this.services.require(SceneManager)
-      sceneManager.goto(Scene_Map, { mapOrId: 1 })
+      sceneManager.goto(SceneMap, { mapOrId: 1 })
     }
   }
 }

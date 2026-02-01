@@ -1,10 +1,10 @@
-import { ServiceLocator } from '@engine/core/ServiceLocator'
 import { ZDataProvider } from '@engine/types'
+import { ServiceLocator } from '@engine/core/ServiceLocator'
+import { ZEventBus } from '@engine/core/ZEventBus'
 import { MapManager } from '@engine/managers/MapManager'
+import { InputManager } from '@engine/managers/InputManager'
 import { TextureManager } from '@engine/managers/TextureManager'
 import { TilesetManager } from '@engine/managers/TilesetManager'
-import { InputManager } from '@engine/managers/InputManager'
-import { ZEventBus } from '@engine/core/ZEventBus'
 
 export abstract class ZManager {
   protected services: ServiceLocator

@@ -1,34 +1,34 @@
 import { Application, Container } from '@engine/utils/pixi'
-import { ServiceLocator } from '@engine/core/ServiceLocator'
-import { ZDataProvider } from '@engine/types'
-import { SystemManager } from '@engine/core/SystemManager'
-import { EngineBootstrapper } from '@engine/core/EngineBootstrapper'
-import { SceneManager } from '@engine/managers/SceneManager'
-import { ToolManager } from '@engine/managers/ToolManager'
-import { HistoryManager } from '@engine/managers/HistoryManager'
-import { GameStateManager } from '@engine/managers/GameStateManager'
-import { InputManager } from '@engine/managers/InputManager'
-import { ZEventBus } from '@engine/core/ZEventBus'
-import { EntityRenderSystem } from '@engine/systems/EntityRenderSystem'
-import { GhostSystem } from '@engine/systems/GhostSystem'
-import { GridSystem } from '@engine/systems/GridSystem'
-import { MessageSystem } from '@engine/systems/MessageSystem'
-import { TransitionSystem } from '@engine/systems/TransitionSystem'
-import { ErrorSystem } from '@engine/systems/ErrorSystem'
-import { TextureManager } from '@engine/managers/TextureManager'
-import { Scene_Map } from '@engine/scenes/Scene_Map'
-import { Scene_Boot } from '@engine/scenes/Scene_Boot'
-import ZLogger from '@engine/core/ZLogger'
+import ZLogger from '@engine/utils/ZLogger'
+import { ServiceLocator, SystemManager, EngineBootstrapper, ZEventBus } from '@engine/core'
+import { ZDataProvider, ZSystemData } from '@engine/types'
+import {
+  SceneManager,
+  ToolManager,
+  HistoryManager,
+  GameStateManager,
+  InputManager,
+  TextureManager
+} from '@engine/managers'
+import {
+  EntityRenderSystem,
+  GhostSystem,
+  GridSystem,
+  MessageSystem,
+  TransitionSystem,
+  ErrorSystem
+} from '@engine/systems'
+import { SceneMap, SceneBoot } from '@engine/scenes'
 
 export class ZEngine {
   public app: Application
   public services: ServiceLocator
   public dataProvider: ZDataProvider | null = null
+  public systemData: ZSystemData | null = null
   private lifecycle: SystemManager
   public mode: 'edit' | 'play' = 'edit'
   private isBooted: boolean = false
 
-  // Layers
   private sceneLayer: Container
   private globalLayer: Container
 
@@ -52,11 +52,11 @@ export class ZEngine {
 
   public async init(container: HTMLElement, tileSize: number): Promise<void> {
     await this.app.init({
-      resizeTo: container,
-      backgroundColor: 0xffffff,
+      backgroundColor: 0x000000,
       autoDensity: true,
       resolution: window.devicePixelRatio || 1,
-      eventMode: 'static'
+      eventMode: 'static',
+      antialias: false
     })
     this.app.canvas.tabIndex = 1
     this.app.canvas.style.outline = 'none'
@@ -67,14 +67,13 @@ export class ZEngine {
     this.app.stage.hitArea = this.app.screen
     this.app.stage.sortableChildren = true
 
-    // Add Layers
     this.app.stage.addChild(this.sceneLayer)
     this.app.stage.addChild(this.globalLayer)
 
     try {
       EngineBootstrapper.registerSystems(
         this.services,
-        this.sceneLayer, // Primary systems go to sceneLayer? Actually some might stay on stage or go to global
+        this.sceneLayer,
         tileSize,
         this.app.screen.width,
         this.app.screen.height
@@ -102,7 +101,7 @@ export class ZEngine {
 
       ZLogger.log('Hello 👋🏽 Everything is ready!')
     } catch (e) {
-      console.error('ZEngine Init Error:', e)
+      ZLogger.error('Error during init:', e)
       this.services.get(ErrorSystem)?.show(e as Error)
     }
   }
@@ -117,11 +116,11 @@ export class ZEngine {
 
       if (mode === 'play') {
         // Start play mode from boot
-        await sceneManager.goto(Scene_Boot)
+        await sceneManager.goto(SceneBoot)
       } else {
-        // Editor mode always stays on Scene_Map (rely on useEngine for initial map load)
-        if (!(sceneManager.currentScene instanceof Scene_Map)) {
-          // We'll let useEngine handle the goto(Scene_Map) triggered by watchers
+        // Editor mode always stays on SceneMap (rely on useEngine for initial map load)
+        if (!(sceneManager.currentScene instanceof SceneMap)) {
+          // We'll let useEngine handle the goto(SceneMap) triggered by watchers
         }
       }
 
@@ -131,17 +130,17 @@ export class ZEngine {
       const messageSystem = this.services.get(MessageSystem)
 
       if (mode === 'play') {
-        await entitySystem?.setVisible(true)
+        entitySystem?.setVisible(true)
         ghostSystem?.setVisible(false)
         gridSystem?.setVisible(false)
         messageSystem?.resize(this.app.screen.width, this.app.screen.height)
       } else {
-        await entitySystem?.setVisible(false)
+        entitySystem?.setVisible(false)
         ghostSystem?.setVisible(true)
         gridSystem?.setVisible(true)
       }
     } catch (e) {
-      console.error('ZEngine SetMode Error:', e)
+      ZLogger.error('Error during setMode:', e)
       this.services.get(ErrorSystem)?.show(e as Error)
     }
   }
@@ -153,12 +152,17 @@ export class ZEngine {
     this.services.require(ToolManager).setDataProvider(provider)
     this.services.require(HistoryManager).setDataProvider(provider)
     this.services.require(GameStateManager).setDataProvider(provider)
-    ZLogger.log('[ZEngine] Data Provider set')
+    ZLogger.info('Data Provider set')
+  }
+
+  public setSystemData(data: ZSystemData): void {
+    this.systemData = data
+    ZLogger.info('System Data set')
   }
 
   public resize(width: number, height: number): void {
     try {
-      console.log(`[ZEngine] Resizing to ${width}x${height}`)
+      ZLogger.info(`Resizing to ${width}x${height}`)
       const transitionSystem = this.services.get(TransitionSystem)
       const messageSystem = this.services.get(MessageSystem)
       const errorSystem = this.services.get(ErrorSystem)
@@ -169,10 +173,10 @@ export class ZEngine {
       errorSystem?.resize(width, height)
 
       // Update PIXI internals
-      this.app.resize()
+      this.app.renderer.resize(width, height)
       this.app.stage.hitArea = this.app.screen
 
-      ZLogger.with('ZEngine').info(`Resized to ${width}x${height}`)
+      ZLogger.info(`Resized to ${width}x${height}`)
     } catch (e) {
       this.services.get(ErrorSystem)?.show(e as Error)
     }

@@ -1,5 +1,5 @@
 import { TilesetConfig, TileConfig } from '@engine/types'
-import ZLogger from '@engine/core/ZLogger'
+import ZLogger from '@engine/utils/ZLogger'
 
 /**
  * Manages tileset metadata (collision, priorities, offsets).
@@ -14,9 +14,7 @@ export class TilesetManager {
    */
   public setConfigs(configs: Record<string, TilesetConfig>): void {
     this.configs = { ...this.configs, ...configs }
-    ZLogger.with('TilesetManager').info(
-      `Updated metadata for ${Object.keys(configs).length} tilesets`
-    )
+    ZLogger.with('TilesetManager').info('Updated metadata for tilesets:', Object.keys(configs))
   }
 
   /**

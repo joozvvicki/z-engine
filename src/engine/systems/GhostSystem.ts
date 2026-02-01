@@ -1,10 +1,8 @@
-import { Container, Graphics, Sprite, Texture, Rectangle } from '@engine/utils/pixi'
 import { type TileSelection, ZTool, ZLayer } from '@engine/types'
-import { ZSystem as ZSystemCore, SystemMode } from '@engine/core/ZSystem'
+import { Container, Graphics, Sprite, Texture, Rectangle } from '@engine/utils/pixi'
+import { ZSystem, SystemMode, ServiceLocator } from '@engine/core'
 
-import { ServiceLocator } from '@engine/core/ServiceLocator'
-
-export class GhostSystem extends ZSystemCore {
+export class GhostSystem extends ZSystem {
   public container: Container
   private tileSize: number
 

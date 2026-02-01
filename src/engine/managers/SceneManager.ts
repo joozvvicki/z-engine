@@ -1,9 +1,9 @@
-import { ServiceLocator } from '@engine/core/ServiceLocator'
-import { ZManager } from '@engine/managers/ZManager'
-import { ZScene } from '@engine/core/ZScene'
 import { Container } from '@engine/utils/pixi'
-import { TransitionSystem } from '@engine/systems/TransitionSystem'
-import ZLogger from '@engine/core/ZLogger'
+import { ServiceLocator } from '@engine/core/ServiceLocator'
+import { ZScene } from '@engine/core/ZScene'
+import { ZManager } from '@engine/core/ZManager'
+import { TransitionSystem } from '@engine/systems'
+import ZLogger from '@engine/utils/ZLogger'
 
 export class SceneManager extends ZManager {
   private _currentScene: ZScene | null = null
@@ -42,7 +42,7 @@ export class SceneManager extends ZManager {
       await transitionSystem.fadeOut(300)
     }
 
-    ZLogger.log(`[SceneManager] Changing Scene to ${SceneClass.name}`)
+    ZLogger.with('SceneManager').log(`Changing Scene to ${SceneClass.name}`)
 
     // 2. Stop and cleanup current scene
     if (this._currentScene) {
@@ -97,7 +97,7 @@ export class SceneManager extends ZManager {
     if (this.onMapChangeRequest) {
       await this.onMapChangeRequest(mapId, x, y)
     } else {
-      ZLogger.warn('[SceneManager] onMapChangeRequest not set')
+      ZLogger.with('SceneManager').warn('onMapChangeRequest not set')
     }
   }
 }

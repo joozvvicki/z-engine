@@ -10,7 +10,7 @@ import { RenderSystem } from '@engine/systems/RenderSystem'
 import { GridSystem } from '@engine/systems/GridSystem'
 import { PlayerSystem } from '@engine/systems/PlayerSystem'
 import { EntityRenderSystem } from '@engine/systems/EntityRenderSystem'
-import { Scene_Map } from '@engine/scenes/Scene_Map'
+import { SceneMap } from '@engine/scenes/SceneMap'
 import { nextTick } from 'vue'
 
 export const useEngine = (
@@ -84,14 +84,14 @@ export const useEngine = (
         })
       )
     } catch (e) {
-      console.warn('Failed to preload character textures:', e)
+      console.warn('[useEngine] Failed to preload character textures:', e)
     }
     await newEngine.init(canvasContainer.value, store.tileSize)
 
     // Initial sync
     syncCanvasSize(newEngine)
     if (store.activeMap) {
-      await newEngine.services.require(SceneManager).goto(Scene_Map, {
+      await newEngine.services.require(SceneManager).goto(SceneMap, {
         mapOrId: store.activeMap
       })
     }
@@ -135,13 +135,13 @@ export const useEngine = (
         syncCanvasSize(newEngine, targetMap)
 
         // Load the map through SceneManager
-        await newEngine.services.require(SceneManager).goto(Scene_Map, {
+        await newEngine.services.require(SceneManager).goto(SceneMap, {
           mapOrId: targetMap,
           playerX: x,
           playerY: y
         })
       } else {
-        console.error(`[GameViewport] Transfer Failed: Map ${mapId} not found`)
+        console.error(`[useEngine] Transfer Failed: Map ${mapId} not found`)
       }
     })
   }
@@ -154,14 +154,27 @@ export const useEngine = (
     }
 
     if (store.isTestMode) {
-      // In Play Mode, we want the canvas to fill the viewport (100%)
-      // We rely on the parent container (GameViewport) to provide the size via CSS
+      // In Play Mode, we use a FIXED internal resolution from Settings
+      const w = store.systemScreenWidth
+      const h = store.systemScreenHeight
+
+      // The container should fill the viewport
       canvasContainer.value.style.width = '100%'
       canvasContainer.value.style.height = '100%'
+      canvasContainer.value.style.display = 'flex'
+      canvasContainer.value.style.alignItems = 'center'
+      canvasContainer.value.style.justifyContent = 'center'
+      canvasContainer.value.style.background = '#000000'
 
-      // Use the actual client dimensions for the engine
-      const rect = canvasContainer.value.getBoundingClientRect()
-      eng.resize(rect.width, rect.height)
+      // The actual canvas element (eng.app.canvas) will be scaled by CSS
+      const canvas = eng.app.canvas
+      canvas.style.width = '100%'
+      canvas.style.height = '100%'
+      canvas.style.maxWidth = '100%'
+      canvas.style.maxHeight = '100%'
+      canvas.style.objectFit = 'contain' // Key for letterboxing
+
+      eng.resize(w, h)
     } else {
       // In Editor Mode, we want the canvas to be the size of the map
       const w = map.width * store.tileSize
@@ -169,6 +182,13 @@ export const useEngine = (
 
       canvasContainer.value.style.width = `${w}px`
       canvasContainer.value.style.height = `${h}px`
+      canvasContainer.value.style.display = 'block'
+      canvasContainer.value.style.background = 'transparent'
+
+      const canvas = eng.app.canvas
+      canvas.style.width = '100%'
+      canvas.style.height = '100%'
+      canvas.style.objectFit = 'fill'
 
       eng.resize(w, h)
     }
@@ -215,7 +235,7 @@ export const useEngine = (
             syncCanvasSize(engine.value)
 
             if (mapChanged) {
-              await engine.value.services.require(SceneManager).goto(Scene_Map, {
+              await engine.value.services.require(SceneManager).goto(SceneMap, {
                 mapOrId: store.activeMap
               })
             }

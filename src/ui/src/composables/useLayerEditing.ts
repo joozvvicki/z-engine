@@ -152,7 +152,6 @@ export const useLayerEditing = (
   }
 
   const copySelection = (allLayers = false): void => {
-    console.log('copySelection called. allLayers:', allLayers)
     if (!selectionCoords.value || !activeMap.value) return
     const { x, y, w, h } = selectionCoords.value
 

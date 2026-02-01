@@ -17,6 +17,9 @@ export interface ZSystemData {
   startX: number
   startY: number
   playerGraphic: string
+  screenWidth: number
+  screenHeight: number
+  screenZoom: number
 }
 
 export interface TileSelection {

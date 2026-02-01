@@ -1,9 +1,7 @@
 import { Application } from '@engine/utils/pixi'
-import { ServiceLocator } from '@engine/core/ServiceLocator'
-import { ZSystem, SystemMode } from '@engine/core/ZSystem'
-import { SceneManager } from '@engine/managers/SceneManager'
-import { InputManager } from '@engine/managers/InputManager'
-import ZLogger from '@engine/core/ZLogger'
+import { ServiceLocator, ZSystem, SystemMode } from '@engine/core'
+import { SceneManager, InputManager } from '@engine/managers'
+import ZLogger from '@engine/utils/ZLogger'
 
 export class SystemManager {
   private services: ServiceLocator

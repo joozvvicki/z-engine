@@ -135,6 +135,7 @@ export const useEditorInput = (
   }
 
   const onWheel = (event: WheelEvent): void => {
+    if (store.isTestMode) return
     handleWheel(event, canvasContainer.value)
   }
 
@@ -156,7 +157,6 @@ export const useEditorInput = (
     () => store.isTestMode,
     (isTest) => {
       if (isTest) {
-        console.log('[useEditorInput] Entering Play Mode, resetting viewport')
         resetViewport(canvasContainer.value)
       }
     }
@@ -171,11 +171,9 @@ export const useEditorInput = (
       if (newId === null) return
       const saved = store.mapViewportStates[newId]
       if (saved) {
-        console.log(`[useEditorInput] Loading viewport for map ${newId}:`, saved)
         scale.value = saved.scale
         pan.value = { ...saved.pan }
       } else {
-        console.log(`[useEditorInput] No saved viewport for map ${newId}, resetting`)
         scale.value = 1
         pan.value = { x: 0, y: 0 }
       }
@@ -190,7 +188,6 @@ export const useEditorInput = (
     () => canvasContainer.value,
     (el) => {
       if (el) {
-        console.log('[useEditorInput] Canvas container mounted, applying transform')
         updateTransform(el)
       }
     }

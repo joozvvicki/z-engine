@@ -1,10 +1,9 @@
 import { Container, Graphics, Text } from '@engine/utils/pixi'
 import { ZEngineSignal } from '@engine/types'
-import { ZSystem as ZSystemCore, SystemMode } from '@engine/core/ZSystem'
-import { EventSystem } from '@engine/systems/EventSystem'
-import { ServiceLocator } from '@engine/core/ServiceLocator'
+import { ZSystem, SystemMode, ServiceLocator } from '@engine/core'
+import { EventSystem } from '@engine/systems'
 
-export class MessageSystem extends ZSystemCore {
+export class MessageSystem extends ZSystem {
   public container: Container
   private isVisible: boolean = false
   private messageText: string = ''

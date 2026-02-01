@@ -1,6 +1,6 @@
 import PIXI from '@engine/utils/pixi'
 import { ZEventGraphic } from '@engine/types'
-import { TextureManager } from '@engine/managers/TextureManager'
+import { TextureManager } from '@engine/managers'
 
 export class SpriteUtils {
   /**

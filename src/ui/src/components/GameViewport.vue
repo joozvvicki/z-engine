@@ -50,7 +50,8 @@ onMounted(async () => {
 
 <template>
   <div
-    class="w-full h-full overflow-hidden relative bg-white outline-none"
+    class="w-full h-full overflow-hidden relative outline-none"
+    :class="store.isTestMode ? 'bg-black' : 'bg-[#e5e5e5]'"
     tabindex="0"
     @wheel.prevent="onWheel"
   >
@@ -69,7 +70,7 @@ onMounted(async () => {
 
     <div
       v-if="!store.activeMap"
-      class="text-white/20 flex flex-col items-center pointer-events-none select-none"
+      class="text-black/20 flex flex-col items-center pointer-events-none select-none justify-center h-full"
     >
       <IconAlertTriangle class="w-16 h-16 mb-4" />
       <p>No Map Active</p>
@@ -78,8 +79,11 @@ onMounted(async () => {
     <div
       v-else
       ref="canvasContainer"
-      class="shadow-2xl bg-white border border-black/50 box-border relative"
-      :class="{ 'opacity-0': isLoading }"
+      class="relative"
+      :class="{
+        'opacity-0': isLoading,
+        'shadow-2xl border border-black/20': !store.isTestMode
+      }"
     ></div>
 
     <!-- Stats Bar -->
