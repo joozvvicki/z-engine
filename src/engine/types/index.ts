@@ -76,6 +76,8 @@ export interface ZSystemData {
   screenWidth: number
   screenHeight: number
   screenZoom: number
+  projectName: string
+  version: string
 }
 
 export interface TileSelection {

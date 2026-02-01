@@ -17,8 +17,6 @@ import { GridSystem } from '@engine/systems/GridSystem'
 import { MessageSystem } from '@engine/systems/MessageSystem'
 import { TransitionSystem } from '@engine/systems/TransitionSystem'
 import { ErrorSystem } from '@engine/systems/ErrorSystem'
-import { SceneMap } from '@engine/scenes/SceneMap'
-import { SceneBoot } from '@engine/scenes/SceneBoot'
 
 export class ZEngine {
   public app: Application
@@ -112,16 +110,10 @@ export class ZEngine {
       this.lifecycle.setMode(mode)
       ZLogger.log(`Switched to ${mode} mode`)
 
-      const sceneManager = this.services.require(SceneManager)
-
       if (mode === 'play') {
-        // Start play mode from boot
-        await sceneManager.goto(SceneBoot)
+        ZLogger.log('Entering Play Mode...')
       } else {
-        // Editor mode always stays on SceneMap (rely on useEngine for initial map load)
-        if (!(sceneManager.currentScene instanceof SceneMap)) {
-          // We'll let useEngine handle the goto(SceneMap) triggered by watchers
-        }
+        ZLogger.log('Entering Edit Mode...')
       }
 
       const entitySystem = this.services.get(EntityRenderSystem)

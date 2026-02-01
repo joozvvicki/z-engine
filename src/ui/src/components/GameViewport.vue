@@ -11,7 +11,7 @@ const canvasContainer = ref<HTMLElement | null>(null)
 const store = useEditorStore()
 
 // 1. Initialize Engine & State Sync
-const { engine, initEngine, isLoading } = useEngine(canvasContainer)
+const { engine, initEngine, isLoading } = useEngine(canvasContainer, true)
 
 // 2. Handle Inputs & Viewport
 const {
@@ -50,8 +50,7 @@ onMounted(async () => {
 
 <template>
   <div
-    class="w-full h-full overflow-hidden relative outline-none"
-    :class="store.isTestMode ? 'bg-black' : 'bg-[#e5e5e5]'"
+    class="w-full h-full overflow-hidden relative outline-none bg-[#e5e5e5]"
     tabindex="0"
     @wheel.prevent="onWheel"
   >
@@ -79,10 +78,9 @@ onMounted(async () => {
     <div
       v-else
       ref="canvasContainer"
-      class="relative"
+      class="relative shadow-2xl border border-black/20"
       :class="{
-        'opacity-0': isLoading,
-        'shadow-2xl border border-black/20': !store.isTestMode
+        'opacity-0': isLoading
       }"
     ></div>
 

@@ -64,8 +64,16 @@ export class SceneTitle extends ZScene {
       this.isStarting = true
       ZLogger.with('SceneTitle').log(`Starting Game... (Key: ${pressed})`)
       // Transition to first map
+      const engine = this.services.get('ZEngine') as {
+        systemData: { startMapId: number; startX: number; startY: number }
+      }
+      const { startMapId = 1, startX = 0, startY = 0 } = engine?.systemData || {}
       const sceneManager = this.services.require(SceneManager)
-      sceneManager.goto(SceneMap, { mapOrId: 1 })
+      sceneManager.goto(SceneMap, {
+        mapOrId: startMapId,
+        playerX: startX,
+        playerY: startY
+      })
     }
   }
 }

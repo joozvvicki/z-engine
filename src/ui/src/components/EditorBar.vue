@@ -15,39 +15,33 @@ import {
   IconPackage // Added IconPackage
 } from '@tabler/icons-vue'
 import DynamicIcon from './DynamicIcon.vue'
-import BuildGameModal from './BuildGameModal.vue' // Added BuildGameModal import
+import BuildGameModal from './BuildGameModal.vue'
+import PlaytestModal from './modal/PlaytestModal.vue'
 import { computed, onMounted, ref, watch, nextTick } from 'vue'
 import { ZLayer, ZTool } from '@engine/types'
 
 const store = useEditorStore()
 
-const previousLayer = ref<ZLayer | null>(null)
-const buildModal = ref<InstanceType<typeof BuildGameModal> | null>(null) // Added buildModal ref
+const buildModal = ref<InstanceType<typeof BuildGameModal> | null>(null)
+const playtestModal = ref<InstanceType<typeof PlaytestModal> | null>(null)
 
 const buildGame = (): void => {
   buildModal.value?.open()
 }
 
 const togglePlay = async (event?: MouseEvent): Promise<void> => {
-  // Before entering test mode, switch to start map if not already there
-  if (!store.isTestMode && store.activeMapID !== store.systemStartMapId) {
-    console.log('[EditorBar] Switching to start map:', store.systemStartMapId)
-    store.setActiveMap(store.systemStartMapId)
-
-    // Wait for map to load
-    await new Promise((resolve) => setTimeout(resolve, 100))
-  }
-
-  store.toggleTestMode()
-
   if (store.isTestMode) {
-    previousLayer.value = store.activeLayer
-    store.setLayer(ZLayer.highest)
+    playtestModal.value?.close()
   } else {
-    if (previousLayer.value) {
-      store.setLayer(previousLayer.value)
-      previousLayer.value = null
+    // Before entering test mode, switch to start map if not already there
+    if (store.activeMapID !== store.systemStartMapId) {
+      console.log('[EditorBar] Switching to start map:', store.systemStartMapId)
+      store.setActiveMap(store.systemStartMapId)
+
+      // Wait for map to load
+      await new Promise((resolve) => setTimeout(resolve, 100))
     }
+    playtestModal.value?.open()
   }
 
   // Blur focus to prevent keyboard trap
@@ -398,4 +392,5 @@ onMounted(() => {
     </div>
   </div>
   <BuildGameModal ref="buildModal" />
+  <PlaytestModal ref="playtestModal" />
 </template>
