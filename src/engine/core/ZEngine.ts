@@ -14,7 +14,6 @@ import { GhostSystem } from '@engine/systems/GhostSystem'
 import { GridSystem } from '@engine/systems/GridSystem'
 import { MessageSystem } from '@engine/systems/MessageSystem'
 import { PlayerSystem } from '@engine/systems/PlayerSystem'
-import { RenderSystem } from '@engine/systems/RenderSystem'
 import { TransitionSystem } from '@engine/systems/TransitionSystem'
 import { ErrorSystem } from '@engine/systems/ErrorSystem'
 import { TextureManager } from '@engine/managers/TextureManager'
@@ -115,7 +114,6 @@ export class ZEngine {
     try {
       console.log(`[ZEngine] Resizing to ${width}x${height}`)
       const transitionSystem = this.services.get(TransitionSystem)
-      const gridSystem = this.services.get(GridSystem)
       const messageSystem = this.services.get(MessageSystem)
       const errorSystem = this.services.get(ErrorSystem)
 
@@ -123,12 +121,6 @@ export class ZEngine {
       transitionSystem?.resize(width, height)
       messageSystem?.resize(width, height)
       errorSystem?.resize(width, height)
-
-      // Grid system uses tile dimensions
-      const renderSystem = this.services.get(RenderSystem)
-      if (renderSystem && gridSystem) {
-        gridSystem.setSize(width / renderSystem.tileSize, height / renderSystem.tileSize)
-      }
 
       // Update PIXI internals
       this.app.resize()

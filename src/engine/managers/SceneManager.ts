@@ -7,7 +7,6 @@ import { TransitionSystem } from '@engine/systems/TransitionSystem'
 import { ErrorSystem } from '@engine/systems/ErrorSystem'
 import { TilesetManager } from '@engine/managers/TilesetManager'
 import { TextureManager } from '@engine/managers/TextureManager'
-import { GridSystem } from '@engine/systems/GridSystem'
 import ZLogger from '@engine/core/ZLogger'
 
 export class SceneManager extends ZManager {
@@ -61,12 +60,7 @@ export class SceneManager extends ZManager {
       })
       await Promise.all(texturePromises)
 
-      // Optimize GridSystem rendering
-      const gridSystem = this.services.get(GridSystem)
-      if (gridSystem) {
-        gridSystem.setSize(map.width, map.height)
-      }
-
+      // Load map tiles in RenderSystem
       // Load map tiles in RenderSystem
       const renderSystem = this.services.get(RenderSystem)
       if (renderSystem) {

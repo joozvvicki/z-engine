@@ -173,10 +173,11 @@ export const useEngine = (
     if (!store.activeMap) return
     const gridSystem = eng.services.get(GridSystem)
     if (gridSystem) {
-      const isEventTool = store.currentTool === ZTool.event
+      // Show grid ONLY if Event tool is active AND NOT in test mode
+      const isVisible = store.currentTool === ZTool.event && !store.isTestMode
       gridSystem.setSize(
-        isEventTool ? store.activeMap.width : 0,
-        isEventTool ? store.activeMap.height : 0
+        isVisible ? store.activeMap.width : 0,
+        isVisible ? store.activeMap.height : 0
       )
     }
   }
@@ -210,11 +211,8 @@ export const useEngine = (
 
             if (mapChanged) {
               await engine.value.services.require(SceneManager).loadMap(store.activeMap)
-            } else {
-              // Just a resize? Refresh render
-              engine.value.services.get(RenderSystem)?.refresh()
-              syncGridSize(engine.value)
             }
+            syncGridSize(engine.value)
           } finally {
             isLoading.value = false
           }
