@@ -237,7 +237,8 @@ export enum ZCommandCode {
   When = 402,
   EndChoices = 404,
   SetEventDirection = 213,
-  SetEventGraphic = 214
+  SetEventGraphic = 214,
+  Wait = 230
 }
 
 export type ZCommandResult = 'continue' | 'wait' | 'stop'
@@ -245,7 +246,7 @@ export type ZCommandResult = 'continue' | 'wait' | 'stop'
 export interface ZCommandProcessor {
   (
     params: unknown[],
-    interpreter: { list: ZEventCommand[]; index: number; eventId: string }
+    interpreter: { list: ZEventCommand[]; index: number; eventId: string; waitCount?: number }
   ): ZCommandResult
 }
 

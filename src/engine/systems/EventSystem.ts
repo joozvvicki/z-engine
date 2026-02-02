@@ -26,6 +26,7 @@ export class EventSystem extends ZSystem {
     list: ZEventCommand[]
     index: number
     eventId: string
+    waitCount?: number
   } | null = null
 
   private processors: Map<number, ZCommandProcessor> = new Map()
@@ -33,6 +34,7 @@ export class EventSystem extends ZSystem {
     list: ZEventCommand[]
     index: number
     eventId: string
+    waitCount?: number
   }[] = []
 
   constructor(services: ServiceLocator) {
@@ -61,6 +63,7 @@ export class EventSystem extends ZSystem {
     this.processors.set(ZCommandCode.SetMoveRoute, this.commandSetMoveRoute.bind(this))
     this.processors.set(ZCommandCode.SetEventDirection, this.commandSetEventDirection.bind(this))
     this.processors.set(ZCommandCode.SetEventGraphic, this.commandSetEventGraphic.bind(this))
+    this.processors.set(ZCommandCode.Wait, this.commandWait.bind(this))
   }
 
   public onBoot(): void {
@@ -92,8 +95,12 @@ export class EventSystem extends ZSystem {
   }
 
   public onUpdate(): void {
-    if (this.activeInterpreter && !this.isWaitingForMessage) {
-      this.executeInterpreter()
+    if (this.activeInterpreter) {
+      if (this.activeInterpreter.waitCount && this.activeInterpreter.waitCount > 0) {
+        this.activeInterpreter.waitCount--
+      } else if (!this.isWaitingForMessage) {
+        this.executeInterpreter()
+      }
     }
     this.updateParallelProcesses()
   }
@@ -107,6 +114,10 @@ export class EventSystem extends ZSystem {
     // Update existing parallel interpreters
     for (let i = this.parallelInterpreters.length - 1; i >= 0; i--) {
       const interpreter = this.parallelInterpreters[i]
+      if (interpreter.waitCount && interpreter.waitCount > 0) {
+        interpreter.waitCount--
+        continue
+      }
       this.executeParallelInterpreter(interpreter, i)
     }
   }
@@ -225,6 +236,10 @@ export class EventSystem extends ZSystem {
     if (!this.activeInterpreter) return
 
     while (this.activeInterpreter.index < this.activeInterpreter.list.length) {
+      if (this.activeInterpreter.waitCount && this.activeInterpreter.waitCount > 0) {
+        return
+      }
+
       const cmd = this.activeInterpreter.list[this.activeInterpreter.index]
       this.activeInterpreter.index++
 
@@ -526,5 +541,11 @@ export class EventSystem extends ZSystem {
       }
       interpreter.index++
     }
+  }
+
+  private commandWait(params: unknown[], interpreter: { waitCount?: number }): ZCommandResult {
+    const frames = (params[0] as number) || 60
+    interpreter.waitCount = frames
+    return 'wait'
   }
 }

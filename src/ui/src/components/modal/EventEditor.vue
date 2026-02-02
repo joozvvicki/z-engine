@@ -18,6 +18,7 @@ import {
   IconMapPin,
   IconWalk,
   IconFlare,
+  IconHourglass,
   IconChevronLeft,
   IconSettings
 } from '@tabler/icons-vue'
@@ -386,6 +387,7 @@ const commandCategories = [
       { code: ZCommandCode.SetMoveRoute, name: 'Move Route', icon: IconWalk },
       { code: ZCommandCode.SetEventDirection, name: 'Set Direction', icon: IconArrowRight },
       { code: ZCommandCode.SetEventGraphic, name: 'Change Graphic', icon: IconGhost },
+      { code: ZCommandCode.Wait, name: 'Wait', icon: IconHourglass },
       { code: ZCommandCode.ShowAnimation, name: 'Show Animation', icon: IconFlare }
     ]
   }
@@ -426,6 +428,7 @@ const cmdParams = ref({
   animationId: 1,
   direction: 'down' as 'down' | 'left' | 'right' | 'up',
   graphic: null as ZEventGraphic | null,
+  waitFrames: 60,
   moveRoute: [] as unknown[]
 })
 const messageText = ref('')
@@ -486,6 +489,8 @@ const openCommandEditor = (index: number | null = null, isInsert: boolean = fals
       cmdParams.value.direction = (cmd.parameters[0] as 'down' | 'left' | 'right' | 'up') || 'down'
     } else if (selectedCommandType.value === ZCommandCode.SetEventGraphic) {
       cmdParams.value.graphic = (cmd.parameters[0] as ZEventGraphic | null) || null
+    } else if (selectedCommandType.value === ZCommandCode.Wait) {
+      cmdParams.value.waitFrames = (cmd.parameters[0] as number) || 60
     }
   } else {
     // Reset for new
@@ -514,6 +519,7 @@ const openCommandEditor = (index: number | null = null, isInsert: boolean = fals
       animationId: 1,
       direction: 'down',
       graphic: null,
+      waitFrames: 60,
       moveRoute: []
     }
     messageText.value = ''
@@ -590,12 +596,17 @@ const saveCommand = (): void => {
   } else if (selectedCommandType.value === ZCommandCode.SetEventDirection) {
     newCommand = {
       code: ZCommandCode.SetEventDirection,
-      parameters: [cmdParams.value.branchVal]
+      parameters: [cmdParams.value.direction]
     }
   } else if (selectedCommandType.value === ZCommandCode.SetEventGraphic) {
     newCommand = {
       code: ZCommandCode.SetEventGraphic,
-      parameters: [cmdParams.value.branchItem]
+      parameters: [cmdParams.value.graphic]
+    }
+  } else if (selectedCommandType.value === ZCommandCode.Wait) {
+    newCommand = {
+      code: ZCommandCode.Wait,
+      parameters: [cmdParams.value.waitFrames]
     }
   } else {
     return
@@ -1096,20 +1107,24 @@ const saveCommand = (): void => {
                           item.command.code === ZCommandCode.TransferPlayer ||
                           item.command.code === ZCommandCode.SetMoveRoute,
                         'bg-yellow-400': item.command.code === ZCommandCode.ShowAnimation,
+                        'bg-slate-500':
+                          item.command.code === ZCommandCode.Wait ||
+                          item.command.code === ZCommandCode.SetEventDirection ||
+                          item.command.code === ZCommandCode.SetEventGraphic,
                         'bg-slate-300': !Object.values(ZCommandCode).includes(item.command.code)
                       }"
                     ></span>
 
                     <!-- Transfer Player -->
                     <span
-                      v-if="item.command.code === 201"
+                      v-if="item.command.code === ZCommandCode.TransferPlayer"
                       class="text-slate-700 font-medium font-sans"
                       >Transfer Player (Map {{ item.command.parameters[0] }},
                       {{ item.command.parameters[1] }}, {{ item.command.parameters[2] }})</span
                     >
                     <!-- Show Message -->
                     <span
-                      v-else-if="item.command.code === 101"
+                      v-else-if="item.command.code === ZCommandCode.ShowMessage"
                       class="text-slate-700 font-medium font-sans"
                       >Show Message: "{{ item.command.parameters[0] }}"</span
                     >
@@ -1206,12 +1221,38 @@ const saveCommand = (): void => {
                       Show Animation #{{ item.command.parameters[0] }}
                     </span>
 
+                    <!-- Wait -->
+                    <span
+                      v-else-if="item.command.code === ZCommandCode.Wait"
+                      class="text-slate-600 font-medium font-sans"
+                    >
+                      Wait: {{ item.command.parameters[0] }} frames
+                    </span>
+                    <!-- Set Direction -->
+                    <span
+                      v-else-if="item.command.code === ZCommandCode.SetEventDirection"
+                      class="text-slate-600 font-medium font-sans"
+                    >
+                      Set Direction: {{ item.command.parameters[0] }}
+                    </span>
+                    <!-- Set Graphic -->
+                    <span
+                      v-else-if="item.command.code === ZCommandCode.SetEventGraphic"
+                      class="text-slate-600 font-medium font-sans"
+                    >
+                      Change Graphic:
+                      {{
+                        (item.command.parameters[0] as ZEventGraphic)?.assetId?.split('/').pop() ||
+                        'None'
+                      }}
+                    </span>
                     <!-- Move Route -->
                     <span
                       v-else-if="item.command.code === ZCommandCode.SetMoveRoute"
                       class="text-emerald-700 font-medium font-sans"
                     >
-                      Set Move Route
+                      Set Move Route ({{ (item.command.parameters[0] as any[])?.length || 0 }}
+                      cmds)
                     </span>
 
                     <span v-else class="text-slate-400 font-medium font-sans italic"
@@ -1693,6 +1734,27 @@ const saveCommand = (): void => {
             </div>
           </div>
 
+          <!-- Wait Params -->
+          <div v-if="selectedCommandType === ZCommandCode.Wait" class="space-y-3">
+            <div>
+              <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1"
+                >Wait Duration (Frames)</label
+              >
+              <div class="flex items-center gap-3">
+                <input
+                  v-model.number="cmdParams.waitFrames"
+                  type="number"
+                  min="1"
+                  max="999"
+                  class="flex-1 border border-slate-200 rounded-md px-3 py-1.5 text-sm focus:border-blue-500 outline-none transition-all"
+                />
+                <span class="text-xs text-slate-400 w-24">
+                  ≈ {{ (cmdParams.waitFrames / 60).toFixed(2) }}s
+                </span>
+              </div>
+            </div>
+          </div>
+
           <!-- Set Event Direction Params -->
           <div v-if="selectedCommandType === ZCommandCode.SetEventDirection" class="space-y-3">
             <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1"
@@ -1793,9 +1855,18 @@ const saveCommand = (): void => {
                         size="12"
                         class="text-blue-400"
                       />
+                      <IconHourglass
+                        v-else-if="(cmd as any).code === 'WAIT'"
+                        size="12"
+                        class="text-orange-400"
+                      />
                       <IconPlus v-else size="12" class="text-slate-500" />
                       <span class="text-[10px] font-bold text-slate-200">
-                        {{ (cmd as any).code.replace('MOVE_', 'Move ').replace('TURN_', 'Turn ') }}
+                        {{
+                          (cmd as any).code === 'WAIT'
+                            ? `Wait (${(cmd as any).params?.[0] || 60}f)`
+                            : (cmd as any).code.replace('MOVE_', 'Move ').replace('TURN_', 'Turn ')
+                        }}
                       </span>
                     </div>
                     <button
