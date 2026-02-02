@@ -52,6 +52,20 @@ export const useEngine = (
     },
     resolveAssetUrl: (path: string) => {
       return ProjectService.resolveAssetUrl(path)
+    },
+    getSystemData: async () => {
+      return {
+        projectName: 'Z-Engine Project',
+        version: '1.0.0',
+        switches: store.systemSwitches,
+        variables: store.systemVariables,
+        startMapId: store.systemStartMapId,
+        startX: store.systemStartX,
+        startY: store.systemStartY,
+        screenWidth: store.systemScreenWidth,
+        screenHeight: store.systemScreenHeight,
+        screenZoom: store.systemScreenZoom
+      }
     }
   }
 

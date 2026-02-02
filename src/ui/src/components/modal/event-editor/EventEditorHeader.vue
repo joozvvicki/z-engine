@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { IconDeviceFloppy, IconTrash, IconX } from '@tabler/icons-vue'
+import { IconDeviceFloppy, IconTrash } from '@tabler/icons-vue'
 
 const props = defineProps<{
   eventId?: string | null
@@ -30,7 +30,7 @@ const emit = defineEmits(['save', 'remove', 'close'])
           v-model="eventName"
           type="text"
           placeholder="Event Name"
-          class="border border-slate-200 rounded-md px-3 py-1.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all placeholder:text-slate-300"
+          class="border border-slate-200 rounded-md px-3 py-1.5 text-sm focus:border-slate-900 focus:ring-1 focus:ring-slate-900 outline-none transition-all placeholder:text-slate-300"
         />
       </div>
     </div>
@@ -50,7 +50,7 @@ const emit = defineEmits(['save', 'remove', 'close'])
         Cancel
       </button>
       <button
-        class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold uppercase rounded-lg flex items-center gap-2 shadow-lg shadow-blue-500/20 transition-all active:scale-95"
+        class="px-5 py-2 bg-slate-900 hover:bg-black text-white text-xs font-bold uppercase rounded-lg flex items-center gap-2 shadow-lg shadow-slate-900/20 transition-all active:scale-95"
         @click="emit('save')"
       >
         <IconDeviceFloppy size="18" /> Save Event

@@ -324,4 +324,6 @@ export interface ZSignalData {
     graphic?: ZEventGraphic
     moveRoute?: ZMoveCommand[]
   }
+  [ZEngineSignal.EventExecutionStarted]: { eventId: string }
+  [ZEngineSignal.EventExecutionFinished]: { eventId: string }
 }

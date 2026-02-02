@@ -5,7 +5,9 @@ import {
   IconBolt,
   IconRepeat,
   IconPlayerPlay,
-  IconMouse
+  IconMouse,
+  IconSquare,
+  IconSquareCheck
 } from '@tabler/icons-vue'
 import type { ZEventPage } from '@engine/types'
 import { ZEventTrigger } from '@engine/types'
@@ -22,7 +24,7 @@ const emit = defineEmits(['select-graphic', 'set-graphic-from-selection', 'clear
 const triggers = [
   {
     value: ZEventTrigger.Action,
-    label: 'Action Button',
+    label: 'Action',
     icon: IconMouse,
     description: 'Interact with the event'
   },
@@ -55,68 +57,80 @@ const triggers = [
 
 <template>
   <div
-    class="w-[340px] bg-white border-r border-slate-100 flex flex-col p-6 gap-6 overflow-y-auto shrink-0"
+    class="w-[300px] bg-white border-r border-slate-100 flex flex-col p-4 gap-4 overflow-y-auto shrink-0"
   >
     <!-- Conditions Group -->
-    <div class="space-y-3">
-      <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
+    <div class="space-y-2">
+      <h3
+        class="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2"
+      >
         Conditions
         <div class="h-px bg-slate-100 flex-1"></div>
       </h3>
-      <div class="bg-slate-50 rounded-xl p-4 border border-slate-100 space-y-3">
-        <label class="flex items-center gap-3 cursor-pointer group">
-          <input
-            v-model="page.conditions.switch1Id"
-            type="checkbox"
-            class="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-          />
-          <span class="text-xs font-medium text-slate-500 group-hover:text-slate-700"
-            >Switch 1</span
-          >
-        </label>
-        <label class="flex items-center gap-3 cursor-pointer group">
-          <input
-            v-model="page.conditions.variableId"
-            type="checkbox"
-            class="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-          />
-          <span class="text-xs font-medium text-slate-500 group-hover:text-slate-700"
-            >Variable</span
-          >
-        </label>
-        <label class="flex items-center gap-3 cursor-pointer group">
-          <input
-            v-model="page.conditions.selfSwitchCh"
-            type="checkbox"
-            class="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-          />
-          <span class="text-xs font-medium text-slate-500 group-hover:text-slate-700"
-            >Self Switch</span
-          >
-        </label>
-        <label class="flex items-center gap-3 cursor-pointer group">
-          <input
-            v-model="page.conditions.item"
-            type="checkbox"
-            class="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-          />
-          <span class="text-xs font-medium text-slate-500 group-hover:text-slate-700"
-            >Item Possession</span
-          >
-        </label>
+      <div class="grid grid-cols-2 gap-1.5">
+        <button
+          class="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border text-[10px] font-bold transition-all"
+          :class="
+            page.conditions.switch1Id
+              ? 'bg-slate-900 border-slate-900 text-white shadow-sm'
+              : 'bg-slate-50 border-slate-100 text-slate-500 hover:bg-white hover:border-slate-300'
+          "
+          @click="page.conditions.switch1Id = page.conditions.switch1Id ? undefined : '1'"
+        >
+          <component :is="page.conditions.switch1Id ? IconSquareCheck : IconSquare" size="12" />
+          Switch 1
+        </button>
+        <button
+          class="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border text-[10px] font-bold transition-all"
+          :class="
+            page.conditions.variableId
+              ? 'bg-slate-900 border-slate-900 text-white shadow-sm'
+              : 'bg-slate-50 border-slate-100 text-slate-500 hover:bg-white hover:border-slate-300'
+          "
+          @click="page.conditions.variableId = page.conditions.variableId ? undefined : '1'"
+        >
+          <component :is="page.conditions.variableId ? IconSquareCheck : IconSquare" size="12" />
+          Variable
+        </button>
+        <button
+          class="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border text-[10px] font-bold transition-all"
+          :class="
+            page.conditions.selfSwitchCh
+              ? 'bg-slate-900 border-slate-900 text-white shadow-sm'
+              : 'bg-slate-50 border-slate-100 text-slate-500 hover:bg-white hover:border-slate-300'
+          "
+          @click="page.conditions.selfSwitchCh = page.conditions.selfSwitchCh ? undefined : 'A'"
+        >
+          <component :is="page.conditions.selfSwitchCh ? IconSquareCheck : IconSquare" size="12" />
+          Self Switch
+        </button>
+        <button
+          class="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border text-[10px] font-bold transition-all"
+          :class="
+            page.conditions.item
+              ? 'bg-slate-900 border-slate-900 text-white shadow-sm'
+              : 'bg-slate-50 border-slate-100 text-slate-500 hover:bg-white hover:border-slate-300'
+          "
+          @click="page.conditions.item = page.conditions.item ? undefined : '1'"
+        >
+          <component :is="page.conditions.item ? IconSquareCheck : IconSquare" size="12" />
+          Item
+        </button>
       </div>
     </div>
 
     <!-- Graphic Group -->
-    <div class="space-y-3">
-      <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
+    <div class="space-y-2">
+      <h3
+        class="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2"
+      >
         Appearance
         <div class="h-px bg-slate-100 flex-1"></div>
       </h3>
 
-      <div class="flex gap-4">
+      <div class="flex gap-3">
         <div
-          class="w-24 h-24 bg-[url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAMUlEQVQ4T2nk5uamNYwYP//8/xyM2jB4wYDBsIqKikq8Gg4dOoQXR21g8IIBg2EVg4AAAABJRU5ErkJggg==')] bg-repeat border-2 border-dashed border-slate-200 hover:border-blue-400 rounded-xl flex items-center justify-center relative overflow-hidden cursor-pointer transition-colors group"
+          class="w-20 h-20 bg-[url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAMUlEQVQ4T2nk5uamNYwYP//8/xyM2jB4wYDBsIqKikq8Gg4dOoQXR21g8IIBg2EVg4AAAABJRU5ErkJggg==')] bg-repeat border-2 border-dashed border-slate-200 hover:border-slate-400 rounded-xl flex items-center justify-center relative overflow-hidden cursor-pointer transition-colors group"
           @dblclick="emit('select-graphic')"
         >
           <template v-if="page.graphic">
@@ -141,132 +155,139 @@ const triggers = [
               <div class="text-2xl mb-1 drop-shadow-sm">🖼️</div>
             </div>
             <div
-              class="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[9px] font-mono text-center p-0.5 truncate backdrop-blur-sm"
+              class="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[8px] font-mono text-center p-0.5 truncate backdrop-blur-sm"
             >
               {{ page.graphic.assetId }}
             </div>
           </template>
-          <div v-else class="text-slate-300 flex flex-col items-center group-hover:text-blue-400">
-            <IconGhost size="24" />
-            <span class="text-[9px] font-bold uppercase mt-1">Empty</span>
+          <div v-else class="text-slate-300 flex flex-col items-center group-hover:text-slate-600">
+            <IconGhost size="20" />
+            <span class="text-[8px] font-black uppercase mt-1">Empty</span>
           </div>
         </div>
 
-        <div class="flex-1 flex flex-col gap-2 justify-center">
+        <div class="flex-1 flex flex-col gap-1.5 justify-center">
           <button
-            class="px-3 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-bold rounded-lg transition-colors border border-blue-100"
+            class="px-2 py-1.5 bg-slate-900 hover:bg-black text-white text-[10px] font-bold rounded-lg transition-all shadow-sm active:scale-95"
             @click="emit('select-graphic')"
           >
-            Select Graphic
+            Select
           </button>
           <button
             v-if="props.hasSelection"
-            class="px-3 py-2 bg-white hover:bg-slate-50 text-slate-600 hover:text-slate-800 text-xs font-bold rounded-lg transition-colors border border-slate-200"
-            title="Use current map selection"
+            class="px-2 py-1.5 bg-white hover:bg-slate-50 text-slate-600 text-[10px] font-bold rounded-lg transition-colors border border-slate-200"
             @click="emit('set-graphic-from-selection')"
           >
-            Use Map Selection
+            Map Set
           </button>
           <button
-            class="px-3 py-2 bg-white hover:bg-red-50 text-slate-600 hover:text-red-500 text-xs font-bold rounded-lg transition-colors border border-slate-200 hover:border-red-200"
+            class="px-2 py-1.5 bg-white hover:bg-red-50 text-slate-400 hover:text-red-500 text-[10px] font-bold rounded-lg transition-colors border border-slate-200 hover:border-red-200"
             @click="emit('clear-graphic')"
           >
-            Clear Graphic
+            Clear
           </button>
         </div>
       </div>
     </div>
 
-    <!-- Trigger Redesign -->
-    <div class="space-y-3">
-      <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
+    <!-- Trigger Group -->
+    <div class="space-y-2">
+      <h3
+        class="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2"
+      >
         Trigger
         <div class="h-px bg-slate-100 flex-1"></div>
       </h3>
 
-      <div class="grid grid-cols-1 gap-2">
+      <div class="grid grid-cols-1 gap-1.5">
         <button
           v-for="trigger in triggers"
           :key="trigger.value"
-          class="flex items-center gap-3 p-3 rounded-xl border text-left transition-all group"
+          class="flex items-center gap-2.5 p-2 rounded-xl border text-left transition-all group"
           :class="
             page.trigger === trigger.value
-              ? 'bg-blue-600 border-blue-600 text-white shadow-md'
-              : 'bg-slate-50 border-slate-100 text-slate-600 hover:bg-white hover:border-blue-200 hover:shadow-sm'
+              ? 'bg-slate-900 border-slate-900 text-white shadow-md'
+              : 'bg-slate-50 border-slate-100 text-slate-600 hover:bg-white hover:border-slate-300'
           "
           @click="page.trigger = trigger.value"
         >
           <div
-            class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+            class="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
             :class="
               page.trigger === trigger.value
                 ? 'bg-white/20'
-                : 'bg-white shadow-sm text-slate-400 group-hover:text-blue-500'
+                : 'bg-white shadow-sm text-slate-400 group-hover:text-slate-900'
             "
           >
-            <component :is="trigger.icon" size="18" />
+            <component :is="trigger.icon" size="14" />
           </div>
           <div class="flex flex-col min-w-0">
-            <span class="text-xs font-bold leading-tight">{{ trigger.label }}</span>
-            <span
-              class="text-[9px] truncate"
-              :class="page.trigger === trigger.value ? 'text-blue-100' : 'text-slate-400'"
-              >{{ trigger.description }}</span
-            >
+            <span class="text-[10px] font-black leading-tight uppercase tracking-tight">{{
+              trigger.label
+            }}</span>
+            <span class="text-[9px] truncate opacity-60">{{ trigger.description }}</span>
           </div>
         </button>
       </div>
     </div>
 
     <!-- Options Group -->
-    <div class="space-y-3">
-      <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
+    <div class="space-y-2">
+      <h3
+        class="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2"
+      >
         Options
         <div class="h-px bg-slate-100 flex-1"></div>
       </h3>
-      <div
-        class="bg-slate-50 rounded-xl p-4 border border-slate-100 grid grid-cols-2 gap-y-3 gap-x-2"
-      >
-        <label class="flex items-center gap-2 cursor-pointer group">
-          <input
-            v-model="page.options.walkAnim"
-            type="checkbox"
-            class="accent-blue-600 w-4 h-4 rounded border-slate-300 group-hover:ring-2 ring-blue-100 transition-all"
-          />
-          <span class="text-[11px] font-medium text-slate-600 group-hover:text-blue-700"
-            >Walking Anim</span
-          >
-        </label>
-        <label class="flex items-center gap-2 cursor-pointer group">
-          <input
-            v-model="page.options.stepAnim"
-            type="checkbox"
-            class="accent-blue-600 w-4 h-4 rounded border-slate-300 group-hover:ring-2 ring-blue-100 transition-all"
-          />
-          <span class="text-[11px] font-medium text-slate-600 group-hover:text-blue-700"
-            >Stepping Anim</span
-          >
-        </label>
-        <label class="flex items-center gap-2 cursor-pointer group">
-          <input
-            v-model="page.options.directionFix"
-            type="checkbox"
-            class="accent-blue-600 w-4 h-4 rounded border-slate-300 group-hover:ring-2 ring-blue-100 transition-all"
-          />
-          <span class="text-[11px] font-medium text-slate-600 group-hover:text-blue-700"
-            >Direction Fix</span
-          >
-        </label>
-        <label class="flex items-center gap-2 cursor-pointer group">
-          <input
-            v-model="page.options.through"
-            type="checkbox"
-            class="accent-blue-600 w-4 h-4 rounded border-slate-300 group-hover:ring-2 ring-blue-100 transition-all"
-          />
-          <span class="text-[11px] font-medium text-slate-600 group-hover:text-blue-700"
-            >Through</span
-          >
-        </label>
+      <div class="grid grid-cols-2 gap-1.5">
+        <button
+          class="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border text-[10px] font-bold transition-all"
+          :class="
+            page.options.walkAnim
+              ? 'bg-slate-900 border-slate-900 text-white shadow-sm'
+              : 'bg-slate-50 border-slate-100 text-slate-500 hover:bg-white hover:border-slate-300'
+          "
+          @click="page.options.walkAnim = !page.options.walkAnim"
+        >
+          <component :is="page.options.walkAnim ? IconSquareCheck : IconSquare" size="12" />
+          Walk Anim
+        </button>
+        <button
+          class="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border text-[10px] font-bold transition-all"
+          :class="
+            page.options.stepAnim
+              ? 'bg-slate-900 border-slate-900 text-white shadow-sm'
+              : 'bg-slate-50 border-slate-100 text-slate-500 hover:bg-white hover:border-slate-300'
+          "
+          @click="page.options.stepAnim = !page.options.stepAnim"
+        >
+          <component :is="page.options.stepAnim ? IconSquareCheck : IconSquare" size="12" />
+          Step Anim
+        </button>
+        <button
+          class="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border text-[10px] font-bold transition-all"
+          :class="
+            page.options.directionFix
+              ? 'bg-slate-900 border-slate-900 text-white shadow-sm'
+              : 'bg-slate-50 border-slate-100 text-slate-500 hover:bg-white hover:border-slate-300'
+          "
+          @click="page.options.directionFix = !page.options.directionFix"
+        >
+          <component :is="page.options.directionFix ? IconSquareCheck : IconSquare" size="12" />
+          Dir Fix
+        </button>
+        <button
+          class="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border text-[10px] font-bold transition-all"
+          :class="
+            page.options.through
+              ? 'bg-slate-900 border-slate-900 text-white shadow-sm'
+              : 'bg-slate-50 border-slate-100 text-slate-500 hover:bg-white hover:border-slate-300'
+          "
+          @click="page.options.through = !page.options.through"
+        >
+          <component :is="page.options.through ? IconSquareCheck : IconSquare" size="12" />
+          Through
+        </button>
       </div>
     </div>
   </div>

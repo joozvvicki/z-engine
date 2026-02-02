@@ -22,15 +22,15 @@ const emit = defineEmits(['add-page', 'copy-page', 'remove-page'])
         class="w-full aspect-square rounded-xl flex items-center justify-center text-sm font-bold transition-all relative group"
         :class="
           activePageIndex === idx
-            ? 'bg-blue-600 text-white shadow-md scale-100'
-            : 'bg-slate-50 text-slate-400 hover:bg-blue-50 hover:text-blue-500'
+            ? 'bg-slate-900 text-white shadow-md scale-100'
+            : 'bg-slate-50 text-slate-400 hover:bg-slate-100 hover:text-slate-900'
         "
         @click="activePageIndex = idx"
       >
         {{ idx + 1 }}
         <div
           v-if="activePageIndex === idx"
-          class="absolute -right-[9px] top-1/2 -translate-y-1/2 w-2 h-2 bg-blue-600 rotate-45 rounded-[1px]"
+          class="absolute -right-[9px] top-1/2 -translate-y-1/2 w-2 h-2 bg-slate-900 rotate-45 rounded-[1px]"
         ></div>
       </button>
     </div>
@@ -39,14 +39,14 @@ const emit = defineEmits(['add-page', 'copy-page', 'remove-page'])
 
     <div class="flex flex-col gap-2">
       <button
-        class="w-10 h-10 rounded-full flex items-center justify-center bg-slate-100 hover:bg-white border border-slate-200 hover:border-blue-300 text-slate-500 hover:text-blue-600 transition-all shadow-sm"
+        class="w-10 h-10 rounded-full flex items-center justify-center bg-slate-100 hover:bg-white border border-slate-200 hover:border-slate-400 text-slate-500 hover:text-slate-900 transition-all shadow-sm"
         title="Add Page"
         @click="emit('add-page')"
       >
         <IconPlus size="18" />
       </button>
       <button
-        class="w-10 h-10 rounded-full flex items-center justify-center bg-slate-100 hover:bg-white border border-slate-200 hover:border-blue-300 text-slate-500 hover:text-blue-600 transition-all shadow-sm"
+        class="w-10 h-10 rounded-full flex items-center justify-center bg-slate-100 hover:bg-white border border-slate-200 hover:border-slate-400 text-slate-500 hover:text-slate-900 transition-all shadow-sm"
         title="Copy Page"
         @click="emit('copy-page')"
       >
