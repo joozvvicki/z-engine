@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useEditorStore } from '@ui/stores/editor'
 import { ZCommandCode, ZEventTrigger, type ZEventPage, type ZEventCommand } from '@engine/types'
 import { ProjectService } from '@ui/services/ProjectService'
@@ -119,9 +119,7 @@ const presentationList = computed(
 
 // --- Actions ---
 const addPage = (): void => {
-  const newPage = JSON.parse(JSON.stringify(pages.value[pages.value.length - 1]))
-  newPage.id = crypto.randomUUID()
-  pages.value.push(newPage)
+  pages.value.push(createDefaultPage())
   activePageIndex.value = pages.value.length - 1
 }
 
@@ -132,11 +130,16 @@ const removePage = (index: number): void => {
 }
 
 const copyPage = (): void => {
+  if (!activePage.value) return
   const copy = JSON.parse(JSON.stringify(activePage.value))
   copy.id = crypto.randomUUID()
   pages.value.splice(activePageIndex.value + 1, 0, copy)
   activePageIndex.value++
 }
+
+watch(activePageIndex, () => {
+  selectedCommandIndex.value = null
+})
 
 const save = (): void => {
   const eventData = {
