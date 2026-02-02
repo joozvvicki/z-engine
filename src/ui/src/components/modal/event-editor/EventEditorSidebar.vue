@@ -70,7 +70,7 @@ const variableOps = [
 
 <template>
   <div
-    class="w-[300px] bg-white border-r border-slate-100 flex flex-col p-4 gap-4 overflow-y-auto shrink-0 scrollbar-thin"
+    class="w-[300px] bg-white border-r border-slate-100 flex flex-col p-4 gap-4 overflow-y-auto shrink-0 min-h-0 scrollbar-thin"
   >
     <!-- Conditions Group -->
     <div class="space-y-3">

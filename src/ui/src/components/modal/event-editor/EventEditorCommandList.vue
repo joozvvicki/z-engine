@@ -16,7 +16,7 @@ const emit = defineEmits(['open-editor', 'delete-command'])
 </script>
 
 <template>
-  <div class="flex-1 bg-white flex flex-col relative overflow-hidden">
+  <div class="flex-1 bg-white flex flex-col relative overflow-hidden min-h-0">
     <div
       class="px-6 py-3 border-b border-slate-100 flex justify-between items-center bg-white sticky top-0 z-10"
     >

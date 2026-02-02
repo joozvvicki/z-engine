@@ -13,13 +13,14 @@ const emit = defineEmits(['add-page', 'copy-page', 'remove-page'])
 
 <template>
   <div
-    class="w-16 bg-white border-r border-slate-100 flex flex-col items-center py-4 gap-3 overflow-y-auto shrink-0 shadow-[4px_0_24px_-12px_rgba(0,0,0,0.1)] z-10"
+    class="w-16 bg-white border-r border-slate-100 flex flex-col items-center py-4 gap-4 shrink-0 shadow-[4px_0_24px_-12px_rgba(0,0,0,0.1)] z-10"
   >
-    <div class="flex flex-col gap-2 w-full px-2">
+    <!-- Scrollable Page List -->
+    <div class="flex-1 w-full overflow-y-auto px-2 scrollbar-none flex flex-col gap-2">
       <button
         v-for="(page, idx) in props.pages"
         :key="page.id"
-        class="w-full aspect-square rounded-xl flex items-center justify-center text-sm font-bold transition-all relative group"
+        class="w-full aspect-square rounded-xl flex items-center justify-center text-sm font-bold transition-all relative shrink-0 group"
         :class="
           activePageIndex === idx
             ? 'bg-slate-900 text-white shadow-md scale-100'
@@ -35,9 +36,10 @@ const emit = defineEmits(['add-page', 'copy-page', 'remove-page'])
       </button>
     </div>
 
-    <div class="h-px w-8 bg-slate-200 my-2"></div>
-
-    <div class="flex flex-col gap-2">
+    <!-- Action Buttons -->
+    <div
+      class="flex flex-col items-center gap-2 pt-4 border-t border-slate-100 w-full px-2 mt-auto shrink-0"
+    >
       <button
         class="w-10 h-10 rounded-full flex items-center justify-center bg-slate-100 hover:bg-white border border-slate-200 hover:border-slate-400 text-slate-500 hover:text-slate-900 transition-all shadow-sm"
         title="Add Page"

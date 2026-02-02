@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { useScrollLock } from '@vueuse/core'
 import { useEditorStore } from '@ui/stores/editor'
 import { ZCommandCode, ZEventTrigger, type ZEventPage, type ZEventCommand } from '@engine/types'
 import { ProjectService } from '@ui/services/ProjectService'
@@ -20,6 +21,7 @@ const props = defineProps<{
 
 const emit = defineEmits(['close', 'open-editor', 'delete-command'])
 const store = useEditorStore()
+const isLocked = useScrollLock(document.body)
 
 const showCharacterSelector = ref(false)
 const showCommandSelector = ref(false)
@@ -253,15 +255,20 @@ const handleKeydown = (e: KeyboardEvent): void => {
 
 onMounted(() => {
   initialize()
+  isLocked.value = true
   window.addEventListener('keydown', handleKeydown)
 })
-onUnmounted(() => window.removeEventListener('keydown', handleKeydown))
+onUnmounted(() => {
+  isLocked.value = false
+  window.removeEventListener('keydown', handleKeydown)
+})
 </script>
 
 <template>
   <div
     class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60 backdrop-blur-md p-6"
     @click.self="emit('close')"
+    @wheel.stop
   >
     <div
       class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl h-[85vh] flex flex-col overflow-hidden text-slate-800 font-sans border border-white/20 animate-in fade-in zoom-in-95 duration-200"
@@ -274,7 +281,7 @@ onUnmounted(() => window.removeEventListener('keydown', handleKeydown))
         @close="emit('close')"
       />
 
-      <div class="flex-1 flex overflow-hidden bg-slate-50/50">
+      <div class="flex-1 flex overflow-hidden min-h-0 bg-slate-50/50">
         <EventEditorPageTabs
           v-model:active-page-index="activePageIndex"
           :pages="pages"
