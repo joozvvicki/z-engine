@@ -159,6 +159,7 @@ export class EventSystem extends ZSystem {
         eventId: event.id
       }
       this.isProcessing = true
+      this.bus.emit(ZEngineSignal.EventExecutionStarted, { eventId: event.id })
     }
   }
 
@@ -252,14 +253,18 @@ export class EventSystem extends ZSystem {
         return
       }
       if (result === 'stop') {
+        const eventId = this.activeInterpreter.eventId
         this.activeInterpreter = null
         this.isProcessing = false
+        this.bus.emit(ZEngineSignal.EventExecutionFinished, { eventId })
         return
       }
     }
 
+    const eventId = this.activeInterpreter.eventId
     this.activeInterpreter = null
     this.isProcessing = false
+    this.bus.emit(ZEngineSignal.EventExecutionFinished, { eventId })
   }
 
   private executeParallelInterpreter(

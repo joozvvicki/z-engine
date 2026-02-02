@@ -29,13 +29,14 @@ import {
 } from '@tabler/icons-vue'
 import {
   ZEventTrigger,
-  type ZEventPage,
   ZCommandCode,
+  type ZEventPage,
   type ZEventCommand,
-  type ZEventGraphic
+  type ZEventGraphic,
+  type ZMoveCommand
 } from '@engine/types'
-import { ProjectService } from '../../services/ProjectService'
-import CharacterSelector from './CharacterSelector.vue'
+import { ProjectService } from '@ui/services/ProjectService'
+import CharacterSelector from '@ui/components/modal/CharacterSelector.vue'
 
 const props = defineProps<{
   x: number
@@ -500,7 +501,7 @@ const openCommandEditor = (index: number | null = null, isInsert: boolean = fals
       cmdParams.value.animationId = (cmd.parameters[0] as number) || 1
     } else if (selectedCommandType.value === ZCommandCode.SetMoveRoute) {
       cmdParams.value.moveTarget = (cmd.parameters[0] as number) || 0
-      cmdParams.value.moveRoute = (cmd.parameters[1] as any[]) || []
+      cmdParams.value.moveRoute = (cmd.parameters[1] as ZMoveCommand[]) || []
     } else if (selectedCommandType.value === ZCommandCode.SetEventDirection) {
       cmdParams.value.direction = (cmd.parameters[0] as 'down' | 'left' | 'right' | 'up') || 'down'
     } else if (selectedCommandType.value === ZCommandCode.SetEventGraphic) {

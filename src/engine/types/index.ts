@@ -296,7 +296,9 @@ export enum ZEngineSignal {
   ChoiceSelected = 'ui:choice-selected',
   MessageClosed = 'ui:message-closed',
   GameStateChanged = 'state:changed',
-  EventInternalStateChanged = 'event:internal-state'
+  EventInternalStateChanged = 'event:internal-state',
+  EventExecutionStarted = 'event:execution-started',
+  EventExecutionFinished = 'event:execution-finished'
 }
 
 export interface ZSignalData {

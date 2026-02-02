@@ -54,12 +54,20 @@ export class PlayerSystem extends ZSystem {
     this.realX = this.x * this.tileSize
     this.realY = this.y * this.tileSize
 
-    // Listen for message events to block/unblock input
+    // Listen for message and event execution to block/unblock input
     this.bus.on(ZEngineSignal.ShowMessage, () => {
       this.isInputBlocked = true
     })
 
     this.bus.on(ZEngineSignal.MessageClosed, () => {
+      this.isInputBlocked = false
+    })
+
+    this.bus.on(ZEngineSignal.EventExecutionStarted, () => {
+      this.isInputBlocked = true
+    })
+
+    this.bus.on(ZEngineSignal.EventExecutionFinished, () => {
       this.isInputBlocked = false
     })
 
