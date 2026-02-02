@@ -5,6 +5,7 @@ import {
   type ZEventCommand,
   type ZCommandResult,
   type ZCommandProcessor,
+  type ZEventGraphic,
   ZCommandCode,
   ZEngineSignal,
   ZEventTrigger
@@ -58,6 +59,8 @@ export class EventSystem extends ZSystem {
     this.processors.set(ZCommandCode.EndChoices, () => 'continue')
     this.processors.set(ZCommandCode.ShowAnimation, this.commandShowAnimation.bind(this))
     this.processors.set(ZCommandCode.SetMoveRoute, this.commandSetMoveRoute.bind(this))
+    this.processors.set(ZCommandCode.SetEventDirection, this.commandSetEventDirection.bind(this))
+    this.processors.set(ZCommandCode.SetEventGraphic, this.commandSetEventGraphic.bind(this))
   }
 
   public onBoot(): void {
@@ -426,6 +429,30 @@ export class EventSystem extends ZSystem {
 
   private commandShowAnimation(): ZCommandResult {
     // TODO: Implement animation system
+    return 'continue'
+  }
+
+  private commandSetEventDirection(
+    params: unknown[],
+    interpreter: { eventId: string }
+  ): ZCommandResult {
+    const direction = params[0] as 'down' | 'left' | 'right' | 'up'
+    this.bus.emit(ZEngineSignal.EventInternalStateChanged, {
+      eventId: interpreter.eventId,
+      direction
+    })
+    return 'continue'
+  }
+
+  private commandSetEventGraphic(
+    params: unknown[],
+    interpreter: { eventId: string }
+  ): ZCommandResult {
+    const graphic = params[0] as ZEventGraphic
+    this.bus.emit(ZEngineSignal.EventInternalStateChanged, {
+      eventId: interpreter.eventId,
+      graphic
+    })
     return 'continue'
   }
 

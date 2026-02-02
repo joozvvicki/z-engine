@@ -24,7 +24,7 @@ export class PhysicsSystem extends ZSystem {
       return false
     }
 
-    const strictLayers = [ZLayer.events, ZLayer.decoration, ZLayer.walls]
+    const strictLayers = [ZLayer.decoration, ZLayer.walls]
 
     for (const layerKey of strictLayers) {
       const layer = map.layers[layerKey]

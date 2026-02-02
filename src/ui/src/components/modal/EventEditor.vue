@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick, type Component } from 'vue'
 import { useEditorStore } from '@ui/stores/editor'
 import {
   IconDeviceFloppy,
@@ -201,41 +201,53 @@ const setGraphicFromSelection = (): void => {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const onSelectGraphic = (selection: any): void => {
-  if (activePage.value) {
-    // Check if it's already ZEventGraphic or legacy partial object
-    // Assuming the picker returns a compatible structure or we adapt it.
-    // Ideally CharacterSelector should return a ZEventGraphic-compatible object.
+  let graphic: ZEventGraphic | null = null
 
-    // For now, let's assume 'selection' has tilesetId etc from old picker.
-    // If it has assetId, great. If tilesetId, adapt.
+  if ('assetId' in selection) {
+    graphic = selection as ZEventGraphic
+  } else {
+    // Adapt old format from CharacterSelector
+    const isCharacter = selection.tilesetId.endsWith('.png')
+    const assetId = isCharacter ? `img/characters/${selection.tilesetId}` : selection.tilesetId
 
-    if ('assetId' in selection) {
-      activePage.value.graphic = selection as ZEventGraphic
-    } else {
-      // Adapt old format from CharacterSelector
-      const isCharacter = selection.tilesetId.endsWith('.png')
-      // Ensure we use the correct key format which matches TextureManager's loaded keys
-      const assetId = isCharacter ? `img/characters/${selection.tilesetId}` : selection.tilesetId
-
-      activePage.value.graphic = {
-        assetId: assetId,
-        group: isCharacter ? 'character' : 'tile',
-        x: selection.x || 0,
-        y: selection.y || 0,
-        w: selection.w || 1,
-        h: selection.h || 1,
-        srcX: selection.pixelX,
-        srcY: selection.pixelY,
-        srcW: selection.pixelW,
-        srcH: selection.pixelH
-      }
+    graphic = {
+      assetId: assetId,
+      group: isCharacter ? 'character' : 'tile',
+      x: selection.x || 0,
+      y: selection.y || 0,
+      w: selection.w || 1,
+      h: selection.h || 1,
+      srcX: selection.pixelX,
+      srcY: selection.pixelY,
+      srcW: selection.pixelW,
+      srcH: selection.pixelH
     }
-    showCharacterSelector.value = false
   }
+
+  if (isSelectingGraphicForCommand.value) {
+    cmdParams.value.graphic = graphic
+    isSelectingGraphicForCommand.value = false
+  } else if (activePage.value) {
+    activePage.value.graphic = graphic
+  }
+
+  showCharacterSelector.value = false
 }
 
 const getCharacterUrl = (filename: string): string => {
   return ProjectService.resolveAssetUrl(filename)
+}
+
+const getMoveIcon = (code: string): Component => {
+  if (code.endsWith('_UP')) return IconArrowUp
+  if (code.endsWith('_DOWN')) return IconArrowDown
+  if (code.endsWith('_LEFT')) return IconArrowLeft
+  return IconArrowRight
+}
+
+const addMoveCommand = (code: string): void => {
+  const current = cmdParams.value.moveRoute || []
+  cmdParams.value.moveRoute = [...current, { code }]
 }
 
 const save = (): void => {
@@ -372,6 +384,8 @@ const commandCategories = [
     commands: [
       { code: ZCommandCode.TransferPlayer, name: 'Transfer Player', icon: IconMapPin },
       { code: ZCommandCode.SetMoveRoute, name: 'Move Route', icon: IconWalk },
+      { code: ZCommandCode.SetEventDirection, name: 'Set Direction', icon: IconArrowRight },
+      { code: ZCommandCode.SetEventGraphic, name: 'Change Graphic', icon: IconGhost },
       { code: ZCommandCode.ShowAnimation, name: 'Show Animation', icon: IconFlare }
     ]
   }
@@ -410,9 +424,12 @@ const cmdParams = ref({
   selfSwitch: 'A',
   selfSwitchVal: 1,
   animationId: 1,
+  direction: 'down' as 'down' | 'left' | 'right' | 'up',
+  graphic: null as ZEventGraphic | null,
   moveRoute: [] as unknown[]
 })
 const messageText = ref('')
+const isSelectingGraphicForCommand = ref(false)
 
 const openCommandEditor = (index: number | null = null, isInsert: boolean = false): void => {
   if (isInsert) {
@@ -465,10 +482,14 @@ const openCommandEditor = (index: number | null = null, isInsert: boolean = fals
       cmdParams.value.animationId = (cmd.parameters[0] as number) || 1
     } else if (selectedCommandType.value === ZCommandCode.SetMoveRoute) {
       cmdParams.value.moveRoute = (cmd.parameters[0] as unknown[]) || []
+    } else if (selectedCommandType.value === ZCommandCode.SetEventDirection) {
+      cmdParams.value.direction = (cmd.parameters[0] as 'down' | 'left' | 'right' | 'up') || 'down'
+    } else if (selectedCommandType.value === ZCommandCode.SetEventGraphic) {
+      cmdParams.value.graphic = (cmd.parameters[0] as ZEventGraphic | null) || null
     }
   } else {
     // Reset for new
-    selectedCommandType.value = ZCommandCode.TransferPlayer
+    selectedCommandType.value = ZCommandCode.SetEventDirection
     cmdParams.value = {
       mapId: 1,
       x: 0,
@@ -491,6 +512,8 @@ const openCommandEditor = (index: number | null = null, isInsert: boolean = fals
       selfSwitch: 'A',
       selfSwitchVal: 1,
       animationId: 1,
+      direction: 'down',
+      graphic: null,
       moveRoute: []
     }
     messageText.value = ''
@@ -563,6 +586,16 @@ const saveCommand = (): void => {
     newCommand = {
       code: ZCommandCode.SetMoveRoute,
       parameters: [cmdParams.value.moveRoute]
+    }
+  } else if (selectedCommandType.value === ZCommandCode.SetEventDirection) {
+    newCommand = {
+      code: ZCommandCode.SetEventDirection,
+      parameters: [cmdParams.value.branchVal]
+    }
+  } else if (selectedCommandType.value === ZCommandCode.SetEventGraphic) {
+    newCommand = {
+      code: ZCommandCode.SetEventGraphic,
+      parameters: [cmdParams.value.branchItem]
     }
   } else {
     return
@@ -1660,6 +1693,61 @@ const saveCommand = (): void => {
             </div>
           </div>
 
+          <!-- Set Event Direction Params -->
+          <div v-if="selectedCommandType === ZCommandCode.SetEventDirection" class="space-y-3">
+            <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1"
+              >New Direction</label
+            >
+            <div class="grid grid-cols-4 gap-2">
+              <button
+                v-for="dir in ['down', 'left', 'right', 'up']"
+                :key="dir"
+                class="px-2 py-3 rounded-lg border flex flex-col items-center gap-1 transition-all uppercase text-[10px] font-bold"
+                :class="
+                  cmdParams.direction === dir
+                    ? 'bg-blue-600 border-blue-600 text-white shadow-md'
+                    : 'bg-white border-slate-200 text-slate-500 hover:border-blue-400'
+                "
+                @click="cmdParams.direction = dir as 'down' | 'left' | 'right' | 'up'"
+              >
+                <component :is="getMoveIcon(dir.toUpperCase())" size="16" />
+                {{ dir }}
+              </button>
+            </div>
+          </div>
+
+          <!-- Set Event Graphic Params -->
+          <div v-if="selectedCommandType === ZCommandCode.SetEventGraphic" class="space-y-4">
+            <label class="text-[10px] font-bold uppercase text-slate-400 block"
+              >Change Graphic To</label
+            >
+            <div
+              class="w-full h-32 bg-slate-50 rounded-xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center gap-3 cursor-pointer hover:bg-white hover:border-blue-400 transition-all group"
+              @click="
+                () => {
+                  isSelectingGraphicForCommand = true
+                  showCharacterSelector = true
+                }
+              "
+            >
+              <div v-if="!cmdParams.graphic" class="flex flex-col items-center text-slate-400">
+                <IconGhost size="32" stroke-width="1.5" />
+                <span class="text-[10px] font-bold uppercase mt-2">Cliquez pour choisir</span>
+              </div>
+              <div v-else class="flex flex-col items-center">
+                <!-- Simple text preview of graphic -->
+                <div
+                  class="text-[10px] font-mono text-slate-600 bg-white px-3 py-1 rounded-full shadow-sm border border-slate-100"
+                >
+                  {{ cmdParams.graphic.assetId.split('/').pop() }}
+                </div>
+                <div class="text-[9px] text-slate-400 mt-1 uppercase font-black">
+                  Click to change
+                </div>
+              </div>
+            </div>
+          </div>
+
           <!-- Show Animation Params -->
           <div v-if="selectedCommandType === ZCommandCode.ShowAnimation" class="space-y-3">
             <div>
@@ -1697,22 +1785,17 @@ const saveCommand = (): void => {
                   >
                     <div class="flex items-center gap-2">
                       <component
-                        :is="
-                          (cmd as any).code === 'MOVE_UP'
-                            ? IconArrowUp
-                            : (cmd as any).code === 'MOVE_DOWN'
-                              ? IconArrowDown
-                              : (cmd as any).code === 'MOVE_LEFT'
-                                ? IconArrowLeft
-                                : IconArrowRight
+                        :is="getMoveIcon((cmd as any).code)"
+                        v-if="
+                          (cmd as any).code.startsWith('MOVE_') ||
+                          (cmd as any).code.startsWith('TURN_')
                         "
-                        v-if="(cmd as any).code.startsWith('MOVE_')"
                         size="12"
                         class="text-blue-400"
                       />
                       <IconPlus v-else size="12" class="text-slate-500" />
                       <span class="text-[10px] font-bold text-slate-200">
-                        {{ (cmd as any).code.replace('MOVE_', 'Move ') }}
+                        {{ (cmd as any).code.replace('MOVE_', 'Move ').replace('TURN_', 'Turn ') }}
                       </span>
                     </div>
                     <button
@@ -1728,30 +1811,22 @@ const saveCommand = (): void => {
 
             <div class="grid grid-cols-4 gap-2">
               <button
-                v-for="move in ['UP', 'DOWN', 'LEFT', 'RIGHT']"
+                v-for="move in [
+                  'UP',
+                  'DOWN',
+                  'LEFT',
+                  'RIGHT',
+                  'TURN_UP',
+                  'TURN_DOWN',
+                  'TURN_LEFT',
+                  'TURN_RIGHT'
+                ]"
                 :key="move"
-                class="aspect-square bg-slate-100 hover:bg-blue-600 hover:text-white rounded-lg flex items-center justify-center transition-all border border-slate-200 hover:border-blue-600 active:scale-95"
-                :title="'Move ' + move"
-                @click="
-                  cmdParams.moveRoute = [
-                    ...((cmdParams.moveRoute as any[]) || []),
-                    { code: 'MOVE_' + move }
-                  ]
-                "
+                class="aspect-square bg-slate-100 hover:bg-blue-600 hover:text-white rounded-lg flex flex-col items-center justify-center transition-all border border-slate-200 hover:border-blue-600 active:scale-95"
+                :title="move.replace('_', ' ')"
+                @click="addMoveCommand(move)"
               >
-                <component
-                  :is="
-                    move === 'UP'
-                      ? IconArrowUp
-                      : move === 'DOWN'
-                        ? IconArrowDown
-                        : move === 'LEFT'
-                          ? IconArrowLeft
-                          : IconArrowRight
-                  "
-                  size="20"
-                  stroke-width="3"
-                />
+                <component :is="getMoveIcon(move)" size="20" stroke-width="3" />
               </button>
               <button
                 class="col-span-2 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-[10px] font-bold text-slate-600 uppercase transition-all active:scale-95"

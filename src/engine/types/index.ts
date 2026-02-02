@@ -235,7 +235,9 @@ export enum ZCommandCode {
   Else = 411,
   EndBranch = 412,
   When = 402,
-  EndChoices = 404
+  EndChoices = 404,
+  SetEventDirection = 213,
+  SetEventGraphic = 214
 }
 
 export type ZCommandResult = 'continue' | 'wait' | 'stop'
@@ -286,7 +288,8 @@ export enum ZEngineSignal {
   ShowChoices = 'ui:show-choices',
   ChoiceSelected = 'ui:choice-selected',
   MessageClosed = 'ui:message-closed',
-  GameStateChanged = 'state:changed'
+  GameStateChanged = 'state:changed',
+  EventInternalStateChanged = 'event:internal-state'
 }
 
 export interface ZSignalData {
@@ -304,5 +307,10 @@ export interface ZSignalData {
     type: 'switch' | 'variable' | 'load' | 'new'
     id?: number
     value?: boolean | number
+  }
+  [ZEngineSignal.EventInternalStateChanged]: {
+    eventId: string
+    direction?: 'down' | 'left' | 'right' | 'up'
+    graphic?: ZEventGraphic
   }
 }

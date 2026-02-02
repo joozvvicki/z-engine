@@ -43,6 +43,10 @@ export const useDatabaseStore = defineStore('database', () => {
       profile: '',
       face: '',
       character: '',
+      faceX: 0,
+      faceY: 0,
+      characterX: 0,
+      characterY: 0,
       baseParams: [0, 0, 0, 0, 0, 0, 0, 0]
     })
     save('Actors.json', actors.value)

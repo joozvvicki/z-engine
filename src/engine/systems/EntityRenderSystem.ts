@@ -6,6 +6,7 @@ import { ZSystem, SystemMode } from '@engine/core/ZSystem'
 import { ServiceLocator } from '@engine/core/ServiceLocator'
 import { PlayerSystem } from '@engine/systems/PlayerSystem'
 import { RenderSystem } from '@engine/systems/RenderSystem'
+import { ZEngineSignal, type ZEventGraphic } from '@engine/types'
 
 interface SpriteMetadata {
   sprite: Sprite
@@ -124,6 +125,44 @@ export class EntityRenderSystem extends ZSystem {
     this.container = renderSystem.getLayerContainer(ZLayer.decoration)
 
     await this.createPlayerSprite()
+
+    this.bus.on(ZEngineSignal.EventInternalStateChanged, this.onEventStateChanged.bind(this))
+  }
+
+  private async onEventStateChanged({
+    eventId,
+    direction,
+    graphic
+  }: {
+    eventId: string
+    direction?: 'down' | 'left' | 'right' | 'up'
+    graphic?: ZEventGraphic
+  }): Promise<void> {
+    const meta = this.eventMetadata.get(eventId)
+    if (!meta) return
+
+    if (direction) {
+      meta.direction = direction
+    }
+
+    if (graphic) {
+      const tex = this.textures.get(graphic.assetId)
+      if (tex) {
+        const { frameW, frameH, divW, divH } = SpriteUtils.getFrameRect(graphic, tex)
+        meta.colsPerChar = divW % 4 === 0 && divW % 3 !== 0 ? 4 : 3
+        const snapX = meta.colsPerChar
+        const snapY = divH % 4 === 0 ? 4 : 1
+
+        meta.baseX = Math.floor((graphic.x || 0) / snapX) * snapX
+        meta.baseY = Math.floor((graphic.y || 0) / snapY) * snapY
+        meta.frameW = frameW
+        meta.frameH = frameH
+
+        // Update direction if the Y coordinate also implies one
+        const dirMap: ('down' | 'left' | 'right' | 'up')[] = ['down', 'left', 'right', 'up']
+        meta.direction = dirMap[(graphic.y || 0) % 4] || meta.direction
+      }
+    }
   }
 
   private async createPlayerSprite(): Promise<void> {
