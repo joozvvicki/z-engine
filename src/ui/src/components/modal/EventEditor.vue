@@ -7,7 +7,19 @@ import {
   IconPlus,
   IconCopy,
   IconTrash,
-  IconX
+  IconX,
+  IconMessage,
+  IconList,
+  IconVariable,
+  IconArrowRight,
+  IconArrowLeft,
+  IconArrowUp,
+  IconArrowDown,
+  IconMapPin,
+  IconWalk,
+  IconFlare,
+  IconChevronLeft,
+  IconSettings
 } from '@tabler/icons-vue'
 import {
   ZEventTrigger,
@@ -327,10 +339,43 @@ onUnmounted(() => window.removeEventListener('keydown', handleKeydown))
 
 // Command Editing
 const showCommandSelector = ref(false)
+const commandSelectorStep = ref<'grid' | 'params'>('grid') // NEW
+const commandCategory = ref('Messages') // NEW
 const editingCommandIndex = ref<number | null>(null)
 const selectedCommandIndex = ref<number | null>(null)
 const commandListEl = ref<HTMLElement | null>(null)
 const selectedCommandType = ref(201)
+
+// Command Categories Definition
+const commandCategories = [
+  {
+    id: 'Messages',
+    icon: IconMessage,
+    commands: [
+      { code: ZCommandCode.ShowMessage, name: 'Show Message', icon: IconMessage },
+      { code: ZCommandCode.ShowChoices, name: 'Show Choices', icon: IconList }
+    ]
+  },
+  {
+    id: 'Progression',
+    icon: IconVariable,
+    commands: [
+      { code: ZCommandCode.ControlSwitch, name: 'Control Switch', icon: IconSettings },
+      { code: ZCommandCode.ControlVariable, name: 'Control Variable', icon: IconVariable },
+      { code: ZCommandCode.ControlSelfSwitch, name: 'Self Switch', icon: IconSettings },
+      { code: ZCommandCode.ConditionalBranch, name: 'Cond. Branch', icon: IconArrowRight }
+    ]
+  },
+  {
+    id: 'Scene',
+    icon: IconMapPin,
+    commands: [
+      { code: ZCommandCode.TransferPlayer, name: 'Transfer Player', icon: IconMapPin },
+      { code: ZCommandCode.SetMoveRoute, name: 'Move Route', icon: IconWalk },
+      { code: ZCommandCode.ShowAnimation, name: 'Show Animation', icon: IconFlare }
+    ]
+  }
+]
 const getChoiceName = (itemIndex: number, choiceIndex: number): string => {
   if (!activePage.value) return 'Choice'
   const parent = activePage.value.list.find(
@@ -450,7 +495,15 @@ const openCommandEditor = (index: number | null = null, isInsert: boolean = fals
     }
     messageText.value = ''
   }
+
+  // Set initial step: Edit mode goes directly to params, Insert mode starts at grid
+  commandSelectorStep.value = isInsert ? 'grid' : 'params'
   showCommandSelector.value = true
+}
+
+const selectGridCommand = (code: number): void => {
+  selectedCommandType.value = code
+  commandSelectorStep.value = 'params'
 }
 
 const saveCommand = (): void => {
@@ -1185,51 +1238,119 @@ const saveCommand = (): void => {
       @select="onSelectGraphic"
     />
 
-    <!-- Command Selector Modal (Simple for now) -->
     <div
       v-if="showCommandSelector"
       class="fixed inset-0 z-60 flex items-center justify-center bg-gray-900/40 backdrop-blur-sm p-4"
       @click.self="showCommandSelector = false"
     >
       <div
-        class="bg-white rounded-xl shadow-2xl w-[400px] overflow-hidden border border-white/20 animate-in fade-in zoom-in-95 duration-200"
+        class="bg-white rounded-xl shadow-2xl overflow-hidden border border-white/20 animate-in fade-in zoom-in-95 duration-200 flex flex-col"
+        :class="commandSelectorStep === 'grid' ? 'w-[640px] h-[480px]' : 'w-[480px]'"
       >
-        <div class="p-4 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
-          <h3 class="text-xs font-bold uppercase tracking-widest text-slate-500">
-            {{ editingCommandIndex !== null ? 'Edit Command' : 'Insert Command' }}
-          </h3>
+        <!-- Modal Header -->
+        <div
+          class="p-4 border-b border-slate-100 bg-slate-50 flex justify-between items-center shrink-0"
+        >
+          <div class="flex items-center gap-2">
+            <button
+              v-if="commandSelectorStep === 'params' && editingCommandIndex === null"
+              class="p-1 hover:bg-slate-200 rounded-md transition-colors text-slate-500"
+              @click="commandSelectorStep = 'grid'"
+            >
+              <IconChevronLeft size="16" />
+            </button>
+            <h3 class="text-xs font-bold uppercase tracking-widest text-slate-500">
+              {{
+                editingCommandIndex !== null
+                  ? 'Edit Command'
+                  : commandSelectorStep === 'grid'
+                    ? 'Insert Command'
+                    : 'Command Parameters'
+              }}
+            </h3>
+          </div>
           <button class="text-slate-400 hover:text-slate-600" @click="showCommandSelector = false">
             <IconX size="16" />
           </button>
         </div>
 
-        <div class="p-4 space-y-4">
-          <div>
-            <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1"
-              >Command Type</label
-            >
-            <select
-              v-model.number="selectedCommandType"
-              :disabled="
-                editingCommandIndex !== null &&
-                (selectedCommandType === ZCommandCode.ConditionalBranch ||
-                  selectedCommandType === ZCommandCode.ShowChoices ||
-                  selectedCommandType === ZCommandCode.Else ||
-                  selectedCommandType === ZCommandCode.EndBranch ||
-                  selectedCommandType === ZCommandCode.When ||
-                  selectedCommandType === ZCommandCode.EndChoices)
+        <!-- NEW: Command Grid Step -->
+        <div v-if="commandSelectorStep === 'grid'" class="flex-1 flex overflow-hidden">
+          <!-- Sidebar Categories -->
+          <div
+            class="w-40 border-r border-slate-100 bg-slate-50/50 flex flex-col p-2 gap-1 uppercase tracking-tighter"
+          >
+            <button
+              v-for="cat in commandCategories"
+              :key="cat.id"
+              class="flex items-center gap-2 px-3 py-2 rounded-lg text-left text-[10px] font-black transition-all"
+              :class="
+                commandCategory === cat.id
+                  ? 'bg-white text-blue-600 shadow-sm ring-1 ring-slate-200'
+                  : 'text-slate-400 hover:text-slate-600 hover:bg-white/50'
               "
-              class="w-full border border-slate-200 rounded px-2 py-1.5 text-sm font-medium text-slate-700 bg-white disabled:bg-slate-50 disabled:text-slate-400"
+              @click="commandCategory = cat.id"
             >
-              <option :value="101">Show Message</option>
-              <option :value="201">Transfer Player</option>
-              <option :value="ZCommandCode.ControlSwitch">Control Switch</option>
-              <option :value="ZCommandCode.ControlVariable">Control Variable</option>
-              <option :value="ZCommandCode.ConditionalBranch">Conditional Branch</option>
-            </select>
+              <component :is="cat.icon" size="14" stroke-width="2.5" />
+              {{ cat.id }}
+            </button>
           </div>
 
-          <!-- Show Message Params -->
+          <!-- Command Buttons Grid -->
+          <div class="flex-1 overflow-y-auto p-4 content-start">
+            <div class="grid grid-cols-2 gap-3">
+              <button
+                v-for="cmd in commandCategories.find((c) => c.id === commandCategory)?.commands"
+                :key="cmd.code"
+                class="flex flex-col items-center justify-center gap-2 p-4 bg-white border border-slate-100 rounded-xl hover:border-blue-400 hover:bg-blue-50/30 hover:scale-[1.02] active:scale-[0.98] transition-all group shadow-sm text-center"
+                @click="selectGridCommand(cmd.code)"
+              >
+                <div
+                  class="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-blue-100 group-hover:text-blue-600 transition-colors"
+                >
+                  <component :is="cmd.icon" size="20" stroke-width="2.5" />
+                </div>
+                <span
+                  class="text-[11px] font-bold text-slate-600 group-hover:text-slate-900 leading-tight"
+                >
+                  {{ cmd.name }}
+                </span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Params Step (The existing content, wrapped) -->
+        <div v-if="commandSelectorStep === 'params'" class="p-6 space-y-5 flex-1 overflow-y-auto">
+          <!-- The category select is now hidden or converted to breadcrumb if needed -->
+          <div class="pb-2 mb-4 border-b border-slate-50 flex items-center gap-2">
+            <div
+              class="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600"
+            >
+              <component
+                :is="
+                  commandCategories
+                    .flatMap((c) => c.commands)
+                    .find((c) => c.code === selectedCommandType)?.icon || IconSettings
+                "
+                size="16"
+              />
+            </div>
+            <div>
+              <div class="text-[9px] font-black text-blue-500 uppercase tracking-widest">
+                Editing Parameters
+              </div>
+              <div class="text-xs font-bold text-slate-800">
+                {{
+                  commandCategories
+                    .flatMap((c) => c.commands)
+                    .find((c) => c.code === selectedCommandType)?.name
+                }}
+              </div>
+            </div>
+          </div>
+
+          <!-- Existing Param Fields... -->
           <div v-if="selectedCommandType === 101" class="space-y-3">
             <div>
               <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1"
@@ -1242,6 +1363,27 @@ const saveCommand = (): void => {
                 class="w-full border border-slate-200 rounded px-3 py-2 text-sm font-sans resize-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
               ></textarea>
             </div>
+          </div>
+
+          <!-- Show Choices Params -->
+          <div v-if="selectedCommandType === ZCommandCode.ShowChoices" class="space-y-3">
+            <div class="space-y-2">
+              <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1"
+                >Choices (Max 3)</label
+              >
+              <div v-for="(_, idx) in cmdParams.choices" :key="idx" class="flex gap-2 items-center">
+                <span class="text-[10px] font-mono text-slate-300 w-4">{{ idx + 1 }}.</span>
+                <input
+                  v-model="cmdParams.choices[idx]"
+                  type="text"
+                  :placeholder="'Choice ' + (idx + 1)"
+                  class="flex-1 border border-slate-200 rounded px-2 py-1.5 text-sm"
+                />
+              </div>
+            </div>
+            <p class="text-[9px] text-slate-400">
+              Empty choices will be ignored. At least one choice is required.
+            </p>
           </div>
 
           <!-- Control Switch Params -->
@@ -1474,6 +1616,50 @@ const saveCommand = (): void => {
             </div>
           </div>
 
+          <!-- Transfer Player Params -->
+          <div v-if="selectedCommandType === ZCommandCode.TransferPlayer" class="space-y-3">
+            <div>
+              <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1"
+                >Target Map</label
+              >
+              <select
+                v-model.number="cmdParams.mapId"
+                class="w-full border border-slate-200 rounded px-2 py-1.5 text-sm font-medium"
+              >
+                <option v-for="map in store.maps" :key="map.id" :value="map.id">
+                  {{ map.name }} (ID: {{ map.id }})
+                </option>
+              </select>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1"
+                  >X Coordinate</label
+                >
+                <input
+                  v-model.number="cmdParams.x"
+                  type="number"
+                  class="w-full border border-slate-200 rounded px-2 py-1.5 text-sm font-mono"
+                />
+              </div>
+              <div>
+                <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1"
+                  >Y Coordinate</label
+                >
+                <input
+                  v-model.number="cmdParams.y"
+                  type="number"
+                  class="w-full border border-slate-200 rounded px-2 py-1.5 text-sm font-mono"
+                />
+              </div>
+            </div>
+            <div
+              class="p-2 bg-blue-50 border border-blue-100 rounded-lg text-[10px] text-blue-600 italic"
+            >
+              Tip: You can find coordinates by looking at the status bar in the map editor.
+            </div>
+          </div>
+
           <!-- Show Animation Params -->
           <div v-if="selectedCommandType === ZCommandCode.ShowAnimation" class="space-y-3">
             <div>
@@ -1507,11 +1693,28 @@ const saveCommand = (): void => {
                   <div
                     v-for="(cmd, idx) in cmdParams.moveRoute"
                     :key="idx"
-                    class="group flex items-center justify-between bg-slate-800/50 hover:bg-slate-800 rounded px-2 py-1 border border-slate-700/50 transition-colors"
+                    class="group flex items-center justify-between bg-white/5 hover:bg-white/10 rounded px-2 py-1 border border-white/5 transition-colors"
                   >
-                    <span class="text-[10px] font-mono text-blue-400">
-                      {{ (cmd as any).code }}
-                    </span>
+                    <div class="flex items-center gap-2">
+                      <component
+                        :is="
+                          (cmd as any).code === 'MOVE_UP'
+                            ? IconArrowUp
+                            : (cmd as any).code === 'MOVE_DOWN'
+                              ? IconArrowDown
+                              : (cmd as any).code === 'MOVE_LEFT'
+                                ? IconArrowLeft
+                                : IconArrowRight
+                        "
+                        v-if="(cmd as any).code.startsWith('MOVE_')"
+                        size="12"
+                        class="text-blue-400"
+                      />
+                      <IconPlus v-else size="12" class="text-slate-500" />
+                      <span class="text-[10px] font-bold text-slate-200">
+                        {{ (cmd as any).code.replace('MOVE_', 'Move ') }}
+                      </span>
+                    </div>
                     <button
                       class="text-slate-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
                       @click="cmdParams.moveRoute.splice(idx, 1)"
@@ -1537,8 +1740,17 @@ const saveCommand = (): void => {
                 "
               >
                 <component
-                  :is="'IconArrow' + move.charAt(0) + move.slice(1).toLowerCase()"
-                  size="16"
+                  :is="
+                    move === 'UP'
+                      ? IconArrowUp
+                      : move === 'DOWN'
+                        ? IconArrowDown
+                        : move === 'LEFT'
+                          ? IconArrowLeft
+                          : IconArrowRight
+                  "
+                  size="20"
+                  stroke-width="3"
                 />
               </button>
               <button
