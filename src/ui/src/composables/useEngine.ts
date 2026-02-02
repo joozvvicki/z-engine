@@ -8,6 +8,7 @@ import { TextureManager } from '@engine/managers/TextureManager'
 import { TilesetManager } from '@engine/managers/TilesetManager'
 import { SceneManager } from '@engine/managers/SceneManager'
 import { RenderSystem } from '@engine/systems/RenderSystem'
+import { EntityRenderSystem } from '@engine/systems/EntityRenderSystem'
 import { GridSystem } from '@engine/systems/GridSystem'
 
 import { SceneMap } from '@engine/scenes/SceneMap'
@@ -134,6 +135,20 @@ export const useEngine = (
       const renderSystem = newEngine.services.get(RenderSystem)
       isEngineReady.value = renderSystem?.IsMapLoaded() ?? false
 
+      const entitySystem = newEngine.services.get(EntityRenderSystem)
+      if (entitySystem) {
+        const actor1 = db.actors.find((a) => a.id === 1)
+        if (actor1) {
+          await entitySystem.setPlayerGraphic(
+            actor1.character,
+            actor1.characterX,
+            actor1.characterY,
+            actor1.characterSrcW,
+            actor1.characterSrcH
+          )
+        }
+      }
+
       // Setup Map Change Callback
       newEngine.services.require(SceneManager).setMapChangeCallback(async (mapId, x, y) => {
         const targetMap = store.maps.find((m) => m.id === mapId)
@@ -210,6 +225,16 @@ export const useEngine = (
     if (!engine.value || !isEditorView) return
     const renderSystem = engine.value.services.get(RenderSystem)
     if (!renderSystem) return
+
+    // If in Play Mode, hide ALL editor visuals
+    if (engine.value.mode === 'play') {
+      renderSystem.hidePlayerStartMarker()
+      renderSystem.setEventMarkersVisible(false)
+      renderSystem.updateLayerDimming(null, false)
+      const gridSystem = engine.value.services.get(GridSystem)
+      if (gridSystem) gridSystem.setSize(0, 0)
+      return
+    }
 
     // 1. Grid
     syncGridSize(engine.value)

@@ -7,6 +7,48 @@ export class SpriteUtils {
    * Creates a sprite for an Event or Player.
    * Handles both Tile graphics and Character Sheet graphics.
    */
+  public static getFrameRect(
+    graphic: ZEventGraphic,
+    tex: { width: number; height: number }
+  ): { frameW: number; frameH: number; divW: number; divH: number; fx: number; fy: number } {
+    const ratio = tex.width / tex.height
+    let divW = graphic.w || 0
+    let divH = graphic.h || 0
+
+    let frameW = 0
+    let frameH = 0
+
+    // Priority 1: Use explicit pixel dimensions if provided (from CharacterSelector)
+    if (graphic.srcW && graphic.srcH && graphic.srcW > 1 && graphic.srcH > 1) {
+      frameW = graphic.srcW
+      frameH = graphic.srcH
+      divW = Math.round(tex.width / frameW)
+      divH = Math.round(tex.height / frameH)
+    } else {
+      // Priority 2: Use divisions if provided
+      if (divW <= 1 || divH <= 1) {
+        // Fallback: Smart detection
+        if (ratio > 1.2) {
+          divW = 12
+          divH = 8
+        } else if (Math.abs(ratio - 1.0) < 0.1) {
+          divW = 4
+          divH = 4
+        } else {
+          divW = 3
+          divH = 4
+        }
+      }
+      frameW = tex.width / divW
+      frameH = tex.height / divH
+    }
+
+    const fx = (graphic.x || 0) * frameW
+    const fy = (graphic.y || 0) * frameH
+
+    return { frameW, frameH, divW, divH, fx, fy }
+  }
+
   public static createEventSprite(
     graphic: ZEventGraphic,
     textureManager: TextureManager,
@@ -33,34 +75,7 @@ export class SpriteUtils {
       ) {
         rect = new PIXI.Rectangle(graphic.srcX, graphic.srcY, graphic.srcW, graphic.srcH)
       } else {
-        // Fallback: Smart division based on texture ratio
-        const ratio = tex.width / tex.height
-        let divW = graphic.w || 0
-        let divH = graphic.h || 0
-
-        // If not explicitly provided (or set to 1 by legacy code), detect format
-        if (divW <= 1 || divH <= 1) {
-          if (ratio > 1.2) {
-            // Full sheet (12x8 frames)
-            divW = 12
-            divH = 8
-          } else if (Math.abs(ratio - 1.0) < 0.1) {
-            // Square sheet (4x4 frames)
-            divW = 4
-            divH = 4
-          } else {
-            // Standard small sheet (3x4 frames)
-            divW = 3
-            divH = 4
-          }
-        }
-
-        const frameW = tex.width / divW
-        const frameH = tex.height / divH
-        // Use graphic.x/y as frame index
-        const fx = (graphic.x || 0) * frameW
-        const fy = (graphic.y || 0) * frameH
-
+        const { frameW, frameH, divW, divH, fx, fy } = SpriteUtils.getFrameRect(graphic, tex)
         rect = new PIXI.Rectangle(fx, fy, frameW, frameH)
 
         if (graphic.assetId.includes('characters') || graphic.group === 'character') {

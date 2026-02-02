@@ -13,6 +13,9 @@ export class EntityRenderSystem extends ZSystem {
   private tileSize: number
 
   private playerSprite: Sprite | null = null
+  private playerBaseX: number = 0
+  private playerBaseY: number = 0
+  private playerColsPerChar: number = 3 // 3 for RM standard, 4 for square sheets
 
   private frameWidth: number = 0
   private frameHeight: number = 0
@@ -149,7 +152,13 @@ export class EntityRenderSystem extends ZSystem {
     }
   }
 
-  public async setPlayerGraphic(assetPath: string): Promise<void> {
+  public async setPlayerGraphic(
+    assetPath: string,
+    x: number = 0,
+    y: number = 0,
+    srcW?: number,
+    srcH?: number
+  ): Promise<void> {
     if (!assetPath) return
 
     if (this.playerSprite) {
@@ -160,10 +169,14 @@ export class EntityRenderSystem extends ZSystem {
     const graphic = {
       assetId: assetPath,
       group: 'character' as const,
-      x: 0,
-      y: 0,
-      w: 1,
-      h: 1
+      x: x,
+      y: y,
+      w: 0,
+      h: 0,
+      srcX: 0,
+      srcY: 0,
+      srcW: srcW,
+      srcH: srcH
     }
 
     try {
@@ -178,9 +191,30 @@ export class EntityRenderSystem extends ZSystem {
       )
 
       if (this.playerSprite) {
-        this.frameWidth = this.playerSprite.texture.width
-        this.frameHeight = this.playerSprite.texture.height
+        const tex = this.textures.get(assetPath)!
+        const { frameW, frameH, divW, divH } = SpriteUtils.getFrameRect(graphic, tex)
+
+        // Determine if this is a 3-column character (standard) or 4-column (user's sheet)
+        this.playerColsPerChar = divW % 4 === 0 && divW % 3 !== 0 ? 4 : 3
+
+        // If it's a full sheet (12 cols), each char is 3 wide.
+        // If it's 4 wide, it's 4.
+        const snapX = this.playerColsPerChar
+        const snapY = divH % 4 === 0 ? 4 : 1
+
+        this.playerBaseX = Math.floor(x / snapX) * snapX
+        this.playerBaseY = Math.floor(y / snapY) * snapY
+
+        this.frameWidth = frameW
+        this.frameHeight = frameH
         this.container.addChild(this.playerSprite)
+
+        console.log('[EntityRenderSystem] Player Graphic Set:', {
+          path: assetPath,
+          base: { x: this.playerBaseX, y: this.playerBaseY },
+          frame: { w: frameW, h: frameH },
+          colsPerChar: this.playerColsPerChar
+        })
 
         // Refresh visibility
         this.setVisible(true)
@@ -230,22 +264,23 @@ export class EntityRenderSystem extends ZSystem {
       this.animationTimer += delta
       if (this.animationTimer > this.ANIMATION_SPEED) {
         this.animationTimer = 0
+        // Use 4-step cycle for both 3-col (RM) and 4-col characters
         this.animationFrame = (this.animationFrame + 1) % 4
       }
     } else {
-      this.animationFrame = 0
+      this.animationFrame = 1 // Middle/Standing frame
       this.animationTimer = 0
     }
 
     const row = this.getDirectionRow(this.playerSystem.direction)
-    const col = this.animationFrame
+    const frames = this.playerColsPerChar === 4 ? [0, 1, 2, 3] : [0, 1, 2, 1]
+    const col = frames[this.animationFrame]
 
-    const rect = new Rectangle(
-      col * this.frameWidth,
-      row * this.frameHeight,
-      this.frameWidth,
-      this.frameHeight
-    )
+    // Absolute frames in the sheet
+    const finalX = (this.playerBaseX + col) * this.frameWidth
+    const finalY = (this.playerBaseY + row) * this.frameHeight
+
+    const rect = new Rectangle(finalX, finalY, this.frameWidth, this.frameHeight)
 
     const newTexture = new Texture({
       source: this.playerSprite.texture.source,

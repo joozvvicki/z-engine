@@ -60,8 +60,12 @@ const onSelectCharacter = (selection: any): void => {
   if (selectedActor.value) {
     if (characterSelectType.value === 'character') {
       selectedActor.value.character = `img/characters/${selection.tilesetId}`
-      selectedActor.value.characterX = selection.x || 0
-      selectedActor.value.characterY = selection.y || 0
+      // Snap to character block start (usually multiples of 3 columns, 4 rows)
+      const snapX = selection.divW % 3 === 0 ? 3 : selection.divW % 4 === 0 ? 4 : 1
+      const snapY = selection.divH % 4 === 0 ? 4 : 1
+
+      selectedActor.value.characterX = Math.floor((selection.x || 0) / snapX) * snapX
+      selectedActor.value.characterY = Math.floor((selection.y || 0) / snapY) * snapY
       selectedActor.value.characterSrcX = selection.pixelX
       selectedActor.value.characterSrcY = selection.pixelY
       selectedActor.value.characterSrcW = selection.pixelW

@@ -41,7 +41,6 @@ const selectedFile = ref(
   files.find((f) => f.name === props.initialTilesetId) || files[0] || { name: 'None', url: '' }
 )
 
-const imageEl = ref<HTMLImageElement | null>(null)
 const texWidth = ref(0)
 const texHeight = ref(0)
 
