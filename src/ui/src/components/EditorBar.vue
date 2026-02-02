@@ -74,30 +74,29 @@ const handleKeydown = (e: KeyboardEvent): void => {
       switch (e.key) {
         case 'P':
           store.toggleTestMode()
-          break
+          return
       }
     }
+
+    if (store.isTestMode) return
 
     switch (e.key) {
       case 'z':
       case 'Z':
-        if (!store.isTestMode) {
-          if (e.shiftKey) {
-            store.redo()
-          } else {
-            store.undo()
-          }
+        if (e.shiftKey) {
+          store.redo()
+        } else {
+          store.undo()
         }
         break
       case 'y':
       case 'Y':
-        if (!store.isTestMode) store.redo()
+        store.redo()
         break
       case 'D':
         store.exportMapAsJSON()
         break
       case 'ArrowUp': {
-        if (store.isTestMode) break
         const layerKeys = sortedLayers.value.map(([key]) => key as ZLayer)
         if (layerKeys.length === 0) return
 
@@ -110,7 +109,6 @@ const handleKeydown = (e: KeyboardEvent): void => {
         break
       }
       case 'ArrowDown': {
-        if (store.isTestMode) break
         const layerKeys = sortedLayers.value.map(([key]) => key as ZLayer)
         if (layerKeys.length === 0) return
 
@@ -123,8 +121,10 @@ const handleKeydown = (e: KeyboardEvent): void => {
       case 'V':
         store.pasteSelection()
         e.preventDefault()
+        break
     }
   } else {
+    if (store.isTestMode) return
     // Shortcuts without modifiers (Tools)
     if (!e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey) {
       switch (e.key) {
@@ -162,6 +162,7 @@ const handleKeydown = (e: KeyboardEvent): void => {
   }
 
   if ((e.ctrlKey || e.metaKey) && e.code === 'KeyC') {
+    if (store.isTestMode) return
     if (e.shiftKey) {
       store.copySelection(true) // Copy merged visible layers
     } else {
@@ -171,6 +172,7 @@ const handleKeydown = (e: KeyboardEvent): void => {
   }
 
   if ((e.ctrlKey || e.metaKey) && e.code === 'KeyV') {
+    if (store.isTestMode) return
     store.pasteSelection()
     e.preventDefault()
   }

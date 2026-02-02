@@ -1,5 +1,8 @@
 <template>
-  <div v-if="isOpen" class="fixed inset-0 bg-white/50 flex items-center justify-center z-50">
+  <div
+    v-if="isOpen"
+    class="fixed inset-0 bg-white/50 flex items-center justify-center z-50 pointer-events-auto"
+  >
     <div class="bg-white border border-black/10 rounded-lg shadow-xl w-96 p-6">
       <h2 class="text-xl font-bold text-black mb-4">Build Game</h2>
 

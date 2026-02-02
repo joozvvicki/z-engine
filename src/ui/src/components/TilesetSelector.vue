@@ -118,6 +118,7 @@ const handleMouseUpGlobal = (): void => {
 }
 
 const handleKeydown = (e: KeyboardEvent): void => {
+  if (store.isTestMode) return
   if (!isEditMode.value) return
 
   if (e.key === '1') activeConfigTool.value = 'select'

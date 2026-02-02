@@ -35,6 +35,7 @@ const stopResizing = (): void => {
 }
 
 const handleKeyDown = (e: KeyboardEvent): void => {
+  if (store.isTestMode) return
   // Don't trigger if user is typing in an input or textarea
   if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
 

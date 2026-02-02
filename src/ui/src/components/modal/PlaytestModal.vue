@@ -81,7 +81,7 @@ onUnmounted(() => {
   <Transition name="fade">
     <div
       v-if="isVisible"
-      class="fixed inset-0 z-3000 flex flex-col bg-black/90 backdrop-blur-xl transition-all duration-500"
+      class="fixed inset-0 z-3000 flex flex-col bg-black/90 backdrop-blur-xl transition-all duration-500 pointer-events-auto"
     >
       <!-- Premium Header -->
       <header
