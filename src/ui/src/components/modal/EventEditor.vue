@@ -321,6 +321,8 @@ onUnmounted(() => {
       :initial-tileset-id="activePage?.graphic?.assetId"
       :initial-x="activePage?.graphic?.x"
       :initial-y="activePage?.graphic?.y"
+      :initial-pixel-w="activePage?.graphic?.srcW"
+      :initial-pixel-h="activePage?.graphic?.srcH"
       @close="showCharacterSelector = false"
       @select="onSelectGraphic"
     />

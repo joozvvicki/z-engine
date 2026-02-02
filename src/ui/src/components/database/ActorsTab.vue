@@ -269,7 +269,7 @@ const characterPreviewStyle = computed(() => {
                     >No Image</span
                   >
                   <div
-                    class="absolute inset-0 bg-blue-600/60 hidden group-hover:flex items-center justify-center cursor-pointer transition-all"
+                    class="absolute inset-0 bg-slate-900/60 hidden group-hover:flex items-center justify-center cursor-pointer transition-all"
                   >
                     <span class="text-white text-[10px] font-bold uppercase tracking-widest"
                       >Update</span
@@ -295,7 +295,7 @@ const characterPreviewStyle = computed(() => {
                   <div v-else class="w-8 h-8 bg-gray-200 rounded-full animate-pulse"></div>
 
                   <div
-                    class="absolute inset-0 bg-blue-600/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all"
+                    class="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all"
                   >
                     <span class="text-white text-[9px] font-black uppercase tracking-widest"
                       >Change</span
@@ -500,6 +500,18 @@ const characterPreviewStyle = computed(() => {
       v-if="showCharacterSelector"
       :initial-tileset-id="
         characterSelectType === 'character' ? selectedActor?.character : selectedActor?.face
+      "
+      :initial-x="
+        characterSelectType === 'character' ? selectedActor?.characterX : selectedActor?.faceX
+      "
+      :initial-y="
+        characterSelectType === 'character' ? selectedActor?.characterY : selectedActor?.faceY
+      "
+      :initial-pixel-w="
+        characterSelectType === 'character' ? selectedActor?.characterSrcW : selectedActor?.faceSrcW
+      "
+      :initial-pixel-h="
+        characterSelectType === 'character' ? selectedActor?.characterSrcH : selectedActor?.faceSrcH
       "
       @close="showCharacterSelector = false"
       @select="onSelectCharacter"

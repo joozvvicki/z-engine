@@ -31,8 +31,12 @@ const loadProjectCharacters = async (): Promise<void> => {
 
     // Update selected file after loading list
     if (props.initialTilesetId) {
-      const found = files.value.find((f) => f.name === props.initialTilesetId)
-      if (found) selectedFile.value = found
+      // Normalize: it might be a full path "img/characters/Hero.png" or just "Hero.png"
+      const targetName = props.initialTilesetId.split('/').pop()
+      const found = files.value.find((f) => f.name === targetName)
+      if (found) {
+        selectedFile.value = found
+      }
     } else if (files.value.length > 0) {
       selectedFile.value = files.value[0]
     }
@@ -58,8 +62,8 @@ const onImageLoad = (e: Event): void => {
   texHeight.value = img.naturalHeight
 }
 
-const selectedX = ref(props.initialX || 0)
-const selectedY = ref(props.initialY || 0)
+const selectedX = ref(props.initialX ?? 0)
+const selectedY = ref(props.initialY ?? 0)
 
 const selectBlock = (tx: number, ty: number): void => {
   selectedX.value = tx
@@ -148,7 +152,7 @@ const selectionStyle = computed(() => ({
             class="w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-colors border border-transparent truncate"
             :class="
               selectedFile.name === file.name
-                ? 'bg-blue-100 text-blue-700 border-blue-200'
+                ? 'bg-slate-900 text-white border-slate-900 shadow-sm'
                 : 'text-slate-600 hover:bg-slate-100'
             "
             @click="selectedFile = file"
@@ -159,9 +163,9 @@ const selectionStyle = computed(() => ({
       </div>
 
       <!-- Main: Preview & Grid -->
-      <div class="flex-1 bg-slate-200/50 flex flex-col relative overflow-hidden">
-        <div class="absolute inset-0 flex items-center justify-center overflow-auto p-8">
-          <div class="relative bg-white shadow-xl border border-slate-300 select-none">
+      <div class="flex-1 bg-slate-100 flex flex-col relative overflow-hidden">
+        <div class="flex-1 overflow-auto p-12 flex min-h-0">
+          <div class="relative bg-white shadow-2xl border border-slate-300 select-none m-auto">
             <!-- Image -->
             <img
               ref="imageEl"
@@ -186,7 +190,7 @@ const selectionStyle = computed(() => ({
             >
               <!-- Selection Highlight -->
               <div
-                class="absolute border-2 border-blue-500 shadow-[0_0_0_2px_rgba(59,130,246,0.3)] pointer-events-none transition-all duration-75 start-frame-marker"
+                class="absolute border-2 border-slate-900 shadow-[0_0_0_2px_rgba(15,23,42,0.2)] pointer-events-none transition-all duration-75 start-frame-marker"
                 :style="selectionStyle"
               ></div>
             </div>
@@ -210,7 +214,7 @@ const selectionStyle = computed(() => ({
               Cancel
             </button>
             <button
-              class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold uppercase rounded-lg flex items-center gap-2 shadow-lg shadow-blue-500/20 active:scale-95 transition-all"
+              class="px-6 py-2 bg-slate-900 hover:bg-black text-white text-xs font-bold uppercase rounded-lg flex items-center gap-2 shadow-lg shadow-slate-900/20 active:scale-95 transition-all"
               @click="confirm"
             >
               <IconCheck size="16" /> Select Character
