@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import {
   IconX,
   IconChevronLeft,
@@ -11,24 +11,88 @@ import {
   IconVariable,
   IconMapPin
 } from '@tabler/icons-vue'
-import { ZCommandCode } from '@engine/types'
+import { ZCommandCode, type ZEventCommand } from '@engine/types'
 import type { ZEventPage } from '@engine/types'
+import { useEditorStore } from '@ui/stores/editor'
 
 const props = defineProps<{
   show: boolean
   page: ZEventPage
   systemSwitches: string[]
+  initialCommand?: ZEventCommand | null
 }>()
 
 const emit = defineEmits<{
   (e: 'close'): void
-  (e: 'save', payload: { code: number; params: unknown[] }): void
+  (e: 'save', payload: { code: number; parameters: unknown[] }): void
 }>()
+
+const store = useEditorStore()
 
 const commandSelectorStep = ref<'grid' | 'params'>('grid')
 const commandCategory = ref('Messages')
 const selectedCommandType = ref<number | null>(null)
+
+// Parameter fields
 const messageText = ref('')
+const waitFrames = ref(60)
+const selfSwitchCh = ref<'A' | 'B' | 'C' | 'D'>('A')
+const switchState = ref<number>(1) // 1: ON, 0: OFF
+const switchId = ref('1')
+const variableId = ref('1')
+const variableOp = ref(0)
+const variableValue = ref(0)
+
+const variableOps = [
+  { label: 'Set (=)', value: 0 },
+  { label: 'Add (+)', value: 1 },
+  { label: 'Sub (-)', value: 2 },
+  { label: 'Mul (*)', value: 3 },
+  { label: 'Div (/)', value: 4 },
+  { label: 'Mod (%)', value: 5 }
+]
+
+watch(
+  () => props.show,
+  (isShown) => {
+    if (isShown) {
+      if (props.initialCommand) {
+        commandSelectorStep.value = 'params'
+        selectedCommandType.value = props.initialCommand.code
+
+        const params = props.initialCommand.parameters
+
+        if (props.initialCommand.code === ZCommandCode.ShowMessage) {
+          messageText.value = String(params[0] || '')
+        } else if (props.initialCommand.code === ZCommandCode.Wait) {
+          waitFrames.value = Number(params[0] || 60)
+        } else if (props.initialCommand.code === ZCommandCode.ControlSelfSwitch) {
+          selfSwitchCh.value = (params[0] as 'A' | 'B' | 'C' | 'D') || 'A'
+          switchState.value = Number(params[1] ?? 1)
+        } else if (props.initialCommand.code === ZCommandCode.ControlSwitch) {
+          switchId.value = String(params[0] || '1')
+          switchState.value = Number(params[1] ?? 1)
+        } else if (props.initialCommand.code === ZCommandCode.ControlVariable) {
+          variableId.value = String(params[0] || '1')
+          variableOp.value = Number(params[1] || 0)
+          variableValue.value = Number(params[2] || 0)
+        }
+      } else {
+        commandSelectorStep.value = 'grid'
+        selectedCommandType.value = null
+        messageText.value = ''
+        waitFrames.value = 60
+        selfSwitchCh.value = 'A'
+        switchState.value = 1
+        switchId.value = '1'
+        variableId.value = '1'
+        variableValue.value = 0
+        variableOp.value = 0
+      }
+    }
+  },
+  { immediate: true }
+)
 
 const commandCategories = [
   {
@@ -82,9 +146,23 @@ const selectGridCommand = (code: number): void => {
 
 const handleSave = (): void => {
   if (selectedCommandType.value !== null) {
+    let finalParams: unknown[] = []
+
+    if (selectedCommandType.value === ZCommandCode.ShowMessage) {
+      finalParams = [messageText.value]
+    } else if (selectedCommandType.value === ZCommandCode.Wait) {
+      finalParams = [waitFrames.value]
+    } else if (selectedCommandType.value === ZCommandCode.ControlSelfSwitch) {
+      finalParams = [selfSwitchCh.value, switchState.value]
+    } else if (selectedCommandType.value === ZCommandCode.ControlSwitch) {
+      finalParams = [switchId.value, switchState.value]
+    } else if (selectedCommandType.value === ZCommandCode.ControlVariable) {
+      finalParams = [variableId.value, variableOp.value, variableValue.value]
+    }
+
     emit('save', {
       code: selectedCommandType.value,
-      params: [messageText.value]
+      parameters: finalParams
     })
   }
 }
@@ -106,7 +184,7 @@ const handleSave = (): void => {
       >
         <div class="flex items-center gap-2">
           <button
-            v-if="commandSelectorStep === 'params'"
+            v-if="commandSelectorStep === 'params' && !props.initialCommand"
             class="text-xs font-bold text-slate-400 hover:text-slate-600 flex items-center gap-1 transition-colors"
             @click="commandSelectorStep = 'grid'"
           >
@@ -115,7 +193,7 @@ const handleSave = (): void => {
           </button>
           <div class="flex items-center gap-4">
             <span class="text-xs font-black uppercase text-slate-800 tracking-wide">
-              Command Selector
+              {{ props.initialCommand ? 'Edit Command' : 'Command Selector' }}
             </span>
           </div>
         </div>
@@ -188,7 +266,7 @@ const handleSave = (): void => {
           </div>
           <div>
             <div class="text-[9px] font-black text-slate-500 uppercase tracking-widest">
-              Editing Parameters
+              {{ props.initialCommand ? 'Editing Parameters' : 'Set Parameters' }}
             </div>
             <div class="text-xs font-bold text-slate-800">
               {{
@@ -200,20 +278,177 @@ const handleSave = (): void => {
           </div>
         </div>
 
-        <div v-if="selectedCommandType === ZCommandCode.ShowMessage" class="space-y-3">
-          <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1"
-            >Message Text</label
-          >
-          <textarea
-            v-model="messageText"
-            rows="4"
-            class="w-full border border-slate-200 rounded px-3 py-2 text-sm font-sans resize-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900 outline-none"
-          ></textarea>
-        </div>
+        <!-- Param Fields based on command type -->
+        <div class="space-y-4">
+          <!-- Show Message -->
+          <div v-if="selectedCommandType === ZCommandCode.ShowMessage" class="space-y-3">
+            <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1"
+              >Message Text</label
+            >
+            <textarea
+              v-model="messageText"
+              rows="4"
+              class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm font-sans resize-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900/10 outline-none transition-all"
+              placeholder="Enter message text..."
+            ></textarea>
+          </div>
 
-        <!-- Add more parameter fields as needed... for now I'll implement the basic structure -->
-        <div v-else class="py-10 text-center text-slate-400 text-xs italic">
-          Parameter fields for this command are being improved.
+          <!-- Wait -->
+          <div v-else-if="selectedCommandType === ZCommandCode.Wait" class="space-y-3">
+            <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1"
+              >Wait Duration (Frames)</label
+            >
+            <div class="flex items-center gap-4">
+              <input
+                type="number"
+                v-model.number="waitFrames"
+                class="w-32 bg-slate-50 border border-slate-100 rounded-lg px-4 py-2 text-sm font-bold focus:bg-white focus:border-slate-900 outline-none transition-all"
+              />
+              <span class="text-[10px] text-slate-400 font-bold uppercase"
+                >≈ {{ (waitFrames / 60).toFixed(2) }} Seconds</span
+              >
+            </div>
+          </div>
+
+          <!-- Control Self Switch -->
+          <div v-else-if="selectedCommandType === ZCommandCode.ControlSelfSwitch" class="space-y-4">
+            <div class="space-y-2">
+              <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1"
+                >Self Switch</label
+              >
+              <div class="flex rounded-lg overflow-hidden border border-slate-100">
+                <button
+                  v-for="ch in ['A', 'B', 'C', 'D']"
+                  :key="ch"
+                  @click="selfSwitchCh = ch as any"
+                  class="flex-1 py-2 text-xs font-black transition-all"
+                  :class="
+                    selfSwitchCh === ch
+                      ? 'bg-slate-900 text-white'
+                      : 'bg-slate-50 text-slate-400 hover:bg-slate-100'
+                  "
+                >
+                  {{ ch }}
+                </button>
+              </div>
+            </div>
+            <div class="space-y-2">
+              <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1">State</label>
+              <div class="flex gap-2">
+                <button
+                  v-for="s in [
+                    { val: 1, label: 'ON' },
+                    { val: 0, label: 'OFF' }
+                  ]"
+                  :key="s.val"
+                  @click="switchState = s.val"
+                  class="flex-1 py-2 rounded-lg text-[10px] font-black border transition-all"
+                  :class="
+                    switchState === s.val
+                      ? 'bg-slate-900 border-slate-900 text-white'
+                      : 'bg-slate-50 border-slate-100 text-slate-400 hover:border-slate-300'
+                  "
+                >
+                  {{ s.label }}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Control Switch -->
+          <div v-else-if="selectedCommandType === ZCommandCode.ControlSwitch" class="space-y-4">
+            <div class="space-y-2">
+              <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1"
+                >System Switch</label
+              >
+              <select
+                v-model="switchId"
+                class="w-full bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 text-xs font-bold focus:bg-white focus:border-slate-900 outline-none transition-all"
+              >
+                <option
+                  v-for="(sw, idx) in store.systemSwitches"
+                  :key="idx"
+                  :value="String(idx + 1)"
+                >
+                  #{{ String(idx + 1).padStart(3, '0') }}: {{ sw || '(None)' }}
+                </option>
+              </select>
+            </div>
+            <div class="space-y-2">
+              <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1">State</label>
+              <div class="flex gap-2">
+                <button
+                  v-for="s in [
+                    { val: 1, label: 'ON' },
+                    { val: 0, label: 'OFF' }
+                  ]"
+                  :key="s.val"
+                  @click="switchState = s.val"
+                  class="flex-1 py-2 rounded-lg text-[10px] font-black border transition-all"
+                  :class="
+                    switchState === s.val
+                      ? 'bg-slate-900 border-slate-900 text-white'
+                      : 'bg-slate-50 border-slate-100 text-slate-400 hover:border-slate-300'
+                  "
+                >
+                  {{ s.label }}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Control Variable -->
+          <div v-else-if="selectedCommandType === ZCommandCode.ControlVariable" class="space-y-4">
+            <div class="space-y-2">
+              <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1"
+                >System Variable</label
+              >
+              <select
+                v-model="variableId"
+                class="w-full bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 text-xs font-bold focus:bg-white focus:border-slate-900 outline-none transition-all"
+              >
+                <option
+                  v-for="(v, idx) in store.systemVariables"
+                  :key="idx"
+                  :value="String(idx + 1)"
+                >
+                  #{{ String(idx + 1).padStart(3, '0') }}: {{ v || '(None)' }}
+                </option>
+              </select>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+              <div class="space-y-2">
+                <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1"
+                  >Operation</label
+                >
+                <select
+                  v-model="variableOp"
+                  class="w-full bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 text-xs font-bold focus:bg-white focus:border-slate-900 outline-none transition-all"
+                >
+                  <option v-for="op in variableOps" :key="op.value" :value="op.value">
+                    {{ op.label }}
+                  </option>
+                </select>
+              </div>
+              <div class="space-y-2">
+                <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1"
+                  >Value</label
+                >
+                <input
+                  type="number"
+                  v-model.number="variableValue"
+                  class="w-full bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 text-xs font-bold focus:bg-white focus:border-slate-900 outline-none transition-all"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div
+            v-else
+            class="py-10 text-center text-slate-400 text-xs italic bg-slate-50 rounded-xl border border-dashed border-slate-200"
+          >
+            Parameter fields for this command are being improved.
+          </div>
         </div>
 
         <div class="pt-4 border-t border-slate-100 flex justify-end gap-3">

@@ -225,12 +225,12 @@ const handleAddCommand = (index: number): void => {
   showCommandSelector.value = true
 }
 
-const handleCommandSave = (cmd: { code: number; params: unknown[] }): void => {
+const handleCommandSave = (cmd: { code: number; parameters: unknown[] }): void => {
   if (!activePage.value) return
   if (editingCommandIndex.value !== null) {
     activePage.value.list[editingCommandIndex.value] = {
       code: cmd.code,
-      parameters: cmd.params
+      parameters: cmd.parameters
     }
   } else {
     const index =
@@ -239,7 +239,7 @@ const handleCommandSave = (cmd: { code: number; params: unknown[] }): void => {
         : activePage.value.list.length
     activePage.value.list.splice(index, 0, {
       code: cmd.code,
-      parameters: cmd.params
+      parameters: cmd.parameters
     })
   }
   showCommandSelector.value = false
@@ -322,6 +322,7 @@ onUnmounted(() => window.removeEventListener('keydown', handleKeydown))
       v-if="activePage"
       :show="showCommandSelector"
       :page="activePage"
+      :initial-command="editingCommandIndex !== null ? activePage.list[editingCommandIndex] : null"
       :system-switches="store.systemSwitches"
       @close="showCommandSelector = false"
       @save="handleCommandSave"

@@ -82,11 +82,10 @@ const variableOps = [
       </h3>
 
       <div class="space-y-3">
-        <!-- Switch 1 -->
         <div class="space-y-1.5">
           <div class="flex items-center justify-between">
             <span class="text-[9px] font-black uppercase tracking-wider text-slate-400"
-              >Switch 1</span
+              >Switch</span
             >
             <button
               class="transition-colors"
