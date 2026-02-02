@@ -1,9 +1,9 @@
 import { ZDataProvider } from '@engine/types'
 import ZLogger from '@engine/utils/ZLogger'
-import PIXI from '@engine/utils/pixi'
+import { Assets, Texture } from '@engine/utils/pixi'
 
 export class TextureManager {
-  private textures: Map<string, PIXI.Texture> = new Map()
+  private textures: Map<string, Texture> = new Map()
   private textureUrls: Map<string, string> = new Map()
   private dataProvider: ZDataProvider | null = null
 
@@ -11,7 +11,7 @@ export class TextureManager {
     this.dataProvider = provider
   }
 
-  public async load(path: string): Promise<PIXI.Texture> {
+  public async load(path: string): Promise<Texture> {
     const url = this.dataProvider ? this.dataProvider.resolveAssetUrl(path) : path
     await this.loadTileset(path, url)
     return this.get(path)!
@@ -23,7 +23,7 @@ export class TextureManager {
     }
 
     try {
-      const texture = await PIXI.Assets.load(url)
+      const texture = await Assets.load(url)
       texture.source.scaleMode = 'nearest'
       texture.label = id
       this.textures.set(id, texture)
@@ -34,7 +34,7 @@ export class TextureManager {
     }
   }
 
-  public get(id: string): PIXI.Texture | undefined {
+  public get(id: string): Texture | undefined {
     if (!id || id === 'undefined') {
       return undefined
     }

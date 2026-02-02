@@ -1,3 +1,5 @@
+import ZLogger from '@engine/utils/ZLogger'
+
 /* eslint-disable @typescript-eslint/no-explicit-any */
 export type ServiceConstructor<T> = new (...args: any[]) => T
 export type AbstractServiceConstructor<T> = abstract new (...args: any[]) => T
@@ -15,7 +17,7 @@ export class ServiceLocator {
   register<T>(key: ServiceKey<T>, instance: T): void {
     if (this.services.has(key)) {
       const name = typeof key === 'string' ? key : key.name
-      console.warn(`[ServiceLocator] Service ${name} is already registered, overwriting`)
+      ZLogger.with('ServiceLocator').warn(`Service ${name} is already registered, overwriting`)
     }
     this.services.set(key, instance)
   }

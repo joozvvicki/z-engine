@@ -255,6 +255,16 @@ export class ProjectService {
     }
   }
 
+  public static async getProjectData(): Promise<ZSystemData | null> {
+    if (!this.projectPath) return null
+    try {
+      const content = await window.api.readProjectFile(`${this.projectPath}/data/System.json`)
+      return JSON.parse(content)
+    } catch {
+      return null
+    }
+  }
+
   public static async buildGame(
     platform: string,
     gameName: string

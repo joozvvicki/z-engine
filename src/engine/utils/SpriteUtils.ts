@@ -1,6 +1,7 @@
 import PIXI from '@engine/utils/pixi'
 import { ZEventGraphic } from '@engine/types'
 import { TextureManager } from '@engine/managers/TextureManager'
+import ZLogger from './ZLogger'
 
 export class SpriteUtils {
   /**
@@ -89,7 +90,7 @@ export class SpriteUtils {
         rect = new PIXI.Rectangle(fx, fy, frameW, frameH)
 
         if (graphic.assetId.includes('characters') || graphic.group === 'character') {
-          console.log('[SpriteUtils] Character Slicing:', {
+          ZLogger.with('SpriteUtils').log('Character Slicing:', {
             asset: graphic.assetId,
             texWidth: tex.width,
             texHeight: tex.height,

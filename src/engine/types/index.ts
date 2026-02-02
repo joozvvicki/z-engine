@@ -273,6 +273,7 @@ export interface ZHistoryEntry {
 export interface ZDataProvider {
   getMap(id: number): Promise<ZMap | null>
   getTilesetConfigs(): Promise<Record<string, TilesetConfig>> // URL-indexed
+  getSystemData(): Promise<ZSystemData>
   getTilesetUrl(slotId: string): string // Resolver for slotId -> default URL
   setTileAt(
     x: number,

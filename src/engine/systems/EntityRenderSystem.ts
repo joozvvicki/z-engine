@@ -310,7 +310,7 @@ export class EntityRenderSystem extends ZSystem {
         this.frameHeight = frameH
         this.container.addChild(this.playerSprite)
 
-        console.log('[EntityRenderSystem] Player Graphic Set:', {
+        ZLogger.with('EntityRenderSystem').log('Player Graphic Set:', {
           path: assetPath,
           base: { x: this.playerBaseX, y: this.playerBaseY },
           frame: { w: frameW, h: frameH },
@@ -320,11 +320,11 @@ export class EntityRenderSystem extends ZSystem {
         // Refresh visibility
         this.setVisible(true)
       } else {
-        console.warn('SpriteUtils returned null for asset:', assetPath)
+        ZLogger.with('EntityRenderSystem').warn('SpriteUtils returned null for asset:', assetPath)
         this.createFallbackSprite()
       }
     } catch (e) {
-      console.warn('Could not set player graphic', assetPath, e)
+      ZLogger.with('EntityRenderSystem').warn('Could not set player graphic', assetPath, e)
       this.createFallbackSprite()
     }
   }
