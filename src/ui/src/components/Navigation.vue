@@ -15,7 +15,9 @@ import {
   IconSword,
   IconShield,
   IconUsers,
-  IconLayoutGrid
+  IconLayoutGrid,
+  IconPlayerPlay,
+  IconBolt
 } from '@tabler/icons-vue'
 import { useEditorStore } from '@ui/stores/editor'
 import NavButton from './NavButton.vue'
@@ -48,7 +50,12 @@ const subTabs = computed(() => {
   if (route.path.startsWith('/resources')) {
     return [
       { id: 'tilesets', label: 'Tilesets', icon: IconLayoutGrid, path: '/resources/tilesets' },
-      { id: 'characters', label: 'Characters', icon: IconUsers, path: '/resources/characters' }
+      { id: 'characters', label: 'Characters', icon: IconUsers, path: '/resources/characters' },
+      { id: 'faces', label: 'Faces', icon: IconUser, path: '/resources/faces' },
+      { id: 'backgrounds', label: 'Backgrounds', icon: IconMap, path: '/resources/backgrounds' },
+      { id: 'animations', label: 'Animations', icon: IconSparkles, path: '/resources/animations' },
+      { id: 'music', label: 'Music', icon: IconPlayerPlay, path: '/resources/music' },
+      { id: 'sounds', label: 'Sounds', icon: IconBolt, path: '/resources/sounds' }
     ]
   }
   return []

@@ -187,6 +187,25 @@ app.whenReady().then(() => {
     }
   })
 
+  ipcMain.handle('fs:copyFile', async (_, src, dest) => {
+    await fs.copyFile(src, dest)
+  })
+
+  ipcMain.handle('fs:deleteFile', async (_, path) => {
+    await fs.unlink(path)
+  })
+
+  ipcMain.handle('dialog:selectAssets', async (_, filters) => {
+    const { canceled, filePaths } = await dialog.showOpenDialog({
+      properties: ['openFile', 'multiSelections'],
+      filters: filters || [
+        { name: 'Assets', extensions: ['png', 'jpg', 'jpeg', 'mp3', 'ogg', 'wav'] }
+      ]
+    })
+    if (canceled) return []
+    return filePaths
+  })
+
   createWindow()
 
   app.on('activate', function () {

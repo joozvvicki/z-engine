@@ -87,6 +87,31 @@ const router = createRouter({
           path: 'characters',
           name: 'resources-characters',
           component: () => import('@ui/pages/ResourcesPage.vue')
+        },
+        {
+          path: 'faces',
+          name: 'resources-faces',
+          component: () => import('@ui/pages/ResourcesPage.vue')
+        },
+        {
+          path: 'backgrounds',
+          name: 'resources-backgrounds',
+          component: () => import('@ui/pages/ResourcesPage.vue')
+        },
+        {
+          path: 'animations',
+          name: 'resources-animations',
+          component: () => import('@ui/pages/ResourcesPage.vue')
+        },
+        {
+          path: 'music',
+          name: 'resources-music',
+          component: () => import('@ui/pages/ResourcesPage.vue')
+        },
+        {
+          path: 'sounds',
+          name: 'resources-sounds',
+          component: () => import('@ui/pages/ResourcesPage.vue')
         }
       ]
     },

@@ -255,6 +255,46 @@ export class ProjectService {
     }
   }
 
+  public static async importAssets(subpath: string): Promise<boolean> {
+    if (!this.projectPath) return false
+    try {
+      // 1. Select files
+      const sourcePaths = await window.api.selectAssets()
+      if (sourcePaths.length === 0) return false
+
+      // 2. Ensure destination exists
+      const destDir = `${this.projectPath}/${subpath}`
+      const exists = await window.api.checkFileExists(destDir)
+      if (!exists) {
+        await window.api.createDirectory(destDir)
+      }
+
+      // 3. Copy files
+      for (const src of sourcePaths) {
+        const filename = src.split(/[/\\]/).pop()
+        if (filename) {
+          await window.api.copyFile(src, `${destDir}/${filename}`)
+        }
+      }
+      return true
+    } catch (e) {
+      console.error('Failed to import assets', e)
+      return false
+    }
+  }
+
+  public static async deleteAsset(subpath: string, filename: string): Promise<boolean> {
+    if (!this.projectPath) return false
+    try {
+      const fullPath = `${this.projectPath}/${subpath}/${filename}`
+      await window.api.deleteFile(fullPath)
+      return true
+    } catch (e) {
+      console.error('Failed to delete asset', e)
+      return false
+    }
+  }
+
   public static async getProjectData(): Promise<ZSystemData | null> {
     if (!this.projectPath) return null
     try {
