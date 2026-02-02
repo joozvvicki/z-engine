@@ -334,6 +334,13 @@ export class RenderSystem extends ZSystem {
       h: 0
     }
 
+    // Determine idle frame if it's a character and no explicit pixels provided
+    const tex = this.textures.get(this.playerStartGraphic)
+    if (tex && !this.playerStartSrcW) {
+      const { divW } = SpriteUtils.getFrameRect(graphicData, tex)
+      graphicData.x = SpriteUtils.getIdleFrameIndex(divW)
+    }
+
     const sprite = SpriteUtils.createEventSprite(graphicData, this.textures, this.tileSize, true)
     if (sprite) {
       sprite.alpha = 0.7 // Ghost effect
@@ -437,7 +444,13 @@ export class RenderSystem extends ZSystem {
       let graphicData: ZEventGraphic | null = null
 
       if (activePage && activePage.graphic) {
-        graphicData = activePage.graphic
+        graphicData = { ...activePage.graphic }
+        // Determine idle frame
+        const tex = this.textures.get(graphicData.assetId)
+        if (tex && !graphicData.srcW) {
+          const { divW } = SpriteUtils.getFrameRect(graphicData, tex)
+          graphicData.x = SpriteUtils.getIdleFrameIndex(divW)
+        }
       }
 
       if (graphicData) {

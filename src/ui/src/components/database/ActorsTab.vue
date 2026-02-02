@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useDatabaseStore } from '@ui/stores/database'
 import { IconPlus, IconSearch, IconStar, IconUser } from '@tabler/icons-vue'
 import { ProjectService } from '../../services/ProjectService'
+import { SpriteUtils } from '@engine/utils/SpriteUtils'
 import CharacterSelector from '../modal/CharacterSelector.vue'
 
 const db = useDatabaseStore()
@@ -10,6 +11,14 @@ const selectedId = ref<number>(db.actors[0]?.id || 0)
 const searchQuery = ref('')
 const showCharacterSelector = ref(false)
 const characterSelectType = ref<'character' | 'face'>('character')
+
+// Reactive preview state
+const previewMetadata = ref({
+  frameW: 48,
+  frameH: 48,
+  idleCol: 0,
+  isLoaded: false
+})
 
 const filteredActors = computed(() => {
   if (!searchQuery.value) return db.actors
@@ -56,7 +65,8 @@ const onSelectCharacter = (selection: any): void => {
   if (selectedActor.value) {
     if (characterSelectType.value === 'character') {
       selectedActor.value.character = `img/characters/${selection.tilesetId}`
-      // Snap to character block start (usually multiples of 3 columns, 4 rows)
+      // Character blocks are determined by divW/divH (frames per sheet)
+      // Usually characters are in blocks of 3x4 or 4x4.
       const snapX = selection.divW % 3 === 0 ? 3 : selection.divW % 4 === 0 ? 4 : 1
       const snapY = selection.divH % 4 === 0 ? 4 : 1
 
@@ -79,6 +89,89 @@ const onSelectCharacter = (selection: any): void => {
   }
   showCharacterSelector.value = false
 }
+
+// Update preview metadata when character or actor changes
+// This ensures we always know if it's 3-col or 4-col by checking image dimensions
+watch(
+  () => [
+    selectedActor.value?.character,
+    selectedActor.value?.characterX,
+    selectedActor.value?.characterY
+  ],
+  async ([char]) => {
+    if (!char) {
+      previewMetadata.value.isLoaded = false
+      return
+    }
+
+    try {
+      const url = getCharacterUrl(char as string)
+      const img = new Image()
+      const loadPromise = new Promise((resolve, reject) => {
+        img.onload = resolve
+        img.onerror = reject
+      })
+      img.src = url
+      await loadPromise
+
+      const { frameW, frameH, divW } = SpriteUtils.getFrameRect(
+        {
+          assetId: char as string,
+          group: 'character',
+          x: selectedActor.value!.characterX,
+          y: selectedActor.value!.characterY,
+          w: 0,
+          h: 0,
+          srcW: selectedActor.value!.characterSrcW,
+          srcH: selectedActor.value!.characterSrcH
+        },
+        { width: img.naturalWidth, height: img.naturalHeight }
+      )
+
+      previewMetadata.value = {
+        frameW,
+        frameH,
+        idleCol: SpriteUtils.getIdleFrameIndex(divW),
+        isLoaded: true
+      }
+    } catch (e) {
+      console.warn('Failed to load character preview:', e)
+      previewMetadata.value.isLoaded = false
+    }
+  },
+  { immediate: true }
+)
+
+// Preview calculation helpers
+const characterPreviewStyle = computed(() => {
+  if (!selectedActor.value || !selectedActor.value.character || !previewMetadata.value.isLoaded) {
+    return {
+      width: '48px',
+      height: '48px',
+      background: '#eee',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center'
+    }
+  }
+
+  const actor = selectedActor.value
+  const meta = previewMetadata.value
+
+  // Logic: characterX/Y represents the START of the 3x4 or 4x4 block.
+  // We apply the idleCol offset to show the correct frame (frame 1 for 3-col, frame 0 for 4-col).
+  const srcX = (actor.characterX + meta.idleCol) * meta.frameW
+  const srcY = actor.characterY * meta.frameH
+
+  return {
+    width: `${meta.frameW}px`,
+    height: `${meta.frameH}px`,
+    backgroundImage: `url('${getCharacterUrl(actor.character)}')`,
+    backgroundPosition: `-${srcX}px -${srcY}px`,
+    transform: 'scale(0.75)',
+    zIndex: 1
+  }
+})
 </script>
 
 <template>
@@ -195,18 +288,9 @@ const onSelectCharacter = (selection: any): void => {
                 >
                   <div
                     v-if="selectedActor.character"
-                    class="w-full h-full flex items-center justify-center scale-150"
+                    class="w-full h-full flex items-center justify-center"
                   >
-                    <div
-                      class="pixelated"
-                      :style="{
-                        width: `${selectedActor.characterSrcW || 48}px`,
-                        height: `${selectedActor.characterSrcH || 48}px`,
-                        backgroundImage: `url(${getCharacterUrl(selectedActor.character)})`,
-                        backgroundPosition: `-${selectedActor.characterSrcX || 0}px -${selectedActor.characterSrcY || 0}px`,
-                        transform: 'scale(1.5)'
-                      }"
-                    ></div>
+                    <div class="pixelated" :style="characterPreviewStyle"></div>
                   </div>
                   <div v-else class="w-8 h-8 bg-gray-200 rounded-full animate-pulse"></div>
 

@@ -55,6 +55,7 @@ export class EntityRenderSystem extends ZSystem {
       sprite.destroy()
     })
     this.eventSprites.clear()
+    this.eventMetadata.clear()
 
     const map = this.map.currentMap
     if (!map || !map.events) return
@@ -149,8 +150,12 @@ export class EntityRenderSystem extends ZSystem {
       )
 
       if (this.playerSprite) {
-        this.frameWidth = this.playerSprite.texture.width
-        this.frameHeight = this.playerSprite.texture.height
+        const tex = this.textures.get(charPath)!
+        const { frameW, frameH, divW } = SpriteUtils.getFrameRect(graphic, tex)
+        this.playerColsPerChar = divW % 4 === 0 && divW % 3 !== 0 ? 4 : 3
+
+        this.frameWidth = frameW
+        this.frameHeight = frameH
         this.playerSprite.visible = true
         this.playerSprite.alpha = 1
 
@@ -316,6 +321,7 @@ export class EntityRenderSystem extends ZSystem {
   }
 
   private updateEntityAnimation(meta: SpriteMetadata, delta: number): void {
+    if (!meta.sprite || meta.sprite.destroyed || !meta.sprite.texture) return
     if (meta.isMoving) {
       meta.animationTimer += delta
       if (meta.animationTimer > this.ANIMATION_SPEED) {
@@ -359,5 +365,6 @@ export class EntityRenderSystem extends ZSystem {
       sprite.destroy()
     })
     this.eventSprites.clear()
+    this.eventMetadata.clear()
   }
 }
