@@ -9,9 +9,17 @@ import {
   IconHourglass,
   IconFlare,
   IconVariable,
-  IconMapPin
+  IconMapPin,
+  IconArrowDown,
+  IconArrowLeft,
+  IconArrowRight,
+  IconArrowUp,
+  IconUser,
+  IconRobot,
+  IconTrash,
+  IconRefresh
 } from '@tabler/icons-vue'
-import { ZCommandCode, type ZEventCommand } from '@engine/types'
+import { ZCommandCode, type ZEventCommand, type ZMoveCommand } from '@engine/types'
 import type { ZEventPage } from '@engine/types'
 import { useEditorStore } from '@ui/stores/editor'
 
@@ -33,15 +41,34 @@ const commandSelectorStep = ref<'grid' | 'params'>('grid')
 const commandCategory = ref('Messages')
 const selectedCommandType = ref<number | null>(null)
 
-// Parameter fields
+// --- Parameter fields ---
+
+// Messages
 const messageText = ref('')
+
+// Flow
 const waitFrames = ref(60)
+
+// State
 const selfSwitchCh = ref<'A' | 'B' | 'C' | 'D'>('A')
 const switchState = ref<number>(1) // 1: ON, 0: OFF
 const switchId = ref('1')
 const variableId = ref('1')
 const variableOp = ref(0)
 const variableValue = ref(0)
+
+// Movement
+const selectedDirection = ref(2) // 2: Down, 4: Left, 6: Right, 8: Up
+const transferMapId = ref(1)
+const transferX = ref(0)
+const transferY = ref(0)
+const transferDirection = ref(2)
+
+// Set Move Route
+const moveRouteTarget = ref<string | number>(0) // 0: This, -1: Player
+const moveRouteWait = ref(true)
+const moveRouteThrough = ref(false)
+const moveRouteCommands = ref<ZMoveCommand[]>([])
 
 const variableOps = [
   { label: 'Set (=)', value: 0 },
@@ -50,6 +77,29 @@ const variableOps = [
   { label: 'Mul (*)', value: 3 },
   { label: 'Div (/)', value: 4 },
   { label: 'Mod (%)', value: 5 }
+]
+
+const directions = [
+  { label: 'Down', value: 2, icon: IconArrowDown },
+  { label: 'Left', value: 4, icon: IconArrowLeft },
+  { label: 'Right', value: 6, icon: IconArrowRight },
+  { label: 'Up', value: 8, icon: IconArrowUp }
+]
+
+const moveActions = [
+  { code: 'MOVE_DOWN', label: 'Move Down', icon: IconArrowDown },
+  { code: 'MOVE_LEFT', label: 'Move Left', icon: IconArrowLeft },
+  { code: 'MOVE_RIGHT', label: 'Move Right', icon: IconArrowRight },
+  { code: 'MOVE_UP', label: 'Move Up', icon: IconArrowUp },
+  { code: 'MOVE_RANDOM', label: 'Move Random', icon: IconRefresh },
+  { code: 'MOVE_TOWARD_PLAYER', label: 'Move Toward Player', icon: IconUser },
+  { code: 'STEP_FORWARD', label: 'Step Forward', icon: IconArrowDown },
+  { code: 'STEP_BACKWARD', label: 'Step Backward', icon: IconArrowUp },
+  { code: 'TURN_DOWN', label: 'Turn Down', icon: IconArrowDown },
+  { code: 'TURN_LEFT', label: 'Turn Left', icon: IconArrowLeft },
+  { code: 'TURN_RIGHT', label: 'Turn Right', icon: IconArrowRight },
+  { code: 'TURN_UP', label: 'Turn Up', icon: IconArrowUp },
+  { code: 'WAIT', label: 'Wait...', icon: IconHourglass }
 ]
 
 watch(
@@ -76,6 +126,18 @@ watch(
           variableId.value = String(params[0] || '1')
           variableOp.value = Number(params[1] || 0)
           variableValue.value = Number(params[2] || 0)
+        } else if (props.initialCommand.code === ZCommandCode.SetEventDirection) {
+          selectedDirection.value = Number(params[0] || 2)
+        } else if (props.initialCommand.code === ZCommandCode.TransferPlayer) {
+          transferMapId.value = Number(params[0] || 1)
+          transferX.value = Number(params[1] || 0)
+          transferY.value = Number(params[2] || 0)
+          transferDirection.value = Number(params[3] || 2)
+        } else if (props.initialCommand.code === ZCommandCode.SetMoveRoute) {
+          moveRouteTarget.value = (params[0] as any) ?? 0
+          moveRouteCommands.value = JSON.parse(JSON.stringify(params[1] || []))
+          moveRouteWait.value = Boolean(params[2] ?? true)
+          moveRouteThrough.value = Boolean(params[3] ?? false)
         }
       } else {
         commandSelectorStep.value = 'grid'
@@ -88,6 +150,15 @@ watch(
         variableId.value = '1'
         variableValue.value = 0
         variableOp.value = 0
+        selectedDirection.value = 2
+        transferMapId.value = store.activeMap?.id || 1
+        transferX.value = 0
+        transferY.value = 0
+        transferDirection.value = 2
+        moveRouteTarget.value = 0
+        moveRouteCommands.value = []
+        moveRouteWait.value = true
+        moveRouteThrough.value = false
       }
     }
   },
@@ -144,6 +215,16 @@ const selectGridCommand = (code: number): void => {
   commandSelectorStep.value = 'params'
 }
 
+const addMoveCommand = (code: string): void => {
+  const cmd: ZMoveCommand = { code }
+  if (code === 'WAIT') cmd.params = [60]
+  moveRouteCommands.value.push(cmd)
+}
+
+const removeMoveCommand = (index: number): void => {
+  moveRouteCommands.value.splice(index, 1)
+}
+
 const handleSave = (): void => {
   if (selectedCommandType.value !== null) {
     let finalParams: unknown[] = []
@@ -158,6 +239,17 @@ const handleSave = (): void => {
       finalParams = [switchId.value, switchState.value]
     } else if (selectedCommandType.value === ZCommandCode.ControlVariable) {
       finalParams = [variableId.value, variableOp.value, variableValue.value]
+    } else if (selectedCommandType.value === ZCommandCode.SetEventDirection) {
+      finalParams = [selectedDirection.value]
+    } else if (selectedCommandType.value === ZCommandCode.TransferPlayer) {
+      finalParams = [transferMapId.value, transferX.value, transferY.value, transferDirection.value]
+    } else if (selectedCommandType.value === ZCommandCode.SetMoveRoute) {
+      finalParams = [
+        moveRouteTarget.value,
+        moveRouteCommands.value,
+        moveRouteWait.value,
+        moveRouteThrough.value
+      ]
     }
 
     emit('save', {
@@ -176,7 +268,13 @@ const handleSave = (): void => {
   >
     <div
       class="bg-white rounded-xl shadow-2xl overflow-hidden border border-white/20 animate-in fade-in zoom-in-95 duration-200 flex flex-col"
-      :class="commandSelectorStep === 'grid' ? 'w-[640px] h-[480px]' : 'w-[480px]'"
+      :class="
+        selectedCommandType === ZCommandCode.SetMoveRoute
+          ? 'w-[800px] h-[600px]'
+          : commandSelectorStep === 'grid'
+            ? 'w-[640px] h-[480px]'
+            : 'w-[480px]'
+      "
     >
       <!-- Modal Header -->
       <div
@@ -250,8 +348,11 @@ const handleSave = (): void => {
       </div>
 
       <!-- Params Step -->
-      <div v-if="commandSelectorStep === 'params'" class="p-6 space-y-5 flex-1 overflow-y-auto">
-        <div class="pb-2 mb-4 border-b border-slate-50 flex items-center gap-2">
+      <div
+        v-if="commandSelectorStep === 'params'"
+        class="p-6 space-y-5 flex-1 overflow-y-auto flex flex-col"
+      >
+        <div class="pb-2 mb-4 border-b border-slate-50 flex items-center gap-2 shrink-0">
           <div
             class="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-600"
           >
@@ -279,7 +380,7 @@ const handleSave = (): void => {
         </div>
 
         <!-- Param Fields based on command type -->
-        <div class="space-y-4">
+        <div class="space-y-4 flex-1">
           <!-- Show Message -->
           <div v-if="selectedCommandType === ZCommandCode.ShowMessage" class="space-y-3">
             <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1"
@@ -300,8 +401,8 @@ const handleSave = (): void => {
             >
             <div class="flex items-center gap-4">
               <input
-                type="number"
                 v-model.number="waitFrames"
+                type="number"
                 class="w-32 bg-slate-50 border border-slate-100 rounded-lg px-4 py-2 text-sm font-bold focus:bg-white focus:border-slate-900 outline-none transition-all"
               />
               <span class="text-[10px] text-slate-400 font-bold uppercase"
@@ -320,13 +421,13 @@ const handleSave = (): void => {
                 <button
                   v-for="ch in ['A', 'B', 'C', 'D']"
                   :key="ch"
-                  @click="selfSwitchCh = ch as any"
                   class="flex-1 py-2 text-xs font-black transition-all"
                   :class="
                     selfSwitchCh === ch
                       ? 'bg-slate-900 text-white'
                       : 'bg-slate-50 text-slate-400 hover:bg-slate-100'
                   "
+                  @click="selfSwitchCh = ch as any"
                 >
                   {{ ch }}
                 </button>
@@ -435,11 +536,251 @@ const handleSave = (): void => {
                   >Value</label
                 >
                 <input
-                  type="number"
                   v-model.number="variableValue"
+                  type="number"
                   class="w-full bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 text-xs font-bold focus:bg-white focus:border-slate-900 outline-none transition-all"
                 />
               </div>
+            </div>
+          </div>
+
+          <!-- Set Event Direction -->
+          <div v-else-if="selectedCommandType === ZCommandCode.SetEventDirection" class="space-y-4">
+            <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1"
+              >Direction</label
+            >
+            <div class="grid grid-cols-2 gap-3">
+              <button
+                v-for="dir in directions"
+                :key="dir.value"
+                @click="selectedDirection = dir.value"
+                class="flex items-center gap-3 p-3 rounded-xl border transition-all"
+                :class="
+                  selectedDirection === dir.value
+                    ? 'bg-slate-900 border-slate-900 text-white shadow-lg shadow-slate-900/20'
+                    : 'bg-slate-50 border-slate-100 text-slate-600 hover:border-slate-300'
+                "
+              >
+                <component :is="dir.icon" size="18" />
+                <span class="text-xs font-black uppercase">{{ dir.label }}</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Transfer Player -->
+          <div v-else-if="selectedCommandType === ZCommandCode.TransferPlayer" class="space-y-4">
+            <div class="space-y-2">
+              <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1"
+                >Destination Map</label
+              >
+              <select
+                v-model.number="transferMapId"
+                class="w-full bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 text-xs font-bold focus:bg-white focus:border-slate-900 outline-none transition-all"
+              >
+                <option v-for="m in store.maps" :key="m.id" :value="m.id">
+                  #{{ String(m.id).padStart(3, '0') }}: {{ m.name }}
+                </option>
+              </select>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+              <div class="space-y-2">
+                <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1"
+                  >X Coordinate</label
+                >
+                <input
+                  type="number"
+                  v-model.number="transferX"
+                  class="w-full bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 text-xs font-bold focus:bg-white focus:border-slate-900 outline-none transition-all"
+                />
+              </div>
+              <div class="space-y-2">
+                <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1"
+                  >Y Coordinate</label
+                >
+                <input
+                  type="number"
+                  v-model.number="transferY"
+                  class="w-full bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 text-xs font-bold focus:bg-white focus:border-slate-900 outline-none transition-all"
+                />
+              </div>
+            </div>
+            <div class="space-y-2">
+              <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1"
+                >Facing After Transfer</label
+              >
+              <div class="grid grid-cols-4 gap-2">
+                <button
+                  v-for="dir in directions"
+                  :key="dir.value"
+                  @click="transferDirection = dir.value"
+                  class="flex flex-col items-center gap-1 p-2 rounded-lg border transition-all"
+                  :class="
+                    transferDirection === dir.value
+                      ? 'bg-slate-900 border-slate-900 text-white'
+                      : 'bg-slate-50 border-slate-100 text-slate-400 hover:border-slate-300'
+                  "
+                >
+                  <component :is="dir.icon" size="14" />
+                  <span class="text-[9px] font-black uppercase">{{ dir.label }}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Set Move Route -->
+          <div
+            v-else-if="selectedCommandType === ZCommandCode.SetMoveRoute"
+            class="flex gap-6 h-full overflow-hidden"
+          >
+            <!-- Left Side: Config -->
+            <div class="w-64 flex flex-col gap-4 shrink-0">
+              <div class="space-y-2">
+                <label class="text-[10px] font-bold uppercase text-slate-400 block"
+                  >Target Character</label
+                >
+                <div class="flex flex-col gap-1">
+                  <button
+                    @click="moveRouteTarget = 0"
+                    class="flex items-center gap-3 px-3 py-2 rounded-lg border text-left transition-all"
+                    :class="
+                      moveRouteTarget === 0
+                        ? 'bg-slate-900 border-slate-900 text-white shadow-md'
+                        : 'bg-slate-50 border-slate-100 text-slate-600 hover:bg-white'
+                    "
+                  >
+                    <IconRobot size="16" />
+                    <span class="text-xs font-bold">This Event</span>
+                  </button>
+                  <button
+                    @click="moveRouteTarget = -1"
+                    class="flex items-center gap-3 px-3 py-2 rounded-lg border text-left transition-all"
+                    :class="
+                      moveRouteTarget === -1
+                        ? 'bg-slate-900 border-slate-900 text-white shadow-md'
+                        : 'bg-slate-50 border-slate-100 text-slate-600 hover:bg-white'
+                    "
+                  >
+                    <IconUser size="16" />
+                    <span class="text-xs font-bold">Player</span>
+                  </button>
+                  <div class="flex items-center gap-2 mt-1">
+                    <span class="text-[9px] font-black uppercase text-slate-400">Other ID:</span>
+                    <input
+                      type="text"
+                      v-model="moveRouteTarget"
+                      class="flex-1 bg-slate-50 border border-slate-100 rounded-md px-2 py-1 text-xs font-bold outline-none"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div class="space-y-3 pt-2 border-t border-slate-100">
+                <label class="flex items-center gap-2 cursor-pointer group">
+                  <div
+                    class="w-4 h-4 rounded border flex items-center justify-center transition-all"
+                    :class="
+                      moveRouteWait
+                        ? 'bg-slate-900 border-slate-900 text-white'
+                        : 'bg-white border-slate-200 group-hover:border-slate-400'
+                    "
+                  >
+                    <input type="checkbox" v-model="moveRouteWait" class="hidden" />
+                    <IconX v-if="moveRouteWait" size="10" stroke-width="4" />
+                  </div>
+                  <span class="text-[10px] font-bold uppercase text-slate-600"
+                    >Wait for Completion</span
+                  >
+                </label>
+
+                <label class="flex items-center gap-2 cursor-pointer group">
+                  <div
+                    class="w-4 h-4 rounded border flex items-center justify-center transition-all"
+                    :class="
+                      moveRouteThrough
+                        ? 'bg-slate-900 border-slate-900 text-white'
+                        : 'bg-white border-slate-200 group-hover:border-slate-400'
+                    "
+                  >
+                    <input type="checkbox" v-model="moveRouteThrough" class="hidden" />
+                    <IconX v-if="moveRouteThrough" size="10" stroke-width="4" />
+                  </div>
+                  <span class="text-[10px] font-bold uppercase text-slate-600">Through Mode</span>
+                </label>
+              </div>
+
+              <div class="mt-auto p-4 bg-slate-50 rounded-xl border border-slate-100 border-dashed">
+                <p class="text-[10px] text-slate-400 italic">
+                  Movement route will be executed as a sequence of steps.
+                </p>
+              </div>
+            </div>
+
+            <!-- Middle: Current Route -->
+            <div
+              class="flex-1 flex flex-col overflow-hidden bg-slate-50 rounded-xl border border-slate-100"
+            >
+              <div class="p-3 border-b border-slate-100 bg-white flex justify-between items-center">
+                <span class="text-[10px] font-black uppercase text-slate-400"
+                  >Route Steps ({{ moveRouteCommands.length }})</span
+                >
+                <button
+                  @click="moveRouteCommands = []"
+                  class="text-[9px] font-black uppercase text-red-400 hover:text-red-600"
+                >
+                  Clear All
+                </button>
+              </div>
+              <div class="flex-1 overflow-y-auto p-2 space-y-1">
+                <div
+                  v-for="(cmd, idx) in moveRouteCommands"
+                  :key="idx"
+                  class="group flex items-center gap-3 px-3 py-2 bg-white border border-slate-100 rounded-lg shadow-sm"
+                >
+                  <span class="text-[10px] text-slate-300 font-mono w-4">{{ idx + 1 }}</span>
+                  <component
+                    :is="moveActions.find((m) => m.code === cmd.code)?.icon || IconSettings"
+                    size="14"
+                    class="text-slate-400"
+                  />
+                  <span class="text-xs font-bold text-slate-700 flex-1">{{
+                    moveActions.find((m) => m.code === cmd.code)?.label || cmd.code
+                  }}</span>
+                  <button
+                    @click="removeMoveCommand(idx)"
+                    class="opacity-0 group-hover:opacity-100 hover:text-red-600 transition-all"
+                  >
+                    <IconTrash size="14" />
+                  </button>
+                </div>
+                <div
+                  v-if="moveRouteCommands.length === 0"
+                  class="flex-1 flex items-center justify-center py-20 text-slate-300 text-xs italic"
+                >
+                  Add steps from the right panel
+                </div>
+              </div>
+            </div>
+
+            <!-- Right: Add Actions -->
+            <div class="w-48 overflow-y-auto pr-2 flex flex-col gap-1">
+              <label class="text-[10px] font-bold uppercase text-slate-400 block mb-2 px-1"
+                >Add Actions</label
+              >
+              <button
+                v-for="action in moveActions"
+                :key="action.code"
+                @click="addMoveCommand(action.code)"
+                class="flex items-center gap-2 px-3 py-2 text-left bg-white border border-slate-100 rounded-lg hover:border-slate-400 hover:bg-slate-50 transition-all group"
+              >
+                <component
+                  :is="action.icon"
+                  size="14"
+                  class="text-slate-400 group-hover:text-slate-900"
+                />
+                <span class="text-[11px] font-bold text-slate-600 group-hover:text-slate-900">{{
+                  action.label
+                }}</span>
+              </button>
             </div>
           </div>
 
@@ -451,7 +792,7 @@ const handleSave = (): void => {
           </div>
         </div>
 
-        <div class="pt-4 border-t border-slate-100 flex justify-end gap-3">
+        <div class="pt-4 border-t border-slate-100 flex justify-end gap-3 shrink-0">
           <button
             class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold uppercase rounded-lg transition-colors"
             @click="emit('close')"
