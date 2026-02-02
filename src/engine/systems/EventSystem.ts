@@ -28,6 +28,11 @@ export class EventSystem extends ZSystem {
   } | null = null
 
   private processors: Map<number, ZCommandProcessor> = new Map()
+  private parallelInterpreters: {
+    list: ZEventCommand[]
+    index: number
+    eventId: string
+  }[] = []
 
   constructor(services: ServiceLocator) {
     super(services)
@@ -44,12 +49,15 @@ export class EventSystem extends ZSystem {
     this.processors.set(ZCommandCode.ShowMessage, this.commandShowMessage.bind(this))
     this.processors.set(ZCommandCode.ControlSwitch, this.commandControlSwitch.bind(this))
     this.processors.set(ZCommandCode.ControlVariable, this.commandControlVariable.bind(this))
+    this.processors.set(ZCommandCode.ControlSelfSwitch, this.commandControlSelfSwitch.bind(this))
     this.processors.set(ZCommandCode.ConditionalBranch, this.commandConditionalBranch.bind(this))
     this.processors.set(ZCommandCode.Else, this.commandElse.bind(this))
     this.processors.set(ZCommandCode.EndBranch, () => 'continue')
     this.processors.set(ZCommandCode.ShowChoices, this.commandShowChoices.bind(this))
     this.processors.set(ZCommandCode.When, this.commandWhen.bind(this))
     this.processors.set(ZCommandCode.EndChoices, () => 'continue')
+    this.processors.set(ZCommandCode.ShowAnimation, this.commandShowAnimation.bind(this))
+    this.processors.set(ZCommandCode.SetMoveRoute, this.commandSetMoveRoute.bind(this))
   }
 
   public onBoot(): void {
@@ -84,6 +92,39 @@ export class EventSystem extends ZSystem {
     if (this.activeInterpreter && !this.isWaitingForMessage) {
       this.executeInterpreter()
     }
+    this.updateParallelProcesses()
+  }
+
+  private updateParallelProcesses(): void {
+    // If we have no parallel interpreters, check if we need to start some
+    if (this.parallelInterpreters.length === 0) {
+      this.checkParallelTriggers()
+    }
+
+    // Update existing parallel interpreters
+    for (let i = this.parallelInterpreters.length - 1; i >= 0; i--) {
+      const interpreter = this.parallelInterpreters[i]
+      this.executeParallelInterpreter(interpreter, i)
+    }
+  }
+
+  private checkParallelTriggers(): void {
+    const map = this.map.currentMap
+    if (!map) return
+
+    map.events.forEach((event) => {
+      const page = this.getActivePage(event)
+      if (page && page.trigger === ZEventTrigger.Parallel) {
+        // Start parallel process if not already running (simplified check)
+        if (!this.parallelInterpreters.find((p) => p.eventId === event.id)) {
+          this.parallelInterpreters.push({
+            list: page.list,
+            index: 0,
+            eventId: event.id
+          })
+        }
+      }
+    })
   }
 
   private isWaitingForMessage: boolean = false
@@ -93,15 +134,7 @@ export class EventSystem extends ZSystem {
   }
 
   public startEvent(event: ZEvent): void {
-    let activePage: ZEventPage | null = null
-    for (let i = event.pages.length - 1; i >= 0; i--) {
-      const page = event.pages[i]
-      if (this.checkPageConditions(page.conditions)) {
-        activePage = page
-        break
-      }
-    }
-
+    const activePage = this.getActivePage(event)
     if (!activePage) return
 
     if (activePage.list && activePage.list.length > 0) {
@@ -126,16 +159,46 @@ export class EventSystem extends ZSystem {
       const val = gameState.getSwitch(Number(conditions.switch2Id))
       if (!val) return false
     }
+
     if (conditions.variableId && conditions.variableValue !== undefined) {
       const val = gameState.getVariable(Number(conditions.variableId))
       if (val < conditions.variableValue) return false
     }
 
-    // 4. TODO: Self Switch
-    // 5. TODO: Item
-    // 6. TODO: Actor
+    // Item check
+    if (conditions.item) {
+      // TODO: Implement inventory check
+    }
+
+    // Actor check
+    if (conditions.actor) {
+      // TODO: Implement party check
+    }
 
     return true
+  }
+
+  // Overload checkPageConditions to support self-switch
+  private checkPageConditionsWithEvent(conditions: ZEventCondition, eventId: string): boolean {
+    if (!this.checkPageConditions(conditions)) return false
+
+    if (conditions.selfSwitchCh) {
+      const mapId = this.map.currentMap?.id || 0
+      const val = this.game.getSelfSwitch(mapId, eventId, conditions.selfSwitchCh)
+      if (!val) return false
+    }
+
+    return true
+  }
+
+  private getActivePage(event: ZEvent): ZEventPage | null {
+    for (let i = event.pages.length - 1; i >= 0; i--) {
+      const page = event.pages[i]
+      if (this.checkPageConditionsWithEvent(page.conditions, event.id)) {
+        return page
+      }
+    }
+    return null
   }
 
   public checkTrigger(x: number, y: number, trigger: ZEventTrigger): boolean {
@@ -147,15 +210,7 @@ export class EventSystem extends ZSystem {
     const event = map.events.find((e) => e.x === x && e.y === y)
     if (!event) return false
 
-    let activePage: ZEventPage | null = null
-    for (let i = event.pages.length - 1; i >= 0; i--) {
-      const page = event.pages[i]
-      if (this.checkPageConditions(page.conditions)) {
-        activePage = page
-        break
-      }
-    }
-
+    const activePage = this.getActivePage(event)
     if (activePage && activePage.trigger === trigger) {
       this.startEvent(event)
       return true
@@ -170,7 +225,7 @@ export class EventSystem extends ZSystem {
       const cmd = this.activeInterpreter.list[this.activeInterpreter.index]
       this.activeInterpreter.index++
 
-      const result = this.executeCommand(cmd)
+      const result = this.executeCommand(cmd, this.activeInterpreter)
       if (result === 'wait') {
         return
       }
@@ -185,10 +240,34 @@ export class EventSystem extends ZSystem {
     this.isProcessing = false
   }
 
-  private executeCommand(cmd: ZEventCommand): ZCommandResult {
+  private executeParallelInterpreter(
+    interpreter: { list: ZEventCommand[]; index: number; eventId: string },
+    index: number
+  ): void {
+    while (interpreter.index < interpreter.list.length) {
+      const cmd = interpreter.list[interpreter.index]
+      interpreter.index++
+
+      const result = this.executeCommand(cmd, interpreter)
+      if (result === 'wait') {
+        return
+      }
+      if (result === 'stop') {
+        this.parallelInterpreters.splice(index, 1)
+        return
+      }
+    }
+    // Loop parallel process
+    interpreter.index = 0
+  }
+
+  private executeCommand(
+    cmd: ZEventCommand,
+    interpreter: { list: ZEventCommand[]; index: number; eventId: string }
+  ): ZCommandResult {
     const processor = this.processors.get(cmd.code)
     if (processor) {
-      return processor(cmd.parameters)
+      return processor(cmd.parameters, interpreter)
     }
 
     return 'continue'
@@ -233,6 +312,19 @@ export class EventSystem extends ZSystem {
       gameState.toggleSwitch(switchId)
     }
 
+    return 'continue'
+  }
+
+  private commandControlSelfSwitch(
+    params: unknown[],
+    interpreter: { eventId: string }
+  ): ZCommandResult {
+    const mapId = this.map.currentMap?.id || 0
+    const eventId = interpreter.eventId
+    const ch = params[0] as string
+    const value = params[1] === 1
+
+    this.game.setSelfSwitch(mapId, eventId, ch, value)
     return 'continue'
   }
 
@@ -282,18 +374,24 @@ export class EventSystem extends ZSystem {
     this.resumeProcessing()
   }
 
-  private commandWhen(params: unknown[]): ZCommandResult {
+  private commandWhen(
+    params: unknown[],
+    interpreter: { list: ZEventCommand[]; index: number }
+  ): ZCommandResult {
     const choiceIndex = params[0] as number
 
     if (this.pendingChoice === choiceIndex) {
       return 'continue'
     } else {
-      this.advanceToNextWhenOrEnd()
+      this.advanceToNextWhenOrEnd(interpreter)
       return 'continue'
     }
   }
 
-  private commandConditionalBranch(params: unknown[]): ZCommandResult {
+  private commandConditionalBranch(
+    params: unknown[],
+    interpreter: { list: ZEventCommand[]; index: number }
+  ): ZCommandResult {
     const gameState = this.game
     const type = params[0] as number
     let result = false
@@ -313,23 +411,35 @@ export class EventSystem extends ZSystem {
     if (result) {
       return 'continue'
     } else {
-      this.advanceToElseOrEnd()
+      this.advanceToElseOrEnd(interpreter)
       return 'continue'
     }
   }
 
-  private commandElse(): ZCommandResult {
-    this.advanceToEnd()
+  private commandElse(
+    _params: unknown[],
+    interpreter: { list: ZEventCommand[]; index: number }
+  ): ZCommandResult {
+    this.advanceToEnd(interpreter)
     return 'continue'
   }
 
-  private advanceToElseOrEnd(): void {
-    if (!this.activeInterpreter) return
-    let depth = 0
-    const list = this.activeInterpreter.list
+  private commandShowAnimation(): ZCommandResult {
+    // TODO: Implement animation system
+    return 'continue'
+  }
 
-    while (this.activeInterpreter.index < list.length) {
-      const cmd = list[this.activeInterpreter.index]
+  private commandSetMoveRoute(): ZCommandResult {
+    // TODO: Implement move route system
+    return 'continue'
+  }
+
+  private advanceToElseOrEnd(interpreter: { list: ZEventCommand[]; index: number }): void {
+    let depth = 0
+    const list = interpreter.list
+
+    while (interpreter.index < list.length) {
+      const cmd = list[interpreter.index]
 
       if (cmd.code === ZCommandCode.ConditionalBranch) {
         depth++
@@ -340,22 +450,21 @@ export class EventSystem extends ZSystem {
         depth--
       } else if (cmd.code === ZCommandCode.Else) {
         if (depth === 0) {
-          this.activeInterpreter.index++
+          interpreter.index++
           return
         }
       }
 
-      this.activeInterpreter.index++
+      interpreter.index++
     }
   }
 
-  private advanceToEnd(): void {
-    if (!this.activeInterpreter) return
+  private advanceToEnd(interpreter: { list: ZEventCommand[]; index: number }): void {
     let depth = 0
-    const list = this.activeInterpreter.list
+    const list = interpreter.list
 
-    while (this.activeInterpreter.index < list.length) {
-      const cmd = list[this.activeInterpreter.index]
+    while (interpreter.index < list.length) {
+      const cmd = list[interpreter.index]
 
       if (cmd.code === ZCommandCode.ConditionalBranch) {
         depth++
@@ -365,17 +474,16 @@ export class EventSystem extends ZSystem {
         }
         depth--
       }
-      this.activeInterpreter.index++
+      interpreter.index++
     }
   }
 
-  private advanceToNextWhenOrEnd(): void {
-    if (!this.activeInterpreter) return
+  private advanceToNextWhenOrEnd(interpreter: { list: ZEventCommand[]; index: number }): void {
     let depth = 0
-    const list = this.activeInterpreter.list
+    const list = interpreter.list
 
-    while (this.activeInterpreter.index < list.length) {
-      const cmd = list[this.activeInterpreter.index]
+    while (interpreter.index < list.length) {
+      const cmd = list[interpreter.index]
 
       if (cmd.code === ZCommandCode.ShowChoices) {
         depth++
@@ -389,7 +497,7 @@ export class EventSystem extends ZSystem {
           return
         }
       }
-      this.activeInterpreter.index++
+      interpreter.index++
     }
   }
 }

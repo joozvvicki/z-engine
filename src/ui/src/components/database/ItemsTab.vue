@@ -1,10 +1,17 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useDatabaseStore } from '@ui/stores/database'
-import { IconPlus, IconPackage } from '@tabler/icons-vue'
+import { IconPlus, IconPackage, IconSearch } from '@tabler/icons-vue'
 
 const db = useDatabaseStore()
 const selectedId = ref<number>(db.items[0]?.id || 0)
+const searchQuery = ref('')
+
+const filteredItems = computed(() => {
+  if (!searchQuery.value) return db.items
+  const query = searchQuery.value.toLowerCase()
+  return db.items.filter((i) => i.name.toLowerCase().includes(query))
+})
 
 const selectedItem = computed(() => db.items.find((i) => i.id === selectedId.value))
 
@@ -20,20 +27,32 @@ const handleAdd = (): void => {
     <!-- Item List Sidebar -->
     <div class="w-64 flex flex-col bg-gray-50/50 border-r border-gray-100">
       <div
-        class="px-4 py-4 flex justify-between items-center border-b border-gray-100 bg-white/80 backdrop-blur-sm"
+        class="px-4 py-4 flex flex-col gap-3 border-b border-gray-100 bg-white/80 backdrop-blur-sm"
       >
-        <span class="font-bold text-gray-900 tracking-tight">Items</span>
-        <button
-          class="w-7 h-7 flex items-center justify-center bg-black text-white rounded-lg shadow-lg shadow-black/10 hover:scale-105 active:scale-95 transition-all"
-          @click="handleAdd"
-        >
-          <IconPlus :size="14" stroke-width="3" />
-        </button>
+        <div class="flex justify-between items-center">
+          <span class="font-bold text-gray-900 tracking-tight">Items</span>
+          <button
+            class="w-7 h-7 flex items-center justify-center bg-black text-white rounded-lg shadow-lg shadow-black/10 hover:scale-105 active:scale-95 transition-all"
+            @click="handleAdd"
+          >
+            <IconPlus :size="14" stroke-width="3" />
+          </button>
+        </div>
+
+        <div class="relative">
+          <IconSearch class="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" :size="14" />
+          <input
+            v-model="searchQuery"
+            type="text"
+            placeholder="Search items..."
+            class="w-full pl-8 pr-3 py-1.5 bg-gray-100/50 border border-transparent rounded-lg text-[11px] focus:bg-white focus:border-black/10 outline-none transition-all"
+          />
+        </div>
       </div>
 
       <div class="flex-1 overflow-y-auto p-2 space-y-1">
         <div
-          v-for="item in db.items"
+          v-for="item in filteredItems"
           :key="item.id"
           class="px-3 py-2.5 cursor-pointer flex items-center gap-3 rounded-xl transition-all group relative"
           :class="
@@ -47,7 +66,7 @@ const handleAdd = (): void => {
             v-if="selectedId === item.id"
             class="absolute left-1.5 w-1 h-4 bg-black rounded-full"
           ></div>
-          <span class="font-mono text-[10px] opacity-40 font-bold w-6">{{
+          <span class="font-mono text-[10px] opacity-40 font-bold w-6 text-right">{{
             item.id.toString().padStart(3, '0')
           }}</span>
           <span class="truncate font-medium">{{ item.name || 'Unnamed Item' }}</span>
@@ -77,6 +96,7 @@ const handleAdd = (): void => {
                 v-model="selectedItem.name"
                 class="px-3 py-2 bg-gray-50 border border-gray-100 rounded-xl text-gray-900 focus:bg-white focus:border-black/20 focus:ring-4 focus:ring-black/5 outline-none transition-all shadow-sm"
                 type="text"
+                @input="db.save('Items.json', db.items)"
               />
             </div>
 
@@ -88,6 +108,7 @@ const handleAdd = (): void => {
                 v-model.number="selectedItem.price"
                 class="px-3 py-2 bg-gray-50 border border-gray-100 rounded-xl text-gray-900 focus:bg-white focus:border-black/20 focus:ring-4 focus:ring-black/5 outline-none transition-all shadow-sm"
                 type="number"
+                @input="db.save('Items.json', db.items)"
               />
             </div>
 
@@ -99,6 +120,7 @@ const handleAdd = (): void => {
                 v-model="selectedItem.description"
                 placeholder="Describe what this item does..."
                 class="px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-gray-900 focus:bg-white focus:border-black/20 outline-none transition-all shadow-sm h-32 resize-none leading-relaxed"
+                @input="db.save('Items.json', db.items)"
               ></textarea>
             </div>
           </div>

@@ -113,21 +113,6 @@ const filteredVariables = computed(() => {
             </div>
           </div>
 
-          <!-- Player Graphic -->
-          <div class="space-y-3">
-            <h4 class="text-xs font-bold text-gray-500 uppercase tracking-wider">Player Graphic</h4>
-            <div class="space-y-1">
-              <label class="text-xs font-medium text-gray-600">Asset Path</label>
-              <input
-                v-model="store.systemPlayerGraphic"
-                type="text"
-                class="w-full p-2 text-xs border border-gray-200 rounded focus:border-blue-400 outline-none transition-colors"
-                placeholder="img/characters/..."
-              />
-              <p class="text-[10px] text-gray-400">Relative to project root</p>
-            </div>
-          </div>
-
           <!-- Screen Resolution -->
           <div class="space-y-3">
             <h4 class="text-xs font-bold text-gray-500 uppercase tracking-wider">

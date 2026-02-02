@@ -299,8 +299,15 @@ const cmdParams = ref({
   branchVal: 1, // ON/OFF
   branchVarOp: 0, // Equal
   branchVarVal: 0,
+  branchSelfSwitch: 'A',
+  branchItem: 0,
+  branchActor: 0,
   hasElse: false,
-  choices: ['', '', '', ''] // Default 4 choices max
+  choices: ['', '', ''], // Default 3 choices max
+  selfSwitch: 'A',
+  selfSwitchVal: 1,
+  animationId: 1,
+  moveRoute: [] as string[]
 })
 const messageText = ref('')
 
@@ -344,9 +351,13 @@ const openCommandEditor = (index: number | null = null, isInsert: boolean = fals
       } else {
         cmdParams.value.branchVarVal = cmd.parameters[2] as number
       }
-    } else if (selectedCommandType.value === ZCommandCode.ShowChoices) {
       // Reset choices
-      cmdParams.value.choices = (cmd.parameters[0] as string[]).concat(['', '', '', '']).slice(0, 4)
+      cmdParams.value.choices = (cmd.parameters[0] as string[]).concat(['', '', '']).slice(0, 3)
+    } else if (selectedCommandType.value === ZCommandCode.ControlSelfSwitch) {
+      cmdParams.value.selfSwitch = cmd.parameters[0] as string
+      cmdParams.value.selfSwitchVal = cmd.parameters[1] as number
+    } else if (selectedCommandType.value === ZCommandCode.ShowAnimation) {
+      cmdParams.value.animationId = cmd.parameters[0] as number
     }
   } else {
     // Reset for new
@@ -365,8 +376,15 @@ const openCommandEditor = (index: number | null = null, isInsert: boolean = fals
       branchVal: 1,
       branchVarOp: 0,
       branchVarVal: 0,
+      branchSelfSwitch: 'A',
+      branchItem: 0,
+      branchActor: 0,
       hasElse: false,
-      choices: ['', '', '', '']
+      choices: ['', '', ''],
+      selfSwitch: 'A',
+      selfSwitchVal: 1,
+      animationId: 1,
+      moveRoute: []
     }
     messageText.value = ''
   }
@@ -410,11 +428,26 @@ const saveCommand = (): void => {
       ]
     }
   } else if (selectedCommandType.value === ZCommandCode.ShowChoices) {
-    const validChoices = cmdParams.value.choices.filter((c) => c.trim().length > 0)
+    const validChoices = cmdParams.value.choices.filter((c) => c && c.trim().length > 0)
     if (validChoices.length === 0) return // Must have choices
     newCommand = {
       code: ZCommandCode.ShowChoices,
       parameters: [validChoices]
+    }
+  } else if (selectedCommandType.value === ZCommandCode.ControlSelfSwitch) {
+    newCommand = {
+      code: ZCommandCode.ControlSelfSwitch,
+      parameters: [cmdParams.value.selfSwitch, cmdParams.value.selfSwitchVal]
+    }
+  } else if (selectedCommandType.value === ZCommandCode.ShowAnimation) {
+    newCommand = {
+      code: ZCommandCode.ShowAnimation,
+      parameters: [cmdParams.value.animationId]
+    }
+  } else if (selectedCommandType.value === ZCommandCode.SetMoveRoute) {
+    newCommand = {
+      code: ZCommandCode.SetMoveRoute,
+      parameters: [cmdParams.value.moveRoute]
     }
   } else {
     return
@@ -623,38 +656,37 @@ const saveCommand = (): void => {
               <div class="h-px bg-slate-100 flex-1"></div>
             </h3>
             <div class="bg-slate-50 rounded-xl p-4 border border-slate-100 space-y-3">
-              <div
-                class="flex items-center gap-3 opacity-50 cursor-not-allowed"
-                title="Coming Soon"
-              >
+              <div class="flex items-center gap-3">
                 <input
+                  v-model="activePage.conditions.switch1Id"
                   type="checkbox"
-                  disabled
                   class="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                 />
-                <span class="text-sm font-medium text-slate-500">Switch 1</span>
+                <span class="text-xs font-medium text-slate-500">Switch 1</span>
               </div>
-              <div
-                class="flex items-center gap-3 opacity-50 cursor-not-allowed"
-                title="Coming Soon"
-              >
+              <div class="flex items-center gap-3">
                 <input
+                  v-model="activePage.conditions.variableId"
                   type="checkbox"
-                  disabled
                   class="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                 />
-                <span class="text-sm font-medium text-slate-500">Variable</span>
+                <span class="text-xs font-medium text-slate-500">Variable</span>
               </div>
-              <div
-                class="flex items-center gap-3 opacity-50 cursor-not-allowed"
-                title="Coming Soon"
-              >
+              <div class="flex items-center gap-3">
                 <input
+                  v-model="activePage.conditions.selfSwitchCh"
                   type="checkbox"
-                  disabled
                   class="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                 />
-                <span class="text-sm font-medium text-slate-500">Self Switch</span>
+                <span class="text-xs font-medium text-slate-500">Self Switch</span>
+              </div>
+              <div class="flex items-center gap-3">
+                <input
+                  v-model="activePage.conditions.item"
+                  type="checkbox"
+                  class="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span class="text-xs font-medium text-slate-500">Item Possession</span>
               </div>
             </div>
           </div>
@@ -882,13 +914,26 @@ const saveCommand = (): void => {
                   <div class="flex items-center gap-2 flex-1">
                     <span
                       class="w-1.5 h-1.5 rounded-full shrink-0"
-                      :class="
-                        item.command.code === 101
-                          ? 'bg-green-400'
-                          : item.command.code === 111
-                            ? 'bg-purple-400'
-                            : 'bg-blue-400'
-                      "
+                      :class="{
+                        'bg-sky-400': item.command.code === ZCommandCode.ShowMessage,
+                        'bg-purple-400':
+                          item.command.code === ZCommandCode.ConditionalBranch ||
+                          item.command.code === ZCommandCode.Else ||
+                          item.command.code === ZCommandCode.EndBranch,
+                        'bg-orange-400':
+                          item.command.code === ZCommandCode.ShowChoices ||
+                          item.command.code === ZCommandCode.When ||
+                          item.command.code === ZCommandCode.EndChoices,
+                        'bg-rose-400':
+                          item.command.code === ZCommandCode.ControlSwitch ||
+                          item.command.code === ZCommandCode.ControlVariable ||
+                          item.command.code === ZCommandCode.ControlSelfSwitch,
+                        'bg-emerald-400':
+                          item.command.code === ZCommandCode.TransferPlayer ||
+                          item.command.code === ZCommandCode.SetMoveRoute,
+                        'bg-yellow-400': item.command.code === ZCommandCode.ShowAnimation,
+                        'bg-slate-300': !Object.values(ZCommandCode).includes(item.command.code)
+                      }"
                     ></span>
 
                     <!-- Transfer Player -->
@@ -987,6 +1032,31 @@ const saveCommand = (): void => {
                       class="text-orange-700 font-bold font-sans"
                     >
                       End Choices
+                    </span>
+
+                    <!-- Self Switch -->
+                    <span
+                      v-else-if="item.command.code === ZCommandCode.ControlSelfSwitch"
+                      class="text-rose-700 font-medium font-sans"
+                    >
+                      Self Switch {{ item.command.parameters[0] }} =
+                      {{ item.command.parameters[1] ? 'ON' : 'OFF' }}
+                    </span>
+
+                    <!-- Animation -->
+                    <span
+                      v-else-if="item.command.code === ZCommandCode.ShowAnimation"
+                      class="text-yellow-700 font-medium font-sans"
+                    >
+                      Show Animation #{{ item.command.parameters[0] }}
+                    </span>
+
+                    <!-- Move Route -->
+                    <span
+                      v-else-if="item.command.code === ZCommandCode.SetMoveRoute"
+                      class="text-emerald-700 font-medium font-sans"
+                    >
+                      Set Move Route
                     </span>
 
                     <span v-else class="text-slate-400 font-medium font-sans italic"
@@ -1306,33 +1376,119 @@ const saveCommand = (): void => {
             </div>
           </div>
 
-          <!-- Transfer Player Params -->
-          <div v-if="selectedCommandType === 201" class="grid grid-cols-3 gap-3">
+          <!-- Control Self Switch Params -->
+          <div v-if="selectedCommandType === ZCommandCode.ControlSelfSwitch" class="space-y-3">
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1"
+                  >Self Switch</label
+                >
+                <select
+                  v-model="cmdParams.selfSwitch"
+                  class="w-full border border-slate-200 rounded px-2 py-1.5 text-sm font-bold"
+                >
+                  <option v-for="ch in ['A', 'B', 'C', 'D']" :key="ch" :value="ch">{{ ch }}</option>
+                </select>
+              </div>
+              <div>
+                <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1"
+                  >State</label
+                >
+                <select
+                  v-model.number="cmdParams.selfSwitchVal"
+                  class="w-full border border-slate-200 rounded px-2 py-1.5 text-sm font-medium"
+                >
+                  <option :value="1">ON</option>
+                  <option :value="0">OFF</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Show Animation Params -->
+          <div v-if="selectedCommandType === ZCommandCode.ShowAnimation" class="space-y-3">
             <div>
               <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1"
-                >Map ID</label
+                >Animation ID</label
               >
               <input
-                v-model.number="cmdParams.mapId"
+                v-model.number="cmdParams.animationId"
                 type="number"
                 class="w-full border border-slate-200 rounded px-2 py-1.5 text-sm font-mono"
               />
             </div>
+          </div>
+
+          <!-- Set Move Route Params -->
+          <div v-if="selectedCommandType === ZCommandCode.SetMoveRoute" class="space-y-4">
             <div>
-              <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1">X</label>
-              <input
-                v-model.number="cmdParams.x"
-                type="number"
-                class="w-full border border-slate-200 rounded px-2 py-1.5 text-sm font-mono"
-              />
+              <label class="text-[10px] font-bold uppercase text-slate-400 block mb-2"
+                >Movement Route</label
+              >
+              <div
+                class="bg-slate-900 rounded-lg p-3 min-h-[120px] max-h-[200px] overflow-y-auto scrollbar-thin"
+              >
+                <div
+                  v-if="!cmdParams.moveRoute || cmdParams.moveRoute.length === 0"
+                  class="text-[10px] text-slate-500 italic text-center mt-8"
+                >
+                  No movement commands
+                </div>
+                <div v-else class="space-y-1">
+                  <div
+                    v-for="(cmd, idx) in cmdParams.moveRoute"
+                    :key="idx"
+                    class="group flex items-center justify-between bg-slate-800/50 hover:bg-slate-800 rounded px-2 py-1 border border-slate-700/50 transition-colors"
+                  >
+                    <span class="text-[10px] font-mono text-blue-400">
+                      {{ (cmd as any).code }}
+                    </span>
+                    <button
+                      class="text-slate-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                      @click="cmdParams.moveRoute.splice(idx, 1)"
+                    >
+                      <IconTrash size="12" />
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
-            <div>
-              <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1">Y</label>
-              <input
-                v-model.number="cmdParams.y"
-                type="number"
-                class="w-full border border-slate-200 rounded px-2 py-1.5 text-sm font-mono"
-              />
+
+            <div class="grid grid-cols-4 gap-2">
+              <button
+                v-for="move in ['UP', 'DOWN', 'LEFT', 'RIGHT']"
+                :key="move"
+                class="aspect-square bg-slate-100 hover:bg-blue-600 hover:text-white rounded-lg flex items-center justify-center transition-all border border-slate-200 hover:border-blue-600 active:scale-95"
+                :title="'Move ' + move"
+                @click="
+                  cmdParams.moveRoute = [
+                    ...((cmdParams.moveRoute as any[]) || []),
+                    { code: 'MOVE_' + move }
+                  ]
+                "
+              >
+                <component
+                  :is="'IconArrow' + move.charAt(0) + move.slice(1).toLowerCase()"
+                  size="16"
+                />
+              </button>
+              <button
+                class="col-span-2 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg text-[10px] font-bold text-slate-600 uppercase transition-all active:scale-95"
+                @click="
+                  cmdParams.moveRoute = [
+                    ...((cmdParams.moveRoute as any[]) || []),
+                    { code: 'WAIT', params: [60] }
+                  ]
+                "
+              >
+                Wait (1s)
+              </button>
+              <button
+                class="col-span-2 py-2 bg-red-50 hover:bg-red-100 rounded-lg text-[10px] font-bold text-red-600 uppercase transition-all active:scale-95"
+                @click="cmdParams.moveRoute = []"
+              >
+                Reset
+              </button>
             </div>
           </div>
 

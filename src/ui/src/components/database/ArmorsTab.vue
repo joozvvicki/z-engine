@@ -1,10 +1,17 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useDatabaseStore } from '@ui/stores/database'
-import { IconPlus, IconShield } from '@tabler/icons-vue'
+import { IconPlus, IconShield, IconSearch } from '@tabler/icons-vue'
 
 const db = useDatabaseStore()
 const selectedId = ref<number>(db.armors[0]?.id || 0)
+const searchQuery = ref('')
+
+const filteredArmors = computed(() => {
+  if (!searchQuery.value) return db.armors
+  const query = searchQuery.value.toLowerCase()
+  return db.armors.filter((a) => a.name.toLowerCase().includes(query))
+})
 
 const selectedArmor = computed(() => db.armors.find((a) => a.id === selectedId.value))
 
@@ -13,6 +20,15 @@ const handleAdd = (): void => {
   const last = db.armors[db.armors.length - 1]
   if (last) selectedId.value = last.id
 }
+
+const paramNames = ['MHP', 'MMP', 'ATK', 'DEF', 'MAT', 'MDF', 'AGI', 'LUK']
+
+const updateParam = (index: number, value: number): void => {
+  if (selectedArmor.value) {
+    selectedArmor.value.params[index] = value
+    db.save('Armors.json', db.armors)
+  }
+}
 </script>
 
 <template>
@@ -20,20 +36,32 @@ const handleAdd = (): void => {
     <!-- Armor List Sidebar -->
     <div class="w-64 flex flex-col bg-gray-50/50 border-r border-gray-100">
       <div
-        class="px-4 py-4 flex justify-between items-center border-b border-gray-100 bg-white/80 backdrop-blur-sm"
+        class="px-4 py-4 flex flex-col gap-3 border-b border-gray-100 bg-white/80 backdrop-blur-sm"
       >
-        <span class="font-bold text-gray-900 tracking-tight">Armors</span>
-        <button
-          class="w-7 h-7 flex items-center justify-center bg-black text-white rounded-lg shadow-lg shadow-black/10 hover:scale-105 active:scale-95 transition-all"
-          @click="handleAdd"
-        >
-          <IconPlus :size="14" stroke-width="3" />
-        </button>
+        <div class="flex justify-between items-center">
+          <span class="font-bold text-gray-900 tracking-tight">Armors</span>
+          <button
+            class="w-7 h-7 flex items-center justify-center bg-black text-white rounded-lg shadow-lg shadow-black/10 hover:scale-105 active:scale-95 transition-all"
+            @click="handleAdd"
+          >
+            <IconPlus :size="14" stroke-width="3" />
+          </button>
+        </div>
+
+        <div class="relative">
+          <IconSearch class="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" :size="14" />
+          <input
+            v-model="searchQuery"
+            type="text"
+            placeholder="Search armors..."
+            class="w-full pl-8 pr-3 py-1.5 bg-gray-100/50 border border-transparent rounded-lg text-[11px] focus:bg-white focus:border-black/10 outline-none transition-all"
+          />
+        </div>
       </div>
 
       <div class="flex-1 overflow-y-auto p-2 space-y-1">
         <div
-          v-for="armor in db.armors"
+          v-for="armor in filteredArmors"
           :key="armor.id"
           class="px-3 py-2.5 cursor-pointer flex items-center gap-3 rounded-xl transition-all group relative"
           :class="
@@ -47,7 +75,7 @@ const handleAdd = (): void => {
             v-if="selectedId === armor.id"
             class="absolute left-1.5 w-1 h-4 bg-black rounded-full"
           ></div>
-          <span class="font-mono text-[10px] opacity-40 font-bold w-6">{{
+          <span class="font-mono text-[10px] opacity-40 font-bold w-6 text-right">{{
             armor.id.toString().padStart(3, '0')
           }}</span>
           <span class="truncate font-medium">{{ armor.name || 'Unnamed Armor' }}</span>
@@ -77,30 +105,20 @@ const handleAdd = (): void => {
                 v-model="selectedArmor.name"
                 class="px-3 py-2 bg-gray-50 border border-gray-100 rounded-xl text-gray-900 focus:bg-white focus:border-black/20 focus:ring-4 focus:ring-black/5 outline-none transition-all shadow-sm"
                 type="text"
+                @input="db.save('Armors.json', db.armors)"
               />
             </div>
 
-            <div class="col-span-1 grid grid-cols-2 gap-x-6 gap-y-5">
-              <div class="flex flex-col gap-1.5">
-                <label class="text-[10px] uppercase tracking-widest font-bold text-gray-400"
-                  >Price</label
-                >
-                <input
-                  v-model.number="selectedArmor.price"
-                  class="px-3 py-2 bg-gray-50 border border-gray-100 rounded-xl text-gray-900 focus:bg-white focus:border-black/20 focus:ring-4 focus:ring-black/5 outline-none transition-all shadow-sm"
-                  type="number"
-                />
-              </div>
-              <div class="flex flex-col gap-1.5">
-                <label class="text-[10px] uppercase tracking-widest font-bold text-gray-400"
-                  >Defense</label
-                >
-                <input
-                  v-model.number="selectedArmor.defense"
-                  class="px-3 py-2 bg-gray-50 border border-gray-100 rounded-xl text-gray-900 focus:bg-white focus:border-black/20 focus:ring-4 focus:ring-black/5 outline-none transition-all shadow-sm"
-                  type="number"
-                />
-              </div>
+            <div class="col-span-1 flex flex-col gap-1.5">
+              <label class="text-[10px] uppercase tracking-widest font-bold text-gray-400"
+                >Price</label
+              >
+              <input
+                v-model.number="selectedArmor.price"
+                class="px-3 py-2 bg-gray-50 border border-gray-100 rounded-xl text-gray-900 focus:bg-white focus:border-black/20 focus:ring-4 focus:ring-black/5 outline-none transition-all shadow-sm"
+                type="number"
+                @input="db.save('Armors.json', db.armors)"
+              />
             </div>
 
             <div class="col-span-2 flex flex-col gap-1.5">
@@ -110,24 +128,51 @@ const handleAdd = (): void => {
               <textarea
                 v-model="selectedArmor.description"
                 placeholder="Describe what this armor does..."
-                class="px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-gray-900 focus:bg-white focus:border-black/20 outline-none transition-all shadow-sm h-32 resize-none leading-relaxed"
+                class="px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-gray-900 focus:bg-white focus:border-black/20 outline-none transition-all shadow-sm h-24 resize-none leading-relaxed"
+                @input="db.save('Armors.json', db.armors)"
               ></textarea>
             </div>
           </div>
 
-          <!-- Future Extensions -->
-          <div class="space-y-4 pt-10 border-t border-gray-100">
+          <!-- Parameters -->
+          <div class="space-y-6">
             <div class="flex items-center gap-3">
               <span class="text-[10px] uppercase tracking-widest font-bold text-gray-400"
-                >Armor Stats & Resistances</span
+                >Stat Bonuses</span
+              >
+              <div class="flex-1 h-px bg-gray-100"></div>
+            </div>
+
+            <div class="grid grid-cols-4 gap-4">
+              <div
+                v-for="(name, index) in paramNames"
+                :key="name"
+                class="px-4 py-3 bg-gray-50 rounded-2xl border border-gray-100 flex flex-col gap-1"
+              >
+                <span class="text-[9px] font-black text-gray-400 text-center">{{ name }}</span>
+                <input
+                  type="number"
+                  :value="selectedArmor.params[index]"
+                  class="w-full bg-transparent text-center font-bold text-gray-900 text-base outline-none"
+                  @input="(e) => updateParam(index, parseInt((e.target as HTMLInputElement).value))"
+                />
+              </div>
+            </div>
+          </div>
+
+          <!-- Future Extensions -->
+          <div class="space-y-4 pt-4 border-t border-gray-100">
+            <div class="flex items-center gap-3">
+              <span class="text-[10px] uppercase tracking-widest font-bold text-gray-400"
+                >Armor Traits</span
               >
               <div class="flex-1 h-px bg-gray-100"></div>
             </div>
 
             <div
-              class="bg-gray-50/50 rounded-2xl border border-dashed border-gray-200 p-12 text-center"
+              class="bg-gray-50/20 rounded-2xl border border-dashed border-gray-200 p-8 text-center"
             >
-              <p class="text-gray-400 text-sm italic">
+              <p class="text-gray-400 text-xs italic">
                 Advanced armor configuration (element resistance, status immunity) is under
                 development.
               </p>

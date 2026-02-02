@@ -11,6 +11,7 @@ import { useEventManagement } from '../../composables/useEventManagement'
 import { useTilesets } from '../../composables/useTilesets'
 
 import { type ZMap, type TileSelection, ZTool, ZLayer, type TilesetConfig } from '@engine/types'
+import { useDatabaseStore } from '../database'
 
 export const useEditorStore = defineStore('editor', () => {
   // ==========================================
@@ -60,7 +61,6 @@ export const useEditorStore = defineStore('editor', () => {
   const systemStartMapId = ref(1)
   const systemStartX = ref(0)
   const systemStartY = ref(0)
-  const systemPlayerGraphic = ref('img/characters/character.png')
   const systemScreenWidth = ref(1280)
   const systemScreenHeight = ref(720)
   const systemScreenZoom = ref(1.0)
@@ -100,7 +100,6 @@ export const useEditorStore = defineStore('editor', () => {
       systemStartMapId.value = sysData.startMapId
       systemStartX.value = sysData.startX
       systemStartY.value = sysData.startY
-      systemPlayerGraphic.value = sysData.playerGraphic
       systemScreenWidth.value = sysData.screenWidth || 1280
       systemScreenHeight.value = sysData.screenHeight || 720
       systemScreenZoom.value = sysData.screenZoom || 1.0
@@ -120,6 +119,10 @@ export const useEditorStore = defineStore('editor', () => {
         }
       }
     }
+
+    // 4. Load Database
+    const db = useDatabaseStore()
+    await db.loadAll()
   }
 
   const saveProject = async (): Promise<void> => {
@@ -138,7 +141,6 @@ export const useEditorStore = defineStore('editor', () => {
         startMapId: systemStartMapId.value,
         startX: systemStartX.value,
         startY: systemStartY.value,
-        playerGraphic: systemPlayerGraphic.value,
         screenWidth: systemScreenWidth.value,
         screenHeight: systemScreenHeight.value,
         screenZoom: systemScreenZoom.value
@@ -168,7 +170,6 @@ export const useEditorStore = defineStore('editor', () => {
       systemStartMapId,
       systemStartX,
       systemStartY,
-      systemPlayerGraphic,
       systemScreenWidth,
       systemScreenHeight,
       systemScreenZoom
@@ -185,7 +186,6 @@ export const useEditorStore = defineStore('editor', () => {
           startMapId: systemStartMapId.value,
           startX: systemStartX.value,
           startY: systemStartY.value,
-          playerGraphic: systemPlayerGraphic.value,
           screenWidth: systemScreenWidth.value,
           screenHeight: systemScreenHeight.value,
           screenZoom: systemScreenZoom.value
@@ -284,7 +284,6 @@ export const useEditorStore = defineStore('editor', () => {
     systemStartMapId,
     systemStartX,
     systemStartY,
-    systemPlayerGraphic,
     systemScreenWidth,
     systemScreenHeight,
     systemScreenZoom

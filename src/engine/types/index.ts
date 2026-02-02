@@ -1,46 +1,39 @@
-export interface ZClass {
+export interface ZDatabaseEntry {
   id: number
   name: string
-  nickname?: string
   description?: string
+  note?: string
 }
 
-export interface ZSkill {
-  id: number
-  name: string
-  description: string
+export interface ZClass extends ZDatabaseEntry {
+  nickname?: string
+  params: number[] // [MHP, MMP, ATK, DEF, MAT, MDF, AGI, LUK]
+}
+
+export interface ZSkill extends ZDatabaseEntry {
   icon?: string
 }
 
-export interface ZItem {
-  id: number
-  name: string
-  description: string
-  icon?: string
-  price: number
-}
-
-export interface ZWeapon {
-  id: number
-  name: string
-  description: string
+export interface ZItem extends ZDatabaseEntry {
   icon?: string
   price: number
-  attack: number
+  consumable: boolean
+  target: number
 }
 
-export interface ZArmor {
-  id: number
-  name: string
-  description: string
+export interface ZWeapon extends ZDatabaseEntry {
   icon?: string
   price: number
-  defense: number
+  params: number[]
 }
 
-export interface ZEnemy {
-  id: number
-  name: string
+export interface ZArmor extends ZDatabaseEntry {
+  icon?: string
+  price: number
+  params: number[]
+}
+
+export interface ZEnemy extends ZDatabaseEntry {
   mhp: number
   mmp: number
   atk: number
@@ -54,9 +47,7 @@ export interface ZEnemy {
   battlerName?: string
 }
 
-export interface ZActor {
-  id: number
-  name: string
+export interface ZActor extends ZDatabaseEntry {
   nickname: string
   classId: number
   initialLevel: number
@@ -64,6 +55,7 @@ export interface ZActor {
   profile: string
   face: string
   character: string
+  baseParams: number[] // Level-independent bonuses
 }
 
 export interface ZSystemData {
@@ -72,7 +64,6 @@ export interface ZSystemData {
   startMapId: number
   startX: number
   startY: number
-  playerGraphic: string
   screenWidth: number
   screenHeight: number
   screenZoom: number
@@ -225,7 +216,10 @@ export enum ZCommandCode {
   ConditionalBranch = 111,
   ControlSwitch = 121,
   ControlVariable = 122,
+  ControlSelfSwitch = 123,
   TransferPlayer = 201,
+  SetMoveRoute = 205,
+  ShowAnimation = 212,
   Else = 411,
   EndBranch = 412,
   When = 402,
@@ -235,7 +229,10 @@ export enum ZCommandCode {
 export type ZCommandResult = 'continue' | 'wait' | 'stop'
 
 export interface ZCommandProcessor {
-  (params: unknown[]): ZCommandResult
+  (
+    params: unknown[],
+    interpreter: { list: ZEventCommand[]; index: number; eventId: string }
+  ): ZCommandResult
 }
 
 export interface ZTileDelta {

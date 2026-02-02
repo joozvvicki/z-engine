@@ -1,87 +1,34 @@
 import { defineStore } from 'pinia'
-import { useLocalStorage } from '@vueuse/core'
+import { ref } from 'vue'
 import type { ZActor, ZClass, ZSkill, ZItem, ZWeapon, ZArmor, ZEnemy } from '@engine/types'
+import { ProjectService } from '../services/ProjectService'
 
 export const useDatabaseStore = defineStore('database', () => {
-  const actors = useLocalStorage<ZActor[]>('Z_DB_Actors', [
-    {
-      id: 1,
-      name: 'Harold',
-      nickname: '',
-      classId: 1,
-      initialLevel: 1,
-      maxLevel: 99,
-      profile: 'A brave warrior who fights for justice.',
-      face: 'Actor1_1',
-      character: 'Actor1_1'
-    },
-    {
-      id: 2,
-      name: 'Therese',
-      nickname: '',
-      classId: 2,
-      initialLevel: 1,
-      maxLevel: 99,
-      profile: 'A skilled mage.',
-      face: 'Actor1_2',
-      character: 'Actor1_2'
-    }
-  ])
+  const actors = ref<ZActor[]>([])
+  const classes = ref<ZClass[]>([])
+  const skills = ref<ZSkill[]>([])
+  const items = ref<ZItem[]>([])
+  const weapons = ref<ZWeapon[]>([])
+  const armors = ref<ZArmor[]>([])
+  const enemies = ref<ZEnemy[]>([])
+  const isLoaded = ref(false)
 
-  const classes = useLocalStorage<ZClass[]>('Z_DB_Classes', [
-    { id: 1, name: 'Paladin', description: 'A holy warrior with high defense.' },
-    { id: 2, name: 'Sorcerer', description: 'A master of arcane arts.' },
-    { id: 3, name: 'Ranger', description: 'A swift woodlander skilled with bows.' }
-  ])
+  const loadAll = async (): Promise<void> => {
+    isLoaded.value = false
+    actors.value = (await ProjectService.loadDatabaseFile<ZActor[]>('Actors.json')) || []
+    classes.value = (await ProjectService.loadDatabaseFile<ZClass[]>('Classes.json')) || []
+    skills.value = (await ProjectService.loadDatabaseFile<ZSkill[]>('Skills.json')) || []
+    items.value = (await ProjectService.loadDatabaseFile<ZItem[]>('Items.json')) || []
+    weapons.value = (await ProjectService.loadDatabaseFile<ZWeapon[]>('Weapons.json')) || []
+    armors.value = (await ProjectService.loadDatabaseFile<ZArmor[]>('Armors.json')) || []
+    enemies.value = (await ProjectService.loadDatabaseFile<ZEnemy[]>('Enemies.json')) || []
+    isLoaded.value = true
+  }
 
-  const skills = useLocalStorage<ZSkill[]>('Z_DB_Skills', [
-    { id: 1, name: 'Slash', description: 'A basic sword attack.' },
-    { id: 2, name: 'Fireball', description: 'A blast of magical fire.' }
-  ])
-
-  const items = useLocalStorage<ZItem[]>('Z_DB_Items', [
-    { id: 1, name: 'Potion', description: 'Restores small amount of HP.', price: 50 },
-    { id: 2, name: 'Elixir', description: 'Fully restores HP and MP.', price: 500 }
-  ])
-
-  const weapons = useLocalStorage<ZWeapon[]>('Z_DB_Weapons', [
-    { id: 1, name: 'Bronze Sword', description: 'A common sword.', price: 200, attack: 10 },
-    { id: 2, name: 'Iron Blade', description: 'A sturdy iron blade.', price: 500, attack: 25 }
-  ])
-
-  const armors = useLocalStorage<ZArmor[]>('Z_DB_Armors', [
-    {
-      id: 1,
-      name: 'Cloth Armor',
-      description: 'Basic protective clothing.',
-      price: 100,
-      defense: 5
-    },
-    {
-      id: 2,
-      name: 'Leather Plate',
-      description: 'Tough leather protection.',
-      price: 300,
-      defense: 15
-    }
-  ])
-
-  const enemies = useLocalStorage<ZEnemy[]>('Z_DB_Enemies', [
-    {
-      id: 1,
-      name: 'Slime',
-      mhp: 100,
-      mmp: 0,
-      atk: 10,
-      def: 10,
-      mat: 5,
-      mdf: 10,
-      agi: 8,
-      luk: 5,
-      exp: 10,
-      gold: 5
-    }
-  ])
+  const save = async (filename: string, data: unknown): Promise<void> => {
+    if (!isLoaded.value) return
+    await ProjectService.saveDatabaseFile(filename, data)
+  }
 
   // Akcje
   const addActor = (): void => {
@@ -95,13 +42,18 @@ export const useDatabaseStore = defineStore('database', () => {
       maxLevel: 99,
       profile: '',
       face: '',
-      character: ''
+      character: '',
+      baseParams: [0, 0, 0, 0, 0, 0, 0, 0]
     })
+    save('Actors.json', actors.value)
   }
 
   const deleteActor = (id: number): void => {
     const idx = actors.value.findIndex((a) => a.id === id)
-    if (idx !== -1) actors.value.splice(idx, 1)
+    if (idx !== -1) {
+      actors.value.splice(idx, 1)
+      save('Actors.json', actors.value)
+    }
   }
 
   const addClass = (): void => {
@@ -109,53 +61,90 @@ export const useDatabaseStore = defineStore('database', () => {
     classes.value.push({
       id: newId,
       name: `Class ${newId}`,
-      description: ''
+      description: '',
+      params: [500, 100, 10, 10, 10, 10, 10, 10]
     })
+    save('Classes.json', classes.value)
   }
 
   const deleteClass = (id: number): void => {
     const idx = classes.value.findIndex((c) => c.id === id)
-    if (idx !== -1) classes.value.splice(idx, 1)
+    if (idx !== -1) {
+      classes.value.splice(idx, 1)
+      save('Classes.json', classes.value)
+    }
   }
 
   const addSkill = (): void => {
     const newId = skills.value.length > 0 ? Math.max(...skills.value.map((s) => s.id)) + 1 : 1
-    skills.value.push({ id: newId, name: `Skill ${newId}`, description: '' })
+    skills.value.push({ id: newId, name: `Skill ${newId}` })
+    save('Skills.json', skills.value)
   }
 
   const deleteSkill = (id: number): void => {
     const idx = skills.value.findIndex((s) => s.id === id)
-    if (idx !== -1) skills.value.splice(idx, 1)
+    if (idx !== -1) {
+      skills.value.splice(idx, 1)
+      save('Skills.json', skills.value)
+    }
   }
 
   const addItem = (): void => {
     const newId = items.value.length > 0 ? Math.max(...items.value.map((i) => i.id)) + 1 : 1
-    items.value.push({ id: newId, name: `Item ${newId}`, description: '', price: 0 })
+    items.value.push({
+      id: newId,
+      name: `Item ${newId}`,
+      price: 0,
+      consumable: true,
+      target: 1
+    })
+    save('Items.json', items.value)
   }
 
   const deleteItem = (id: number): void => {
     const idx = items.value.findIndex((i) => i.id === id)
-    if (idx !== -1) items.value.splice(idx, 1)
+    if (idx !== -1) {
+      items.value.splice(idx, 1)
+      save('Items.json', items.value)
+    }
   }
 
   const addWeapon = (): void => {
     const newId = weapons.value.length > 0 ? Math.max(...weapons.value.map((w) => w.id)) + 1 : 1
-    weapons.value.push({ id: newId, name: `Weapon ${newId}`, description: '', price: 0, attack: 0 })
+    weapons.value.push({
+      id: newId,
+      name: `Weapon ${newId}`,
+      price: 0,
+      params: [0, 0, 5, 0, 0, 0, 0, 0]
+    })
+    save('Weapons.json', weapons.value)
   }
 
   const deleteWeapon = (id: number): void => {
     const idx = weapons.value.findIndex((w) => w.id === id)
-    if (idx !== -1) weapons.value.splice(idx, 1)
+    if (idx !== -1) {
+      weapons.value.splice(idx, 1)
+      save('Weapons.json', weapons.value)
+    }
   }
 
   const addArmor = (): void => {
     const newId = armors.value.length > 0 ? Math.max(...armors.value.map((a) => a.id)) + 1 : 1
-    armors.value.push({ id: newId, name: `Armor ${newId}`, description: '', price: 0, defense: 0 })
+    armors.value.push({
+      id: newId,
+      name: `Armor ${newId}`,
+      price: 0,
+      params: [0, 0, 0, 5, 0, 0, 0, 0]
+    })
+    save('Armors.json', armors.value)
   }
 
   const deleteArmor = (id: number): void => {
     const idx = armors.value.findIndex((a) => a.id === id)
-    if (idx !== -1) armors.value.splice(idx, 1)
+    if (idx !== -1) {
+      armors.value.splice(idx, 1)
+      save('Armors.json', armors.value)
+    }
   }
 
   const addEnemy = (): void => {
@@ -174,11 +163,15 @@ export const useDatabaseStore = defineStore('database', () => {
       exp: 10,
       gold: 10
     })
+    save('Enemies.json', enemies.value)
   }
 
   const deleteEnemy = (id: number): void => {
     const idx = enemies.value.findIndex((e) => e.id === id)
-    if (idx !== -1) enemies.value.splice(idx, 1)
+    if (idx !== -1) {
+      enemies.value.splice(idx, 1)
+      save('Enemies.json', enemies.value)
+    }
   }
 
   return {
@@ -202,6 +195,9 @@ export const useDatabaseStore = defineStore('database', () => {
     deleteArmor,
     enemies,
     addEnemy,
-    deleteEnemy
+    deleteEnemy,
+    loadAll,
+    save,
+    isLoaded
   }
 })

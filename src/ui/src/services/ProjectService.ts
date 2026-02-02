@@ -130,22 +130,27 @@ export class ProjectService {
     await window.api.writeProjectFile(`${this.projectPath}/data/${filename}`, JSON.stringify(map))
   }
 
-  public static async saveTilesets(configs: Record<string, TilesetConfig>): Promise<void> {
-    if (!this.projectPath) return
-    await window.api.writeProjectFile(
-      `${this.projectPath}/data/Tilesets.json`,
-      JSON.stringify(configs)
-    )
+  public static async loadTilesets(): Promise<Record<string, TilesetConfig>> {
+    return (await this.loadDatabaseFile('Tilesets.json')) || {}
   }
 
-  public static async loadTilesets(): Promise<Record<string, TilesetConfig>> {
-    if (!this.projectPath) return {}
+  public static async saveTilesets(configs: Record<string, TilesetConfig>): Promise<void> {
+    await this.saveDatabaseFile('Tilesets.json', configs)
+  }
+
+  public static async loadDatabaseFile<T>(filename: string): Promise<T | null> {
+    if (!this.projectPath) return null
     try {
-      const content = await window.api.readProjectFile(`${this.projectPath}/data/Tilesets.json`)
+      const content = await window.api.readProjectFile(`${this.projectPath}/data/${filename}`)
       return JSON.parse(content)
     } catch {
-      return {}
+      return null
     }
+  }
+
+  public static async saveDatabaseFile(filename: string, data: any): Promise<void> {
+    if (!this.projectPath) return
+    await window.api.writeProjectFile(`${this.projectPath}/data/${filename}`, JSON.stringify(data))
   }
 
   public static async loadMapInfos(): Promise<any[]> {

@@ -1,10 +1,17 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useDatabaseStore } from '@ui/stores/database'
-import { IconPlus } from '@tabler/icons-vue'
+import { IconPlus, IconSearch } from '@tabler/icons-vue'
 
 const db = useDatabaseStore()
 const selectedId = ref<number>(db.classes[0]?.id || 0)
+const searchQuery = ref('')
+
+const filteredClasses = computed(() => {
+  if (!searchQuery.value) return db.classes
+  const query = searchQuery.value.toLowerCase()
+  return db.classes.filter((c) => c.name.toLowerCase().includes(query))
+})
 
 const selectedClass = computed(() => db.classes.find((c) => c.id === selectedId.value))
 
@@ -13,6 +20,15 @@ const handleAdd = (): void => {
   const last = db.classes[db.classes.length - 1]
   if (last) selectedId.value = last.id
 }
+
+const paramNames = ['MHP', 'MMP', 'ATK', 'DEF', 'MAT', 'MDF', 'AGI', 'LUK']
+
+const updateParam = (index: number, value: number): void => {
+  if (selectedClass.value) {
+    selectedClass.value.params[index] = value
+    db.save('Classes.json', db.classes)
+  }
+}
 </script>
 
 <template>
@@ -20,20 +36,32 @@ const handleAdd = (): void => {
     <!-- Class List Sidebar -->
     <div class="w-64 flex flex-col bg-gray-50/50 border-r border-gray-100">
       <div
-        class="px-4 py-4 flex justify-between items-center border-b border-gray-100 bg-white/80 backdrop-blur-sm"
+        class="px-4 py-4 flex flex-col gap-3 border-b border-gray-100 bg-white/80 backdrop-blur-sm"
       >
-        <span class="font-bold text-gray-900 tracking-tight">Classes</span>
-        <button
-          class="w-7 h-7 flex items-center justify-center bg-black text-white rounded-lg shadow-lg shadow-black/10 hover:scale-105 active:scale-95 transition-all"
-          @click="handleAdd"
-        >
-          <IconPlus :size="14" stroke-width="3" />
-        </button>
+        <div class="flex justify-between items-center">
+          <span class="font-bold text-gray-900 tracking-tight">Classes</span>
+          <button
+            class="w-7 h-7 flex items-center justify-center bg-black text-white rounded-lg shadow-lg shadow-black/10 hover:scale-105 active:scale-95 transition-all"
+            @click="handleAdd"
+          >
+            <IconPlus :size="14" stroke-width="3" />
+          </button>
+        </div>
+
+        <div class="relative">
+          <IconSearch class="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" :size="14" />
+          <input
+            v-model="searchQuery"
+            type="text"
+            placeholder="Search classes..."
+            class="w-full pl-8 pr-3 py-1.5 bg-gray-100/50 border border-transparent rounded-lg text-[11px] focus:bg-white focus:border-black/10 outline-none transition-all"
+          />
+        </div>
       </div>
 
       <div class="flex-1 overflow-y-auto p-2 space-y-1">
         <div
-          v-for="zClass in db.classes"
+          v-for="zClass in filteredClasses"
           :key="zClass.id"
           class="px-3 py-2.5 cursor-pointer flex items-center gap-3 rounded-xl transition-all group relative"
           :class="
@@ -47,7 +75,7 @@ const handleAdd = (): void => {
             v-if="selectedId === zClass.id"
             class="absolute left-1.5 w-1 h-4 bg-black rounded-full"
           ></div>
-          <span class="font-mono text-[10px] opacity-40 font-bold w-6">{{
+          <span class="font-mono text-[10px] opacity-40 font-bold w-6 text-right">{{
             zClass.id.toString().padStart(3, '0')
           }}</span>
           <span class="truncate font-medium">{{ zClass.name || 'Unnamed Class' }}</span>
@@ -77,6 +105,7 @@ const handleAdd = (): void => {
                 v-model="selectedClass.name"
                 class="px-3 py-2 bg-gray-50 border border-gray-100 rounded-xl text-gray-900 focus:bg-white focus:border-black/20 focus:ring-4 focus:ring-black/5 outline-none transition-all shadow-sm"
                 type="text"
+                @input="db.save('Classes.json', db.classes)"
               />
             </div>
 
@@ -88,6 +117,7 @@ const handleAdd = (): void => {
                 v-model="selectedClass.nickname"
                 class="px-3 py-2 bg-gray-50 border border-gray-100 rounded-xl text-gray-900 focus:bg-white focus:border-black/20 focus:ring-4 focus:ring-black/5 outline-none transition-all shadow-sm"
                 type="text"
+                @input="db.save('Classes.json', db.classes)"
               />
             </div>
 
@@ -98,25 +128,52 @@ const handleAdd = (): void => {
               <textarea
                 v-model="selectedClass.description"
                 placeholder="Describe the characteristics of this class..."
-                class="px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-gray-900 focus:bg-white focus:border-black/20 outline-none transition-all shadow-sm h-32 resize-none leading-relaxed"
+                class="px-4 py-3 bg-gray-50 border border-gray-100 rounded-2xl text-gray-900 focus:bg-white focus:border-black/20 outline-none transition-all shadow-sm h-24 resize-none leading-relaxed"
+                @input="db.save('Classes.json', db.classes)"
               ></textarea>
             </div>
           </div>
 
-          <!-- Future Extensions -->
-          <div class="space-y-4 pt-10 border-t border-gray-100">
+          <!-- Parameter Growth -->
+          <div class="space-y-6">
             <div class="flex items-center gap-3">
               <span class="text-[10px] uppercase tracking-widest font-bold text-gray-400"
-                >Stat Growth & Skills</span
+                >Parameter Settings</span
+              >
+              <div class="flex-1 h-px bg-gray-100"></div>
+            </div>
+
+            <div class="grid grid-cols-4 gap-4">
+              <div
+                v-for="(name, index) in paramNames"
+                :key="name"
+                class="p-4 bg-gray-50 rounded-2xl border border-gray-100 flex flex-col gap-2"
+              >
+                <span class="text-[9px] font-black text-gray-400 text-center">{{ name }}</span>
+                <input
+                  type="number"
+                  :value="selectedClass.params[index]"
+                  class="w-full bg-transparent text-center font-bold text-gray-900 text-base outline-none"
+                  @input="(e) => updateParam(index, parseInt((e.target as HTMLInputElement).value))"
+                />
+              </div>
+            </div>
+          </div>
+
+          <!-- Future Extensions -->
+          <div class="space-y-4 pt-4 border-t border-gray-100">
+            <div class="flex items-center gap-3">
+              <span class="text-[10px] uppercase tracking-widest font-bold text-gray-400"
+                >Learned Skills</span
               >
               <div class="flex-1 h-px bg-gray-100"></div>
             </div>
 
             <div
-              class="bg-gray-50/50 rounded-2xl border border-dashed border-gray-200 p-12 text-center"
+              class="bg-gray-50/20 rounded-2xl border border-dashed border-gray-200 p-8 text-center"
             >
-              <p class="text-gray-400 text-sm italic">
-                Advanced class configuration (stats per level, learned skills) is under development.
+              <p class="text-gray-400 text-xs italic">
+                Skill learning progression is under development.
               </p>
             </div>
           </div>
