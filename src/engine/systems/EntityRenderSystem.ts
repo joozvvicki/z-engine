@@ -1,12 +1,12 @@
 import { Container, Sprite, Rectangle, Graphics, Texture } from '@engine/utils/pixi'
 import ZLogger from '@engine/utils/ZLogger'
 import { SpriteUtils } from '@engine/utils/SpriteUtils'
-import { ZLayer } from '@engine/types'
+import { ZLayer, ZEngineSignal, type ZEventGraphic, type ZMoveCommand } from '@engine/types'
 import { ZSystem, SystemMode } from '@engine/core/ZSystem'
 import { ServiceLocator } from '@engine/core/ServiceLocator'
 import { PlayerSystem } from '@engine/systems/PlayerSystem'
 import { RenderSystem } from '@engine/systems/RenderSystem'
-import { ZEngineSignal, type ZEventGraphic } from '@engine/types'
+import { PhysicsSystem } from '@engine/systems/PhysicsSystem'
 
 interface SpriteMetadata {
   sprite: Sprite
@@ -19,6 +19,12 @@ interface SpriteMetadata {
   direction: 'down' | 'left' | 'right' | 'up'
   animationFrame: number
   animationTimer: number
+  realX: number
+  realY: number
+  targetX: number
+  targetY: number
+  moveRoute: ZMoveCommand[]
+  moveRouteIndex: number
 }
 
 export class EntityRenderSystem extends ZSystem {
@@ -106,7 +112,13 @@ export class EntityRenderSystem extends ZSystem {
             animationFrame: 0,
             animationTimer: 0,
             isMoving: false,
-            direction: initialDir
+            direction: initialDir,
+            realX: event.x * this.tileSize,
+            realY: event.y * this.tileSize,
+            targetX: event.x,
+            targetY: event.y,
+            moveRoute: [],
+            moveRouteIndex: -1
           })
         }
         sprite.zIndex = (event.y + 1) * this.tileSize
@@ -132,17 +144,24 @@ export class EntityRenderSystem extends ZSystem {
   private async onEventStateChanged({
     eventId,
     direction,
-    graphic
+    graphic,
+    moveRoute
   }: {
     eventId: string
     direction?: 'down' | 'left' | 'right' | 'up'
     graphic?: ZEventGraphic
+    moveRoute?: ZMoveCommand[]
   }): Promise<void> {
     const meta = this.eventMetadata.get(eventId)
     if (!meta) return
 
     if (direction) {
       meta.direction = direction
+    }
+
+    if (moveRoute) {
+      meta.moveRoute = moveRoute
+      meta.moveRouteIndex = 0
     }
 
     if (graphic) {
@@ -346,17 +365,125 @@ export class EntityRenderSystem extends ZSystem {
         isMoving: this.playerSystem.isMoving,
         direction: this.playerSystem.direction,
         animationFrame: this.animationFrame,
-        animationTimer: this.animationTimer
+        animationTimer: this.animationTimer,
+        realX: this.playerSystem.realX,
+        realY: this.playerSystem.realY,
+        targetX: 0, // Not strictly used for animation
+        targetY: 0,
+        moveRoute: [],
+        moveRouteIndex: -1
       }
       this.updateEntityAnimation(playerMeta, delta)
       this.animationFrame = playerMeta.animationFrame
       this.animationTimer = playerMeta.animationTimer
     }
 
-    // 2. Update Event Animations
-    this.eventMetadata.forEach((meta) => {
+    // 2. Update Event Animations & Movement
+    this.eventMetadata.forEach((meta, eventId) => {
+      this.updateEventMovement(meta, eventId, delta)
       this.updateEntityAnimation(meta, delta)
     })
+  }
+
+  private updateEventMovement(meta: SpriteMetadata, eventId: string, delta: number): void {
+    const map = this.map.currentMap
+    if (!map) return
+    const event = map.events.find((e) => e.id === eventId)
+    if (!event) return
+
+    // 1. Process movement animation/interpolation
+    if (meta.isMoving) {
+      const speed = (2 * delta) / 16.66 // pixels per frame, normalized to 60fps
+      const targetRealX = meta.targetX * this.tileSize
+      const targetRealY = meta.targetY * this.tileSize
+
+      if (meta.realX < targetRealX) meta.realX = Math.min(meta.realX + speed, targetRealX)
+      else if (meta.realX > targetRealX) meta.realX = Math.max(meta.realX - speed, targetRealX)
+
+      if (meta.realY < targetRealY) meta.realY = Math.min(meta.realY + speed, targetRealY)
+      else if (meta.realY > targetRealY) meta.realY = Math.max(meta.realY - speed, targetRealY)
+
+      meta.sprite.x = meta.realX + this.tileSize / 2
+      meta.sprite.y = meta.realY + this.tileSize
+      meta.sprite.zIndex = meta.sprite.y + 0.1
+
+      if (meta.realX === targetRealX && meta.realY === targetRealY) {
+        meta.isMoving = false
+        event.x = meta.targetX
+        event.y = meta.targetY
+      }
+      return
+    }
+
+    // 2. Process next command in move route
+    if (meta.moveRouteIndex < 0 || meta.moveRouteIndex >= meta.moveRoute.length) {
+      if (meta.moveRouteIndex >= 0) {
+        meta.moveRouteIndex = -1
+        meta.moveRoute = []
+      }
+      return
+    }
+
+    const cmd = meta.moveRoute[meta.moveRouteIndex]
+    let dx = 0
+    let dy = 0
+    let nextDir = meta.direction
+
+    if (cmd.code === 'MOVE_UP') {
+      dy = -1
+      nextDir = 'up'
+    } else if (cmd.code === 'MOVE_DOWN') {
+      dy = 1
+      nextDir = 'down'
+    } else if (cmd.code === 'MOVE_LEFT') {
+      dx = -1
+      nextDir = 'left'
+    } else if (cmd.code === 'MOVE_RIGHT') {
+      dx = 1
+      nextDir = 'right'
+    } else if (cmd.code === 'TURN_UP') {
+      meta.direction = 'up'
+      meta.moveRouteIndex++
+      return
+    } else if (cmd.code === 'TURN_DOWN') {
+      meta.direction = 'down'
+      meta.moveRouteIndex++
+      return
+    } else if (cmd.code === 'TURN_LEFT') {
+      meta.direction = 'left'
+      meta.moveRouteIndex++
+      return
+    } else if (cmd.code === 'TURN_RIGHT') {
+      meta.direction = 'right'
+      meta.moveRouteIndex++
+      return
+    } else if (cmd.code === 'THROUGH_ON') {
+      const e = map.events.find((ev) => ev.id === eventId)
+      if (e) e.isThrough = true
+      meta.moveRouteIndex++
+      this.updateEventMovement(meta, eventId, delta)
+      return
+    } else if (cmd.code === 'THROUGH_OFF') {
+      const e = map.events.find((ev) => ev.id === eventId)
+      if (e) e.isThrough = false
+      meta.moveRouteIndex++
+      this.updateEventMovement(meta, eventId, delta)
+      return
+    }
+
+    if (dx !== 0 || dy !== 0) {
+      meta.direction = nextDir
+      const phys = this.services.require(PhysicsSystem)
+      const result = phys.checkPassage(event.x, event.y, event.x + dx, event.y + dy, {
+        isThrough: event.isThrough
+      })
+      if (result) {
+        meta.targetX = event.x + dx
+        meta.targetY = event.y + dy
+        meta.isMoving = true
+        meta.moveRouteIndex++
+      }
+    }
   }
 
   private updateEntityAnimation(meta: SpriteMetadata, delta: number): void {

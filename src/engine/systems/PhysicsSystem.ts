@@ -16,13 +16,18 @@ export class PhysicsSystem extends ZSystem {
     // No continuous update needed yet, passive system
   }
 
-  public isPassable(x: number, y: number): boolean {
+  public isPassable(x: number, y: number, options?: { isThrough?: boolean }): boolean {
     const map = this.map.currentMap
     if (!map) return false
 
     if (x < 0 || x >= map.width || y < 0 || y >= map.height) {
       return false
     }
+
+    // Check Events (Collision Priority)
+    // If an event is at (x,y) and is NOT through, it blocks regardless of tiles.
+    const blockingEvent = map.events.find((e) => e.x === x && e.y === y && !e.isThrough)
+    if (blockingEvent && !options?.isThrough) return false
 
     const strictLayers = [ZLayer.decoration, ZLayer.walls]
 
@@ -35,7 +40,12 @@ export class PhysicsSystem extends ZSystem {
         for (const tile of tiles) {
           const tilesetUrl = map.tilesetConfig?.[tile.tilesetId] || tile.tilesetId
           const config = this.tilesets.getTileConfig(tilesetUrl, tile.x, tile.y)
-          if (config?.isSolid) return false
+          if (config?.isSolid) {
+            // Check if any event at this position is 'through'
+            // If so, override tile solidity
+            const isThroughEvent = map.events.some((e) => e.x === x && e.y === y && e.isThrough)
+            if (!isThroughEvent && !options?.isThrough) return false
+          }
         }
       }
     }
@@ -50,7 +60,10 @@ export class PhysicsSystem extends ZSystem {
           const tilesetUrl = map.tilesetConfig?.[tile.tilesetId] || tile.tilesetId
           const config = this.tilesets.getTileConfig(tilesetUrl, tile.x, tile.y)
 
-          if (config?.isSolid) return false
+          if (config?.isSolid) {
+            const isThroughEvent = map.events.some((e) => e.x === x && e.y === y && e.isThrough)
+            if (!isThroughEvent && !options?.isThrough) return false
+          }
 
           if (config?.isHighPriority) {
             continue
@@ -65,9 +78,17 @@ export class PhysicsSystem extends ZSystem {
   }
 
   // Check if moving from (x1,y1) to (x2,y2) is allowed
-  public checkPassage(x: number, y: number, targetX: number, targetY: number): boolean {
+  public checkPassage(
+    x: number,
+    y: number,
+    targetX: number,
+    targetY: number,
+    options?: { isThrough?: boolean }
+  ): boolean {
+    if (options?.isThrough) return true
+
     // 1. Check General Solidity first
-    if (!this.isPassable(targetX, targetY)) return false
+    if (!this.isPassable(targetX, targetY, options)) return false
 
     // 2. Check Directional Blocking
     let bitLeaving = 0

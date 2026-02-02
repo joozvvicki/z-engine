@@ -1,4 +1,4 @@
-import { ZEngineSignal } from '@engine/types'
+import { ZEngineSignal, type ZMoveCommand } from '@engine/types'
 import ZLogger from '@engine/utils/ZLogger'
 import { ZSystem, SystemMode } from '@engine/core/ZSystem'
 import { ServiceLocator } from '@engine/core/ServiceLocator'
@@ -23,9 +23,12 @@ export class PlayerSystem extends ZSystem {
 
   private targetX: number = 0
   private targetY: number = 0
+  private moveRoute: ZMoveCommand[] = []
+  private moveRouteIndex: number = -1
 
   // Input blocking (e.g., during messages)
   private isInputBlocked: boolean = false
+  public isThrough: boolean = false
 
   constructor(services: ServiceLocator, tileSize: number) {
     super(services)
@@ -59,12 +62,113 @@ export class PlayerSystem extends ZSystem {
     this.bus.on(ZEngineSignal.MessageClosed, () => {
       this.isInputBlocked = false
     })
+
+    this.bus.on(ZEngineSignal.EventInternalStateChanged, (data) => {
+      if (data.eventId === 'PLAYER' && data.moveRoute) {
+        ZLogger.with('PlayerSystem').info('Received move route for player', data.moveRoute)
+        this.moveRoute = data.moveRoute
+        this.moveRouteIndex = 0
+      }
+    })
+
     this.snapToGrid()
   }
 
   public onUpdate(): void {
     this.updateMovement()
-    this.updateInput()
+    if (!this.isMoving) {
+      this.updateMoveRoute()
+      this.updateInput()
+    }
+  }
+
+  private updateMoveRoute(): void {
+    if (this.moveRouteIndex < 0 || this.moveRouteIndex >= this.moveRoute.length) {
+      if (this.moveRouteIndex >= 0) {
+        this.moveRouteIndex = -1 // Finished
+        this.moveRoute = []
+      }
+      return
+    }
+
+    const cmd = this.moveRoute[this.moveRouteIndex]
+    let dx = 0
+    let dy = 0
+    let nextDir = this.direction
+
+    const normalizedCode = cmd.code.startsWith('MOVE_') ? cmd.code : `MOVE_${cmd.code}`
+
+    if (normalizedCode === 'MOVE_UP') {
+      dy = -1
+      nextDir = 'up'
+    } else if (normalizedCode === 'MOVE_DOWN') {
+      dy = 1
+      nextDir = 'down'
+    } else if (normalizedCode === 'MOVE_LEFT') {
+      dx = -1
+      nextDir = 'left'
+    } else if (normalizedCode === 'MOVE_RIGHT') {
+      dx = 1
+      nextDir = 'right'
+    } else if (cmd.code === 'TURN_UP') {
+      this.direction = 'up'
+      this.moveRouteIndex++
+      return
+    } else if (cmd.code === 'TURN_DOWN') {
+      this.direction = 'down'
+      this.moveRouteIndex++
+      return
+    } else if (cmd.code === 'TURN_LEFT') {
+      this.direction = 'left'
+      this.moveRouteIndex++
+      return
+    } else if (cmd.code === 'TURN_RIGHT') {
+      this.direction = 'right'
+      this.moveRouteIndex++
+      return
+    } else if (cmd.code === 'THROUGH_ON') {
+      this.isThrough = true
+      this.moveRouteIndex++
+      this.updateMoveRoute()
+      return
+    } else if (cmd.code === 'THROUGH_OFF') {
+      this.isThrough = false
+      this.moveRouteIndex++
+      this.updateMoveRoute()
+      return
+    } else if (cmd.code === 'WAIT') {
+      // For now simple wait - just skip. Real wait would need a timer.
+      // Actually let's add a simple wait counter if we have one.
+      this.moveRouteIndex++
+      this.updateMoveRoute()
+      return
+    } else {
+      // Unknown command? Skip it.
+      ZLogger.with('PlayerSystem').warn(`Unknown move command: ${cmd.code}`)
+      this.moveRouteIndex++
+      this.updateMoveRoute()
+      return
+    }
+
+    if (dx !== 0 || dy !== 0) {
+      this.direction = nextDir
+      const result = this.physicsSystem.checkPassage(this.x, this.y, this.x + dx, this.y + dy, {
+        isThrough: this.isThrough
+      })
+      ZLogger.with('PlayerSystem').info(
+        `Move Route Command: ${cmd.code} (dir: ${nextDir}). Result: ${result} at ${this.x + dx},${
+          this.y + dy
+        }`
+      )
+      if (result) {
+        this.targetX = this.x + dx
+        this.targetY = this.y + dy
+        this.isMoving = true
+        this.moveRouteIndex++
+      } else {
+        ZLogger.with('PlayerSystem').warn(`Move Route Blocked: ${cmd.code}`)
+      }
+    }
   }
 
   private updateInput(): void {

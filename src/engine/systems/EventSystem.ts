@@ -8,7 +8,8 @@ import {
   type ZEventGraphic,
   ZCommandCode,
   ZEngineSignal,
-  ZEventTrigger
+  ZEventTrigger,
+  type ZMoveCommand
 } from '@engine/types'
 import { ZSystem, SystemMode } from '@engine/core/ZSystem'
 import { PlayerSystem } from '@engine/systems/PlayerSystem'
@@ -209,9 +210,12 @@ export class EventSystem extends ZSystem {
     for (let i = event.pages.length - 1; i >= 0; i--) {
       const page = event.pages[i]
       if (this.checkPageConditionsWithEvent(page.conditions, event.id)) {
+        // Sync through status for PhysicsSystem
+        event.isThrough = page.options.through
         return page
       }
     }
+    event.isThrough = false
     return null
   }
 
@@ -471,8 +475,19 @@ export class EventSystem extends ZSystem {
     return 'continue'
   }
 
-  private commandSetMoveRoute(): ZCommandResult {
-    // TODO: Implement move route system
+  private commandSetMoveRoute(params: unknown[], interpreter: { eventId: string }): ZCommandResult {
+    const targetId = params[0] as number // 0 = This Event, -1 = Player
+    const route = params[1] as ZMoveCommand[]
+
+    const eventId = targetId === 0 ? interpreter.eventId : targetId === -1 ? 'PLAYER' : null
+
+    if (eventId) {
+      this.bus.emit(ZEngineSignal.EventInternalStateChanged, {
+        eventId,
+        moveRoute: route
+      })
+    }
+
     return 'continue'
   }
 

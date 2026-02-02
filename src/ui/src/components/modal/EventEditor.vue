@@ -20,7 +20,12 @@ import {
   IconFlare,
   IconHourglass,
   IconChevronLeft,
-  IconSettings
+  IconSettings,
+  IconLockOpen,
+  IconLock,
+  IconChevronDown,
+  IconChevronRight,
+  IconChevronUp
 } from '@tabler/icons-vue'
 import {
   ZEventTrigger,
@@ -240,6 +245,15 @@ const getCharacterUrl = (filename: string): string => {
 }
 
 const getMoveIcon = (code: string): Component => {
+  if (code.startsWith('TURN_')) {
+    const dir = code.replace('TURN_', '')
+    if (dir === 'UP') return IconChevronUp
+    if (dir === 'DOWN') return IconChevronDown
+    if (dir === 'LEFT') return IconChevronLeft
+    return IconChevronRight
+  }
+  if (code === 'THROUGH_ON') return IconLockOpen
+  if (code === 'THROUGH_OFF') return IconLock
   if (code.endsWith('_UP')) return IconArrowUp
   if (code.endsWith('_DOWN')) return IconArrowDown
   if (code.endsWith('_LEFT')) return IconArrowLeft
@@ -429,7 +443,8 @@ const cmdParams = ref({
   direction: 'down' as 'down' | 'left' | 'right' | 'up',
   graphic: null as ZEventGraphic | null,
   waitFrames: 60,
-  moveRoute: [] as unknown[]
+  moveTarget: 0,
+  moveRoute: [] as { code: string; params?: unknown[] }[]
 })
 const messageText = ref('')
 const isSelectingGraphicForCommand = ref(false)
@@ -484,7 +499,8 @@ const openCommandEditor = (index: number | null = null, isInsert: boolean = fals
     } else if (selectedCommandType.value === ZCommandCode.ShowAnimation) {
       cmdParams.value.animationId = (cmd.parameters[0] as number) || 1
     } else if (selectedCommandType.value === ZCommandCode.SetMoveRoute) {
-      cmdParams.value.moveRoute = (cmd.parameters[0] as unknown[]) || []
+      cmdParams.value.moveTarget = (cmd.parameters[0] as number) || 0
+      cmdParams.value.moveRoute = (cmd.parameters[1] as any[]) || []
     } else if (selectedCommandType.value === ZCommandCode.SetEventDirection) {
       cmdParams.value.direction = (cmd.parameters[0] as 'down' | 'left' | 'right' | 'up') || 'down'
     } else if (selectedCommandType.value === ZCommandCode.SetEventGraphic) {
@@ -520,6 +536,7 @@ const openCommandEditor = (index: number | null = null, isInsert: boolean = fals
       direction: 'down',
       graphic: null,
       waitFrames: 60,
+      moveTarget: 0,
       moveRoute: []
     }
     messageText.value = ''
@@ -591,7 +608,7 @@ const saveCommand = (): void => {
   } else if (selectedCommandType.value === ZCommandCode.SetMoveRoute) {
     newCommand = {
       code: ZCommandCode.SetMoveRoute,
-      parameters: [cmdParams.value.moveRoute]
+      parameters: [cmdParams.value.moveTarget, cmdParams.value.moveRoute]
     }
   } else if (selectedCommandType.value === ZCommandCode.SetEventDirection) {
     newCommand = {
@@ -1251,7 +1268,7 @@ const saveCommand = (): void => {
                       v-else-if="item.command.code === ZCommandCode.SetMoveRoute"
                       class="text-emerald-700 font-medium font-sans"
                     >
-                      Set Move Route ({{ (item.command.parameters[0] as any[])?.length || 0 }}
+                      Set Move Route ({{ (item.command.parameters[1] as any[])?.length || 0 }}
                       cmds)
                     </span>
 
@@ -1828,6 +1845,36 @@ const saveCommand = (): void => {
           <div v-if="selectedCommandType === ZCommandCode.SetMoveRoute" class="space-y-4">
             <div>
               <label class="text-[10px] font-bold uppercase text-slate-400 block mb-2"
+                >Target Entity</label
+              >
+              <div class="flex gap-2 p-1 bg-slate-100 rounded-lg">
+                <button
+                  class="flex-1 py-1.5 text-xs font-bold rounded-md transition-all"
+                  :class="
+                    cmdParams.moveTarget === 0
+                      ? 'bg-white text-blue-600 shadow-sm'
+                      : 'text-slate-500 hover:text-slate-700'
+                  "
+                  @click="cmdParams.moveTarget = 0"
+                >
+                  This Event
+                </button>
+                <button
+                  class="flex-1 py-1.5 text-xs font-bold rounded-md transition-all"
+                  :class="
+                    cmdParams.moveTarget === -1
+                      ? 'bg-white text-blue-600 shadow-sm'
+                      : 'text-slate-500 hover:text-slate-700'
+                  "
+                  @click="cmdParams.moveTarget = -1"
+                >
+                  Player
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <label class="text-[10px] font-bold uppercase text-slate-400 block mb-2"
                 >Movement Route</label
               >
               <div
@@ -1883,14 +1930,16 @@ const saveCommand = (): void => {
             <div class="grid grid-cols-4 gap-2">
               <button
                 v-for="move in [
-                  'UP',
-                  'DOWN',
-                  'LEFT',
-                  'RIGHT',
+                  'MOVE_UP',
+                  'MOVE_DOWN',
+                  'MOVE_LEFT',
+                  'MOVE_RIGHT',
                   'TURN_UP',
                   'TURN_DOWN',
                   'TURN_LEFT',
-                  'TURN_RIGHT'
+                  'TURN_RIGHT',
+                  'THROUGH_ON',
+                  'THROUGH_OFF'
                 ]"
                 :key="move"
                 class="aspect-square bg-slate-100 hover:bg-blue-600 hover:text-white rounded-lg flex flex-col items-center justify-center transition-all border border-slate-200 hover:border-blue-600 active:scale-95"

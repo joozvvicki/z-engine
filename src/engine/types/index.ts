@@ -120,6 +120,7 @@ export interface ZEvent {
   name: string
   x: number
   y: number
+  isThrough?: boolean // Runtime collision override
   pages: ZEventPage[]
 }
 
@@ -162,6 +163,11 @@ export interface ZEventCommand {
   code: number
   parameters: unknown[]
   indent?: number
+}
+
+export interface ZMoveCommand {
+  code: string // e.g. 'MOVE_UP', 'WAIT'
+  params?: unknown[]
 }
 
 export interface ZMap {
@@ -313,5 +319,6 @@ export interface ZSignalData {
     eventId: string
     direction?: 'down' | 'left' | 'right' | 'up'
     graphic?: ZEventGraphic
+    moveRoute?: ZMoveCommand[]
   }
 }
