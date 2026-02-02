@@ -4,7 +4,6 @@ import { SpriteUtils } from '@engine/utils/SpriteUtils'
 import { type ZMap, type ZEventGraphic, type TileSelection, ZLayer } from '@engine/types'
 import { ZSystem } from '@engine/core/ZSystem'
 import { ServiceLocator } from '@engine/core/ServiceLocator'
-import { DEFAULT_PLAYER_GRAPHIC } from '@engine/constants'
 
 export class RenderSystem extends ZSystem {
   private layers: Record<ZLayer, PIXI.Container>
@@ -119,6 +118,7 @@ export class RenderSystem extends ZSystem {
     this.map.setMap(mapData)
     this.fullRenderDirty = true
     this.tileUpdates = []
+    this.showPlayerStart = false // Hide marker on map change until explicitly updated
   }
 
   private performDrawTile(
@@ -410,9 +410,7 @@ export class RenderSystem extends ZSystem {
       // Helper to construct a ZEventGraphic-like object for PlayerStart/Asset
       let graphicData: ZEventGraphic | null = null
 
-      if (event.name === 'PlayerStart') {
-        graphicData = DEFAULT_PLAYER_GRAPHIC
-      } else if (activePage && activePage.graphic) {
+      if (activePage && activePage.graphic) {
         graphicData = activePage.graphic
       }
 

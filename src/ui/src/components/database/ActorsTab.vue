@@ -59,9 +59,9 @@ const openCharacterSelector = (type: 'character' | 'face'): void => {
 const onSelectCharacter = (selection: any): void => {
   if (selectedActor.value) {
     if (characterSelectType.value === 'character') {
-      selectedActor.value.character = selection.tilesetId
+      selectedActor.value.character = `img/characters/${selection.tilesetId}`
     } else {
-      selectedActor.value.face = selection.tilesetId
+      selectedActor.value.face = `img/faces/${selection.tilesetId}`
     }
     db.save('Actors.json', db.actors)
   }

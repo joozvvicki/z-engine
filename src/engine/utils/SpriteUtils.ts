@@ -33,12 +33,14 @@ export class SpriteUtils {
       ) {
         rect = new PIXI.Rectangle(graphic.srcX, graphic.srcY, graphic.srcW, graphic.srcH)
       } else {
-        // Fallback: Standard 4x4 logic (default assumption if no pixel props)
-        const frameW = tex.width / 4
-        const frameH = tex.height / 4
+        // Fallback: Use graphic.w/h for division logic (default 3x4 for standard sheets)
+        const divW = graphic.w || 3
+        const divH = graphic.h || 4
+        const frameW = tex.width / divW
+        const frameH = tex.height / divH
         // Use graphic.x/y as frame index if available, else 0,0
-        const fx = (graphic.x || 0) * frameW
-        const fy = (graphic.y || 0) * frameH
+        const fx = (graphic.x || 0) * (tex.width / divW)
+        const fy = (graphic.y || 0) * (tex.height / divH)
 
         rect = new PIXI.Rectangle(fx, fy, frameW, frameH)
       }

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useEditorStore } from '@ui/stores/editor'
 import {
   IconDeviceFloppy,
@@ -278,13 +278,71 @@ const deleteCommand = (index: number): void => {
     // Standard delete
     activePage.value.list.splice(index, 1)
   }
+
+  // Update selection
+  if (activePage.value.list.length === 0) {
+    selectedCommandIndex.value = null
+  } else if (selectedCommandIndex.value !== null) {
+    if (selectedCommandIndex.value >= activePage.value.list.length) {
+      selectedCommandIndex.value = activePage.value.list.length - 1
+    }
+  }
 }
+
+// Keyboard shortcuts
+const handleKeydown = (e: KeyboardEvent): void => {
+  if (showCommandSelector.value) return // Don't interfere with modal
+  if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
+
+  if (e.key === 'Delete' || e.key === 'Backspace') {
+    if (selectedCommandIndex.value !== null) {
+      deleteCommand(selectedCommandIndex.value)
+    }
+  } else if (e.key === 'Enter') {
+    if (selectedCommandIndex.value !== null) {
+      openCommandEditor(selectedCommandIndex.value)
+    }
+  } else if (e.key === 'ArrowUp') {
+    if (selectedCommandIndex.value === null) {
+      selectedCommandIndex.value = 0
+    } else {
+      selectedCommandIndex.value = Math.max(0, selectedCommandIndex.value - 1)
+    }
+    e.preventDefault()
+  } else if (e.key === 'ArrowDown') {
+    if (selectedCommandIndex.value === null) {
+      selectedCommandIndex.value = 0
+    } else {
+      selectedCommandIndex.value = Math.min(
+        activePage.value.list.length - 1,
+        selectedCommandIndex.value + 1
+      )
+    }
+    e.preventDefault()
+  }
+}
+
+onMounted(() => window.addEventListener('keydown', handleKeydown))
+onUnmounted(() => window.removeEventListener('keydown', handleKeydown))
 
 // Command Editing
 const showCommandSelector = ref(false)
 const editingCommandIndex = ref<number | null>(null)
-const selectedCommandIndex = ref<number | null>(null) // New: for selection state
-const selectedCommandType = ref(201) // Default to Transfer Player
+const selectedCommandIndex = ref<number | null>(null)
+const commandListEl = ref<HTMLElement | null>(null)
+const selectedCommandType = ref(201)
+const getChoiceName = (itemIndex: number, choiceIndex: number): string => {
+  if (!activePage.value) return 'Choice'
+  const parent = activePage.value.list.find(
+    (c, i) => i < itemIndex && c.code === ZCommandCode.ShowChoices && i > itemIndex - 20
+  )
+  if (parent) {
+    const choices = parent.parameters[0] as string[]
+    return choices[choiceIndex] || 'Choice'
+  }
+  return 'Choice'
+}
+
 const cmdParams = ref({
   mapId: 1,
   x: 0,
@@ -307,7 +365,7 @@ const cmdParams = ref({
   selfSwitch: 'A',
   selfSwitchVal: 1,
   animationId: 1,
-  moveRoute: [] as string[]
+  moveRoute: [] as unknown[]
 })
 const messageText = ref('')
 
@@ -351,13 +409,17 @@ const openCommandEditor = (index: number | null = null, isInsert: boolean = fals
       } else {
         cmdParams.value.branchVarVal = cmd.parameters[2] as number
       }
-      // Reset choices
-      cmdParams.value.choices = (cmd.parameters[0] as string[]).concat(['', '', '']).slice(0, 3)
+    } else if (selectedCommandType.value === ZCommandCode.ShowChoices) {
+      cmdParams.value.choices = ((cmd.parameters[0] as string[]) || [])
+        .concat(['', '', ''])
+        .slice(0, 3)
     } else if (selectedCommandType.value === ZCommandCode.ControlSelfSwitch) {
       cmdParams.value.selfSwitch = cmd.parameters[0] as string
       cmdParams.value.selfSwitchVal = cmd.parameters[1] as number
     } else if (selectedCommandType.value === ZCommandCode.ShowAnimation) {
-      cmdParams.value.animationId = cmd.parameters[0] as number
+      cmdParams.value.animationId = (cmd.parameters[0] as number) || 1
+    } else if (selectedCommandType.value === ZCommandCode.SetMoveRoute) {
+      cmdParams.value.moveRoute = (cmd.parameters[0] as unknown[]) || []
     }
   } else {
     // Reset for new
@@ -525,6 +587,14 @@ const saveCommand = (): void => {
 
   showCommandSelector.value = false
   editingCommandIndex.value = null
+
+  // Scroll to selected
+  if (selectedCommandIndex.value !== null) {
+    nextTick(() => {
+      const el = commandListEl.value?.querySelector(`[data-index="${selectedCommandIndex.value}"]`)
+      if (el) el.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+    })
+  }
 }
 </script>
 
@@ -881,7 +951,7 @@ const saveCommand = (): void => {
             >
           </div>
 
-          <div class="flex-1 overflow-y-auto p-0 scrollbar-thin">
+          <div ref="commandListEl" class="flex-1 overflow-y-auto p-0 scrollbar-thin">
             <!-- Empty State -->
             <div
               v-if="activePage.list.length === 0"
@@ -897,6 +967,7 @@ const saveCommand = (): void => {
                 <!-- Command -->
                 <div
                   v-if="item.type === 'command'"
+                  :data-index="item.index"
                   class="group flex items-center gap-3 px-4 py-2 cursor-pointer border-b border-white transition-colors select-none"
                   :class="
                     selectedCommandIndex === item.index
@@ -1015,16 +1086,7 @@ const saveCommand = (): void => {
                       v-else-if="item.command.code === ZCommandCode.When"
                       class="text-orange-700 font-bold font-sans"
                     >
-                      When "{{
-                        (
-                          activePage?.list.find(
-                            (c, i) =>
-                              i < item.index &&
-                              c.code === ZCommandCode.ShowChoices &&
-                              i > item.index - 20
-                          ) as any
-                        )?.parameters[0][item.command.parameters[0] as number] || 'Choice'
-                      }}"
+                      When "{{ getChoiceName(item.index, item.command.parameters[0] as number) }}"
                     </span>
                     <!-- End Choices -->
                     <span

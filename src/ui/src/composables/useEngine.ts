@@ -1,6 +1,7 @@
 import { ref, shallowRef, onUnmounted, watch, type Ref } from 'vue'
 import { ZEngine } from '@engine/core/ZEngine'
 import { useEditorStore } from '@ui/stores/editor'
+import { useDatabaseStore } from '@ui/stores/database'
 import { ProjectService } from '../services/ProjectService'
 import { ZLayer, ZTool, type TileSelection, type ZDataProvider, type ZMap } from '@engine/types'
 import { TextureManager } from '@engine/managers/TextureManager'
@@ -22,6 +23,7 @@ export const useEngine = (
   initEngine: () => Promise<void>
 } => {
   const store = useEditorStore()
+  const db = useDatabaseStore()
   const engine = shallowRef<ZEngine | null>(null)
   const isEngineReady = ref(false)
   const isLoading = ref(false)
@@ -76,7 +78,6 @@ export const useEngine = (
         startMapId: store.systemStartMapId,
         startX: store.systemStartX,
         startY: store.systemStartY,
-        playerGraphic: store.systemPlayerGraphic,
         screenWidth: store.systemScreenWidth,
         screenHeight: store.systemScreenHeight,
         screenZoom: store.systemScreenZoom || 1.0,
@@ -205,6 +206,43 @@ export const useEngine = (
     }
   }
 
+  const syncEditorVisualization = (): void => {
+    if (!engine.value || !isEditorView) return
+    const renderSystem = engine.value.services.get(RenderSystem)
+    if (!renderSystem) return
+
+    // 1. Grid
+    syncGridSize(engine.value)
+
+    // 2. Layers & Markers
+    if (store.currentTool === ZTool.event) {
+      renderSystem.updateLayerDimming(null, true)
+      renderSystem.setEventMarkersVisible(true)
+
+      const activeMapId = store.activeMap?.id
+      const isStartMap =
+        activeMapId !== undefined &&
+        activeMapId !== null &&
+        Number(activeMapId) === Number(store.systemStartMapId)
+
+      if (isStartMap) {
+        const actor1 = db.actors.find((a) => a.id === 1)
+        let charPath = actor1?.character || ''
+        if (charPath && !charPath.startsWith('img/')) {
+          charPath = `img/characters/${charPath}`
+        }
+
+        renderSystem.setPlayerStartMarker(store.systemStartX, store.systemStartY, charPath)
+      } else {
+        renderSystem.hidePlayerStartMarker()
+      }
+    } else {
+      renderSystem.updateLayerDimming(store.activeLayer as ZLayer, false)
+      renderSystem.setEventMarkersVisible(false)
+      renderSystem.hidePlayerStartMarker()
+    }
+  }
+
   // --- Watchers for Sync ---
 
   // 1. Map Switching & Resizing (Only for Editor)
@@ -230,6 +268,7 @@ export const useEngine = (
                 mapOrId: store.activeMap
               })
             }
+            syncEditorVisualization()
             syncGridSize(engine.value)
           } finally {
             isLoading.value = false
@@ -265,31 +304,15 @@ export const useEngine = (
     () => ({
       eng: engine.value,
       layer: store.activeLayer,
-      tool: store.currentTool
+      tool: store.currentTool,
+      activeMapId: store.activeMap?.id,
+      systemStartMapId: store.systemStartMapId,
+      systemStartX: store.systemStartX,
+      systemStartY: store.systemStartY,
+      dbLoaded: db.isLoaded
     }),
-    async ({ eng, layer, tool }) => {
-      if (eng && isEditorView) {
-        const renderSystem = eng.services.get(RenderSystem)
-        if (renderSystem) {
-          if (tool === ZTool.event) {
-            renderSystem.updateLayerDimming(null, true)
-            renderSystem.setEventMarkersVisible(true)
-            if (store.activeMap && store.activeMap.id === store.systemStartMapId) {
-              renderSystem.setPlayerStartMarker(
-                store.systemStartX,
-                store.systemStartY,
-                store.systemPlayerGraphic
-              )
-            } else {
-              renderSystem.hidePlayerStartMarker()
-            }
-          } else {
-            renderSystem.updateLayerDimming(layer as ZLayer, false)
-            renderSystem.setEventMarkersVisible(false)
-            renderSystem.hidePlayerStartMarker()
-          }
-        }
-      }
+    () => {
+      syncEditorVisualization()
     },
     { immediate: true }
   )
