@@ -62,10 +62,18 @@ const onSelectCharacter = (selection: any): void => {
       selectedActor.value.character = `img/characters/${selection.tilesetId}`
       selectedActor.value.characterX = selection.x || 0
       selectedActor.value.characterY = selection.y || 0
+      selectedActor.value.characterSrcX = selection.pixelX
+      selectedActor.value.characterSrcY = selection.pixelY
+      selectedActor.value.characterSrcW = selection.pixelW
+      selectedActor.value.characterSrcH = selection.pixelH
     } else {
       selectedActor.value.face = `img/faces/${selection.tilesetId}`
       selectedActor.value.faceX = selection.x || 0
       selectedActor.value.faceY = selection.y || 0
+      selectedActor.value.faceSrcX = selection.pixelX
+      selectedActor.value.faceSrcY = selection.pixelY
+      selectedActor.value.faceSrcW = selection.pixelW
+      selectedActor.value.faceSrcH = selection.pixelH
     }
     db.save('Actors.json', db.actors)
   }

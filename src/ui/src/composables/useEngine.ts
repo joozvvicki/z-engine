@@ -237,7 +237,11 @@ export const useEngine = (
           store.systemStartY,
           charPath,
           actor1?.characterX || 0,
-          actor1?.characterY || 0
+          actor1?.characterY || 0,
+          actor1?.characterSrcX,
+          actor1?.characterSrcY,
+          actor1?.characterSrcW,
+          actor1?.characterSrcH
         )
       } else {
         renderSystem.hidePlayerStartMarker()

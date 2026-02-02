@@ -62,6 +62,23 @@ export class SpriteUtils {
         const fy = (graphic.y || 0) * frameH
 
         rect = new PIXI.Rectangle(fx, fy, frameW, frameH)
+
+        if (graphic.assetId.includes('characters') || graphic.group === 'character') {
+          console.log('[SpriteUtils] Character Slicing:', {
+            asset: graphic.assetId,
+            texWidth: tex.width,
+            texHeight: tex.height,
+            divW,
+            divH,
+            frameW,
+            frameH,
+            fx,
+            fy,
+            rectW: rect.width,
+            rectH: rect.height,
+            srcX: graphic.srcX
+          })
+        }
       }
 
       sprite = new PIXI.Sprite(
@@ -82,10 +99,10 @@ export class SpriteUtils {
           const scale = (tileSize / maxDim) * 0.9
           sprite.scale.set(scale)
         }
-        // In editor, we center it in the tile box
-        sprite.anchor.set(0.5, 0.5)
+        // In editor, we center it horizontally and align to bottom of tile
+        sprite.anchor.set(0.5, 1)
         sprite.x = tileSize / 2
-        sprite.y = tileSize / 2
+        sprite.y = tileSize
       }
     } else {
       // Tile Logic

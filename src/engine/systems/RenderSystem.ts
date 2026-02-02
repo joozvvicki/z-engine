@@ -267,6 +267,10 @@ export class RenderSystem extends ZSystem {
   private playerStartGraphic: string = ''
   private playerStartCharX: number = 0
   private playerStartCharY: number = 0
+  private playerStartSrcX?: number
+  private playerStartSrcY?: number
+  private playerStartSrcW?: number
+  private playerStartSrcH?: number
 
   public setEventMarkersVisible(visible: boolean): void {
     this.showEventMarkers = visible
@@ -281,13 +285,21 @@ export class RenderSystem extends ZSystem {
     y: number,
     graphicPath: string,
     charX: number = 0,
-    charY: number = 0
+    charY: number = 0,
+    srcX?: number,
+    srcY?: number,
+    srcW?: number,
+    srcH?: number
   ): void {
     this.playerStartX = x
     this.playerStartY = y
     this.playerStartGraphic = graphicPath
     this.playerStartCharX = charX
     this.playerStartCharY = charY
+    this.playerStartSrcX = srcX
+    this.playerStartSrcY = srcY
+    this.playerStartSrcW = srcW
+    this.playerStartSrcH = srcH
     this.showPlayerStart = true
     this.drawPlayerStartMarker()
   }
@@ -314,6 +326,10 @@ export class RenderSystem extends ZSystem {
       group: 'character',
       x: this.playerStartCharX,
       y: this.playerStartCharY,
+      srcX: this.playerStartSrcX,
+      srcY: this.playerStartSrcY,
+      srcW: this.playerStartSrcW,
+      srcH: this.playerStartSrcH,
       w: 0,
       h: 0
     }

@@ -41,6 +41,16 @@ const selectedFile = ref(
   files.find((f) => f.name === props.initialTilesetId) || files[0] || { name: 'None', url: '' }
 )
 
+const imageEl = ref<HTMLImageElement | null>(null)
+const texWidth = ref(0)
+const texHeight = ref(0)
+
+const onImageLoad = (e: Event): void => {
+  const img = e.target as HTMLImageElement
+  texWidth.value = img.naturalWidth
+  texHeight.value = img.naturalHeight
+}
+
 const selectedX = ref(props.initialX || 0)
 const selectedY = ref(props.initialY || 0)
 
@@ -61,7 +71,10 @@ const confirm = (): void => {
     pixelX: selectedX.value * frameWidth.value,
     pixelY: selectedY.value * frameHeight.value,
     pixelW: frameWidth.value,
-    pixelH: frameHeight.value
+    pixelH: frameHeight.value,
+    // Division info for "Smart" detection fallback
+    divW: Math.round(texWidth.value / frameWidth.value) || 1,
+    divH: Math.round(texHeight.value / frameHeight.value) || 1
   })
 }
 
@@ -141,9 +154,11 @@ const selectionStyle = computed(() => ({
           <div class="relative bg-white shadow-xl border border-slate-300 select-none">
             <!-- Image -->
             <img
+              ref="imageEl"
               :src="selectedFile.url"
               class="block pixelated pointer-events-none"
               draggable="false"
+              @load="onImageLoad"
             />
 
             <!-- Grid Overlay -->
@@ -152,7 +167,7 @@ const selectionStyle = computed(() => ({
               :style="gridStyle"
               @click="
                 (e) => {
-                  const rect = (e.target as HTMLElement).getBoundingClientRect()
+                  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
                   const x = Math.floor((e.clientX - rect.left) / frameWidth)
                   const y = Math.floor((e.clientY - rect.top) / frameHeight)
                   selectBlock(x, y)
