@@ -138,6 +138,7 @@ export interface ZEventCondition {
   switch2Id?: string
   variableId?: string
   variableValue?: number
+  variableOp?: number // 0: >=, 1: <=, 2: >, 3: <, 4: ==, 5: !=
   selfSwitchCh?: string // 'A', 'B', 'C', 'D'
   item?: string
   actor?: string

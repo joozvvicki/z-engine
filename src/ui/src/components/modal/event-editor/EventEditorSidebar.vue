@@ -6,11 +6,13 @@ import {
   IconRepeat,
   IconPlayerPlay,
   IconMouse,
-  IconSquare,
-  IconSquareCheck
+  IconCircle,
+  IconCircleCheck
 } from '@tabler/icons-vue'
 import type { ZEventPage } from '@engine/types'
 import { ZEventTrigger } from '@engine/types'
+import { useEditorStore } from '@ui/stores/editor'
+import { useDatabaseStore } from '@ui/stores/database'
 
 const props = defineProps<{
   hasSelection: boolean
@@ -18,6 +20,8 @@ const props = defineProps<{
 }>()
 
 const page = defineModel<ZEventPage>('page', { required: true })
+const store = useEditorStore()
+const db = useDatabaseStore()
 
 const emit = defineEmits(['select-graphic', 'set-graphic-from-selection', 'clear-graphic'])
 
@@ -53,73 +57,166 @@ const triggers = [
     description: 'Runs in background'
   }
 ]
+
+const variableOps = [
+  { label: '≥', value: 0 },
+  { label: '≤', value: 1 },
+  { label: '>', value: 2 },
+  { label: '<', value: 3 },
+  { label: '=', value: 4 },
+  { label: '≠', value: 5 }
+]
 </script>
 
 <template>
   <div
-    class="w-[300px] bg-white border-r border-slate-100 flex flex-col p-4 gap-4 overflow-y-auto shrink-0"
+    class="w-[300px] bg-white border-r border-slate-100 flex flex-col p-4 gap-4 overflow-y-auto shrink-0 scrollbar-thin"
   >
     <!-- Conditions Group -->
-    <div class="space-y-2">
+    <div class="space-y-3">
       <h3
         class="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2"
       >
         Conditions
         <div class="h-px bg-slate-100 flex-1"></div>
       </h3>
-      <div class="grid grid-cols-2 gap-1.5">
-        <button
-          class="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border text-[10px] font-bold transition-all"
-          :class="
-            page.conditions.switch1Id
-              ? 'bg-slate-900 border-slate-900 text-white shadow-sm'
-              : 'bg-slate-50 border-slate-100 text-slate-500 hover:bg-white hover:border-slate-300'
-          "
-          @click="page.conditions.switch1Id = page.conditions.switch1Id ? undefined : '1'"
-        >
-          <component :is="page.conditions.switch1Id ? IconSquareCheck : IconSquare" size="12" />
-          Switch 1
-        </button>
-        <button
-          class="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border text-[10px] font-bold transition-all"
-          :class="
-            page.conditions.variableId
-              ? 'bg-slate-900 border-slate-900 text-white shadow-sm'
-              : 'bg-slate-50 border-slate-100 text-slate-500 hover:bg-white hover:border-slate-300'
-          "
-          @click="page.conditions.variableId = page.conditions.variableId ? undefined : '1'"
-        >
-          <component :is="page.conditions.variableId ? IconSquareCheck : IconSquare" size="12" />
-          Variable
-        </button>
-        <button
-          class="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border text-[10px] font-bold transition-all"
-          :class="
-            page.conditions.selfSwitchCh
-              ? 'bg-slate-900 border-slate-900 text-white shadow-sm'
-              : 'bg-slate-50 border-slate-100 text-slate-500 hover:bg-white hover:border-slate-300'
-          "
-          @click="page.conditions.selfSwitchCh = page.conditions.selfSwitchCh ? undefined : 'A'"
-        >
-          <component :is="page.conditions.selfSwitchCh ? IconSquareCheck : IconSquare" size="12" />
-          Self Switch
-        </button>
-        <button
-          class="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border text-[10px] font-bold transition-all"
-          :class="
-            page.conditions.item
-              ? 'bg-slate-900 border-slate-900 text-white shadow-sm'
-              : 'bg-slate-50 border-slate-100 text-slate-500 hover:bg-white hover:border-slate-300'
-          "
-          @click="page.conditions.item = page.conditions.item ? undefined : '1'"
-        >
-          <component :is="page.conditions.item ? IconSquareCheck : IconSquare" size="12" />
-          Item
-        </button>
+
+      <div class="space-y-3">
+        <!-- Switch 1 -->
+        <div class="space-y-1.5">
+          <div class="flex items-center justify-between">
+            <span class="text-[9px] font-black uppercase tracking-wider text-slate-400"
+              >Switch 1</span
+            >
+            <button
+              class="transition-colors"
+              :class="page.conditions.switch1Id ? 'text-slate-900' : 'text-slate-200'"
+              @click="page.conditions.switch1Id = page.conditions.switch1Id ? '' : '1'"
+            >
+              <component :is="page.conditions.switch1Id ? IconCircleCheck : IconCircle" size="18" />
+            </button>
+          </div>
+          <select
+            v-if="page.conditions.switch1Id !== undefined && page.conditions.switch1Id !== ''"
+            v-model="page.conditions.switch1Id"
+            class="w-full bg-slate-50 border border-slate-100 rounded-lg px-2 py-1.5 text-[10px] font-bold focus:outline-none focus:border-slate-300 transition-colors"
+          >
+            <option v-for="(sw, idx) in store.systemSwitches" :key="idx" :value="String(idx + 1)">
+              #{{ String(idx + 1).padStart(3, '0') }}: {{ sw || '(None)' }}
+            </option>
+          </select>
+        </div>
+
+        <!-- Variable -->
+        <div class="space-y-1.5">
+          <div class="flex items-center justify-between">
+            <span class="text-[9px] font-black uppercase tracking-wider text-slate-400"
+              >Variable</span
+            >
+            <button
+              class="transition-colors"
+              :class="page.conditions.variableId ? 'text-slate-900' : 'text-slate-200'"
+              @click="page.conditions.variableId = page.conditions.variableId ? '' : '1'"
+            >
+              <component
+                :is="page.conditions.variableId ? IconCircleCheck : IconCircle"
+                size="18"
+              />
+            </button>
+          </div>
+          <div
+            v-if="page.conditions.variableId !== undefined && page.conditions.variableId !== ''"
+            class="space-y-1"
+          >
+            <select
+              v-model="page.conditions.variableId"
+              class="w-full bg-slate-50 border border-slate-100 rounded-lg px-2 py-1.5 text-[10px] font-bold focus:outline-none focus:border-slate-300 transition-colors"
+            >
+              <option v-for="(v, idx) in store.systemVariables" :key="idx" :value="String(idx + 1)">
+                #{{ String(idx + 1).padStart(3, '0') }}: {{ v || '(None)' }}
+              </option>
+            </select>
+            <div class="flex gap-1">
+              <select
+                v-model="page.conditions.variableOp"
+                class="w-12 bg-slate-50 border border-slate-100 rounded-lg px-1 py-1 text-[10px] font-bold text-center appearance-none cursor-pointer hover:bg-slate-100 transition-colors"
+              >
+                <option v-for="op in variableOps" :key="op.value" :value="op.value">
+                  {{ op.label }}
+                </option>
+              </select>
+              <input
+                v-model.number="page.conditions.variableValue"
+                type="number"
+                class="flex-1 bg-slate-50 border border-slate-100 rounded-lg px-2 py-1 text-[10px] font-bold focus:outline-none focus:border-slate-300 transition-colors"
+              />
+            </div>
+          </div>
+        </div>
+
+        <!-- Self Switch -->
+        <div class="space-y-1.5">
+          <div class="flex items-center justify-between">
+            <span class="text-[9px] font-black uppercase tracking-wider text-slate-400"
+              >Self Switch</span
+            >
+            <button
+              class="transition-colors"
+              :class="page.conditions.selfSwitchCh ? 'text-slate-900' : 'text-slate-200'"
+              @click="page.conditions.selfSwitchCh = page.conditions.selfSwitchCh ? '' : 'A'"
+            >
+              <component
+                :is="page.conditions.selfSwitchCh ? IconCircleCheck : IconCircle"
+                size="18"
+              />
+            </button>
+          </div>
+          <div
+            v-if="page.conditions.selfSwitchCh !== undefined && page.conditions.selfSwitchCh !== ''"
+            class="flex rounded-lg overflow-hidden border border-slate-100"
+          >
+            <button
+              v-for="ch in ['A', 'B', 'C', 'D']"
+              :key="ch"
+              class="flex-1 py-1.5 text-[10px] font-black transition-all"
+              :class="
+                page.conditions.selfSwitchCh === ch
+                  ? 'bg-slate-900 text-white'
+                  : 'bg-slate-50 text-slate-400 hover:bg-slate-100'
+              "
+              @click="page.conditions.selfSwitchCh = ch"
+            >
+              {{ ch }}
+            </button>
+          </div>
+        </div>
+
+        <!-- Item -->
+        <div class="space-y-1.5">
+          <div class="flex items-center justify-between">
+            <span class="text-[9px] font-black uppercase tracking-wider text-slate-400">Item</span>
+            <button
+              class="transition-colors"
+              :class="page.conditions.item ? 'text-slate-900' : 'text-slate-200'"
+              @click="page.conditions.item = page.conditions.item ? '' : '1'"
+            >
+              <component :is="page.conditions.item ? IconCircleCheck : IconCircle" size="18" />
+            </button>
+          </div>
+          <select
+            v-if="page.conditions.item !== undefined && page.conditions.item !== ''"
+            v-model="page.conditions.item"
+            class="w-full bg-slate-50 border border-slate-100 rounded-lg px-2 py-1.5 text-[10px] font-bold focus:outline-none focus:border-slate-300 transition-colors"
+          >
+            <option v-for="item in db.items" :key="item.id" :value="String(item.id)">
+              {{ item.name }}
+            </option>
+          </select>
+        </div>
       </div>
     </div>
 
-    <!-- Graphic Group -->
+    <!-- Appearance Group -->
     <div class="space-y-2">
       <h3
         class="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2"
@@ -249,7 +346,7 @@ const triggers = [
           "
           @click="page.options.walkAnim = !page.options.walkAnim"
         >
-          <component :is="page.options.walkAnim ? IconSquareCheck : IconSquare" size="12" />
+          <component :is="page.options.walkAnim ? IconCircleCheck : IconCircle" size="18" />
           Walk Anim
         </button>
         <button
@@ -261,7 +358,7 @@ const triggers = [
           "
           @click="page.options.stepAnim = !page.options.stepAnim"
         >
-          <component :is="page.options.stepAnim ? IconSquareCheck : IconSquare" size="12" />
+          <component :is="page.options.stepAnim ? IconCircleCheck : IconCircle" size="18" />
           Step Anim
         </button>
         <button
@@ -273,7 +370,7 @@ const triggers = [
           "
           @click="page.options.directionFix = !page.options.directionFix"
         >
-          <component :is="page.options.directionFix ? IconSquareCheck : IconSquare" size="12" />
+          <component :is="page.options.directionFix ? IconCircleCheck : IconCircle" size="18" />
           Dir Fix
         </button>
         <button
@@ -285,7 +382,7 @@ const triggers = [
           "
           @click="page.options.through = !page.options.through"
         >
-          <component :is="page.options.through ? IconSquareCheck : IconSquare" size="12" />
+          <component :is="page.options.through ? IconCircleCheck : IconCircle" size="18" />
           Through
         </button>
       </div>

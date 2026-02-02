@@ -32,6 +32,30 @@ const pages = ref<ZEventPage[]>([])
 
 const activePage = computed(() => pages.value[activePageIndex.value])
 
+const createDefaultPage = (): ZEventPage => ({
+  id: crypto.randomUUID(),
+  conditions: {
+    switch1Id: '',
+    switch2Id: '',
+    variableId: '',
+    variableValue: 0,
+    variableOp: 0,
+    selfSwitchCh: '',
+    item: '',
+    actor: ''
+  },
+  graphic: null,
+  trigger: ZEventTrigger.Action,
+  options: {
+    moveRoute: null,
+    walkAnim: true,
+    stepAnim: false,
+    directionFix: false,
+    through: false
+  },
+  list: []
+})
+
 const initialize = async (): Promise<void> => {
   if (props.eventId) {
     const event = store.activeMap?.events.find((e) => e.id === props.eventId)
@@ -41,30 +65,7 @@ const initialize = async (): Promise<void> => {
     }
   } else {
     eventName.value = 'New Event'
-    pages.value = [
-      {
-        id: crypto.randomUUID(),
-        conditions: {
-          switch1Id: '',
-          switch2Id: '',
-          variableId: '',
-          variableValue: 0,
-          selfSwitchCh: '',
-          item: '',
-          actor: ''
-        },
-        graphic: null,
-        trigger: ZEventTrigger.Action,
-        options: {
-          moveRoute: null,
-          walkAnim: true,
-          stepAnim: false,
-          directionFix: false,
-          through: false
-        },
-        list: []
-      }
-    ]
+    pages.value = [createDefaultPage()]
   }
 }
 
