@@ -4,6 +4,7 @@ import { ZSystem, SystemMode } from '@engine/core/ZSystem'
 import { ServiceLocator } from '@engine/core/ServiceLocator'
 import { AutotileSolver } from '@engine/utils/AutotileSolver'
 import { MapManager } from '@engine/managers/MapManager'
+import { SpriteUtils } from '@engine/utils/SpriteUtils'
 
 export class GhostSystem extends ZSystem {
   public container: Container
@@ -373,17 +374,38 @@ export class GhostSystem extends ZSystem {
     absX: number,
     absY: number
   ): void {
+    const isCharacter = tilesetId.endsWith('.png') || tilesetId.includes('characters/')
     const tex = this.textures.get(tilesetId)
     if (!tex) return
+
+    let finalSX = sX
+    let finalSY = sY
+    let finalSW = sW
+    let finalSH = sH
+
+    if (isCharacter) {
+      const { frameW, frameH, divW } = SpriteUtils.getFrameRect(
+        { assetId: tilesetId, x: 0, y: 0, w: 0, h: 0, group: 'character' },
+        tex
+      )
+      const idleCol = SpriteUtils.getIdleFrameIndex(divW)
+
+      // If we don't have explicit pixel overrides, use detected frame size
+      if (sW === this.tileSize && sH === this.tileSize) {
+        finalSW = frameW
+        finalSH = frameH
+        finalSX = idleCol * frameW
+        finalSY = 0 // Default row
+      }
+    }
 
     const sprite = new Sprite(
       new Texture({
         source: tex.source,
-        frame: new Rectangle(sX, sY, sW, sH)
+        frame: new Rectangle(finalSX, finalSY, finalSW, finalSH)
       })
     )
 
-    const isCharacter = tilesetId.endsWith('.png')
     if (isCharacter) {
       sprite.anchor.set(0.5, 1)
       sprite.x = absX + this.tileSize / 2

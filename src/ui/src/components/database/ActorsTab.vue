@@ -2,6 +2,7 @@
 import { ref, computed } from 'vue'
 import { useDatabaseStore } from '@ui/stores/database'
 import { IconPlus, IconSearch, IconStar, IconUser } from '@tabler/icons-vue'
+import { ProjectService } from '../../services/ProjectService'
 import CharacterSelector from '../modal/CharacterSelector.vue'
 
 const db = useDatabaseStore()
@@ -42,12 +43,7 @@ const updateBaseParam = (index: number, value: number): void => {
 }
 
 const getCharacterUrl = (filename: string): string => {
-  if (!filename) return ''
-  // Handle if path is already full or relative to img/characters/
-  const path = filename.startsWith('img/characters/')
-    ? filename.replace('img/characters/', '')
-    : filename
-  return new URL(`../../assets/img/characters/${path}`, import.meta.url).href
+  return ProjectService.resolveAssetUrl(filename)
 }
 
 const openCharacterSelector = (type: 'character' | 'face'): void => {
@@ -204,10 +200,11 @@ const onSelectCharacter = (selection: any): void => {
                     <div
                       class="pixelated"
                       :style="{
-                        width: '48px',
-                        height: '48px',
+                        width: `${selectedActor.characterSrcW || 48}px`,
+                        height: `${selectedActor.characterSrcH || 48}px`,
                         backgroundImage: `url(${getCharacterUrl(selectedActor.character)})`,
-                        backgroundPosition: '0px 0px'
+                        backgroundPosition: `-${selectedActor.characterSrcX || 0}px -${selectedActor.characterSrcY || 0}px`,
+                        transform: 'scale(1.5)'
                       }"
                     ></div>
                   </div>

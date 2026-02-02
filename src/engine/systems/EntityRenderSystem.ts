@@ -7,6 +7,19 @@ import { ServiceLocator } from '@engine/core/ServiceLocator'
 import { PlayerSystem } from '@engine/systems/PlayerSystem'
 import { RenderSystem } from '@engine/systems/RenderSystem'
 
+interface SpriteMetadata {
+  sprite: Sprite
+  colsPerChar: number
+  baseX: number
+  baseY: number
+  frameW: number
+  frameH: number
+  isMoving: boolean
+  direction: 'down' | 'left' | 'right' | 'up'
+  animationFrame: number
+  animationTimer: number
+}
+
 export class EntityRenderSystem extends ZSystem {
   public container: Container
   private playerSystem: PlayerSystem
@@ -22,6 +35,7 @@ export class EntityRenderSystem extends ZSystem {
   private animationFrame: number = 0
   private animationTimer: number = 0
   private readonly ANIMATION_SPEED: number = 150 // ms
+  private eventMetadata: Map<string, SpriteMetadata> = new Map()
   private eventSprites: Map<string, Container | Sprite> = new Map()
 
   constructor(services: ServiceLocator, tileSize: number) {
@@ -52,7 +66,8 @@ export class EntityRenderSystem extends ZSystem {
       if (!activePage || !activePage.graphic) continue
 
       // Ensure texture is loaded
-      await this.textures.load(activePage.graphic.assetId)
+      const assetPath = activePage.graphic.assetId
+      await this.textures.load(assetPath)
 
       const sprite = SpriteUtils.createEventSprite(
         activePage.graphic,
@@ -65,9 +80,32 @@ export class EntityRenderSystem extends ZSystem {
         sprite.x = event.x * this.tileSize
         sprite.y = event.y * this.tileSize
 
-        if (activePage.graphic.group === 'character') {
+        if (activePage.graphic.group === 'character' && sprite instanceof Sprite) {
           sprite.x += this.tileSize / 2
           sprite.y += this.tileSize
+
+          const tex = this.textures.get(assetPath)!
+          const { frameW, frameH, divW, divH } = SpriteUtils.getFrameRect(activePage.graphic, tex)
+          const colsPerChar = divW % 4 === 0 && divW % 3 !== 0 ? 4 : 3
+          const snapX = colsPerChar
+          const snapY = divH % 4 === 0 ? 4 : 1
+
+          const baseY = Math.floor((activePage.graphic.y || 0) / snapY) * snapY
+          const dirMap: ('down' | 'left' | 'right' | 'up')[] = ['down', 'left', 'right', 'up']
+          const initialDir = dirMap[(activePage.graphic.y || 0) % 4] || 'down'
+
+          this.eventMetadata.set(event.id, {
+            sprite,
+            colsPerChar,
+            baseX: Math.floor((activePage.graphic.x || 0) / snapX) * snapX,
+            baseY,
+            frameW,
+            frameH,
+            animationFrame: 0,
+            animationTimer: 0,
+            isMoving: false,
+            direction: initialDir
+          })
         }
         sprite.zIndex = (event.y + 1) * this.tileSize
 
@@ -252,57 +290,64 @@ export class EntityRenderSystem extends ZSystem {
     // Force sorting of the decoration layer to reflect zIndex changes
     this.container.sortChildren()
 
+    // 1. Update Player Animation
     if (this.playerSprite instanceof Sprite && this.playerSprite.texture.label !== 'EMPTY') {
-      this.updateAnimation(delta)
+      const playerMeta: SpriteMetadata = {
+        sprite: this.playerSprite,
+        colsPerChar: this.playerColsPerChar,
+        baseX: this.playerBaseX,
+        baseY: this.playerBaseY,
+        frameW: this.frameWidth,
+        frameH: this.frameHeight,
+        isMoving: this.playerSystem.isMoving,
+        direction: this.playerSystem.direction,
+        animationFrame: this.animationFrame,
+        animationTimer: this.animationTimer
+      }
+      this.updateEntityAnimation(playerMeta, delta)
+      this.animationFrame = playerMeta.animationFrame
+      this.animationTimer = playerMeta.animationTimer
     }
+
+    // 2. Update Event Animations
+    this.eventMetadata.forEach((meta) => {
+      this.updateEntityAnimation(meta, delta)
+    })
   }
 
-  private updateAnimation(delta: number): void {
-    if (!(this.playerSprite instanceof Sprite)) return
-
-    if (this.playerSystem.isMoving) {
-      this.animationTimer += delta
-      if (this.animationTimer > this.ANIMATION_SPEED) {
-        this.animationTimer = 0
-        // Use 4-step cycle for both 3-col (RM) and 4-col characters
-        this.animationFrame = (this.animationFrame + 1) % 4
+  private updateEntityAnimation(meta: SpriteMetadata, delta: number): void {
+    if (meta.isMoving) {
+      meta.animationTimer += delta
+      if (meta.animationTimer > this.ANIMATION_SPEED) {
+        meta.animationTimer = 0
+        meta.animationFrame = (meta.animationFrame + 1) % 4
       }
     } else {
-      this.animationFrame = 1 // Middle/Standing frame
-      this.animationTimer = 0
+      meta.animationFrame = SpriteUtils.getIdleFrameIndex(meta.colsPerChar)
+      meta.animationTimer = 0
     }
 
-    const row = this.getDirectionRow(this.playerSystem.direction)
-    const frames = this.playerColsPerChar === 4 ? [0, 1, 2, 3] : [0, 1, 2, 1]
-    const col = frames[this.animationFrame]
+    const row = this.getDirectionRow(meta.direction)
+    const frames = meta.colsPerChar === 4 ? [0, 1, 2, 3] : [0, 1, 2, 1]
+    const col = frames[meta.animationFrame] || 0
 
-    // Absolute frames in the sheet
-    const finalX = (this.playerBaseX + col) * this.frameWidth
-    const finalY = (this.playerBaseY + row) * this.frameHeight
+    const finalX = (meta.baseX + col) * meta.frameW
+    const finalY = (meta.baseY + row) * meta.frameH
 
-    const rect = new Rectangle(finalX, finalY, this.frameWidth, this.frameHeight)
-
-    const newTexture = new Texture({
-      source: this.playerSprite.texture.source,
-      frame: rect
+    meta.sprite.texture = new Texture({
+      source: meta.sprite.texture.source,
+      frame: new Rectangle(finalX, finalY, meta.frameW, meta.frameH)
     })
-
-    this.playerSprite.texture = newTexture
   }
 
   private getDirectionRow(dir: 'down' | 'left' | 'right' | 'up'): number {
-    switch (dir) {
-      case 'down':
-        return 0
-      case 'left':
-        return 1
-      case 'right':
-        return 2
-      case 'up':
-        return 3
-      default:
-        return 0
+    const map = {
+      down: 0,
+      left: 1,
+      right: 2,
+      up: 3
     }
+    return map[dir] ?? 0
   }
 
   public onDestroy(): void {

@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { IconCheck } from '@tabler/icons-vue'
+import { ref, computed, onMounted } from 'vue'
+import { IconCheck, IconLoader2 } from '@tabler/icons-vue'
+import { ProjectService } from '../../services/ProjectService'
 
 const props = defineProps<{
   initialTilesetId?: string | null
@@ -16,30 +17,37 @@ const emit = defineEmits(['close', 'select'])
 const frameWidth = ref(props.initialPixelW || 48)
 const frameHeight = ref(props.initialPixelH || 48)
 
-// Calculate grid index based on frame size?
-// If we change frame size, selectedX/Y (indices) mean different pixels.
-// We should reset selection or try to approximate?
-// For simpler UX, we stick to index-based selection but the grid changes.
+const files = ref<{ name: string; url: string }[]>([])
+const isLoadingFiles = ref(true)
 
-// Use relative path for glob to ensure it works without alias issues
-const modules = import.meta.glob('../../assets/img/characters/*.png', {
-  eager: true,
-  query: '?url',
-  import: 'default'
-})
+const loadProjectCharacters = async (): Promise<void> => {
+  isLoadingFiles.value = true
+  try {
+    const rawFiles = await ProjectService.getProjectFiles('img/characters')
+    files.value = rawFiles.map((filename) => ({
+      name: filename,
+      url: ProjectService.resolveAssetUrl(`img/characters/${filename}`)
+    }))
 
-// Prepare file list
-const files = Object.keys(modules).map((path) => {
-  const name = path.split('/').pop() || path
-  return {
-    name,
-    url: modules[path] as string
+    // Update selected file after loading list
+    if (props.initialTilesetId) {
+      const found = files.value.find((f) => f.name === props.initialTilesetId)
+      if (found) selectedFile.value = found
+    } else if (files.value.length > 0) {
+      selectedFile.value = files.value[0]
+    }
+  } catch (e) {
+    console.error('Failed to load character files', e)
+  } finally {
+    isLoadingFiles.value = false
   }
+}
+
+onMounted(() => {
+  loadProjectCharacters()
 })
 
-const selectedFile = ref(
-  files.find((f) => f.name === props.initialTilesetId) || files[0] || { name: 'None', url: '' }
-)
+const selectedFile = ref<{ name: string; url: string }>({ name: 'None', url: '' })
 
 const texWidth = ref(0)
 const texHeight = ref(0)
@@ -130,7 +138,10 @@ const selectionStyle = computed(() => ({
           </div>
         </div>
 
-        <div class="flex-1 overflow-y-auto p-2 space-y-1">
+        <div class="flex-1 overflow-y-auto p-2 space-y-1 relative">
+          <div v-if="isLoadingFiles" class="absolute inset-0 flex items-center justify-center">
+            <IconLoader2 class="w-6 h-6 animate-spin text-slate-300" />
+          </div>
           <button
             v-for="file in files"
             :key="file.name"

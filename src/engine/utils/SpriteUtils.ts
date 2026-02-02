@@ -28,13 +28,17 @@ export class SpriteUtils {
       // Priority 2: Use divisions if provided
       if (divW <= 1 || divH <= 1) {
         // Fallback: Smart detection
-        if (ratio > 1.2) {
-          divW = 12
-          divH = 8
-        } else if (Math.abs(ratio - 1.0) < 0.1) {
+        const tolerance = 0.1
+        if (Math.abs(ratio - 192 / 288) < tolerance || Math.abs(ratio - 12 / 8) < tolerance) {
+          // RM standard (3x4 or 12x8)
+          divW = ratio > 1 ? 12 : 3
+          divH = ratio > 1 ? 8 : 4
+        } else if (Math.abs(ratio - 1.0) < tolerance) {
+          // Square (4x4)
           divW = 4
           divH = 4
         } else {
+          // Default fallback
           divW = 3
           divH = 4
         }
@@ -47,6 +51,12 @@ export class SpriteUtils {
     const fy = (graphic.y || 0) * frameH
 
     return { frameW, frameH, divW, divH, fx, fy }
+  }
+
+  public static getIdleFrameIndex(divW: number): number {
+    // 4-column sheets (4x4) use frame 0 as idle
+    // 3-column sheets (RM standard) use frame 1 as idle
+    return divW % 4 === 0 && divW % 3 !== 0 ? 0 : 1
   }
 
   public static createEventSprite(

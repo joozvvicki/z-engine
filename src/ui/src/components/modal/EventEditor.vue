@@ -16,6 +16,7 @@ import {
   type ZEventCommand,
   type ZEventGraphic
 } from '@engine/types'
+import { ProjectService } from '../../services/ProjectService'
 import CharacterSelector from './CharacterSelector.vue'
 
 const props = defineProps<{
@@ -222,8 +223,7 @@ const onSelectGraphic = (selection: any): void => {
 }
 
 const getCharacterUrl = (filename: string): string => {
-  // Use Vite's asset handling to get the URL
-  return new URL(`../../assets/img/characters/${filename}`, import.meta.url).href
+  return ProjectService.resolveAssetUrl(filename)
 }
 
 const save = (): void => {
@@ -786,13 +786,20 @@ const saveCommand = (): void => {
                     <div
                       class="pixelated"
                       :style="{
-                        width: `${activePage.graphic.srcW || activePage.graphic.w * 48}px`,
-                        height: `${activePage.graphic.srcH || activePage.graphic.h * 48}px`,
+                        width: `${activePage.graphic.srcW || 48}px`,
+                        height: `${activePage.graphic.srcH || 48}px`,
                         backgroundImage: `url(${getCharacterUrl(activePage.graphic.assetId)})`,
                         backgroundPosition:
                           activePage.graphic.srcX !== undefined
                             ? `-${activePage.graphic.srcX}px -${activePage.graphic.srcY}px`
-                            : `-${activePage.graphic.x * 48}px -${activePage.graphic.y * 48}px`
+                            : (() => {
+                                // Default preview frame logic: calculate frame offset
+                                if (activePage.graphic.group === 'character') {
+                                  // Simplified guess: Use col 0/1 logic if we can detect it
+                                  return `-${(activePage.graphic.x || 0) * 48}px -${(activePage.graphic.y || 0) * 48}px`
+                                }
+                                return `-${(activePage.graphic.x || 0) * 48}px -${(activePage.graphic.y || 0) * 48}px`
+                              })()
                       }"
                     ></div>
                   </div>
