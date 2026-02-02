@@ -54,7 +54,11 @@ export interface ZActor extends ZDatabaseEntry {
   maxLevel: number
   profile: string
   face: string
+  faceX: number
+  faceY: number
   character: string
+  characterX: number
+  characterY: number
   baseParams: number[] // Level-independent bonuses
 }
 

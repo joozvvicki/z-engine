@@ -232,7 +232,13 @@ export const useEngine = (
           charPath = `img/characters/${charPath}`
         }
 
-        renderSystem.setPlayerStartMarker(store.systemStartX, store.systemStartY, charPath)
+        renderSystem.setPlayerStartMarker(
+          store.systemStartX,
+          store.systemStartY,
+          charPath,
+          actor1?.characterX || 0,
+          actor1?.characterY || 0
+        )
       } else {
         renderSystem.hidePlayerStartMarker()
       }

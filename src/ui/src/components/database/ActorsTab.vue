@@ -60,8 +60,12 @@ const onSelectCharacter = (selection: any): void => {
   if (selectedActor.value) {
     if (characterSelectType.value === 'character') {
       selectedActor.value.character = `img/characters/${selection.tilesetId}`
+      selectedActor.value.characterX = selection.x || 0
+      selectedActor.value.characterY = selection.y || 0
     } else {
       selectedActor.value.face = `img/faces/${selection.tilesetId}`
+      selectedActor.value.faceX = selection.x || 0
+      selectedActor.value.faceY = selection.y || 0
     }
     db.save('Actors.json', db.actors)
   }

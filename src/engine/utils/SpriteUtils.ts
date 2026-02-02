@@ -33,14 +33,33 @@ export class SpriteUtils {
       ) {
         rect = new PIXI.Rectangle(graphic.srcX, graphic.srcY, graphic.srcW, graphic.srcH)
       } else {
-        // Fallback: Use graphic.w/h for division logic (default 3x4 for standard sheets)
-        const divW = graphic.w || 3
-        const divH = graphic.h || 4
+        // Fallback: Smart division based on texture ratio
+        const ratio = tex.width / tex.height
+        let divW = graphic.w || 0
+        let divH = graphic.h || 0
+
+        // If not explicitly provided (or set to 1 by legacy code), detect format
+        if (divW <= 1 || divH <= 1) {
+          if (ratio > 1.2) {
+            // Full sheet (12x8 frames)
+            divW = 12
+            divH = 8
+          } else if (Math.abs(ratio - 1.0) < 0.1) {
+            // Square sheet (4x4 frames)
+            divW = 4
+            divH = 4
+          } else {
+            // Standard small sheet (3x4 frames)
+            divW = 3
+            divH = 4
+          }
+        }
+
         const frameW = tex.width / divW
         const frameH = tex.height / divH
-        // Use graphic.x/y as frame index if available, else 0,0
-        const fx = (graphic.x || 0) * (tex.width / divW)
-        const fy = (graphic.y || 0) * (tex.height / divH)
+        // Use graphic.x/y as frame index
+        const fx = (graphic.x || 0) * frameW
+        const fy = (graphic.y || 0) * frameH
 
         rect = new PIXI.Rectangle(fx, fy, frameW, frameH)
       }
