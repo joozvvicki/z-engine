@@ -425,6 +425,9 @@ export interface ZSignalData {
     moveRouteSkip?: boolean
     isThrough?: boolean
   }
-  [ZEngineSignal.EventExecutionStarted]: { eventId: string }
+  [ZEngineSignal.EventExecutionStarted]: {
+    eventId: string
+    triggererPos?: { x: number; y: number }
+  }
   [ZEngineSignal.EventExecutionFinished]: { eventId: string }
 }

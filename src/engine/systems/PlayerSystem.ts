@@ -98,11 +98,7 @@ export class PlayerSystem extends ZSystem implements ZMoveable {
   }
 
   private updateMoveRoute(delta: number): void {
-    // The instruction "In EntityRenderSystem, pass delta to processNextCommand(moveable, playerPos, delta)"
-    // seems to refer to a different system or a general pattern.
-    // In PlayerSystem, the player itself is the 'moveable', and 'playerPos' is not directly used here
-    // as the player's own position is implicit.
-    // The `delta` argument is already being passed correctly.
+    if (this.isInputBlocked) return
     this.movementProcessor.processNextCommand(this, undefined, delta)
   }
 

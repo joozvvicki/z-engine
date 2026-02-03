@@ -7,6 +7,7 @@ import { ServiceLocator } from '@engine/core/ServiceLocator'
 import { PlayerSystem } from '@engine/systems/PlayerSystem'
 import { RenderSystem } from '@engine/systems/RenderSystem'
 import { PhysicsSystem } from '@engine/systems/PhysicsSystem'
+import { EventSystem } from '@engine/systems/EventSystem'
 
 import { MovementProcessor, type ZMoveable } from '@engine/core/MovementProcessor'
 
@@ -21,11 +22,14 @@ interface SpriteMetadata extends ZMoveable {
   animationTimer: number
   realX: number
   realY: number
+  preInteractionDirection?: 'down' | 'left' | 'right' | 'up' | null
+  isInteracting?: boolean
 }
 
 export class EntityRenderSystem extends ZSystem {
   public container: Container
   private playerSystem: PlayerSystem
+  private eventSystem: EventSystem
   private tileSize: number
 
   private playerSprite: Sprite | null = null
@@ -52,6 +56,7 @@ export class EntityRenderSystem extends ZSystem {
     this.container.sortableChildren = true
 
     this.playerSystem = undefined as unknown as PlayerSystem
+    this.eventSystem = undefined as unknown as EventSystem
   }
 
   public async loadEvents(): Promise<void> {
@@ -143,6 +148,7 @@ export class EntityRenderSystem extends ZSystem {
 
   public async onBoot(): Promise<void> {
     this.playerSystem = this.services.require(PlayerSystem)
+    this.eventSystem = this.services.require(EventSystem)
     const renderSystem = this.services.require(RenderSystem)
     this.movementProcessor = new MovementProcessor(this.services.require(PhysicsSystem))
 
@@ -152,6 +158,12 @@ export class EntityRenderSystem extends ZSystem {
     await this.createPlayerSprite()
 
     this.bus.on(ZEngineSignal.EventInternalStateChanged, this.onEventStateChanged.bind(this))
+    this.bus.on(ZEngineSignal.EventExecutionStarted, ({ eventId, triggererPos }) => {
+      this.onEventExecutionStarted(eventId, triggererPos)
+    })
+    this.bus.on(ZEngineSignal.EventExecutionFinished, ({ eventId }) => {
+      this.onEventExecutionFinished(eventId)
+    })
   }
 
   private async onEventStateChanged({
@@ -211,6 +223,57 @@ export class EntityRenderSystem extends ZSystem {
         meta.direction = dirMap[(graphic.y || 0) % 4] || meta.direction
       }
     }
+  }
+
+  private onEventExecutionStarted(eventId: string, triggererPos?: { x: number; y: number }): void {
+    const meta = this.eventMetadata.get(eventId)
+    if (!meta) return
+
+    meta.isInteracting = true
+
+    // Force stop movement immediately
+    if (meta.isMoving) {
+      meta.realX = meta.targetX * this.tileSize
+      meta.realY = meta.targetY * this.tileSize
+      meta.x = meta.targetX
+      meta.y = meta.targetY
+      meta.isMoving = false
+
+      // Update the event data as well (optional but good for consistency)
+      const event = this.map.currentMap?.events.find((e) => e.id === eventId)
+      if (event) {
+        event.x = meta.x
+        event.y = meta.y
+      }
+    }
+
+    if (!triggererPos || meta.directionFix) return
+
+    // Store current direction to restore later
+    meta.preInteractionDirection = meta.direction
+
+    // Turn toward triggerer
+    const dx = triggererPos.x - meta.x
+    const dy = triggererPos.y - meta.y
+
+    if (Math.abs(dx) > Math.abs(dy)) {
+      meta.direction = dx > 0 ? 'right' : 'left'
+    } else if (dy !== 0 || dx !== 0) {
+      meta.direction = dy > 0 ? 'down' : 'up'
+    }
+  }
+
+  private onEventExecutionFinished(eventId: string): void {
+    const meta = this.eventMetadata.get(eventId)
+    if (!meta) return
+
+    meta.isInteracting = false
+
+    if (!meta.preInteractionDirection) return
+
+    // Restore direction
+    meta.direction = meta.preInteractionDirection
+    meta.preInteractionDirection = null
   }
 
   private async createPlayerSprite(): Promise<void> {
@@ -488,8 +551,8 @@ export class EntityRenderSystem extends ZSystem {
         event.x = meta.targetX
         event.y = meta.targetY
       }
-    } else {
-      // 2. Process next command in move route
+    } else if (!meta.isInteracting && !this.eventSystem.isProcessing) {
+      // 2. Process next command in move route (only if NOT interacting and no global event processing)
       this.movementProcessor.processNextCommand(
         meta as unknown as ZMoveable,
         {
@@ -509,7 +572,7 @@ export class EntityRenderSystem extends ZSystem {
 
     const shouldAnimate = (meta.isMoving && meta.walkAnim) || meta.stepAnim
 
-    if (shouldAnimate) {
+    if (shouldAnimate && !meta.isInteracting) {
       meta.animationTimer += delta
       if (meta.animationTimer > this.ANIMATION_SPEED) {
         meta.animationTimer = 0

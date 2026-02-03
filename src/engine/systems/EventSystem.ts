@@ -22,7 +22,7 @@ export class EventSystem extends ZSystem {
   private playerSystem: PlayerSystem
   private sceneManager: SceneManager
 
-  private isProcessing: boolean = false
+  public isProcessing: boolean = false
   private activeInterpreter: {
     list: ZEventCommand[]
     index: number
@@ -76,16 +76,19 @@ export class EventSystem extends ZSystem {
     })
 
     this.bus.on(ZEngineSignal.InteractionRequested, ({ x, y }) => {
-      const handled = this.checkTrigger(x, y, ZEventTrigger.Action)
+      const playerPos = this.playerSystem
+        ? { x: this.playerSystem.x, y: this.playerSystem.y }
+        : undefined
+      const handled = this.checkTrigger(x, y, ZEventTrigger.Action, playerPos)
       if (handled) return
 
       if (this.playerSystem) {
-        this.checkTrigger(this.playerSystem.x, this.playerSystem.y, ZEventTrigger.Action)
+        this.checkTrigger(this.playerSystem.x, this.playerSystem.y, ZEventTrigger.Action, playerPos)
       }
     })
 
     this.bus.on(ZEngineSignal.PlayerMoved, ({ x, y }) => {
-      this.checkTrigger(x, y, ZEventTrigger.PlayerTouch)
+      this.checkTrigger(x, y, ZEventTrigger.PlayerTouch, { x, y })
     })
   }
 
@@ -148,7 +151,7 @@ export class EventSystem extends ZSystem {
     this.isWaitingForMessage = false
   }
 
-  public startEvent(event: ZEvent): void {
+  public startEvent(event: ZEvent, triggererPos?: { x: number; y: number }): void {
     const activePage = this.getActivePage(event)
     if (!activePage) return
 
@@ -159,7 +162,10 @@ export class EventSystem extends ZSystem {
         eventId: event.id
       }
       this.isProcessing = true
-      this.bus.emit(ZEngineSignal.EventExecutionStarted, { eventId: event.id })
+      this.bus.emit(ZEngineSignal.EventExecutionStarted, {
+        eventId: event.id,
+        triggererPos
+      })
     }
   }
 
@@ -220,7 +226,12 @@ export class EventSystem extends ZSystem {
     return null
   }
 
-  public checkTrigger(x: number, y: number, trigger: ZEventTrigger): boolean {
+  public checkTrigger(
+    x: number,
+    y: number,
+    trigger: ZEventTrigger,
+    triggererPos?: { x: number; y: number }
+  ): boolean {
     if (this.isProcessing) return false
 
     const map = this.map.currentMap
@@ -231,7 +242,7 @@ export class EventSystem extends ZSystem {
 
     const activePage = this.getActivePage(event)
     if (activePage && activePage.trigger === trigger) {
-      this.startEvent(event)
+      this.startEvent(event, triggererPos)
       return true
     }
     return false
