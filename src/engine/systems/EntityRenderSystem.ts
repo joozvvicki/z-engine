@@ -701,6 +701,13 @@ export class EntityRenderSystem extends ZSystem {
 
     // Always update alpha/transparency based on current state
     meta.sprite.alpha = meta.transparent ? 0 : meta.opacity / 255
+
+    // Sync runtime state to map event (CRITICAL for PhysicsSystem collision)
+    const mapEvent = this.map.currentMap?.events.find((e) => e.id === eventId)
+    if (mapEvent) {
+      if (mapEvent.isThrough !== meta.isThrough) mapEvent.isThrough = meta.isThrough
+      // Also potentially sync other properties if needed later (e.g. priority)
+    }
   }
 
   private updateEntityAnimation(meta: SpriteMetadata, delta: number): void {
