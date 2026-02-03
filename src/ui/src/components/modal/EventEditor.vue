@@ -2,7 +2,13 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useScrollLock } from '@vueuse/core'
 import { useEditorStore } from '@ui/stores/editor'
-import { ZCommandCode, ZEventTrigger, type ZEventPage, type ZEventCommand } from '@engine/types'
+import {
+  ZCommandCode,
+  ZEventTrigger,
+  type ZEventPage,
+  type ZEventCommand,
+  type ZMoveCommand
+} from '@engine/types'
 import { ProjectService } from '@ui/services/ProjectService'
 import CharacterSelector from '@ui/components/modal/CharacterSelector.vue'
 
@@ -28,6 +34,7 @@ const showCommandSelector = ref(false)
 const activePageIndex = ref(0)
 const selectedCommandIndex = ref<number | null>(null)
 const editingCommandIndex = ref<number | null>(null)
+const isAutonomousRouteMode = ref(false)
 
 const eventName = ref('')
 const pages = ref<ZEventPage[]>([])
@@ -48,8 +55,13 @@ const createDefaultPage = (): ZEventPage => ({
   },
   graphic: null,
   trigger: ZEventTrigger.Action,
+  moveType: 'fixed',
+  moveSpeed: 3,
+  moveFrequency: 3,
+  moveRoute: [],
+  moveRouteRepeat: true,
+  moveRouteSkip: true,
   options: {
-    moveRoute: null,
     walkAnim: true,
     stepAnim: false,
     directionFix: false,
@@ -180,7 +192,9 @@ const onSelectGraphic = (selection: {
   pixelX?: number
   pixelY?: number
   pixelW?: number
-  pixelH?: number
+  pixelH?: number // We return both index-based (legacy/compat) and pixel-based values
+  divW?: number
+  divH?: number
 }): void => {
   if (!activePage.value) return
   activePage.value.graphic = {
@@ -193,7 +207,9 @@ const onSelectGraphic = (selection: {
     srcX: selection.pixelX,
     srcY: selection.pixelY,
     srcW: selection.pixelW,
-    srcH: selection.pixelH
+    srcH: selection.pixelH,
+    divW: selection.divW,
+    divH: selection.divH
   }
   showCharacterSelector.value = false
 }
@@ -244,6 +260,19 @@ const handleCommandSave = (cmd: { code: number; parameters: unknown[] }): void =
       parameters: cmd.parameters
     })
   }
+  showCommandSelector.value = false
+}
+
+const handleEditMoveRoute = (): void => {
+  isAutonomousRouteMode.value = true
+  editingCommandIndex.value = null
+  selectedCommandIndex.value = null
+  showCommandSelector.value = true
+}
+
+const handleSaveAutonomousRoute = (route: ZMoveCommand[]): void => {
+  if (!activePage.value) return
+  activePage.value.moveRoute = route
   showCommandSelector.value = false
 }
 
@@ -298,6 +327,7 @@ onUnmounted(() => {
           @select-graphic="showCharacterSelector = true"
           @clear-graphic="activePage.graphic = null"
           @set-graphic-from-selection="setGraphicFromSelection"
+          @edit-move-route="handleEditMoveRoute"
         />
 
         <EventEditorCommandList
@@ -332,9 +362,16 @@ onUnmounted(() => {
       :show="showCommandSelector"
       :page="activePage"
       :initial-command="editingCommandIndex !== null ? activePage.list[editingCommandIndex] : null"
+      :is-autonomous-mode="isAutonomousRouteMode"
       :system-switches="store.systemSwitches"
-      @close="showCommandSelector = false"
+      @close="
+        () => {
+          showCommandSelector = false
+          isAutonomousRouteMode = false
+        }
+      "
       @save="handleCommandSave"
+      @save-autonomous-route="handleSaveAutonomousRoute"
     />
   </div>
 </template>

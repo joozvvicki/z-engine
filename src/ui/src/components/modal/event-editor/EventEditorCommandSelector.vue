@@ -17,9 +17,25 @@ import {
   IconUser,
   IconRobot,
   IconTrash,
-  IconRefresh
+  IconRefresh,
+  IconGhost,
+  IconEye,
+  IconEyeOff,
+  IconVolume,
+  IconCode,
+  IconChevronDownLeft,
+  IconChevronDownRight,
+  IconChevronUpLeft,
+  IconChevronUpRight,
+  IconWalk,
+  IconShoe,
+  IconLock,
+  IconBolt,
+  IconClock,
+  IconPhoto,
+  IconBox
 } from '@tabler/icons-vue'
-import { ZCommandCode, type ZEventCommand, type ZMoveCommand } from '@engine/types'
+import { ZCommandCode, ZMoveCode, type ZEventCommand, type ZMoveCommand } from '@engine/types'
 import type { ZEventPage } from '@engine/types'
 import { useEditorStore } from '@ui/stores/editor'
 
@@ -28,11 +44,13 @@ const props = defineProps<{
   page: ZEventPage
   systemSwitches: string[]
   initialCommand?: ZEventCommand | null
+  isAutonomousMode?: boolean
 }>()
 
 const emit = defineEmits<{
   (e: 'close'): void
   (e: 'save', payload: { code: number; parameters: unknown[] }): void
+  (e: 'save-autonomous-route', route: ZMoveCommand[]): void
 }>()
 
 const store = useEditorStore()
@@ -87,26 +105,94 @@ const directions = [
 ]
 
 const moveActions = [
-  { code: 'MOVE_DOWN', label: 'Move Down', icon: IconArrowDown },
-  { code: 'MOVE_LEFT', label: 'Move Left', icon: IconArrowLeft },
-  { code: 'MOVE_RIGHT', label: 'Move Right', icon: IconArrowRight },
-  { code: 'MOVE_UP', label: 'Move Up', icon: IconArrowUp },
-  { code: 'MOVE_RANDOM', label: 'Move Random', icon: IconRefresh },
-  { code: 'MOVE_TOWARD_PLAYER', label: 'Move Toward Player', icon: IconUser },
-  { code: 'STEP_FORWARD', label: 'Step Forward', icon: IconArrowDown },
-  { code: 'STEP_BACKWARD', label: 'Step Backward', icon: IconArrowUp },
-  { code: 'TURN_DOWN', label: 'Turn Down', icon: IconArrowDown },
-  { code: 'TURN_LEFT', label: 'Turn Left', icon: IconArrowLeft },
-  { code: 'TURN_RIGHT', label: 'Turn Right', icon: IconArrowRight },
-  { code: 'TURN_UP', label: 'Turn Up', icon: IconArrowUp },
-  { code: 'WAIT', label: 'Wait...', icon: IconHourglass }
+  // Movement
+  { code: ZMoveCode.MOVE_DOWN, label: 'Move Down', icon: IconArrowDown },
+  { code: ZMoveCode.MOVE_LEFT, label: 'Move Left', icon: IconArrowLeft },
+  { code: ZMoveCode.MOVE_RIGHT, label: 'Move Right', icon: IconArrowRight },
+  { code: ZMoveCode.MOVE_UP, label: 'Move Up', icon: IconArrowUp },
+  { code: ZMoveCode.MOVE_LOWER_LEFT, label: 'Move Lower Left', icon: IconChevronDownLeft },
+  { code: ZMoveCode.MOVE_LOWER_RIGHT, label: 'Move Lower Right', icon: IconChevronDownRight },
+  { code: ZMoveCode.MOVE_UPPER_LEFT, label: 'Move Upper Left', icon: IconChevronUpLeft },
+  { code: ZMoveCode.MOVE_UPPER_RIGHT, label: 'Move Upper Right', icon: IconChevronUpRight },
+  { code: ZMoveCode.MOVE_RANDOM, label: 'Move Random', icon: IconRefresh },
+  { code: ZMoveCode.MOVE_TOWARD_PLAYER, label: 'Move Toward Player', icon: IconUser },
+  { code: ZMoveCode.MOVE_AWAY_PLAYER, label: 'Move Away From Player', icon: IconUser },
+  { code: ZMoveCode.STEP_FORWARD, label: 'Step Forward', icon: IconArrowDown },
+  { code: ZMoveCode.STEP_BACKWARD, label: 'Step Backward', icon: IconArrowUp },
+  { code: ZMoveCode.JUMP, label: 'Jump...', icon: IconBolt, paramNames: ['X Offset', 'Y Offset'] },
+
+  // Turning
+  { code: ZMoveCode.TURN_DOWN, label: 'Turn Down', icon: IconArrowDown },
+  { code: ZMoveCode.TURN_LEFT, label: 'Turn Left', icon: IconArrowLeft },
+  { code: ZMoveCode.TURN_RIGHT, label: 'Turn Right', icon: IconArrowRight },
+  { code: ZMoveCode.TURN_UP, label: 'Turn Up', icon: IconArrowUp },
+  { code: ZMoveCode.TURN_90_RIGHT, label: 'Turn 90° Right', icon: IconArrowRight },
+  { code: ZMoveCode.TURN_90_LEFT, label: 'Turn 90° Left', icon: IconArrowLeft },
+  { code: ZMoveCode.TURN_180, label: 'Turn 180°', icon: IconRefresh },
+  { code: ZMoveCode.TURN_90_RIGHT_LEFT, label: 'Turn 90° R/L', icon: IconRefresh },
+  { code: ZMoveCode.TURN_RANDOM, label: 'Turn Random', icon: IconRefresh },
+  { code: ZMoveCode.TURN_TOWARD_PLAYER, label: 'Turn Toward Player', icon: IconUser },
+  { code: ZMoveCode.TURN_AWAY_PLAYER, label: 'Turn Away From Player', icon: IconUser },
+
+  // Wait
+  { code: ZMoveCode.WAIT, label: 'Wait...', icon: IconHourglass, paramNames: ['Frames'] },
+
+  // State
+  { code: ZMoveCode.SPEED, label: 'Change Speed...', icon: IconBolt, paramNames: ['Speed (1-6)'] },
+  {
+    code: ZMoveCode.FREQUENCY,
+    label: 'Change Freq...',
+    icon: IconClock,
+    paramNames: ['Freq (1-5)']
+  },
+  { code: ZMoveCode.WALK_ANIM_ON, label: 'Walk Anim ON', icon: IconWalk },
+  { code: ZMoveCode.WALK_ANIM_OFF, label: 'Walk Anim OFF', icon: IconWalk },
+  { code: ZMoveCode.STEP_ANIM_ON, label: 'Step Anim ON', icon: IconShoe },
+  { code: ZMoveCode.STEP_ANIM_OFF, label: 'Step Anim OFF', icon: IconShoe },
+  { code: ZMoveCode.DIR_FIX_ON, label: 'Dir Fix ON', icon: IconLock },
+  { code: ZMoveCode.DIR_FIX_OFF, label: 'Dir Fix OFF', icon: IconLock },
+  { code: ZMoveCode.THROUGH_ON, label: 'Through ON', icon: IconGhost },
+  { code: ZMoveCode.THROUGH_OFF, label: 'Through OFF', icon: IconGhost },
+  { code: ZMoveCode.TRANSPARENT_ON, label: 'Transparent ON', icon: IconEyeOff },
+  { code: ZMoveCode.TRANSPARENT_OFF, label: 'Transparent OFF', icon: IconEye },
+  {
+    code: ZMoveCode.CHANGE_GRAPHIC,
+    label: 'Change Graphic...',
+    icon: IconPhoto,
+    paramNames: ['Asset']
+  },
+  {
+    code: ZMoveCode.CHANGE_OPACITY,
+    label: 'Change Opacity...',
+    icon: IconBox,
+    paramNames: ['Opacity (0-255)']
+  },
+  {
+    code: ZMoveCode.CHANGE_BLEND,
+    label: 'Change Blend...',
+    icon: IconBox,
+    paramNames: ['Blend Mode']
+  },
+
+  // Other
+  { code: ZMoveCode.PLAY_SE, label: 'Play SE...', icon: IconVolume, paramNames: ['SE File'] },
+  { code: ZMoveCode.SCRIPT, label: 'Script...', icon: IconCode, paramNames: ['Script'] }
 ]
+
+const selectedMoveCommandIndex = ref<number | null>(null)
 
 watch(
   () => props.show,
   (isShown) => {
     if (isShown) {
-      if (props.initialCommand) {
+      if (props.isAutonomousMode) {
+        commandSelectorStep.value = 'params'
+        selectedCommandType.value = ZCommandCode.SetMoveRoute
+        moveRouteCommands.value = JSON.parse(JSON.stringify(props.page.moveRoute || []))
+        moveRouteTarget.value = 0
+        moveRouteWait.value = false
+        moveRouteThrough.value = false
+      } else if (props.initialCommand) {
         commandSelectorStep.value = 'params'
         selectedCommandType.value = props.initialCommand.code
 
@@ -134,7 +220,7 @@ watch(
           transferY.value = Number(params[2] || 0)
           transferDirection.value = Number(params[3] || 2)
         } else if (props.initialCommand.code === ZCommandCode.SetMoveRoute) {
-          moveRouteTarget.value = (params[0] as any) ?? 0
+          moveRouteTarget.value = (params[0] as string | number) ?? 0
           moveRouteCommands.value = JSON.parse(JSON.stringify(params[1] || []))
           moveRouteWait.value = Boolean(params[2] ?? true)
           moveRouteThrough.value = Boolean(params[3] ?? false)
@@ -215,17 +301,32 @@ const selectGridCommand = (code: number): void => {
   commandSelectorStep.value = 'params'
 }
 
-const addMoveCommand = (code: string): void => {
+const addMoveCommand = (code: string | ZMoveCode): void => {
   const cmd: ZMoveCommand = { code }
-  if (code === 'WAIT') cmd.params = [60]
+  const meta = moveActions.find((a) => a.code === code)
+  if (meta?.paramNames) {
+    if (code === ZMoveCode.WAIT) cmd.params = [60]
+    else if (code === ZMoveCode.JUMP) cmd.params = [0, 0]
+    else if (code === ZMoveCode.SPEED) cmd.params = [4]
+    else if (code === ZMoveCode.FREQUENCY) cmd.params = [3]
+    else if (code === ZMoveCode.CHANGE_OPACITY) cmd.params = [255]
+    else cmd.params = meta.paramNames.map(() => '')
+  }
   moveRouteCommands.value.push(cmd)
+  selectedMoveCommandIndex.value = moveRouteCommands.value.length - 1
 }
 
 const removeMoveCommand = (index: number): void => {
   moveRouteCommands.value.splice(index, 1)
+  selectedMoveCommandIndex.value = null
 }
 
 const handleSave = (): void => {
+  if (props.isAutonomousMode) {
+    emit('save-autonomous-route', JSON.parse(JSON.stringify(moveRouteCommands.value)))
+    return
+  }
+
   if (selectedCommandType.value !== null) {
     let finalParams: unknown[] = []
 
@@ -634,9 +735,9 @@ const handleSave = (): void => {
           >
             <!-- Left Side: Config -->
             <div class="w-64 flex flex-col gap-4 shrink-0">
-              <div class="space-y-2">
-                <label class="text-[10px] font-bold uppercase text-slate-400 block"
-                  >Target Character</label
+              <div v-if="!props.isAutonomousMode" class="space-y-2">
+                <span class="text-[9px] font-black uppercase tracking-wider text-slate-400"
+                  >Target Selection</span
                 >
                 <div class="flex flex-col gap-1">
                   <button
@@ -674,7 +775,7 @@ const handleSave = (): void => {
                 </div>
               </div>
 
-              <div class="space-y-3 pt-2 border-t border-slate-100">
+              <div v-if="!props.isAutonomousMode" class="space-y-3 pt-2 border-t border-slate-100">
                 <label class="flex items-center gap-2 cursor-pointer group">
                   <div
                     class="w-4 h-4 rounded border flex items-center justify-center transition-all"
@@ -734,23 +835,92 @@ const handleSave = (): void => {
                 <div
                   v-for="(cmd, idx) in moveRouteCommands"
                   :key="idx"
-                  class="group flex items-center gap-3 px-3 py-2 bg-white border border-slate-100 rounded-lg shadow-sm"
+                  class="group flex flex-col gap-1 px-3 py-2 bg-white border rounded-lg shadow-sm transition-all cursor-pointer"
+                  :class="
+                    selectedMoveCommandIndex === idx
+                      ? 'border-slate-900 ring-1 ring-slate-900/10'
+                      : 'border-slate-100 hover:border-slate-300'
+                  "
+                  @click="selectedMoveCommandIndex = idx"
                 >
-                  <span class="text-[10px] text-slate-300 font-mono w-4">{{ idx + 1 }}</span>
-                  <component
-                    :is="moveActions.find((m) => m.code === cmd.code)?.icon || IconSettings"
-                    size="14"
-                    class="text-slate-400"
-                  />
-                  <span class="text-xs font-bold text-slate-700 flex-1">{{
-                    moveActions.find((m) => m.code === cmd.code)?.label || cmd.code
-                  }}</span>
-                  <button
-                    class="opacity-0 group-hover:opacity-100 hover:text-red-600 transition-all"
-                    @click="removeMoveCommand(idx)"
+                  <div class="flex items-center gap-3">
+                    <span class="text-[10px] text-slate-300 font-mono w-4">{{ idx + 1 }}</span>
+                    <component
+                      :is="moveActions.find((m) => m.code === cmd.code)?.icon || IconSettings"
+                      size="14"
+                      class="text-slate-400"
+                    />
+                    <span class="text-xs font-bold text-slate-700 flex-1">{{
+                      moveActions.find((m) => m.code === cmd.code)?.label || cmd.code
+                    }}</span>
+                    <button
+                      class="opacity-0 group-hover:opacity-100 hover:text-red-600 transition-all p-1"
+                      @click.stop="removeMoveCommand(idx)"
+                    >
+                      <IconTrash size="14" />
+                    </button>
+                  </div>
+
+                  <!-- Parameter Editor Inline -->
+                  <div
+                    v-if="
+                      selectedMoveCommandIndex === idx &&
+                      moveActions.find((a) => a.code === cmd.code)?.paramNames
+                    "
+                    class="mt-2 pt-2 border-t border-slate-50 grid grid-cols-1 gap-2"
+                    @click.stop
                   >
-                    <IconTrash size="14" />
-                  </button>
+                    <div
+                      v-for="(pName, pIdx) in moveActions.find((a) => a.code === cmd.code)
+                        ?.paramNames"
+                      :key="pIdx"
+                      class="space-y-1"
+                    >
+                      <label class="text-[9px] font-black uppercase text-slate-400 block">{{
+                        pName
+                      }}</label>
+                      <template v-if="cmd.code === ZMoveCode.WAIT">
+                        <input
+                          v-model.number="cmd.params![pIdx]"
+                          type="number"
+                          class="w-full bg-slate-50 border border-slate-100 rounded px-2 py-1 text-[10px] font-bold outline-none focus:bg-white focus:border-slate-900"
+                        />
+                      </template>
+                      <template v-else-if="cmd.code === ZMoveCode.SPEED">
+                        <select
+                          v-model.number="cmd.params![pIdx]"
+                          class="w-full bg-slate-50 border border-slate-100 rounded px-2 py-1 text-[10px] font-bold outline-none focus:bg-white focus:border-slate-900"
+                        >
+                          <option v-for="s in [1, 2, 3, 4, 5, 6]" :key="s" :value="s">
+                            Speed {{ s }} {{ s === 4 ? '(Normal)' : '' }}
+                          </option>
+                        </select>
+                      </template>
+                      <template v-else-if="cmd.code === ZMoveCode.FREQUENCY">
+                        <select
+                          v-model.number="cmd.params![pIdx]"
+                          class="w-full bg-slate-50 border border-slate-100 rounded px-2 py-1 text-[10px] font-bold outline-none focus:bg-white focus:border-slate-900"
+                        >
+                          <option v-for="f in [1, 2, 3, 4, 5]" :key="f" :value="f">
+                            Freq {{ f }} {{ f === 3 ? '(Normal)' : '' }}
+                          </option>
+                        </select>
+                      </template>
+                      <template v-else-if="cmd.code === ZMoveCode.JUMP">
+                        <input
+                          v-model.number="cmd.params![pIdx]"
+                          type="number"
+                          class="w-full bg-slate-50 border border-slate-100 rounded px-2 py-1 text-[10px] font-bold outline-none focus:bg-white focus:border-slate-900"
+                        />
+                      </template>
+                      <template v-else>
+                        <input
+                          v-model="cmd.params![pIdx]"
+                          class="w-full bg-slate-50 border border-slate-100 rounded px-2 py-1 text-[10px] font-bold outline-none focus:bg-white focus:border-slate-900"
+                        />
+                      </template>
+                    </div>
+                  </div>
                 </div>
                 <div
                   v-if="moveRouteCommands.length === 0"

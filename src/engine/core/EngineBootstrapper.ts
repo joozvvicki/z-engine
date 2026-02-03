@@ -43,21 +43,33 @@ export class EngineBootstrapper {
     services.register(RenderSystem, new RenderSystem(stage, services, tileSize))
     services.register(GhostSystem, new GhostSystem(stage, services, tileSize))
     services.register(GridSystem, new GridSystem(stage, services, tileSize))
-    services.register(PhysicsSystem, new PhysicsSystem(services))
-    services.register(PlayerSystem, new PlayerSystem(services, tileSize))
+    const physicsSystem = new PhysicsSystem(services)
+    services.register(PhysicsSystem, physicsSystem)
+    services.register('PhysicsSystem', physicsSystem)
+
+    const playerSystem = new PlayerSystem(services, tileSize)
+    services.register(PlayerSystem, playerSystem)
+    services.register('PlayerSystem', playerSystem)
+
     services.register(EventSystem, new EventSystem(services))
-    services.register(EntityRenderSystem, new EntityRenderSystem(services, tileSize))
+
+    const entityRenderSystem = new EntityRenderSystem(services, tileSize)
+    services.register(EntityRenderSystem, entityRenderSystem)
+    services.register('EntityRenderSystem', entityRenderSystem)
 
     const transitionSystem = new TransitionSystem(services)
     services.register(TransitionSystem, transitionSystem)
+    services.register('TransitionSystem', transitionSystem)
     transitionSystem.resize(screenWidth, screenHeight)
 
     const messageSystem = new MessageSystem(services)
     services.register(MessageSystem, messageSystem)
+    services.register('MessageSystem', messageSystem)
     messageSystem.resize(screenWidth, screenHeight)
 
     const errorSystem = new ErrorSystem(services)
     services.register(ErrorSystem, errorSystem)
+    services.register('ErrorSystem', errorSystem)
     errorSystem.resize(screenWidth, screenHeight)
   }
 }

@@ -130,6 +130,8 @@ export interface ZEventGraphic {
   srcY?: number
   srcW?: number
   srcH?: number
+  divW?: number
+  divH?: number
 }
 
 export interface ZEvent {
@@ -146,6 +148,14 @@ export interface ZEventPage {
   conditions: ZEventCondition
   graphic: ZEventGraphic | null
   trigger: ZEventTrigger
+  moveType: 'fixed' | 'random' | 'approach' | 'custom'
+  moveSpeed: number
+  moveFrequency: number
+  moveRoute: ZMoveCommand[]
+  moveRouteRepeat: boolean
+  moveRouteSkip: boolean
+  moveRouteIndex?: number
+  isThrough?: boolean
   options: ZEventOptions
   list: ZEventCommand[]
 }
@@ -170,7 +180,6 @@ export enum ZEventTrigger {
 }
 
 export interface ZEventOptions {
-  moveRoute: unknown // Placeholder for future Move Route definition
   walkAnim: boolean
   stepAnim: boolean
   directionFix: boolean
@@ -183,8 +192,54 @@ export interface ZEventCommand {
   indent?: number
 }
 
+export enum ZMoveCode {
+  MOVE_DOWN = 'MOVE_DOWN',
+  MOVE_LEFT = 'MOVE_LEFT',
+  MOVE_RIGHT = 'MOVE_RIGHT',
+  MOVE_UP = 'MOVE_UP',
+  MOVE_LOWER_LEFT = 'MOVE_LOWER_LEFT',
+  MOVE_LOWER_RIGHT = 'MOVE_LOWER_RIGHT',
+  MOVE_UPPER_LEFT = 'MOVE_UPPER_LEFT',
+  MOVE_UPPER_RIGHT = 'MOVE_UPPER_RIGHT',
+  MOVE_RANDOM = 'MOVE_RANDOM',
+  MOVE_TOWARD_PLAYER = 'MOVE_TOWARD_PLAYER',
+  MOVE_AWAY_PLAYER = 'MOVE_AWAY_PLAYER',
+  STEP_FORWARD = 'STEP_FORWARD',
+  STEP_BACKWARD = 'STEP_BACKWARD',
+  JUMP = 'JUMP',
+  WAIT = 'WAIT',
+  TURN_DOWN = 'TURN_DOWN',
+  TURN_LEFT = 'TURN_LEFT',
+  TURN_RIGHT = 'TURN_RIGHT',
+  TURN_UP = 'TURN_UP',
+  TURN_90_RIGHT = 'TURN_90_RIGHT',
+  TURN_90_LEFT = 'TURN_90_LEFT',
+  TURN_180 = 'TURN_180',
+  TURN_90_RIGHT_LEFT = 'TURN_90_RIGHT_LEFT',
+  TURN_RANDOM = 'TURN_RANDOM',
+  TURN_TOWARD_PLAYER = 'TURN_TOWARD_PLAYER',
+  TURN_AWAY_PLAYER = 'TURN_AWAY_PLAYER',
+  SPEED = 'SPEED',
+  FREQUENCY = 'FREQUENCY',
+  WALK_ANIM_ON = 'WALK_ANIM_ON',
+  WALK_ANIM_OFF = 'WALK_ANIM_OFF',
+  STEP_ANIM_ON = 'STEP_ANIM_ON',
+  STEP_ANIM_OFF = 'STEP_ANIM_OFF',
+  DIR_FIX_ON = 'DIR_FIX_ON',
+  DIR_FIX_OFF = 'DIR_FIX_OFF',
+  THROUGH_ON = 'THROUGH_ON',
+  THROUGH_OFF = 'THROUGH_OFF',
+  TRANSPARENT_ON = 'TRANSPARENT_ON',
+  TRANSPARENT_OFF = 'TRANSPARENT_OFF',
+  CHANGE_GRAPHIC = 'CHANGE_GRAPHIC',
+  CHANGE_OPACITY = 'CHANGE_OPACITY',
+  CHANGE_BLEND = 'CHANGE_BLEND',
+  PLAY_SE = 'PLAY_SE',
+  SCRIPT = 'SCRIPT'
+}
+
 export interface ZMoveCommand {
-  code: string // e.g. 'MOVE_UP', 'WAIT'
+  code: ZMoveCode | string // Allow string for flexibility during transition
   params?: unknown[]
 }
 
@@ -361,7 +416,12 @@ export interface ZSignalData {
     eventId: string
     direction?: 'down' | 'left' | 'right' | 'up'
     graphic?: ZEventGraphic
+    moveType?: 'fixed' | 'random' | 'approach' | 'custom'
     moveRoute?: ZMoveCommand[]
+    moveRouteIndex?: number
+    moveRouteRepeat?: boolean
+    moveRouteSkip?: boolean
+    isThrough?: boolean
   }
   [ZEngineSignal.EventExecutionStarted]: { eventId: string }
   [ZEngineSignal.EventExecutionFinished]: { eventId: string }

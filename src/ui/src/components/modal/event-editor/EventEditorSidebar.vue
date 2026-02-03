@@ -23,7 +23,12 @@ const page = defineModel<ZEventPage>('page', { required: true })
 const store = useEditorStore()
 const db = useDatabaseStore()
 
-const emit = defineEmits(['select-graphic', 'set-graphic-from-selection', 'clear-graphic'])
+const emit = defineEmits([
+  'select-graphic',
+  'set-graphic-from-selection',
+  'clear-graphic',
+  'edit-move-route'
+])
 
 const triggers = [
   {
@@ -247,8 +252,20 @@ const variableOps = [
                 }"
               ></div>
             </div>
-            <div v-else class="text-center group-hover:scale-110 transition-transform">
-              <div class="text-2xl mb-1 drop-shadow-sm">🖼️</div>
+            <div
+              v-else
+              class="w-full h-full relative flex items-center justify-center transform scale-75"
+            >
+              <div
+                class="pixelated"
+                :style="{
+                  width: `${(page.graphic.w || 1) * 48}px`,
+                  height: `${(page.graphic.h || 1) * 48}px`,
+                  backgroundImage: `url(${props.characterUrl(page.graphic.assetId)})`,
+                  backgroundPosition: `-${(page.graphic.x || 0) * 48}px -${(page.graphic.y || 0) * 48}px`,
+                  backgroundSize: 'auto'
+                }"
+              ></div>
             </div>
             <div
               class="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[8px] font-mono text-center p-0.5 truncate backdrop-blur-sm"
@@ -282,6 +299,92 @@ const variableOps = [
           >
             Clear
           </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Autonomous Movement Group -->
+    <div class="space-y-2">
+      <h3
+        class="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2"
+      >
+        Autonomous Movement
+        <div class="h-px bg-slate-100 flex-1"></div>
+      </h3>
+
+      <div class="space-y-3">
+        <div class="space-y-1">
+          <span class="text-[9px] font-black uppercase tracking-wider text-slate-400">Type</span>
+          <select
+            v-model="page.moveType"
+            class="w-full bg-slate-50 border border-slate-100 rounded-lg px-2 py-1.5 text-[10px] font-bold focus:outline-none focus:border-slate-300 transition-colors"
+          >
+            <option value="fixed">Fixed</option>
+            <option value="random">Random</option>
+            <option value="approach">Approach</option>
+            <option value="custom">Custom</option>
+          </select>
+        </div>
+
+        <div v-if="page.moveType === 'custom'" class="space-y-2">
+          <div class="flex flex-col gap-1.5 p-2 bg-slate-50 rounded-xl border border-slate-100">
+            <label
+              class="flex items-center gap-2 text-[10px] font-bold text-slate-600 cursor-pointer"
+            >
+              <input
+                v-model="page.moveRouteRepeat"
+                type="checkbox"
+                class="rounded border-slate-300 text-slate-900 focus:ring-slate-900"
+              />
+              Repeat Movement
+            </label>
+            <label
+              class="flex items-center gap-2 text-[10px] font-bold text-slate-600 cursor-pointer"
+            >
+              <input
+                v-model="page.moveRouteSkip"
+                type="checkbox"
+                class="rounded border-slate-300 text-slate-900 focus:ring-slate-900"
+              />
+              Skip If Cannot Move
+            </label>
+            <button
+              class="mt-1 px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-900 text-[10px] font-black rounded-lg border border-slate-200 shadow-sm transition-all active:scale-95"
+              @click="emit('edit-move-route')"
+            >
+              Edit Route... ({{ page.moveRoute.length }} steps)
+            </button>
+          </div>
+        </div>
+
+        <div class="flex gap-2">
+          <div class="flex-1 space-y-1">
+            <span class="text-[9px] font-black uppercase tracking-wider text-slate-400">Speed</span>
+            <select
+              v-model.number="page.moveSpeed"
+              class="w-full bg-slate-50 border border-slate-100 rounded-lg px-2 py-1.5 text-[10px] font-bold focus:outline-none focus:border-slate-300 transition-colors"
+            >
+              <option :value="1">1: x8 Slow</option>
+              <option :value="2">2: x4 Slow</option>
+              <option :value="3">3: x2 Slow</option>
+              <option :value="4">4: Normal</option>
+              <option :value="5">5: x2 Fast</option>
+              <option :value="6">6: x4 Fast</option>
+            </select>
+          </div>
+          <div class="flex-1 space-y-1">
+            <span class="text-[9px] font-black uppercase tracking-wider text-slate-400">Freq</span>
+            <select
+              v-model.number="page.moveFrequency"
+              class="w-full bg-slate-50 border border-slate-100 rounded-lg px-2 py-1.5 text-[10px] font-bold focus:outline-none focus:border-slate-300 transition-colors"
+            >
+              <option :value="1">1: Lowest</option>
+              <option :value="2">2: Low</option>
+              <option :value="3">3: Normal</option>
+              <option :value="4">4: High</option>
+              <option :value="5">5: Highest</option>
+            </select>
+          </div>
         </div>
       </div>
     </div>

@@ -106,13 +106,13 @@ const welcomeMessage = computed(() => {
       <!-- Main Content Area -->
       <div class="col-span-8 space-y-12">
         <!-- Hero Art Card -->
-        <div class="relative h-[400px] rounded-[2rem] overflow-hidden shadow-2xl group">
+        <div class="relative h-[400px] rounded-4xl overflow-hidden shadow-2xl group">
           <img
             :src="dashboardArt"
             class="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
           />
           <div
-            class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent flex flex-col justify-end p-10"
+            class="absolute inset-0 bg-linear-to-t from-black/80 via-transparent to-transparent flex flex-col justify-end p-10"
           >
             <span class="text-white/40 text-xs font-black uppercase tracking-[0.3em] mb-2"
               >Featured Project</span
@@ -147,7 +147,7 @@ const welcomeMessage = computed(() => {
         <!-- Quick Actions (If Not Loaded) -->
         <div v-else class="grid grid-cols-2 gap-8">
           <button
-            class="h-64 bg-black text-white rounded-[2rem] p-10 flex flex-col justify-between hover:scale-[1.02] transition-all cursor-pointer shadow-xl"
+            class="h-64 bg-black text-white rounded-4xl p-10 flex flex-col justify-between hover:scale-[1.02] transition-all cursor-pointer shadow-xl"
             @click="openProject()"
           >
             <IconFolder :size="48" stroke-width="1.5" />
@@ -158,7 +158,7 @@ const welcomeMessage = computed(() => {
           </button>
 
           <button
-            class="h-64 bg-white border-2 border-dashed border-black/10 rounded-[2rem] p-10 flex flex-col justify-between hover:border-black/40 transition-all cursor-pointer group"
+            class="h-64 bg-white border-2 border-dashed border-black/10 rounded-4xl p-10 flex flex-col justify-between hover:border-black/40 transition-all cursor-pointer group"
             @click="router.push('/')"
           >
             <IconPlus
@@ -220,7 +220,7 @@ const welcomeMessage = computed(() => {
 
         <!-- Inspiration Card -->
         <div
-          class="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-[2rem] p-8 text-white relative overflow-hidden shadow-2xl"
+          class="bg-linear-to-br from-indigo-500 to-purple-600 rounded-4xl p-8 text-white relative overflow-hidden shadow-2xl"
         >
           <div class="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-3xl"></div>
           <h5 class="text-xl font-black mb-4 relative z-10">Did you know?</h5>

@@ -8,23 +8,19 @@ import { PlayerSystem } from '@engine/systems/PlayerSystem'
 import { RenderSystem } from '@engine/systems/RenderSystem'
 import { PhysicsSystem } from '@engine/systems/PhysicsSystem'
 
-interface SpriteMetadata {
+import { MovementProcessor, type ZMoveable } from '@engine/core/MovementProcessor'
+
+interface SpriteMetadata extends ZMoveable {
   sprite: Sprite
   colsPerChar: number
   baseX: number
   baseY: number
   frameW: number
   frameH: number
-  isMoving: boolean
-  direction: 'down' | 'left' | 'right' | 'up'
   animationFrame: number
   animationTimer: number
   realX: number
   realY: number
-  targetX: number
-  targetY: number
-  moveRoute: ZMoveCommand[]
-  moveRouteIndex: number
 }
 
 export class EntityRenderSystem extends ZSystem {
@@ -42,6 +38,7 @@ export class EntityRenderSystem extends ZSystem {
   private animationFrame: number = 0
   private animationTimer: number = 0
   private readonly ANIMATION_SPEED: number = 150 // ms
+  private movementProcessor: MovementProcessor | null = null
   private eventMetadata: Map<string, SpriteMetadata> = new Map()
   private eventSprites: Map<string, Container | Sprite> = new Map()
 
@@ -103,6 +100,7 @@ export class EntityRenderSystem extends ZSystem {
           const initialDir = dirMap[(activePage.graphic.y || 0) % 4] || 'down'
 
           this.eventMetadata.set(event.id, {
+            id: event.id,
             sprite,
             colsPerChar,
             baseX: Math.floor((activePage.graphic.x || 0) / snapX) * snapX,
@@ -117,8 +115,22 @@ export class EntityRenderSystem extends ZSystem {
             realY: event.y * this.tileSize,
             targetX: event.x,
             targetY: event.y,
-            moveRoute: [],
-            moveRouteIndex: -1
+            x: event.x,
+            y: event.y,
+            moveSpeed: activePage.moveSpeed || 3,
+            moveFrequency: activePage.moveFrequency || 3,
+            moveRoute: activePage.moveRoute || [],
+            moveRouteIndex: (activePage.moveRoute?.length || 0) > 0 ? 0 : -1,
+            moveRouteRepeat: activePage.moveRouteRepeat ?? true,
+            moveRouteSkip: activePage.moveRouteSkip ?? true,
+            moveType: activePage.moveType || 'fixed',
+            isThrough: event.isThrough || false,
+            waitTimer: 0,
+            walkAnim: activePage.options?.walkAnim ?? true,
+            stepAnim: activePage.options?.stepAnim ?? false,
+            directionFix: activePage.options?.directionFix ?? false,
+            transparent: false,
+            opacity: 255
           })
         }
         sprite.zIndex = (event.y + 1) * this.tileSize
@@ -132,6 +144,7 @@ export class EntityRenderSystem extends ZSystem {
   public async onBoot(): Promise<void> {
     this.playerSystem = this.services.require(PlayerSystem)
     const renderSystem = this.services.require(RenderSystem)
+    this.movementProcessor = new MovementProcessor(this.services.require(PhysicsSystem))
 
     // Entities share the decoration layer for Y-sorting with tiles
     this.container = renderSystem.getLayerContainer(ZLayer.decoration)
@@ -237,6 +250,8 @@ export class EntityRenderSystem extends ZSystem {
   }
 
   public setVisible(visible: boolean): void {
+    this.container.visible = visible
+
     if (this.playerSprite) {
       this.playerSprite.visible = visible
       if (visible) this.playerSprite.alpha = 1
@@ -251,6 +266,15 @@ export class EntityRenderSystem extends ZSystem {
     } else {
       this.eventSprites.forEach((s) => (s.visible = false))
     }
+  }
+
+  public isTileOccupiedByMovingEntity(x: number, y: number): boolean {
+    // Check Events
+    for (const meta of this.eventMetadata.values()) {
+      if (meta.x === x && meta.y === y) return true
+      if (meta.isMoving && meta.targetX === x && meta.targetY === y) return true
+    }
+    return false
   }
 
   public async setPlayerGraphic(
@@ -354,8 +378,9 @@ export class EntityRenderSystem extends ZSystem {
     this.container.sortChildren()
 
     // 1. Update Player Animation
-    if (this.playerSprite instanceof Sprite && this.playerSprite.texture.label !== 'EMPTY') {
+    if (this.playerSprite instanceof Sprite) {
       const playerMeta: SpriteMetadata = {
+        id: 'PLAYER',
         sprite: this.playerSprite,
         colsPerChar: this.playerColsPerChar,
         baseX: this.playerBaseX,
@@ -368,10 +393,24 @@ export class EntityRenderSystem extends ZSystem {
         animationTimer: this.animationTimer,
         realX: this.playerSystem.realX,
         realY: this.playerSystem.realY,
-        targetX: 0, // Not strictly used for animation
-        targetY: 0,
-        moveRoute: [],
-        moveRouteIndex: -1
+        targetX: this.playerSystem.targetX,
+        targetY: this.playerSystem.targetY,
+        x: this.playerSystem.x,
+        y: this.playerSystem.y,
+        moveSpeed: this.playerSystem.moveSpeed,
+        moveFrequency: this.playerSystem.moveFrequency,
+        moveRoute: this.playerSystem.moveRoute,
+        moveRouteIndex: this.playerSystem.moveRouteIndex,
+        moveRouteRepeat: this.playerSystem.moveRouteRepeat,
+        moveRouteSkip: this.playerSystem.moveRouteSkip,
+        moveType: this.playerSystem.moveType,
+        isThrough: this.playerSystem.isThrough,
+        waitTimer: this.playerSystem.waitTimer,
+        walkAnim: this.playerSystem.walkAnim,
+        stepAnim: this.playerSystem.stepAnim,
+        directionFix: this.playerSystem.directionFix,
+        transparent: this.playerSystem.transparent,
+        opacity: this.playerSystem.opacity
       }
       this.updateEntityAnimation(playerMeta, delta)
       this.animationFrame = playerMeta.animationFrame
@@ -383,17 +422,30 @@ export class EntityRenderSystem extends ZSystem {
       this.updateEventMovement(meta, eventId, delta)
       this.updateEntityAnimation(meta, delta)
     })
+
+    // 3. Ensure all sprites (including tiles without metadata) have correct position/zIndex
+    this.eventSprites.forEach((s, eventId) => {
+      const meta = this.eventMetadata.get(eventId)
+      if (!meta) {
+        const event = this.map.currentMap?.events.find((e) => e.id === eventId)
+        if (event) {
+          s.x = event.x * this.tileSize
+          s.y = event.y * this.tileSize
+          s.zIndex = (event.y + 1) * this.tileSize
+        }
+      }
+    })
   }
 
   private updateEventMovement(meta: SpriteMetadata, eventId: string, delta: number): void {
     const map = this.map.currentMap
-    if (!map) return
+    if (!map || !this.movementProcessor) return
     const event = map.events.find((e) => e.id === eventId)
     if (!event) return
 
     // 1. Process movement animation/interpolation
     if (meta.isMoving) {
-      const speed = (2 * delta) / 16.66 // pixels per frame, normalized to 60fps
+      const speed = (meta.moveSpeed * delta) / 16.66
       const targetRealX = meta.targetX * this.tileSize
       const targetRealY = meta.targetY * this.tileSize
 
@@ -407,88 +459,34 @@ export class EntityRenderSystem extends ZSystem {
       meta.sprite.y = meta.realY + this.tileSize
       meta.sprite.zIndex = meta.sprite.y + 0.1
 
+      // Apply opacity/transparency
+      meta.sprite.alpha = meta.transparent ? 0 : meta.opacity / 255
+
       if (meta.realX === targetRealX && meta.realY === targetRealY) {
         meta.isMoving = false
+        meta.x = meta.targetX
+        meta.y = meta.targetY
         event.x = meta.targetX
         event.y = meta.targetY
       }
-      return
-    }
-
-    // 2. Process next command in move route
-    if (meta.moveRouteIndex < 0 || meta.moveRouteIndex >= meta.moveRoute.length) {
-      if (meta.moveRouteIndex >= 0) {
-        meta.moveRouteIndex = -1
-        meta.moveRoute = []
-      }
-      return
-    }
-
-    const cmd = meta.moveRoute[meta.moveRouteIndex]
-    let dx = 0
-    let dy = 0
-    let nextDir = meta.direction
-
-    if (cmd.code === 'MOVE_UP') {
-      dy = -1
-      nextDir = 'up'
-    } else if (cmd.code === 'MOVE_DOWN') {
-      dy = 1
-      nextDir = 'down'
-    } else if (cmd.code === 'MOVE_LEFT') {
-      dx = -1
-      nextDir = 'left'
-    } else if (cmd.code === 'MOVE_RIGHT') {
-      dx = 1
-      nextDir = 'right'
-    } else if (cmd.code === 'TURN_UP') {
-      meta.direction = 'up'
-      meta.moveRouteIndex++
-      return
-    } else if (cmd.code === 'TURN_DOWN') {
-      meta.direction = 'down'
-      meta.moveRouteIndex++
-      return
-    } else if (cmd.code === 'TURN_LEFT') {
-      meta.direction = 'left'
-      meta.moveRouteIndex++
-      return
-    } else if (cmd.code === 'TURN_RIGHT') {
-      meta.direction = 'right'
-      meta.moveRouteIndex++
-      return
-    } else if (cmd.code === 'THROUGH_ON') {
-      const e = map.events.find((ev) => ev.id === eventId)
-      if (e) e.isThrough = true
-      meta.moveRouteIndex++
-      this.updateEventMovement(meta, eventId, delta)
-      return
-    } else if (cmd.code === 'THROUGH_OFF') {
-      const e = map.events.find((ev) => ev.id === eventId)
-      if (e) e.isThrough = false
-      meta.moveRouteIndex++
-      this.updateEventMovement(meta, eventId, delta)
-      return
-    }
-
-    if (dx !== 0 || dy !== 0) {
-      meta.direction = nextDir
-      const phys = this.services.require(PhysicsSystem)
-      const result = phys.checkPassage(event.x, event.y, event.x + dx, event.y + dy, {
-        isThrough: event.isThrough
+    } else {
+      // 2. Process next command in move route
+      this.movementProcessor.processNextCommand(meta, {
+        x: this.playerSystem.x,
+        y: this.playerSystem.y
       })
-      if (result) {
-        meta.targetX = event.x + dx
-        meta.targetY = event.y + dy
-        meta.isMoving = true
-        meta.moveRouteIndex++
-      }
     }
+
+    // Always update alpha/transparency based on current state
+    meta.sprite.alpha = meta.transparent ? 0 : meta.opacity / 255
   }
 
   private updateEntityAnimation(meta: SpriteMetadata, delta: number): void {
     if (!meta.sprite || meta.sprite.destroyed || !meta.sprite.texture) return
-    if (meta.isMoving) {
+
+    const shouldAnimate = (meta.isMoving && meta.walkAnim) || meta.stepAnim
+
+    if (shouldAnimate) {
       meta.animationTimer += delta
       if (meta.animationTimer > this.ANIMATION_SPEED) {
         meta.animationTimer = 0

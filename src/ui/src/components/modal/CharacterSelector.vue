@@ -73,7 +73,7 @@ const selectBlock = (tx: number, ty: number): void => {
 const confirm = (): void => {
   // We return both index-based (legacy/compat) and pixel-based values
   emit('select', {
-    tilesetId: selectedFile.value.name,
+    tilesetId: `img/characters/${selectedFile.value.name}`,
     x: selectedX.value,
     y: selectedY.value,
     w: 1,

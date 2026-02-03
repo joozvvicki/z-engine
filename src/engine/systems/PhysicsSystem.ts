@@ -1,6 +1,8 @@
 import { ZLayer } from '@engine/types'
 import { ZSystem, SystemMode } from '@engine/core/ZSystem'
 import { ServiceLocator } from '@engine/core/ServiceLocator'
+import type { PlayerSystem } from './PlayerSystem'
+import type { EntityRenderSystem } from './EntityRenderSystem'
 
 export class PhysicsSystem extends ZSystem {
   constructor(services: ServiceLocator) {
@@ -16,7 +18,11 @@ export class PhysicsSystem extends ZSystem {
     // No continuous update needed yet, passive system
   }
 
-  public isPassable(x: number, y: number, options?: { isThrough?: boolean }): boolean {
+  public isPassable(
+    x: number,
+    y: number,
+    options?: { isThrough?: boolean; skipPlayer?: boolean }
+  ): boolean {
     const map = this.map.currentMap
     if (!map) return false
 
@@ -28,6 +34,22 @@ export class PhysicsSystem extends ZSystem {
     // If an event is at (x,y) and is NOT through, it blocks regardless of tiles.
     const blockingEvent = map.events.find((e) => e.x === x && e.y === y && !e.isThrough)
     if (blockingEvent && !options?.isThrough) return false
+
+    // Check moving event targets (via EntityRenderSystem)
+    if (!options?.isThrough) {
+      const entitySystem = this.services.get('EntityRenderSystem') as unknown as EntityRenderSystem
+      if (entitySystem && entitySystem.isTileOccupiedByMovingEntity(x, y)) {
+        return false
+      }
+    }
+
+    // Check Player
+    if (!options?.skipPlayer && !options?.isThrough) {
+      const player = this.services.get('PlayerSystem') as unknown as PlayerSystem
+      if (player && player.x === x && player.y === y) return false
+      // Also check player target position if they are moving
+      if (player && player.isMoving && player.targetX === x && player.targetY === y) return false
+    }
 
     const strictLayers = [ZLayer.decoration, ZLayer.walls]
 
@@ -83,7 +105,7 @@ export class PhysicsSystem extends ZSystem {
     y: number,
     targetX: number,
     targetY: number,
-    options?: { isThrough?: boolean }
+    options?: { isThrough?: boolean; skipPlayer?: boolean }
   ): boolean {
     if (options?.isThrough) return true
 
