@@ -43,7 +43,6 @@ export class EntityRenderSystem extends ZSystem {
   private frameHeight: number = 0
   private animationFrame: number = 0
   private animationTimer: number = 0
-  private readonly ANIMATION_SPEED: number = 150 // ms
   private movementProcessor: MovementProcessor | null = null
   private eventMetadata: Map<string, SpriteMetadata> = new Map()
   private eventSprites: Map<string, Container | Sprite> = new Map()
@@ -717,7 +716,14 @@ export class EntityRenderSystem extends ZSystem {
 
     if (shouldAnimate && !meta.isInteracting) {
       meta.animationTimer += delta
-      if (meta.animationTimer > this.ANIMATION_SPEED) {
+
+      // Calculate animation speed based on movement speed
+      // Slower speed = Higher threshold (slower animation)
+      // Speed 1: 390ms, Speed 4: 210ms, Speed 6: 90ms
+      const speed = meta.moveSpeed || 4
+      const threshold = Math.max(60, 450 - speed * 60)
+
+      if (meta.animationTimer > threshold) {
         meta.animationTimer = 0
         meta.animationFrame = (meta.animationFrame + 1) % 4
       }

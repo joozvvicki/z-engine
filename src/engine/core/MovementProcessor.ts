@@ -53,7 +53,8 @@ export class MovementProcessor {
     // Frequency Delay (for autonomous movement)
     // 5: Highest (0 delay), 4: High (30), 3: Normal (60), 2: Low (120), 1: Lowest (240)
     // This only applies to autonomous movement between steps.
-    if (moveable.id !== 'PLAYER') {
+    // FIX: Do not apply to 'custom' (Set Move Route), strictly for autonomous.
+    if (moveable.id !== 'PLAYER' && moveable.moveType !== 'custom') {
       const frequencyDelays = [0, 240, 120, 60, 30, 0]
       const delay = frequencyDelays[moveable.moveFrequency] || 0
       if (delay > 0) {
