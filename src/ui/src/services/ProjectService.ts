@@ -79,21 +79,29 @@ export class ProjectService {
   }
 
   public static getRelativePath(fullUrl: string): string {
+    if (!fullUrl) return ''
     if (!this.projectPath) return fullUrl
-    if (fullUrl.startsWith('z-proj://')) {
-      // Remove protocol and project path
-      // Format: z-proj://<projectPath>/<relativePath>
-      // We need to be careful about matching.
+
+    let path = fullUrl
+    if (path.startsWith('z-proj://')) {
       const prefix = `z-proj://${this.projectPath}/`
-      if (fullUrl.startsWith(prefix)) {
-        return fullUrl.substring(prefix.length)
+      if (path.startsWith(prefix)) {
+        path = path.substring(prefix.length)
+      } else {
+        // Handle potentially missing trailing slash in projectPath or different separators
+        const protocolPrefix = 'z-proj://'
+        const afterProtocol = path.substring(protocolPrefix.length)
+        if (afterProtocol.includes(this.projectPath)) {
+          path = afterProtocol.split(this.projectPath).pop()?.replace(/^\/+/, '') || path
+        }
       }
-      // If path separators are mixed or encoding differs?
-      // Simple fallback: split by 'z-proj://' and then try to find project path?
-      // Actually, since we control resolveAssetUrl, strict match should work if project path is normalized.
     }
-    // Also handle Dev/Http URLs if necessary?
-    return fullUrl
+
+    // Final cleanup: remove leading slashes and legacy prefixes
+    return path
+      .replace(/^\/+/, '')
+      .replace('src/ui/assets/img/', 'img/')
+      .replace('@ui/assets/img/', 'img/')
   }
 
   public static async loadSystemData(): Promise<ZSystemData | null> {
@@ -180,6 +188,10 @@ export class ProjectService {
     await window.api.createDirectory(`${projectPath}/img`)
     await window.api.createDirectory(`${projectPath}/img/tilesets`)
     await window.api.createDirectory(`${projectPath}/img/characters`)
+    await window.api.createDirectory(`${projectPath}/img/parallaxes`)
+    await window.api.createDirectory(`${projectPath}/audio`)
+    await window.api.createDirectory(`${projectPath}/audio/bgm`)
+    await window.api.createDirectory(`${projectPath}/audio/bgs`)
 
     // Copy Default Assets (Tilesets & Character)
     await this.copyDefaultAssets(projectPath)

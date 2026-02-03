@@ -1,5 +1,5 @@
 import { nextTick, type Ref, type ComputedRef } from 'vue'
-import { ZMap, ZLayer, type TileSelection, type ZMapInfo } from '@engine/types'
+import { ZMap, ZLayer, type TileSelection, type ZMapInfo, ZAudioConfig } from '@engine/types'
 
 // Helper do tworzenia pustej struktury warstw
 export const createEmptyLayers = (
@@ -37,7 +37,21 @@ export const useMapManagement = (
     width: number,
     height: number,
     parentId?: number,
-    tilesetConfig?: Record<string, string>
+    tilesetConfig?: Record<string, string>,
+    extraProps?: {
+      displayName?: string
+      bgm?: import('@engine/types').ZAudioConfig
+      bgs?: import('@engine/types').ZAudioConfig
+      parallax?: {
+        name: string
+        loopX: boolean
+        loopY: boolean
+        scrollX: number
+        scrollY: number
+      }
+      note?: string
+      disableAutoshadow?: boolean
+    }
   ) => void
   createFolder: (name: string, parentId?: number) => void
   updateMapProperties: (
@@ -47,6 +61,18 @@ export const useMapManagement = (
       width: number
       height: number
       tilesetConfig: Record<string, string>
+      displayName?: string
+      bgm?: import('@engine/types').ZAudioConfig
+      bgs?: import('@engine/types').ZAudioConfig
+      parallax?: {
+        name: string
+        loopX: boolean
+        loopY: boolean
+        scrollX: number
+        scrollY: number
+      }
+      note?: string
+      disableAutoshadow?: boolean
     }
   ) => void
   initMap: (width: number, height: number) => void
@@ -70,7 +96,21 @@ export const useMapManagement = (
     width: number,
     height: number,
     parentId: number = 0,
-    tilesetConfig: Record<string, string> = {}
+    tilesetConfig: Record<string, string> = {},
+    extraProps: {
+      displayName?: string
+      bgm?: import('@engine/types').ZAudioConfig
+      bgs?: import('@engine/types').ZAudioConfig
+      parallax?: {
+        name: string
+        loopX: boolean
+        loopY: boolean
+        scrollX: number
+        scrollY: number
+      }
+      note?: string
+      disableAutoshadow?: boolean
+    } = {}
   ): void => {
     const newId = mapInfos.value.length > 0 ? Math.max(...mapInfos.value.map((m) => m.id)) + 1 : 1
 
@@ -81,7 +121,8 @@ export const useMapManagement = (
       height,
       layers: createEmptyLayers(width, height),
       events: [],
-      tilesetConfig
+      tilesetConfig,
+      ...extraProps
     }
 
     const newInfo: ZMapInfo = {
@@ -118,7 +159,24 @@ export const useMapManagement = (
 
   const updateMapProperties = (
     mapId: number,
-    props: { name: string; width: number; height: number; tilesetConfig: Record<string, string> }
+    props: {
+      name: string
+      width: number
+      height: number
+      tilesetConfig: Record<string, string>
+      displayName?: string
+      bgm?: ZAudioConfig
+      bgs?: ZAudioConfig
+      parallax?: {
+        name: string
+        loopX: boolean
+        loopY: boolean
+        scrollX: number
+        scrollY: number
+      }
+      note?: string
+      disableAutoshadow?: boolean
+    }
   ): void => {
     const map = storedMaps.value.find((m) => m.id === mapId)
     const info = mapInfos.value.find((m) => m.id === mapId)
@@ -128,6 +186,12 @@ export const useMapManagement = (
     if (info) info.name = props.name
 
     map.tilesetConfig = props.tilesetConfig
+    map.displayName = props.displayName
+    map.bgm = props.bgm
+    map.bgs = props.bgs
+    map.parallax = props.parallax
+    map.note = props.note
+    map.disableAutoshadow = props.disableAutoshadow
 
     if (map.width !== props.width || map.height !== props.height) {
       Object.values(map.layers).forEach((layer) => {

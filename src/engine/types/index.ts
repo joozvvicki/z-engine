@@ -202,7 +202,19 @@ export interface ZMap {
     }
   >
   events: ZEvent[]
-  tilesetConfig: Record<string, string> // Map slot (A1, B, etc) to URL
+  tilesetConfig: Record<string, string>
+  displayName?: string
+  bgm?: ZAudioConfig
+  bgs?: ZAudioConfig
+  parallax?: {
+    name: string
+    loopX: boolean
+    loopY: boolean
+    scrollX: number
+    scrollY: number
+  }
+  note?: string
+  disableAutoshadow?: boolean
 }
 
 export interface ZMapInfo {
