@@ -269,8 +269,10 @@ export class EntityRenderSystem extends ZSystem {
 
     if (!triggererPos || meta.directionFix) return
 
-    // Store current direction to restore later
-    meta.preInteractionDirection = meta.direction
+    // Store current direction to restore later (only if not already stored)
+    if (!meta.preInteractionDirection) {
+      meta.preInteractionDirection = meta.direction
+    }
 
     // Turn toward triggerer
     const dx = triggererPos.x - meta.x
