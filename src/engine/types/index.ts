@@ -70,6 +70,12 @@ export interface ZActor extends ZDatabaseEntry {
   baseParams: number[] // Level-independent bonuses
 }
 
+export interface ZAudioConfig {
+  name: string
+  volume: number
+  pitch: number
+}
+
 export interface ZSystemData {
   switches: string[]
   variables: string[]
@@ -81,6 +87,17 @@ export interface ZSystemData {
   screenZoom: number
   projectName: string
   version: string
+  startingParty: number[]
+  sounds: {
+    cursor: ZAudioConfig
+    ok: ZAudioConfig
+    cancel: ZAudioConfig
+    buzzer: ZAudioConfig
+    save: ZAudioConfig
+    load: ZAudioConfig
+    titleBGM: ZAudioConfig
+    battleBGM: ZAudioConfig
+  }
 }
 
 export interface TileSelection {

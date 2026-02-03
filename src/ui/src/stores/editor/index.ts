@@ -64,6 +64,18 @@ export const useEditorStore = defineStore('editor', () => {
   const systemScreenWidth = ref(1280)
   const systemScreenHeight = ref(720)
   const systemScreenZoom = ref(1.0)
+  const systemStartingParty = ref<number[]>([])
+  const systemSounds = ref({
+    cursor: { name: '', volume: 90, pitch: 100 },
+    ok: { name: '', volume: 90, pitch: 100 },
+    cancel: { name: '', volume: 90, pitch: 100 },
+    buzzer: { name: '', volume: 90, pitch: 100 },
+    save: { name: '', volume: 90, pitch: 100 },
+    load: { name: '', volume: 90, pitch: 100 },
+    titleBGM: { name: '', volume: 90, pitch: 100 },
+    battleBGM: { name: '', volume: 90, pitch: 100 }
+  })
+  const isProjectLoaded = ref(false)
 
   // Ensure initial size (default for new project or empty load)
   if (systemSwitches.value.length === 0) systemSwitches.value = new Array(20).fill('')
@@ -103,6 +115,27 @@ export const useEditorStore = defineStore('editor', () => {
       systemScreenWidth.value = sysData.screenWidth || 1280
       systemScreenHeight.value = sysData.screenHeight || 720
       systemScreenZoom.value = sysData.screenZoom || 1.0
+      systemStartingParty.value = sysData.startingParty || []
+      if (sysData.sounds) {
+        // Safe deep merge to ensure all keys and properties exist
+        const defaults = {
+          cursor: { name: '', volume: 90, pitch: 100 },
+          ok: { name: '', volume: 90, pitch: 100 },
+          cancel: { name: '', volume: 90, pitch: 100 },
+          buzzer: { name: '', volume: 90, pitch: 100 },
+          save: { name: '', volume: 90, pitch: 100 },
+          load: { name: '', volume: 90, pitch: 100 },
+          titleBGM: { name: '', volume: 90, pitch: 100 },
+          battleBGM: { name: '', volume: 90, pitch: 100 }
+        }
+        const merged = { ...defaults }
+        for (const key of Object.keys(defaults) as (keyof typeof defaults)[]) {
+          if (sysData.sounds[key]) {
+            merged[key] = { ...defaults[key], ...sysData.sounds[key] }
+          }
+        }
+        systemSounds.value = merged
+      }
     }
 
     // 2. Load Tilesets
@@ -123,6 +156,8 @@ export const useEditorStore = defineStore('editor', () => {
     // 4. Load Database
     const db = useDatabaseStore()
     await db.loadAll()
+
+    isProjectLoaded.value = true
   }
 
   const saveProject = async (): Promise<void> => {
@@ -143,7 +178,9 @@ export const useEditorStore = defineStore('editor', () => {
         startY: systemStartY.value,
         screenWidth: systemScreenWidth.value,
         screenHeight: systemScreenHeight.value,
-        screenZoom: systemScreenZoom.value
+        screenZoom: systemScreenZoom.value,
+        startingParty: systemStartingParty.value,
+        sounds: systemSounds.value
       })
 
       // 2. Save Tilesets
@@ -172,7 +209,9 @@ export const useEditorStore = defineStore('editor', () => {
       systemStartY,
       systemScreenWidth,
       systemScreenHeight,
-      systemScreenZoom
+      systemScreenZoom,
+      systemStartingParty,
+      systemSounds
     ],
     () => {
       // Only save if project is actually loaded and we are not in initial load phase?
@@ -188,7 +227,9 @@ export const useEditorStore = defineStore('editor', () => {
           startY: systemStartY.value,
           screenWidth: systemScreenWidth.value,
           screenHeight: systemScreenHeight.value,
-          screenZoom: systemScreenZoom.value
+          screenZoom: systemScreenZoom.value,
+          startingParty: systemStartingParty.value,
+          sounds: systemSounds.value
         }
         ProjectService.saveSystemData(sysData).catch((err) =>
           console.error('Auto-save system failed', err)
@@ -286,6 +327,9 @@ export const useEditorStore = defineStore('editor', () => {
     systemStartY,
     systemScreenWidth,
     systemScreenHeight,
-    systemScreenZoom
+    systemScreenZoom,
+    systemStartingParty,
+    systemSounds,
+    isProjectLoaded
   }
 })

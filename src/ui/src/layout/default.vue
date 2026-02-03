@@ -5,6 +5,8 @@ import Navigation from '@ui/components/Navigation.vue'
 <template>
   <div class="flex h-screen overflow-hidden w-screen">
     <Navigation />
-    <slot />
+    <main class="flex-1 h-full overflow-hidden relative">
+      <slot />
+    </main>
   </div>
 </template>

@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
+import { useEditorStore } from '@ui/stores/editor'
 import { IconSearch, IconPlus } from '@tabler/icons-vue'
 import { ProjectService } from '../services/ProjectService'
 import ResourceGrid from '../components/ResourceGrid.vue'
 import ResourcePreviewModal from '../components/modal/ResourcePreviewModal.vue'
 
 const route = useRoute()
+const store = useEditorStore()
 
 type ResourceType =
   | 'tilesets'
@@ -85,21 +87,29 @@ const handleDelete = async (file: string): Promise<void> => {
 watch(
   () => currentTab.value,
   () => {
+    selectedFile.value = null
     loadFiles()
     searchQuery.value = ''
   }
 )
 
+watch(
+  () => store.isProjectLoaded,
+  (loaded) => {
+    if (loaded) loadFiles()
+  }
+)
+
 onMounted((): void => {
-  loadFiles()
+  if (store.isProjectLoaded) loadFiles()
 })
 </script>
 
 <template>
-  <div class="flex flex-col h-full bg-white">
+  <div class="flex flex-col w-full h-full bg-white">
     <!-- Header -->
     <header
-      class="flex items-center justify-between px-8 py-6 border-b border-gray-100 bg-white/50 backdrop-blur-md sticky top-0 z-10"
+      class="flex items-center justify-between px-8 py-6 border-b border-gray-100 bg-white shadow-sm z-30"
     >
       <div class="flex items-center gap-6">
         <div>
@@ -148,10 +158,33 @@ onMounted((): void => {
         </div>
       </div>
 
-      <div class="h-full overflow-y-auto px-4 scrollbar-thin">
+      <div
+        v-if="!store.isProjectLoaded && !isLoading"
+        class="absolute inset-0 flex items-center justify-center bg-slate-50/50"
+      >
+        <div
+          class="flex flex-col items-center text-center p-12 bg-white rounded-[40px] shadow-2xl shadow-slate-200/50 border border-slate-100 max-w-sm"
+        >
+          <div
+            class="w-20 h-20 bg-slate-900 text-white rounded-3xl flex items-center justify-center mb-8 shadow-xl shadow-slate-900/20"
+          >
+            <IconPlus size="32" />
+          </div>
+          <h2 class="text-xl font-black text-slate-900 uppercase tracking-tight mb-2">
+            No Project Ready
+          </h2>
+          <p class="text-sm text-slate-400 font-medium leading-relaxed">
+            Please open or create a project from the dashboard to manage your game assets.
+          </p>
+        </div>
+      </div>
+
+      <div v-else class="h-full flex flex-col px-8 bg-slate-50/10">
         <ResourceGrid
+          class="flex-1"
           :files="filteredFiles"
           :base-path="getAssetUrl(categories[currentTab].folder)"
+          :selected-file="selectedFile || undefined"
           @select="selectedFile = $event"
         />
       </div>

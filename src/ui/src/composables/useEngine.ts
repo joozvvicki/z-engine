@@ -64,7 +64,9 @@ export const useEngine = (
         startY: store.systemStartY,
         screenWidth: store.systemScreenWidth,
         screenHeight: store.systemScreenHeight,
-        screenZoom: store.systemScreenZoom
+        screenZoom: store.systemScreenZoom,
+        startingParty: store.systemStartingParty,
+        sounds: store.systemSounds
       }
     }
   }
@@ -97,7 +99,9 @@ export const useEngine = (
         screenHeight: store.systemScreenHeight,
         screenZoom: store.systemScreenZoom || 1.0,
         switches: [],
-        variables: []
+        variables: [],
+        startingParty: store.systemStartingParty,
+        sounds: store.systemSounds
       })
 
       // Preload assets
