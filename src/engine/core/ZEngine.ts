@@ -33,7 +33,7 @@ export class ZEngine {
   constructor() {
     this.app = new Application()
     this.services = new ServiceLocator()
-    this.services.register(ZEngine.name, this)
+    this.services.register('ZEngine', this)
 
     this.sceneLayer = new Container()
     this.sceneLayer.label = 'SceneLayer'

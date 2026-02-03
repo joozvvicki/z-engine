@@ -78,73 +78,100 @@ export class EntityRenderSystem extends ZSystem {
       if (event.name === 'PlayerStart') continue
 
       const activePage = event.pages[0]
-      if (!activePage || !activePage.graphic) continue
+      // REMOVED: if (!activePage || !activePage.graphic) continue
+      // FIX: Process event even if no graphic, to allow 'invisible' movers/controllers.
 
-      // Ensure texture is loaded
-      const assetPath = activePage.graphic.assetId
-      await this.textures.load(assetPath)
+      let sprite: Sprite | null = null
 
-      const sprite = SpriteUtils.createEventSprite(
-        activePage.graphic,
-        this.textures,
-        this.tileSize,
-        false
-      )
+      if (activePage && activePage.graphic) {
+        // Ensure texture is loaded
+        const assetPath = activePage.graphic.assetId
+        await this.textures.load(assetPath)
+
+        sprite = SpriteUtils.createEventSprite(
+          activePage.graphic,
+          this.textures,
+          this.tileSize,
+          false
+        )
+      } else {
+        // Create dummy sprite for invisible events so they have state/metadata
+        sprite = new Sprite()
+        sprite.visible = false
+      }
 
       if (sprite) {
         sprite.x = event.x * this.tileSize
         sprite.y = event.y * this.tileSize
 
-        if (activePage.graphic.group === 'character' && sprite instanceof Sprite) {
+        let colsPerChar = 1
+        let baseX = 0
+        let baseY = 0
+        let frameW = 0
+        let frameH = 0
+        let initialDir: 'down' | 'left' | 'right' | 'up' = 'down'
+
+        if (activePage?.graphic && sprite instanceof Sprite) {
           sprite.x += this.tileSize / 2
           sprite.y += this.tileSize
 
+          const assetPath = activePage.graphic.assetId
           const tex = this.textures.get(assetPath)!
-          const { frameW, frameH, divW, divH } = SpriteUtils.getFrameRect(activePage.graphic, tex)
-          const colsPerChar = divW % 4 === 0 && divW % 3 !== 0 ? 4 : 3
+          const {
+            frameW: fw,
+            frameH: fh,
+            divW,
+            divH
+          } = SpriteUtils.getFrameRect(activePage.graphic, tex)
+          frameW = fw
+          frameH = fh
+
+          colsPerChar = divW % 4 === 0 && divW % 3 !== 0 ? 4 : 3
           const snapX = colsPerChar
           const snapY = divH % 4 === 0 ? 4 : 1
 
-          const baseY = Math.floor((activePage.graphic.y || 0) / snapY) * snapY
-          const dirMap: ('down' | 'left' | 'right' | 'up')[] = ['down', 'left', 'right', 'up']
-          const initialDir = dirMap[(activePage.graphic.y || 0) % 4] || 'down'
+          baseX = Math.floor((activePage.graphic.x || 0) / snapX) * snapX
+          baseY = Math.floor((activePage.graphic.y || 0) / snapY) * snapY
 
-          this.eventMetadata.set(event.id, {
-            id: event.id,
-            sprite,
-            colsPerChar,
-            baseX: Math.floor((activePage.graphic.x || 0) / snapX) * snapX,
-            baseY,
-            frameW,
-            frameH,
-            animationFrame: 0,
-            animationTimer: 0,
-            isMoving: false,
-            direction: initialDir,
-            realX: event.x * this.tileSize,
-            realY: event.y * this.tileSize,
-            targetX: event.x,
-            targetY: event.y,
-            x: event.x,
-            y: event.y,
-            initialX: event.x,
-            initialY: event.y,
-            moveSpeed: activePage.moveSpeed || 3,
-            moveFrequency: activePage.moveFrequency || 3,
-            moveRoute: activePage.moveRoute || [],
-            moveRouteIndex: (activePage.moveRoute?.length || 0) > 0 ? 0 : -1,
-            moveRouteRepeat: activePage.moveRouteRepeat ?? true,
-            moveRouteSkip: activePage.moveRouteSkip ?? true,
-            moveType: activePage.moveType || 'fixed',
-            isThrough: event.isThrough || false,
-            waitTimer: 0,
-            walkAnim: activePage.options?.walkAnim ?? true,
-            stepAnim: activePage.options?.stepAnim ?? false,
-            directionFix: activePage.options?.directionFix ?? false,
-            transparent: false,
-            opacity: 255
-          })
+          const dirMap: ('down' | 'left' | 'right' | 'up')[] = ['down', 'left', 'right', 'up']
+          initialDir = dirMap[(activePage.graphic.y || 0) % 4] || 'down'
         }
+
+        this.eventMetadata.set(event.id, {
+          id: event.id,
+          sprite,
+          colsPerChar,
+          baseX,
+          baseY,
+          frameW,
+          frameH,
+          animationFrame: 0,
+          animationTimer: 0,
+          isMoving: false,
+          direction: initialDir,
+          realX: event.x * this.tileSize,
+          realY: event.y * this.tileSize,
+          targetX: event.x,
+          targetY: event.y,
+          x: event.x,
+          y: event.y,
+          initialX: event.x,
+          initialY: event.y,
+          moveSpeed: activePage?.moveSpeed || 3,
+          moveFrequency: activePage?.moveFrequency || 3,
+          moveRoute: activePage?.moveRoute || [],
+          moveRouteIndex: (activePage?.moveRoute?.length || 0) > 0 ? 0 : -1,
+          moveRouteRepeat: activePage?.moveRouteRepeat ?? true,
+          moveRouteSkip: activePage?.moveRouteSkip ?? true,
+          moveType: activePage?.moveType || 'fixed',
+          isThrough: event.isThrough ?? activePage?.options?.through ?? false,
+          waitTimer: 0,
+          walkAnim: activePage?.options?.walkAnim ?? true,
+          stepAnim: activePage?.options?.stepAnim ?? false,
+          directionFix: activePage?.options?.directionFix ?? false,
+          transparent: false,
+          opacity: 255
+        })
         sprite.zIndex = (event.y + 1) * this.tileSize
 
         this.container.addChild(sprite)
@@ -186,6 +213,27 @@ export class EntityRenderSystem extends ZSystem {
     }
   }
 
+  public forceSetEventPosition(eventId: string, x: number, y: number): void {
+    const meta = this.eventMetadata.get(eventId)
+    if (meta) {
+      meta.x = x
+      meta.y = y
+      meta.targetX = x
+      meta.targetY = y
+      meta.realX = x * this.tileSize
+      meta.realY = y * this.tileSize
+      meta.sprite.x = meta.realX + this.tileSize / 2
+      meta.sprite.y = meta.realY + this.tileSize
+      meta.sprite.zIndex = meta.sprite.y + 0.1
+
+      const event = this.map.currentMap?.events.find((e) => e.id === eventId)
+      if (event) {
+        event.x = x
+        event.y = y
+      }
+    }
+  }
+
   private async onEventStateChanged({
     eventId,
     direction,
@@ -195,7 +243,8 @@ export class EntityRenderSystem extends ZSystem {
     moveFrequency,
     moveRoute,
     moveRouteRepeat,
-    moveRouteSkip
+    moveRouteSkip,
+    isThrough
   }: {
     eventId: string
     direction?: 'down' | 'left' | 'right' | 'up'
@@ -206,6 +255,7 @@ export class EntityRenderSystem extends ZSystem {
     moveRoute?: ZMoveCommand[]
     moveRouteRepeat?: boolean
     moveRouteSkip?: boolean
+    isThrough?: boolean
   }): Promise<void> {
     const meta = this.eventMetadata.get(eventId)
     if (!meta) return
@@ -224,6 +274,7 @@ export class EntityRenderSystem extends ZSystem {
     if (moveFrequency !== undefined) meta.moveFrequency = moveFrequency
     if (moveRouteRepeat !== undefined) meta.moveRouteRepeat = moveRouteRepeat
     if (moveRouteSkip !== undefined) meta.moveRouteSkip = moveRouteSkip
+    if (isThrough !== undefined) meta.isThrough = isThrough
 
     if (graphic) {
       const tex = this.textures.get(graphic.assetId)
@@ -351,7 +402,9 @@ export class EntityRenderSystem extends ZSystem {
   }
 
   public setVisible(visible: boolean): void {
-    this.container.visible = visible
+    // We NO LONGER toggle this.container.visible because it is shared with map tiles
+    // and would hide the whole decoration layer!
+    // Instead we toggle individual sprites.
 
     if (this.playerSprite) {
       this.playerSprite.visible = visible
@@ -455,6 +508,9 @@ export class EntityRenderSystem extends ZSystem {
   }
 
   public onUpdate(delta: number): void {
+    // No longer return early based on container visibility as it's shared map tiles
+    // SystemMode.PLAY ensures this ONLY runs in play mode.
+
     if (!this.playerSprite) return
 
     // Ensure sprites are in the correct container (e.g., after map switch or layer clear)
@@ -550,7 +606,7 @@ export class EntityRenderSystem extends ZSystem {
     if (meta.isMoving) {
       // RPG Maker style speed: Speed 4 = 1 tile per 32 frames (at 60fps)
       // actualSpeed = 2^(speed-4) * (tileSize / 32)
-      const baseSpeed = Math.pow(2, meta.moveSpeed - 4) * (this.tileSize / 32)
+      const baseSpeed = Math.pow(2, meta.moveSpeed - 2) * (this.tileSize / 48)
       const speed = (baseSpeed * delta) / 16.66
       const targetRealX = meta.targetX * this.tileSize
       const targetRealY = meta.targetY * this.tileSize
@@ -575,16 +631,58 @@ export class EntityRenderSystem extends ZSystem {
         event.x = meta.targetX
         event.y = meta.targetY
       }
-    } else if (!meta.isInteracting && !this.eventSystem.isProcessing) {
-      // 2. Process next command in move route (only if NOT interacting and no global event processing)
-      this.movementProcessor.processNextCommand(
-        meta as unknown as ZMoveable,
-        {
-          x: this.playerSystem.x,
-          y: this.playerSystem.y
-        },
-        delta
-      )
+    } else {
+      // Sync with map data if not moving (crucial for editor updates)
+      if (meta.x !== event.x || meta.y !== event.y) {
+        meta.x = event.x
+        meta.y = event.y
+        meta.targetX = event.x
+        meta.targetY = event.y
+        meta.realX = event.x * this.tileSize
+        meta.realY = event.y * this.tileSize
+        meta.sprite.x = meta.realX + this.tileSize / 2
+        meta.sprite.y = meta.realY + this.tileSize
+        meta.sprite.zIndex = meta.sprite.y + 0.1
+      }
+
+      const isCustomMove = meta.moveType === 'custom'
+      // FIX: Allow custom moves (Set Move Route) to override interaction lock
+      if (isCustomMove || (!meta.isInteracting && !this.eventSystem.isProcessing)) {
+        // 2. Process next command in move route (only if NOT interacting and no global event processing)
+        // SKIP autonomous movement in Edit mode
+        const engine = this.services.get('ZEngine') as { mode: string }
+        if (engine && engine.mode === 'play') {
+          // Process next command
+
+          this.movementProcessor.processNextCommand(
+            meta as unknown as ZMoveable,
+            {
+              x: this.playerSystem.x,
+              y: this.playerSystem.y
+            },
+            delta
+          )
+
+          const routeFinished = meta.moveRouteIndex >= meta.moveRoute.length
+
+          // State-Based Completion Check:
+          // 1. Route commands exhausted?
+          // 2. Not physically moving?
+          // 3. Not waiting on a timer?
+          if (
+            routeFinished &&
+            !meta.isMoving &&
+            meta.waitTimer <= 0 &&
+            !meta.moveRouteRepeat &&
+            meta.moveRouteIndex !== -1 // Ensure we haven't already finished
+          ) {
+            console.log(`[EntityRenderSystem] Emitting MoveRouteFinished for ${eventId}`)
+            // Disable further processing for this route to avoid repeated signals
+            meta.moveRouteIndex = -1
+            this.bus.emit(ZEngineSignal.MoveRouteFinished, { eventId })
+          }
+        }
+      }
     }
 
     // Always update alpha/transparency based on current state

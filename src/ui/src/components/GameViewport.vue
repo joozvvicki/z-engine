@@ -3,6 +3,7 @@ import { onMounted, ref } from 'vue'
 import { useEditorStore } from '@ui/stores/editor'
 import { IconAlertTriangle } from '@tabler/icons-vue'
 import EventEditor from './modal/EventEditor.vue'
+import ZContextMenu from './ZContextMenu.vue'
 import { useEngine } from '@ui/composables/useEngine'
 import { useEditorInput } from '@ui/composables/useEditorInput'
 import { GhostSystem } from '@engine/systems/GhostSystem'
@@ -24,6 +25,67 @@ const {
   clearEventSelection,
   deleteSelection
 } = useEditorInput(engine, canvasContainer)
+
+const contextMenu = ref({ show: false, x: 0, y: 0 })
+const contextTarget = ref<{ x: number; y: number } | null>(null)
+
+const onContextMenu = (e: MouseEvent): void => {
+  if (store.isTestMode || !engine.value) return
+
+  const rect = canvasContainer.value?.getBoundingClientRect()
+  if (!rect || !store.activeMapID) return
+
+  const viewport = store.mapViewportStates[store.activeMapID] || { scale: 1 }
+
+  // Calculate tile coords from mouse pos
+  const gx = (e.clientX - rect.left) / store.tileSize / viewport.scale
+  const gy = (e.clientY - rect.top) / store.tileSize / viewport.scale
+
+  // This is a bit rough, better use engine service if possible, but for simplicity:
+  const tx = Math.floor(gx)
+  const ty = Math.floor(gy)
+
+  contextTarget.value = { x: tx, y: ty }
+  contextMenu.value = { show: true, x: e.clientX, y: e.clientY }
+
+  // Select the event under cursor if any
+  const existing = store.activeMap?.events.find((ev) => ev.x === tx && ev.y === ty)
+  if (existing) {
+    store.selectedEventId = existing.id
+  }
+}
+
+const handleContextAction = (action: string): void => {
+  if (!contextTarget.value || !store.activeMap) return
+  const tx = contextTarget.value.x
+  const ty = contextTarget.value.y
+  const existing = store.activeMap.events.find((ev) => ev.x === tx && ev.y === ty)
+
+  switch (action) {
+    case 'edit':
+      if (existing) {
+        activeEventCoords.value = { x: tx, y: ty }
+        activeEventId.value = existing.id
+      }
+      break
+    case 'copy':
+      if (existing) {
+        store.eventClipboard = store.copyEvent(existing.id)
+      }
+      break
+    case 'paste':
+      if (store.eventClipboard) {
+        store.pasteEvent(tx, ty, store.eventClipboard)
+      }
+      break
+    case 'delete':
+      if (existing) {
+        store.deleteEvent(existing.id)
+      }
+      break
+  }
+  contextMenu.value.show = false
+}
 
 onMounted(async () => {
   await initEngine()
@@ -51,6 +113,7 @@ onMounted(async () => {
     class="w-full h-full overflow-hidden relative outline-none bg-[#e5e5e5]"
     tabindex="0"
     @wheel.prevent="onWheel"
+    @contextmenu.prevent="onContextMenu"
   >
     <!-- Loading Overlay -->
     <div
@@ -90,6 +153,52 @@ onMounted(async () => {
       :y="activeEventCoords.y"
       @close="clearEventSelection"
     />
+
+    <!-- Context Menu -->
+    <ZContextMenu
+      v-if="contextMenu.show"
+      :show="contextMenu.show"
+      :x="contextMenu.x"
+      :y="contextMenu.y"
+      @close="contextMenu.show = false"
+    >
+      <div
+        v-if="
+          store.activeMap?.events.find((e) => e.x === contextTarget?.x && e.y === contextTarget?.y)
+        "
+        class="flex flex-col"
+      >
+        <button
+          class="px-3 py-1.5 text-xs hover:bg-black/5 text-left flex items-center gap-2"
+          @click="handleContextAction('edit')"
+        >
+          Edit Event
+        </button>
+        <button
+          class="px-3 py-1.5 text-xs hover:bg-black/5 text-left flex items-center gap-2"
+          @click="handleContextAction('copy')"
+        >
+          Copy
+        </button>
+        <div class="h-px bg-black/5 my-1"></div>
+        <button
+          class="px-3 py-1.5 text-xs hover:bg-black/5 text-left text-red-500"
+          @click="handleContextAction('delete')"
+        >
+          Delete
+        </button>
+      </div>
+      <div v-else class="flex flex-col">
+        <button
+          class="px-3 py-1.5 text-xs hover:bg-black/5 text-left flex items-center gap-2"
+          :disabled="!store.eventClipboard"
+          :class="{ 'opacity-50 pointer-events-none': !store.eventClipboard }"
+          @click="handleContextAction('paste')"
+        >
+          Paste Event
+        </button>
+      </div>
+    </ZContextMenu>
   </div>
 </template>
 

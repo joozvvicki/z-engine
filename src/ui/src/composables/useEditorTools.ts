@@ -5,6 +5,7 @@ import { ZTool } from '@engine/types'
 import type { FederatedPointerEvent } from '@engine/utils/pixi'
 import { ToolManager } from '@engine/managers/ToolManager'
 import { GridSystem } from '@engine/systems/GridSystem'
+import { GhostSystem } from '@engine/systems/GhostSystem'
 
 export const useEditorTools = (): {
   shapeStartPos: Ref<{ x: number; y: number } | null>
@@ -24,6 +25,8 @@ export const useEditorTools = (): {
   // State for event editor
   const activeEventCoords = ref<{ x: number; y: number } | null>(null)
   const activeEventId = ref<string | null>(null)
+  const draggingEventId = ref<string | null>(null)
+  const dragStartPos = ref<{ x: number; y: number } | null>(null)
 
   const handleInteraction = (
     event: FederatedPointerEvent,
@@ -53,16 +56,57 @@ export const useEditorTools = (): {
       return
     }
 
-    if (tool === ZTool.event && isCommit) {
+    if (tool === ZTool.event) {
       const existing = store.activeMap.events?.find((e) => e.x === target.x && e.y === target.y)
 
-      // Prevent opening editor for PlayerStart
-      if (existing?.name === 'PlayerStart') {
-        return
-      }
+      if (isCommit) {
+        // Pointer Up (Commit)
+        if (draggingEventId.value && dragStartPos.value) {
+          // Finish Drag
+          const hasMoved = dragStartPos.value.x !== target.x || dragStartPos.value.y !== target.y
+          if (hasMoved) {
+            store.moveEvent(draggingEventId.value, target.x, target.y)
+            const ghost = engine.services.get(GhostSystem)
+            ghost?.setSelectedEventPos({ x: target.x, y: target.y })
+            ghost?.setDirty()
+          } else {
+            // It was a click, not a drag
+            if (existing?.name !== 'PlayerStart') {
+              activeEventCoords.value = { x: target.x, y: target.y }
+              activeEventId.value = existing?.id || null
+              store.selectedEventId = existing?.id || null
+            }
+          }
+        } else if (!draggingEventId.value) {
+          // Click on empty space (possibly to create new event or just deselect)
+          if (!existing) {
+            activeEventCoords.value = { x: target.x, y: target.y }
+            activeEventId.value = null
+          }
+        }
+        draggingEventId.value = null
+        dragStartPos.value = null
+        engine.services.get(GhostSystem)?.setDraggingEventId(null)
+      } else {
+        // Pointer Down or Move
+        if (!draggingEventId.value && existing) {
+          // Start Drag
+          draggingEventId.value = existing.id
+          dragStartPos.value = { x: target.x, y: target.y }
+          store.selectedEventId = existing.id
+          const ghost = engine.services.get(GhostSystem)
+          ghost?.setDraggingEventId(existing.id)
+          ghost?.setSelectedEventPos({ x: target.x, y: target.y })
+          ghost?.setVisible(true)
+        }
 
-      activeEventCoords.value = { x: target.x, y: target.y }
-      activeEventId.value = existing?.id || null
+        if (draggingEventId.value) {
+          // Update Ghost during drag
+          const ghost = engine.services.require(GhostSystem)
+          ghost.update(target.x, target.y, store.selection, tool, layer)
+          ghost.setSelectedEventPos({ x: target.x, y: target.y })
+        }
+      }
       return
     }
 

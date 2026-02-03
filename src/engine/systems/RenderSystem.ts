@@ -250,8 +250,8 @@ export class RenderSystem extends ZSystem {
       }
     })
 
-    // Render Object Events
-    this.renderEvents(mapData)
+    // Render Object Events - Disabled in favour of GhostSystem placeholders in editor
+    // this.renderEvents(mapData)
 
     // Ensure startups are restored (they are cleared by resetLayers)
     this.drawPlayerStartMarker()
@@ -343,7 +343,7 @@ export class RenderSystem extends ZSystem {
 
     const sprite = SpriteUtils.createEventSprite(graphicData, this.textures, this.tileSize, true)
     if (sprite) {
-      sprite.alpha = 0.7 // Ghost effect
+      sprite.alpha = 0.5 // Standard ghostly alpha for editor
       container.addChild(sprite)
     }
 
@@ -419,6 +419,7 @@ export class RenderSystem extends ZSystem {
     })
   }
 
+  /*
   private renderEvents(mapData: ZMap): void {
     this.eventMarkers = [] // Reset list (containers cleared by resetLayers? No, renderEvents runs after resetLayers usually, wait)
     // resetLayers clears children of layers. So old markers are gone from PIXI.
@@ -481,7 +482,7 @@ export class RenderSystem extends ZSystem {
       this.eventMarkersLayer.addChild(container)
       this.eventMarkers.push(container)
     })
-  }
+  } */
 
   public IsMapLoaded(): boolean {
     return this.tileUpdates.length === 0

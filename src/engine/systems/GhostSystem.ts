@@ -1,4 +1,4 @@
-import { type TileSelection, ZTool, ZLayer } from '@engine/types'
+import { type TileSelection, ZTool, ZLayer, ZEngineSignal } from '@engine/types'
 import { Container, Graphics, Sprite, Texture, Rectangle, AnimatedSprite } from '@engine/utils/pixi'
 import { ZSystem, SystemMode } from '@engine/core/ZSystem'
 import { ServiceLocator } from '@engine/core/ServiceLocator'
@@ -8,6 +8,7 @@ import { SpriteUtils } from '@engine/utils/SpriteUtils'
 
 export class GhostSystem extends ZSystem {
   public container: Container
+  private wrapper: Container
   private tileSize: number
 
   // State
@@ -20,11 +21,14 @@ export class GhostSystem extends ZSystem {
   private shapeEnd: { x: number; y: number } | null = null
   private isShape: boolean = false
   private activeLayer: ZLayer = ZLayer.ground
+  private draggingEventId: string | null = null
 
   private selectionBox: { x: number; y: number; w: number; h: number } | null = null
+  private selectedEventPos: { x: number; y: number } | null = null
 
-  constructor(_stage: Container, services: ServiceLocator, tileSize: number) {
+  constructor(stage: Container, services: ServiceLocator, tileSize: number) {
     super(services)
+    this.wrapper = stage
     this.updateMode = SystemMode.EDIT
     this.tileSize = tileSize
     this.container = null!
@@ -36,6 +40,15 @@ export class GhostSystem extends ZSystem {
     this.container.zIndex = 999
     this.container.visible = false
     this.container.eventMode = 'none'
+    this.wrapper.addChild(this.container)
+
+    this.bus.on(ZEngineSignal.MapLoaded, () => {
+      this.dirty = true
+    })
+  }
+
+  public setDirty(): void {
+    this.dirty = true
   }
 
   public onDestroy(): void {
@@ -71,6 +84,11 @@ export class GhostSystem extends ZSystem {
     this.dirty = true
   }
 
+  public setVisible(visible: boolean): void {
+    this.container.visible = visible
+    this.dirty = true
+  }
+
   public hide(): void {
     if (this.active) {
       this.active = false
@@ -78,14 +96,13 @@ export class GhostSystem extends ZSystem {
     }
   }
 
-  public setVisible(visible: boolean): void {
-    if (this.container) {
-      this.container.visible = visible
-    }
-  }
-
   public setSelectionBox(box: { x: number; y: number; w: number; h: number } | null): void {
     this.selectionBox = box
+    this.dirty = true
+  }
+
+  public setSelectedEventPos(pos: { x: number; y: number } | null): void {
+    this.selectedEventPos = pos
     this.dirty = true
   }
 
@@ -101,12 +118,14 @@ export class GhostSystem extends ZSystem {
         ZTool.eraser,
         ZTool.rectangle,
         ZTool.circle,
-        ZTool.select
+        ZTool.select,
+        ZTool.event
       ].includes(this.currentTool)
       if (isPickableTool) {
+        const color = this.currentTool === ZTool.event ? 0x00ffff : 0xffffff
         const g = new Graphics()
           .rect(x, y, this.tileSize, this.tileSize)
-          .stroke({ width: 1, color: 0xffffff, alpha: 0.5 })
+          .stroke({ width: 1, color, alpha: 0.5 })
           .stroke({ width: 1, color: 0x000000, alpha: 0.2, alignment: 1 })
         this.container.addChild(g)
       }
@@ -122,9 +141,37 @@ export class GhostSystem extends ZSystem {
     } else if (this.currentTool === ZTool.event) {
       const g = new Graphics()
         .rect(x, y, this.tileSize, this.tileSize)
-        .fill({ color: 0x00ffff, alpha: 0.3 })
-        .stroke({ width: 1, color: 0x00ffff, alpha: 0.8 })
+        .fill({ color: 0x000000, alpha: 0.3 })
+        .stroke({ width: 1, color: 0x000000, alpha: 0.6 })
       this.container.addChild(g)
+
+      // If we are dragging an existing event, show its graphic too!
+      if (this.draggingEventId) {
+        const event = this.map.currentMap?.events.find((e) => e.id === this.draggingEventId)
+        const activePage = event?.pages[0]
+        if (activePage?.graphic) {
+          // Ensure texture is available in cache
+          const assetPath = activePage.graphic.assetId
+          if (!this.textures.get(assetPath)) {
+            this.textures.load(assetPath).then(() => {
+              this.dirty = true
+            })
+          }
+
+          const sprite = SpriteUtils.createEventSprite(
+            activePage.graphic,
+            this.textures,
+            this.tileSize,
+            true
+          )
+          if (sprite) {
+            sprite.x = x + this.tileSize / 2
+            sprite.y = y + this.tileSize
+            sprite.alpha = 0.5
+            this.container.addChild(sprite)
+          }
+        }
+      }
     } else if (
       this.currentTool === ZTool.brush ||
       this.currentTool === ZTool.bucket ||
@@ -433,20 +480,104 @@ export class GhostSystem extends ZSystem {
     this.container.addChild(g)
   }
 
+  public setDraggingEventId(id: string | null): void {
+    this.draggingEventId = id
+    this.dirty = true
+  }
+
+  private renderExistingEvents(): void {
+    const map = this.map.currentMap
+    if (!map || !map.events) return
+
+    for (const event of map.events) {
+      if (event.name === 'PlayerStart') continue
+
+      // If we are dragging this event, it's already rendered at the ghost position
+      if (event.id === this.draggingEventId) continue
+
+      const x = event.x * this.tileSize
+      const y = event.y * this.tileSize
+
+      const g = new Graphics()
+        .rect(x, y, this.tileSize, this.tileSize)
+        .fill({ color: 0x000000, alpha: 0.3 })
+        .stroke({ width: 2, color: 0x000000, alpha: 0.6 })
+      this.container.addChild(g)
+
+      // Render character graphic in placeholder if available
+      const activePage = event.pages[0]
+      if (activePage?.graphic) {
+        // Ensure texture is available in cache
+        const assetPath = activePage.graphic.assetId
+        if (!this.textures.get(assetPath)) {
+          // We can't await here easily in a sync render loop, but we can trigger a load
+          // and set dirty=true when done.
+          this.textures.load(assetPath).then(() => {
+            this.dirty = true
+          })
+        }
+
+        const sprite = SpriteUtils.createEventSprite(
+          activePage.graphic,
+          this.textures,
+          this.tileSize,
+          true
+        )
+        if (sprite) {
+          sprite.x = x + this.tileSize / 2
+          sprite.y = y + this.tileSize
+          sprite.alpha = 0.3 // Very ghostly in placeholders
+          this.container.addChild(sprite)
+        }
+      }
+    }
+  }
+
+  private renderSelectedEventHighlight(): void {
+    if (!this.selectedEventPos) return
+    const x = this.selectedEventPos.x * this.tileSize
+    const y = this.selectedEventPos.y * this.tileSize
+    const g = new Graphics()
+      .rect(x, y, this.tileSize, this.tileSize)
+      .stroke({ width: 2, color: 0x000000, alpha: 0.8 })
+      .rect(x - 2, y - 2, this.tileSize + 4, this.tileSize + 4)
+      .stroke({ width: 1, color: 0x000000, alpha: 0.6 })
+    this.container.addChild(g)
+  }
+
   public onUpdate(): void {
-    if (!this.dirty) return
+    // In EDIT mode, we always want to reflect map changes (like event dragging) immediately
+    if (this.updateMode !== SystemMode.EDIT && !this.dirty) return
     this.container.removeChildren()
-    this.container.visible = this.active
+
+    // Always visible in EDIT mode for placeholders, otherwise follow active/selection state
+    this.container.visible =
+      this.updateMode === SystemMode.EDIT || this.active || this.selectedEventPos !== null
+
     this.container.x = 0
     this.container.y = 0
 
-    if (this.isShape && this.shapeStart && this.shapeEnd) {
-      this.renderShape()
-    } else {
-      this.renderSingleGhost()
+    // Only render the active tool ghost if active
+    if (this.active) {
+      if (this.isShape && this.shapeStart && this.shapeEnd) {
+        this.renderShape()
+      } else {
+        this.renderSingleGhost()
+      }
     }
 
-    this.renderSelectionBox()
+    // Always render existing event placeholders in Edit mode
+    if (this.updateMode === SystemMode.EDIT) {
+      this.renderExistingEvents()
+    }
+
+    if (this.selectedEventPos) {
+      this.renderSelectedEventHighlight()
+    }
+    if (this.selectionBox) {
+      this.renderSelectionBox()
+    }
+
     this.dirty = false
   }
 }

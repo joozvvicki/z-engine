@@ -85,6 +85,7 @@ const transferDirection = ref(2)
 // Set Move Route
 const moveRouteTarget = ref<string | number>(0) // 0: This, -1: Player
 const moveRouteWait = ref(true)
+const moveRouteRepeat = ref(false)
 const moveRouteThrough = ref(false)
 const moveRouteCommands = ref<ZMoveCommand[]>([])
 
@@ -192,6 +193,7 @@ watch(
         moveRouteTarget.value = 0
         moveRouteWait.value = false
         moveRouteThrough.value = false
+        moveRouteRepeat.value = true
       } else if (props.initialCommand) {
         commandSelectorStep.value = 'params'
         selectedCommandType.value = props.initialCommand.code
@@ -223,7 +225,8 @@ watch(
           moveRouteTarget.value = (params[0] as string | number) ?? 0
           moveRouteCommands.value = JSON.parse(JSON.stringify(params[1] || []))
           moveRouteWait.value = Boolean(params[2] ?? true)
-          moveRouteThrough.value = Boolean(params[3] ?? false)
+          moveRouteRepeat.value = Boolean(params[3] ?? false)
+          moveRouteThrough.value = Boolean(params[4] ?? false)
         }
       } else {
         commandSelectorStep.value = 'grid'
@@ -244,6 +247,7 @@ watch(
         moveRouteTarget.value = 0
         moveRouteCommands.value = []
         moveRouteWait.value = true
+        moveRouteRepeat.value = false
         moveRouteThrough.value = false
       }
     }
@@ -349,6 +353,7 @@ const handleSave = (): void => {
         moveRouteTarget.value,
         moveRouteCommands.value,
         moveRouteWait.value,
+        moveRouteRepeat.value,
         moveRouteThrough.value
       ]
     }
@@ -791,6 +796,21 @@ const handleSave = (): void => {
                   <span class="text-[10px] font-bold uppercase text-slate-600"
                     >Wait for Completion</span
                   >
+                </label>
+
+                <label class="flex items-center gap-2 cursor-pointer group">
+                  <div
+                    class="w-4 h-4 rounded border flex items-center justify-center transition-all"
+                    :class="
+                      moveRouteRepeat
+                        ? 'bg-slate-900 border-slate-900 text-white'
+                        : 'bg-white border-slate-200 group-hover:border-slate-400'
+                    "
+                  >
+                    <input v-model="moveRouteRepeat" type="checkbox" class="hidden" />
+                    <IconRefresh v-if="moveRouteRepeat" size="10" stroke-width="4" />
+                  </div>
+                  <span class="text-[10px] font-bold uppercase text-slate-600">Repeat Action</span>
                 </label>
 
                 <label class="flex items-center gap-2 cursor-pointer group">

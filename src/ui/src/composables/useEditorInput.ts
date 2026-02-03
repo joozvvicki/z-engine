@@ -117,7 +117,10 @@ export const useEditorInput = (
         engine.value.services.get(GhostSystem)?.hide()
       }
 
-      if (isPointerDown.value && (tool === ZTool.brush || tool === ZTool.eraser)) {
+      if (
+        isPointerDown.value &&
+        (tool === ZTool.brush || tool === ZTool.eraser || tool === ZTool.event)
+      ) {
         handleInteraction(event, engine.value)
       }
     }
@@ -160,6 +163,24 @@ export const useEditorInput = (
         ghostSystem.setSelectionBox(null)
       }
     }
+  )
+
+  // 1.2 Sync selected event highlight
+  watch(
+    () => [store.selectedEventId, store.activeMap?.events],
+    () => {
+      const ghostSystem = engine.value?.services.get(GhostSystem)
+      if (engine.value && ghostSystem && store.selectedEventId && store.activeMap) {
+        const ev = store.activeMap.events.find((e) => e.id === store.selectedEventId)
+        if (ev) {
+          ghostSystem.setSelectedEventPos({ x: ev.x, y: ev.y })
+          ghostSystem.setVisible(true) // Ensure visible if we have a selection
+          return
+        }
+      }
+      ghostSystem?.setSelectedEventPos(null)
+    },
+    { deep: true }
   )
 
   // 1.5. Force immediate ghost update when selection or tool changes

@@ -28,6 +28,7 @@ export class EventSystem extends ZSystem {
     index: number
     eventId: string
     waitCount?: number
+    waitingForMoveEventId?: string | null
   } | null = null
 
   private processors: Map<number, ZCommandProcessor> = new Map()
@@ -90,6 +91,21 @@ export class EventSystem extends ZSystem {
     this.bus.on(ZEngineSignal.PlayerMoved, ({ x, y }) => {
       this.checkTrigger(x, y, ZEventTrigger.PlayerTouch, { x, y })
     })
+
+    this.bus.on(ZEngineSignal.MoveRouteFinished, ({ eventId }) => {
+      console.log(`[EventSystem] Received MoveRouteFinished for ${eventId}`)
+      if (this.activeInterpreter) {
+        console.log(
+          `[EventSystem] Active interpreter waiting for: ${this.activeInterpreter.waitingForMoveEventId}`
+        )
+        if (this.activeInterpreter.waitingForMoveEventId === eventId) {
+          console.log('[EventSystem] Resuming interpreter!')
+          this.activeInterpreter.waitingForMoveEventId = null
+          this.isProcessing = true
+          this.executeInterpreter()
+        }
+      }
+    })
   }
 
   public resumeProcessing(): void {
@@ -102,7 +118,7 @@ export class EventSystem extends ZSystem {
     if (this.activeInterpreter) {
       if (this.activeInterpreter.waitCount && this.activeInterpreter.waitCount > 0) {
         this.activeInterpreter.waitCount--
-      } else if (!this.isWaitingForMessage) {
+      } else if (!this.activeInterpreter.waitingForMoveEventId && !this.isWaitingForMessage) {
         this.executeInterpreter()
       }
     }
@@ -355,7 +371,7 @@ export class EventSystem extends ZSystem {
 
   private commandControlSelfSwitch(
     params: unknown[],
-    interpreter: { eventId: string }
+    interpreter: { eventId: string; waitingForMoveEventId?: string | null }
   ): ZCommandResult {
     const mapId = this.map.currentMap?.id || 0
     const eventId = interpreter.eventId
@@ -469,7 +485,7 @@ export class EventSystem extends ZSystem {
 
   private commandSetEventDirection(
     params: unknown[],
-    interpreter: { eventId: string }
+    interpreter: { eventId: string; waitingForMoveEventId?: string | null }
   ): ZCommandResult {
     const direction = params[0] as 'down' | 'left' | 'right' | 'up'
     this.bus.emit(ZEngineSignal.EventInternalStateChanged, {
@@ -481,7 +497,7 @@ export class EventSystem extends ZSystem {
 
   private commandSetEventGraphic(
     params: unknown[],
-    interpreter: { eventId: string }
+    interpreter: { eventId: string; waitingForMoveEventId?: string | null }
   ): ZCommandResult {
     const graphic = params[0] as ZEventGraphic
     this.bus.emit(ZEngineSignal.EventInternalStateChanged, {
@@ -491,17 +507,43 @@ export class EventSystem extends ZSystem {
     return 'continue'
   }
 
-  private commandSetMoveRoute(params: unknown[], interpreter: { eventId: string }): ZCommandResult {
-    const targetId = params[0] as number // 0 = This Event, -1 = Player
+  private commandSetMoveRoute(
+    params: unknown[],
+    interpreter: { eventId: string; waitingForMoveEventId?: string | null }
+  ): ZCommandResult {
+    const targetId = params[0]
     const route = params[1] as ZMoveCommand[]
+    const wait = params[2] as boolean
+    const repeat = params[3] as boolean
+    const through = params[4] as boolean
 
-    const eventId = targetId === 0 ? interpreter.eventId : targetId === -1 ? 'PLAYER' : null
+    let eventId: string | null = null
+    // Handle both number and string types for safety
+    if (targetId === 0 || targetId === '0') {
+      eventId = interpreter.eventId
+    } else if (targetId === -1 || targetId === '-1' || targetId === 'PLAYER') {
+      eventId = 'PLAYER'
+    } else {
+      eventId = String(targetId)
+    }
 
     if (eventId) {
       this.bus.emit(ZEngineSignal.EventInternalStateChanged, {
         eventId,
-        moveRoute: route
+        moveRoute: route,
+        moveType: 'custom',
+        moveRouteRepeat: repeat,
+        moveRouteSkip: false,
+        isThrough: through
       })
+
+      console.log(`[EventSystem] commandSetMoveRoute: eventId=${eventId}, wait=${wait}`)
+
+      if (wait) {
+        console.log(`[EventSystem] Pausing interpreter for ${eventId}`)
+        interpreter.waitingForMoveEventId = eventId
+        return 'wait'
+      }
     }
 
     return 'continue'

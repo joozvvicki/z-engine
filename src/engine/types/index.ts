@@ -346,7 +346,13 @@ export type ZCommandResult = 'continue' | 'wait' | 'stop'
 export interface ZCommandProcessor {
   (
     params: unknown[],
-    interpreter: { list: ZEventCommand[]; index: number; eventId: string; waitCount?: number }
+    interpreter: {
+      list: ZEventCommand[]
+      index: number
+      eventId: string
+      waitCount?: number
+      waitingForMoveEventId?: string | null
+    }
   ): ZCommandResult
 }
 
@@ -393,7 +399,8 @@ export enum ZEngineSignal {
   GameStateChanged = 'state:changed',
   EventInternalStateChanged = 'event:internal-state',
   EventExecutionStarted = 'event:execution-started',
-  EventExecutionFinished = 'event:execution-finished'
+  EventExecutionFinished = 'event:execution-finished',
+  MoveRouteFinished = 'event:move-route-finished'
 }
 
 export interface ZSignalData {
@@ -430,4 +437,5 @@ export interface ZSignalData {
     triggererPos?: { x: number; y: number }
   }
   [ZEngineSignal.EventExecutionFinished]: { eventId: string }
+  [ZEngineSignal.MoveRouteFinished]: { eventId: string }
 }

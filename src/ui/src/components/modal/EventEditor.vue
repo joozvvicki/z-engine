@@ -249,13 +249,17 @@ const getChoiceName = (_itemIndex: number, choiceIndex: number): string => {
   return `Choice ${choiceIndex + 1}`
 }
 
+const insertionIndex = ref<number | null>(null)
+
 const handleEditCommand = (index: number): void => {
   editingCommandIndex.value = index
+  insertionIndex.value = null
   showCommandSelector.value = true
 }
 
 const handleAddCommand = (index: number): void => {
   editingCommandIndex.value = null
+  insertionIndex.value = index // Explicit insertion index
   selectedCommandIndex.value = index
   showCommandSelector.value = true
 }
@@ -268,15 +272,22 @@ const handleCommandSave = (cmd: { code: number; parameters: unknown[] }): void =
       parameters: cmd.parameters
     }
   } else {
-    const index =
-      selectedCommandIndex.value !== null
-        ? selectedCommandIndex.value + 1
-        : activePage.value.list.length
+    // If we have an explicit insertion index, use it. Otherwise append or insert after selection.
+    let index = activePage.value.list.length
+
+    if (insertionIndex.value !== null) {
+      index = insertionIndex.value
+    } else if (selectedCommandIndex.value !== null) {
+      index = selectedCommandIndex.value + 1
+    }
+
     activePage.value.list.splice(index, 0, {
       code: cmd.code,
       parameters: cmd.parameters
     })
   }
+
+  insertionIndex.value = null
   showCommandSelector.value = false
 }
 

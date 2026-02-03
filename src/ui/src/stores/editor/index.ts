@@ -16,7 +16,8 @@ import {
   ZTool,
   ZLayer,
   type TilesetConfig,
-  type ZMapInfo
+  type ZMapInfo,
+  type ZEvent
 } from '@engine/types'
 import { useDatabaseStore } from '../database'
 
@@ -51,6 +52,10 @@ export const useEditorStore = defineStore('editor', () => {
   // Select Tool State
   const selectionCoords = ref<{ x: number; y: number; w: number; h: number } | null>(null)
   const clipboard = ref<TileSelection | null>(null)
+
+  // Event Selection & Clipboard
+  const selectedEventId = ref<string | null>(null)
+  const eventClipboard = ref<ZEvent | null>(null)
 
   // Dane Map
   const storedMaps = ref<ZMap[]>([])
@@ -151,11 +156,11 @@ export const useEditorStore = defineStore('editor', () => {
     storedTilesetConfigs.value = await ProjectService.loadTilesets()
 
     // 3. Load Maps (Currently loading ALL, optimization needed for large projects)
-    const mapInfos = await ProjectService.loadMapInfos() // [{id, name, ...}]
+    const mapInfos = (await ProjectService.loadMapInfos()) as unknown[] // [{id, name, ...}]
 
     // Migration/Sanitization: Ensure all items have necessary tree properties
-    const sanitizedInfos: ZMapInfo[] = mapInfos.map((info: any, index: number) => {
-      const base = info as Record<string, any>
+    const sanitizedInfos: ZMapInfo[] = mapInfos.map((info: unknown, index: number) => {
+      const base = info as Record<string, unknown>
       return {
         id: base.id,
         name: base.name || 'Unnamed Map',
@@ -322,10 +327,11 @@ export const useEditorStore = defineStore('editor', () => {
     activeLayer,
     currentTool,
     selectionCoords,
-    clipboard,
     cursorX,
     cursorY,
     renamingId,
+    selectedEventId,
+    eventClipboard,
 
     // Viewport States
     mapViewportStates,

@@ -83,6 +83,9 @@ export class PlayerSystem extends ZSystem implements ZMoveable {
         this.moveRoute = data.moveRoute
         this.moveRouteIndex = 0
         this.waitTimer = 0
+        this.moveRouteRepeat = data.moveRouteRepeat ?? false
+        this.moveRouteSkip = data.moveRouteSkip ?? false
+        this.moveType = 'custom' // Enforce custom type for player too
       }
     })
 
@@ -98,8 +101,25 @@ export class PlayerSystem extends ZSystem implements ZMoveable {
   }
 
   private updateMoveRoute(delta: number): void {
-    if (this.isInputBlocked) return
+    // Allow scripted movement even if input is blocked (e.g. cutscenes)
+    if (this.isInputBlocked && this.moveRouteIndex < 0) return
+
     this.movementProcessor.processNextCommand(this, undefined, delta)
+
+    const routeFinished = this.moveRouteIndex >= this.moveRoute.length
+
+    // State-Based Completion Check
+    if (
+      routeFinished &&
+      !this.isMoving &&
+      this.waitTimer <= 0 &&
+      !this.moveRouteRepeat &&
+      this.moveRouteIndex !== -1
+    ) {
+      ZLogger.with('PlayerSystem').info('Player move route finished')
+      this.moveRouteIndex = -1
+      this.bus.emit(ZEngineSignal.MoveRouteFinished, { eventId: 'PLAYER' })
+    }
   }
 
   private updateInput(): void {
