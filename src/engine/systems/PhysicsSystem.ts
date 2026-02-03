@@ -32,7 +32,10 @@ export class PhysicsSystem extends ZSystem {
 
     // Check Events (Collision Priority)
     // If an event is at (x,y) and is NOT through, it blocks regardless of tiles.
+    // FIX: Only block if the event itself is NOT through
     const blockingEvent = map.events.find((e) => e.x === x && e.y === y && !e.isThrough)
+
+    // If there is a blocking event, AND we (the mover) are not phantom, collision occurs.
     if (blockingEvent && !options?.isThrough) return false
 
     // Check moving event targets (via EntityRenderSystem)

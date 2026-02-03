@@ -164,7 +164,11 @@ export class EntityRenderSystem extends ZSystem {
           moveRouteRepeat: activePage?.moveRouteRepeat ?? true,
           moveRouteSkip: activePage?.moveRouteSkip ?? true,
           moveType: activePage?.moveType || 'fixed',
-          isThrough: event.isThrough ?? activePage?.options?.through ?? false,
+          isThrough: (() => {
+            const val = event.isThrough ?? activePage?.options?.through ?? false
+            if (val) event.isThrough = true // Sync to map event for PhysicsSystem
+            return val
+          })(),
           waitTimer: 0,
           walkAnim: activePage?.options?.walkAnim ?? true,
           stepAnim: activePage?.options?.stepAnim ?? false,
@@ -274,7 +278,14 @@ export class EntityRenderSystem extends ZSystem {
     if (moveFrequency !== undefined) meta.moveFrequency = moveFrequency
     if (moveRouteRepeat !== undefined) meta.moveRouteRepeat = moveRouteRepeat
     if (moveRouteSkip !== undefined) meta.moveRouteSkip = moveRouteSkip
-    if (isThrough !== undefined) meta.isThrough = isThrough
+    if (isThrough !== undefined) {
+      meta.isThrough = isThrough
+      // Sync with map event for PhysicsSystem
+      const mapEvent = this.map.currentMap?.events.find((e) => e.id === eventId)
+      if (mapEvent) {
+        mapEvent.isThrough = isThrough
+      }
+    }
 
     if (graphic) {
       const tex = this.textures.get(graphic.assetId)
@@ -425,6 +436,9 @@ export class EntityRenderSystem extends ZSystem {
   public isTileOccupiedByMovingEntity(x: number, y: number): boolean {
     // Check Events
     for (const meta of this.eventMetadata.values()) {
+      // FIX: Ignore events that are 'through'
+      if (meta.isThrough) continue
+
       if (meta.x === x && meta.y === y) return true
       if (meta.isMoving && meta.targetX === x && meta.targetY === y) return true
     }
