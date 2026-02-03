@@ -417,6 +417,8 @@ export interface ZSignalData {
     direction?: 'down' | 'left' | 'right' | 'up'
     graphic?: ZEventGraphic
     moveType?: 'fixed' | 'random' | 'approach' | 'custom'
+    moveSpeed?: number
+    moveFrequency?: number
     moveRoute?: ZMoveCommand[]
     moveRouteIndex?: number
     moveRouteRepeat?: boolean

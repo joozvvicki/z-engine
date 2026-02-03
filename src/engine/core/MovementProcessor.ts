@@ -36,21 +36,29 @@ export class MovementProcessor {
   constructor(physicsSystem: PhysicsSystem) {
     this.physicsSystem = physicsSystem
   }
-  public processNextCommand(moveable: ZMoveable, playerPos?: { x: number; y: number }): void {
+  public processNextCommand(
+    moveable: ZMoveable,
+    playerPos?: { x: number; y: number },
+    delta: number = 16.6
+  ): void {
     if (moveable.moveType === 'fixed') return
 
     // If custom/random/approach but we have a wait timer, wait
     if (moveable.waitTimer > 0) {
-      moveable.waitTimer--
+      moveable.waitTimer -= delta / 16.6
+      if (moveable.waitTimer < 0) moveable.waitTimer = 0
       return
     }
 
     // Frequency Delay (for autonomous movement)
-    // 5: Highest (0 delay), 4: High (15), 3: Normal (30), 2: Low (60), 1: Lowest (120)
-    const frequencyDelays = [0, 120, 60, 30, 15, 0]
-    const delay = frequencyDelays[moveable.moveFrequency] || 0
-    if (delay > 0) {
-      moveable.waitTimer = delay
+    // 5: Highest (0 delay), 4: High (30), 3: Normal (60), 2: Low (120), 1: Lowest (240)
+    // This only applies to autonomous movement between steps.
+    if (moveable.id !== 'PLAYER') {
+      const frequencyDelays = [0, 240, 120, 60, 30, 0]
+      const delay = frequencyDelays[moveable.moveFrequency] || 0
+      if (delay > 0) {
+        moveable.waitTimer = delay
+      }
     }
 
     // Handle preset types (Random, Approach)

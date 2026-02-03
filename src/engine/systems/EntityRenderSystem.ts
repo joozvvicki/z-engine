@@ -158,12 +158,22 @@ export class EntityRenderSystem extends ZSystem {
     eventId,
     direction,
     graphic,
-    moveRoute
+    moveType,
+    moveSpeed,
+    moveFrequency,
+    moveRoute,
+    moveRouteRepeat,
+    moveRouteSkip
   }: {
     eventId: string
     direction?: 'down' | 'left' | 'right' | 'up'
     graphic?: ZEventGraphic
+    moveType?: 'fixed' | 'random' | 'approach' | 'custom'
+    moveSpeed?: number
+    moveFrequency?: number
     moveRoute?: ZMoveCommand[]
+    moveRouteRepeat?: boolean
+    moveRouteSkip?: boolean
   }): Promise<void> {
     const meta = this.eventMetadata.get(eventId)
     if (!meta) return
@@ -176,6 +186,12 @@ export class EntityRenderSystem extends ZSystem {
       meta.moveRoute = moveRoute
       meta.moveRouteIndex = 0
     }
+
+    if (moveType) meta.moveType = moveType
+    if (moveSpeed !== undefined) meta.moveSpeed = moveSpeed
+    if (moveFrequency !== undefined) meta.moveFrequency = moveFrequency
+    if (moveRouteRepeat !== undefined) meta.moveRouteRepeat = moveRouteRepeat
+    if (moveRouteSkip !== undefined) meta.moveRouteSkip = moveRouteSkip
 
     if (graphic) {
       const tex = this.textures.get(graphic.assetId)
@@ -445,7 +461,10 @@ export class EntityRenderSystem extends ZSystem {
 
     // 1. Process movement animation/interpolation
     if (meta.isMoving) {
-      const speed = (meta.moveSpeed * delta) / 16.66
+      // RPG Maker style speed: Speed 4 = 1 tile per 32 frames (at 60fps)
+      // actualSpeed = 2^(speed-4) * (tileSize / 32)
+      const baseSpeed = Math.pow(2, meta.moveSpeed - 4) * (this.tileSize / 32)
+      const speed = (baseSpeed * delta) / 16.66
       const targetRealX = meta.targetX * this.tileSize
       const targetRealY = meta.targetY * this.tileSize
 
@@ -471,10 +490,14 @@ export class EntityRenderSystem extends ZSystem {
       }
     } else {
       // 2. Process next command in move route
-      this.movementProcessor.processNextCommand(meta, {
-        x: this.playerSystem.x,
-        y: this.playerSystem.y
-      })
+      this.movementProcessor.processNextCommand(
+        meta as unknown as ZMoveable,
+        {
+          x: this.playerSystem.x,
+          y: this.playerSystem.y
+        },
+        delta
+      )
     }
 
     // Always update alpha/transparency based on current state

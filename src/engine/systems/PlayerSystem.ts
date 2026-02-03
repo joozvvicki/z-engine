@@ -17,7 +17,7 @@ export class PlayerSystem extends ZSystem implements ZMoveable {
   public direction: 'down' | 'left' | 'right' | 'up' = 'down'
   public isMoving: boolean = false
   public moveSpeed: number = 4
-  public moveFrequency: number = 3
+  public moveFrequency: number = 5
   public moveRoute: ZMoveCommand[] = []
   public moveRouteIndex: number = -1
   public moveRouteRepeat: boolean = false
@@ -92,13 +92,18 @@ export class PlayerSystem extends ZSystem implements ZMoveable {
   public onUpdate(delta: number): void {
     this.updateMovement(delta)
     if (!this.isMoving) {
-      this.updateMoveRoute()
+      this.updateMoveRoute(delta)
       this.updateInput()
     }
   }
 
-  private updateMoveRoute(): void {
-    this.movementProcessor.processNextCommand(this)
+  private updateMoveRoute(delta: number): void {
+    // The instruction "In EntityRenderSystem, pass delta to processNextCommand(moveable, playerPos, delta)"
+    // seems to refer to a different system or a general pattern.
+    // In PlayerSystem, the player itself is the 'moveable', and 'playerPos' is not directly used here
+    // as the player's own position is implicit.
+    // The `delta` argument is already being passed correctly.
+    this.movementProcessor.processNextCommand(this, undefined, delta)
   }
 
   private updateInput(): void {
@@ -160,7 +165,9 @@ export class PlayerSystem extends ZSystem implements ZMoveable {
     // Let's map it roughly: 4 -> 4px/frame? No, standard 1/15 per frame?
     // Current speed 4 is 4 pixels per frame (at 60fps = 240px/s).
     // Tile size is usually 48 or 64. 48/4 = 12 frames to cross a tile.
-    const speed = this.moveSpeed * (delta / 16.6)
+    // RPG Maker style speed: Speed 4 = 1 tile per 32 frames (at 60fps)
+    const baseSpeed = Math.pow(2, this.moveSpeed - 4) * (this.tileSize / 32)
+    const speed = baseSpeed * (delta / 16.6)
     const targetRealX = this.targetX * this.tileSize
     const targetRealY = this.targetY * this.tileSize
 

@@ -5,6 +5,7 @@ import { useEditorStore } from '@ui/stores/editor'
 import {
   ZCommandCode,
   ZEventTrigger,
+  ZEngineSignal,
   type ZEventPage,
   type ZEventCommand,
   type ZMoveCommand
@@ -163,6 +164,22 @@ const save = (): void => {
 
   if (props.eventId) {
     store.updateEvent(props.eventId, eventData)
+
+    // Notify engine of internal state changes for immediate feedback
+    const engine = (window as any).$zEngine
+    if (engine && activePage.value) {
+      engine.eventBus.emit(ZEngineSignal.EventInternalStateChanged, {
+        eventId: props.eventId,
+        graphic: activePage.value.graphic,
+        moveType: activePage.value.moveType,
+        moveSpeed: activePage.value.moveSpeed,
+        moveFrequency: activePage.value.moveFrequency,
+        moveRoute: activePage.value.moveRoute,
+        moveRouteRepeat: activePage.value.moveRouteRepeat,
+        moveRouteSkip: activePage.value.moveRouteSkip,
+        isThrough: activePage.value.options.through
+      })
+    }
   } else {
     store.addEvent(props.x, props.y, eventData)
   }
