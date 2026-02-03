@@ -24,6 +24,8 @@ interface SpriteMetadata extends ZMoveable {
   realY: number
   preInteractionDirection?: 'down' | 'left' | 'right' | 'up' | null
   isInteracting?: boolean
+  initialX: number
+  initialY: number
 }
 
 export class EntityRenderSystem extends ZSystem {
@@ -60,6 +62,9 @@ export class EntityRenderSystem extends ZSystem {
   }
 
   public async loadEvents(): Promise<void> {
+    // Restore positions of current events before clearing metadata
+    this.restoreEventPositions()
+
     this.eventSprites.forEach((sprite) => {
       sprite.destroy()
     })
@@ -122,6 +127,8 @@ export class EntityRenderSystem extends ZSystem {
             targetY: event.y,
             x: event.x,
             y: event.y,
+            initialX: event.x,
+            initialY: event.y,
             moveSpeed: activePage.moveSpeed || 3,
             moveFrequency: activePage.moveFrequency || 3,
             moveRoute: activePage.moveRoute || [],
@@ -164,6 +171,19 @@ export class EntityRenderSystem extends ZSystem {
     this.bus.on(ZEngineSignal.EventExecutionFinished, ({ eventId }) => {
       this.onEventExecutionFinished(eventId)
     })
+  }
+
+  private restoreEventPositions(): void {
+    const map = this.map.currentMap
+    if (!map || !map.events) return
+
+    for (const [eventId, meta] of this.eventMetadata.entries()) {
+      const event = map.events.find((e) => e.id === eventId)
+      if (event) {
+        event.x = meta.initialX
+        event.y = meta.initialY
+      }
+    }
   }
 
   private async onEventStateChanged({
@@ -476,6 +496,8 @@ export class EntityRenderSystem extends ZSystem {
         targetY: this.playerSystem.targetY,
         x: this.playerSystem.x,
         y: this.playerSystem.y,
+        initialX: this.playerSystem.x,
+        initialY: this.playerSystem.y,
         moveSpeed: this.playerSystem.moveSpeed,
         moveFrequency: this.playerSystem.moveFrequency,
         moveRoute: this.playerSystem.moveRoute,
@@ -607,6 +629,8 @@ export class EntityRenderSystem extends ZSystem {
   }
 
   public onDestroy(): void {
+    this.restoreEventPositions()
+
     if (this.playerSprite) {
       this.container.removeChild(this.playerSprite)
       this.playerSprite.destroy()
