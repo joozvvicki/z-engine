@@ -10,7 +10,14 @@ import { useLayerEditing } from '../../composables/useLayerEditing'
 import { useEventManagement } from '../../composables/useEventManagement'
 import { useTilesets } from '../../composables/useTilesets'
 
-import { type ZMap, type TileSelection, ZTool, ZLayer, type TilesetConfig } from '@engine/types'
+import {
+  type ZMap,
+  type TileSelection,
+  ZTool,
+  ZLayer,
+  type TilesetConfig,
+  type ZMapInfo
+} from '@engine/types'
 import { useDatabaseStore } from '../database'
 
 export const useEditorStore = defineStore('editor', () => {
@@ -22,7 +29,8 @@ export const useEditorStore = defineStore('editor', () => {
   const spawnPos = ref({ x: 5, y: 5 })
   const tileSize = ref(48) // Standard MV/MZ
   const cursorX = ref(0)
-  const cursorY = ref(0)
+  const cursorY = ref(1)
+  const renamingId = ref<number | null>(null)
 
   // Stan UI Edytora
   const activeTab = useLocalStorage('Z_ActiveTab', 'A')
@@ -46,6 +54,7 @@ export const useEditorStore = defineStore('editor', () => {
 
   // Dane Map
   const storedMaps = ref<ZMap[]>([])
+  const storedMapInfos = ref<ZMapInfo[]>([])
 
   // Viewport Settings per Map
   const mapViewportStates = useLocalStorage<
@@ -143,10 +152,25 @@ export const useEditorStore = defineStore('editor', () => {
 
     // 3. Load Maps (Currently loading ALL, optimization needed for large projects)
     const mapInfos = await ProjectService.loadMapInfos() // [{id, name, ...}]
-    if (mapInfos.length > 0) {
+
+    // Migration/Sanitization: Ensure all items have necessary tree properties
+    const sanitizedInfos: ZMapInfo[] = mapInfos.map((info: any, index: number) => {
+      const base = info as Record<string, any>
+      return {
+        id: base.id,
+        name: base.name || 'Unnamed Map',
+        parentId: base.parentId ?? 0,
+        order: base.order ?? index,
+        isFolder: base.isFolder ?? false,
+        expanded: base.expanded ?? true
+      } as ZMapInfo
+    })
+
+    storedMapInfos.value = sanitizedInfos
+    if (sanitizedInfos.length > 0) {
       storedMaps.value = []
-      for (const info of mapInfos) {
-        if (info.id) {
+      for (const info of sanitizedInfos) {
+        if (info.id && !info.isFolder) {
           const map = await ProjectService.loadMap(info.id)
           if (map) storedMaps.value.push(map)
         }
@@ -187,8 +211,7 @@ export const useEditorStore = defineStore('editor', () => {
       await ProjectService.saveTilesets(storedTilesetConfigs.value)
 
       // 3. Save Map Infos
-      const mapInfos = storedMaps.value.map((m) => ({ id: m.id, name: m.name }))
-      await ProjectService.saveMapInfos(mapInfos)
+      await ProjectService.saveMapInfos(storedMapInfos.value)
 
       // 4. Save Each Map
       for (const map of storedMaps.value) {
@@ -248,7 +271,14 @@ export const useEditorStore = defineStore('editor', () => {
   // 4. COMPOSABLES (MODULES)
   // ==========================================
 
-  const mapManagement = useMapManagement(storedMaps, activeMapID, activeMap, saveProject, history)
+  const mapManagement = useMapManagement(
+    storedMaps,
+    storedMapInfos,
+    activeMapID,
+    activeMap,
+    saveProject,
+    history
+  )
 
   const layerEditing = useLayerEditing(
     activeMap,
@@ -286,6 +316,7 @@ export const useEditorStore = defineStore('editor', () => {
     activeTab,
     activeMapID,
     maps: storedMaps,
+    mapInfos: storedMapInfos,
     tileSize,
     selection,
     activeLayer,
@@ -294,6 +325,7 @@ export const useEditorStore = defineStore('editor', () => {
     clipboard,
     cursorX,
     cursorY,
+    renamingId,
 
     // Viewport States
     mapViewportStates,

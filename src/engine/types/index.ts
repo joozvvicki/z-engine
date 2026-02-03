@@ -205,6 +205,15 @@ export interface ZMap {
   tilesetConfig: Record<string, string> // Map slot (A1, B, etc) to URL
 }
 
+export interface ZMapInfo {
+  id: number
+  name: string
+  parentId: number
+  order: number
+  expanded?: boolean
+  isFolder?: boolean
+}
+
 export type TileCoords = { x: number; y: number }
 
 export enum ZTool {

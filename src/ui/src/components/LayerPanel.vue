@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { useEditorStore } from '@ui/stores/editor'
 import { ZLayer } from '@engine/types'
-import { IconLayersIntersect, IconEye } from '@tabler/icons-vue'
+import { IconEye } from '@tabler/icons-vue'
 import DynamicIcon from './DynamicIcon.vue'
 
 const store = useEditorStore()
@@ -19,11 +19,8 @@ const selectLayer = (key: string): void => {
 
 <template>
   <div class="flex flex-col h-full bg-white text-black">
-    <div class="p-4 border-b border-black/5 flex items-center justify-between">
-      <div class="flex items-center gap-2">
-        <IconLayersIntersect :size="18" class="text-black/40" />
-        <h2 class="text-sm font-black uppercase tracking-widest">Layers</h2>
-      </div>
+    <div class="px-4 pt-5 pb-3 border-b border-black/3 flex items-center justify-between">
+      <h2 class="text-[10px] font-black uppercase tracking-[0.2em] text-black/10">Layers</h2>
     </div>
 
     <div class="flex-1 overflow-y-auto p-2 space-y-1">

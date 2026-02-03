@@ -24,7 +24,20 @@ const router = createRouter({
     {
       path: '/editor',
       name: 'editor',
-      component: EditorPage
+      component: EditorPage,
+      children: [
+        { path: '', redirect: '/editor/assets' },
+        {
+          path: 'assets',
+          name: 'editor-assets',
+          component: EditorPage
+        },
+        {
+          path: 'maps',
+          name: 'editor-maps',
+          component: EditorPage
+        }
+      ]
     },
     {
       path: '/database',

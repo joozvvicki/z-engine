@@ -185,16 +185,16 @@ const configTools = [
     ]"
   >
     <!-- Top Bar: Workspace controls -->
-    <div class="p-4 border-b border-black/5 flex items-center justify-between bg-black/2">
-      <h2 class="text-xs font-black uppercase tracking-widest text-black/40">Tileset</h2>
+    <div class="px-4 pt-5 pb-3 border-b border-black/3 flex items-center justify-between">
+      <h2 class="text-[10px] font-black uppercase tracking-[0.2em] text-black/10">Tileset</h2>
 
       <button
         title="Toggle Edit Mode"
         :class="[
-          'p-2 rounded-xl transition-all cursor-pointer border',
+          'p-1.5 rounded-lg transition-all cursor-pointer border',
           isEditMode
             ? 'bg-black text-white border-black shadow-lg shadow-black/20'
-            : 'hover:bg-black/5 text-black/40 border-transparent'
+            : 'hover:bg-black/5 text-gray-300 hover:text-black border-transparent'
         ]"
         @click="isEditMode = !isEditMode"
       >

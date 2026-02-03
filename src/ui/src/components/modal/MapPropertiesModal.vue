@@ -17,6 +17,7 @@ const props = defineProps<{
   isOpen: boolean
   editMode?: boolean
   mapId?: number | null
+  parentId?: number
 }>()
 
 const TILESET_SLOTS = ['A1', 'A2', 'A3', 'A4', 'A5', 'B', 'C', 'D', 'Roofs']
@@ -87,7 +88,7 @@ const handleSave = (): void => {
         tilesetConfig: finalConfig
       })
     } else {
-      store.createMap(form.name, form.width, form.height, finalConfig)
+      store.createMap(form.name, form.width, form.height, props.parentId || 0, finalConfig)
     }
     emit('close')
   }

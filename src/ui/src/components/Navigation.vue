@@ -58,6 +58,12 @@ const subTabs = computed(() => {
       { id: 'sounds', label: 'Sounds', icon: IconBolt, path: '/resources/sounds' }
     ]
   }
+  if (route.path.startsWith('/editor')) {
+    return [
+      { id: 'assets', label: 'Assets', icon: IconPackage, path: '/editor/assets' },
+      { id: 'maps', label: 'Maps', icon: IconMap, path: '/editor/maps' }
+    ]
+  }
   return []
 })
 

@@ -442,13 +442,13 @@ const handleSave = (): void => {
                     { val: 0, label: 'OFF' }
                   ]"
                   :key="s.val"
-                  @click="switchState = s.val"
                   class="flex-1 py-2 rounded-lg text-[10px] font-black border transition-all"
                   :class="
                     switchState === s.val
                       ? 'bg-slate-900 border-slate-900 text-white'
                       : 'bg-slate-50 border-slate-100 text-slate-400 hover:border-slate-300'
                   "
+                  @click="switchState = s.val"
                 >
                   {{ s.label }}
                 </button>
@@ -484,13 +484,13 @@ const handleSave = (): void => {
                     { val: 0, label: 'OFF' }
                   ]"
                   :key="s.val"
-                  @click="switchState = s.val"
                   class="flex-1 py-2 rounded-lg text-[10px] font-black border transition-all"
                   :class="
                     switchState === s.val
                       ? 'bg-slate-900 border-slate-900 text-white'
                       : 'bg-slate-50 border-slate-100 text-slate-400 hover:border-slate-300'
                   "
+                  @click="switchState = s.val"
                 >
                   {{ s.label }}
                 </button>
@@ -553,13 +553,13 @@ const handleSave = (): void => {
               <button
                 v-for="dir in directions"
                 :key="dir.value"
-                @click="selectedDirection = dir.value"
                 class="flex items-center gap-3 p-3 rounded-xl border transition-all"
                 :class="
                   selectedDirection === dir.value
                     ? 'bg-slate-900 border-slate-900 text-white shadow-lg shadow-slate-900/20'
                     : 'bg-slate-50 border-slate-100 text-slate-600 hover:border-slate-300'
                 "
+                @click="selectedDirection = dir.value"
               >
                 <component :is="dir.icon" size="18" />
                 <span class="text-xs font-black uppercase">{{ dir.label }}</span>
@@ -588,8 +588,8 @@ const handleSave = (): void => {
                   >X Coordinate</label
                 >
                 <input
-                  type="number"
                   v-model.number="transferX"
+                  type="number"
                   class="w-full bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 text-xs font-bold focus:bg-white focus:border-slate-900 outline-none transition-all"
                 />
               </div>
@@ -598,8 +598,8 @@ const handleSave = (): void => {
                   >Y Coordinate</label
                 >
                 <input
-                  type="number"
                   v-model.number="transferY"
+                  type="number"
                   class="w-full bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 text-xs font-bold focus:bg-white focus:border-slate-900 outline-none transition-all"
                 />
               </div>
@@ -612,13 +612,13 @@ const handleSave = (): void => {
                 <button
                   v-for="dir in directions"
                   :key="dir.value"
-                  @click="transferDirection = dir.value"
                   class="flex flex-col items-center gap-1 p-2 rounded-lg border transition-all"
                   :class="
                     transferDirection === dir.value
                       ? 'bg-slate-900 border-slate-900 text-white'
                       : 'bg-slate-50 border-slate-100 text-slate-400 hover:border-slate-300'
                   "
+                  @click="transferDirection = dir.value"
                 >
                   <component :is="dir.icon" size="14" />
                   <span class="text-[9px] font-black uppercase">{{ dir.label }}</span>
@@ -640,25 +640,25 @@ const handleSave = (): void => {
                 >
                 <div class="flex flex-col gap-1">
                   <button
-                    @click="moveRouteTarget = 0"
                     class="flex items-center gap-3 px-3 py-2 rounded-lg border text-left transition-all"
                     :class="
                       moveRouteTarget === 0
                         ? 'bg-slate-900 border-slate-900 text-white shadow-md'
                         : 'bg-slate-50 border-slate-100 text-slate-600 hover:bg-white'
                     "
+                    @click="moveRouteTarget = 0"
                   >
                     <IconRobot size="16" />
                     <span class="text-xs font-bold">This Event</span>
                   </button>
                   <button
-                    @click="moveRouteTarget = -1"
                     class="flex items-center gap-3 px-3 py-2 rounded-lg border text-left transition-all"
                     :class="
                       moveRouteTarget === -1
                         ? 'bg-slate-900 border-slate-900 text-white shadow-md'
                         : 'bg-slate-50 border-slate-100 text-slate-600 hover:bg-white'
                     "
+                    @click="moveRouteTarget = -1"
                   >
                     <IconUser size="16" />
                     <span class="text-xs font-bold">Player</span>
@@ -666,8 +666,8 @@ const handleSave = (): void => {
                   <div class="flex items-center gap-2 mt-1">
                     <span class="text-[9px] font-black uppercase text-slate-400">Other ID:</span>
                     <input
-                      type="text"
                       v-model="moveRouteTarget"
+                      type="text"
                       class="flex-1 bg-slate-50 border border-slate-100 rounded-md px-2 py-1 text-xs font-bold outline-none"
                     />
                   </div>
@@ -684,7 +684,7 @@ const handleSave = (): void => {
                         : 'bg-white border-slate-200 group-hover:border-slate-400'
                     "
                   >
-                    <input type="checkbox" v-model="moveRouteWait" class="hidden" />
+                    <input v-model="moveRouteWait" type="checkbox" class="hidden" />
                     <IconX v-if="moveRouteWait" size="10" stroke-width="4" />
                   </div>
                   <span class="text-[10px] font-bold uppercase text-slate-600"
@@ -701,7 +701,7 @@ const handleSave = (): void => {
                         : 'bg-white border-slate-200 group-hover:border-slate-400'
                     "
                   >
-                    <input type="checkbox" v-model="moveRouteThrough" class="hidden" />
+                    <input v-model="moveRouteThrough" type="checkbox" class="hidden" />
                     <IconX v-if="moveRouteThrough" size="10" stroke-width="4" />
                   </div>
                   <span class="text-[10px] font-bold uppercase text-slate-600">Through Mode</span>
@@ -724,8 +724,8 @@ const handleSave = (): void => {
                   >Route Steps ({{ moveRouteCommands.length }})</span
                 >
                 <button
-                  @click="moveRouteCommands = []"
                   class="text-[9px] font-black uppercase text-red-400 hover:text-red-600"
+                  @click="moveRouteCommands = []"
                 >
                   Clear All
                 </button>
@@ -746,8 +746,8 @@ const handleSave = (): void => {
                     moveActions.find((m) => m.code === cmd.code)?.label || cmd.code
                   }}</span>
                   <button
-                    @click="removeMoveCommand(idx)"
                     class="opacity-0 group-hover:opacity-100 hover:text-red-600 transition-all"
+                    @click="removeMoveCommand(idx)"
                   >
                     <IconTrash size="14" />
                   </button>
@@ -769,8 +769,8 @@ const handleSave = (): void => {
               <button
                 v-for="action in moveActions"
                 :key="action.code"
-                @click="addMoveCommand(action.code)"
                 class="flex items-center gap-2 px-3 py-2 text-left bg-white border border-slate-100 rounded-lg hover:border-slate-400 hover:bg-slate-50 transition-all group"
+                @click="addMoveCommand(action.code)"
               >
                 <component
                   :is="action.icon"

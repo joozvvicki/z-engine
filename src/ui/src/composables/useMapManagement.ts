@@ -1,5 +1,5 @@
 import { nextTick, type Ref, type ComputedRef } from 'vue'
-import { ZMap, ZLayer, type TileSelection } from '@engine/types'
+import { ZMap, ZLayer, type TileSelection, type ZMapInfo } from '@engine/types'
 
 // Helper do tworzenia pustej struktury warstw
 export const createEmptyLayers = (
@@ -26,6 +26,7 @@ export const createEmptyLayers = (
 
 export const useMapManagement = (
   storedMaps: Ref<ZMap[]>,
+  mapInfos: Ref<ZMapInfo[]>,
   activeMapID: Ref<number | null>,
   activeMap: ComputedRef<ZMap | undefined>,
   saveProject: () => void,
@@ -35,8 +36,10 @@ export const useMapManagement = (
     name: string,
     width: number,
     height: number,
+    parentId?: number,
     tilesetConfig?: Record<string, string>
   ) => void
+  createFolder: (name: string, parentId?: number) => void
   updateMapProperties: (
     mapId: number,
     props: {
@@ -49,17 +52,23 @@ export const useMapManagement = (
   initMap: (width: number, height: number) => void
   setActiveMap: (id: number) => void
   deleteMap: (mapId: number) => void
+  deleteFolder: (folderId: number) => void
   exportMapAsJSON: () => void
   importMapFromJSON: () => Promise<void>
+  moveEntry: (id: number, newParentId: number) => void
+  renameEntry: (id: number, name: string) => void
+  isDescendant: (parent: number, child: number) => boolean
+  toggleFolderExpanded: (id: number) => void
 } => {
   const createMap = (
     name: string,
     width: number,
     height: number,
+    parentId: number = 0,
     tilesetConfig: Record<string, string> = {}
   ): void => {
-    const newId =
-      storedMaps.value.length > 0 ? Math.max(...storedMaps.value.map((m) => m.id)) + 1 : 1
+    const newId = mapInfos.value.length > 0 ? Math.max(...mapInfos.value.map((m) => m.id)) + 1 : 1
+
     const newMap: ZMap = {
       id: newId,
       name,
@@ -69,14 +78,37 @@ export const useMapManagement = (
       events: [],
       tilesetConfig
     }
+
+    const newInfo: ZMapInfo = {
+      id: newId,
+      name,
+      parentId,
+      order: mapInfos.value.filter((m) => m.parentId === parentId).length,
+      isFolder: false
+    }
+
     storedMaps.value.push(newMap)
+    mapInfos.value.push(newInfo)
     activeMapID.value = newMap.id
 
-    // Save project to make the new map persistent
     saveProject()
-
-    // Inicjalizacja historii dla nowej mapy
     nextTick(() => history.recordHistory())
+  }
+
+  const createFolder = (name: string, parentId: number = 0): void => {
+    const newId = mapInfos.value.length > 0 ? Math.max(...mapInfos.value.map((m) => m.id)) + 1 : 1
+
+    const newFolder: ZMapInfo = {
+      id: newId,
+      name,
+      parentId,
+      order: mapInfos.value.filter((m) => m.parentId === parentId).length,
+      isFolder: true,
+      expanded: true
+    }
+
+    mapInfos.value.push(newFolder)
+    saveProject()
   }
 
   const updateMapProperties = (
@@ -84,14 +116,15 @@ export const useMapManagement = (
     props: { name: string; width: number; height: number; tilesetConfig: Record<string, string> }
   ): void => {
     const map = storedMaps.value.find((m) => m.id === mapId)
+    const info = mapInfos.value.find((m) => m.id === mapId)
     if (!map) return
 
     map.name = props.name
+    if (info) info.name = props.name
+
     map.tilesetConfig = props.tilesetConfig
 
-    // Resize logic if dimensions changed (cropping or padding)
     if (map.width !== props.width || map.height !== props.height) {
-      // Re-initialize layers with new size, preserving OLD data where possible
       Object.values(map.layers).forEach((layer) => {
         const oldData = layer.data
         const newData = Array.from({ length: props.height }, (_, y) =>
@@ -128,11 +161,75 @@ export const useMapManagement = (
 
   const deleteMap = (mapId: number): void => {
     storedMaps.value = storedMaps.value.filter((m) => m.id !== mapId)
+    mapInfos.value = mapInfos.value.filter((m) => m.id !== mapId)
     if (activeMapID.value === mapId) {
       activeMapID.value = storedMaps.value[0]?.id || null
     }
     saveProject()
     history.recordHistory()
+  }
+
+  const deleteFolder = (folderId: number): void => {
+    // RPG Maker style: maps inside are NOT deleted, they are moved to folder's parent
+    const folder = mapInfos.value.find((m) => m.id === folderId)
+    if (!folder) return
+
+    const newParentId = folder.parentId
+    mapInfos.value.forEach((m) => {
+      if (m.parentId === folderId) {
+        m.parentId = newParentId
+      }
+    })
+
+    mapInfos.value = mapInfos.value.filter((m) => m.id !== folderId)
+    saveProject()
+  }
+
+  const isDescendant = (parent: number, child: number): boolean => {
+    const item = mapInfos.value.find((m) => m.id === child)
+    if (!item) return false
+    if (item.parentId === parent) return true
+    if (item.parentId === 0) return false
+    return isDescendant(parent, item.parentId)
+  }
+
+  const moveEntry = (id: number, newParentId: number): void => {
+    // Prevent moving a folder into itself
+    if (id === newParentId) return
+
+    // Prevent moving a folder into its own descendant
+    if (isDescendant(id, newParentId)) {
+      console.error('Circular reference detected in MapTree')
+      return
+    }
+
+    const entry = mapInfos.value.find((m) => m.id === id)
+    if (entry) {
+      entry.parentId = newParentId
+      saveProject()
+    }
+  }
+
+  const renameEntry = (id: number, name: string): void => {
+    const info = mapInfos.value.find((m) => m.id === id)
+    if (info) {
+      info.name = name
+      if (!info.isFolder) {
+        const map = storedMaps.value.find((m) => m.id === id)
+        if (map) map.name = name
+      }
+      saveProject()
+    }
+  }
+
+  const toggleFolderExpanded = (id: number): void => {
+    const folder = mapInfos.value.find((m) => m.id === id)
+    if (folder) {
+      folder.expanded = !folder.expanded
+      // We don't necessarily need to save project for just expanded state,
+      // but if we want it persistent per project, we should.
+      saveProject()
+    }
   }
 
   const exportMapAsJSON = (): void => {
@@ -161,12 +258,21 @@ export const useMapManagement = (
         try {
           const text = await input.files[0].text()
           const importedMap = JSON.parse(text)
-          importedMap.id = Math.max(...storedMaps.value.map((m) => m.id), 0) + 1
+          const newId = Math.max(...mapInfos.value.map((m) => m.id), 0) + 1
+          importedMap.id = newId
           storedMaps.value.push(importedMap)
+          mapInfos.value.push({
+            id: newId,
+            name: importedMap.name,
+            parentId: 0,
+            order: mapInfos.value.filter((m) => m.parentId === 0).length,
+            isFolder: false
+          })
           nextTick(() => {
             history.recordHistory()
             setActiveMap(importedMap.id)
           })
+          saveProject()
         } catch (e) {
           console.error('Failed to import map', e)
         }
@@ -178,11 +284,17 @@ export const useMapManagement = (
 
   return {
     createMap,
+    createFolder,
     updateMapProperties,
     initMap,
     setActiveMap,
     deleteMap,
+    deleteFolder,
     exportMapAsJSON,
-    importMapFromJSON
+    importMapFromJSON,
+    moveEntry,
+    renameEntry,
+    isDescendant,
+    toggleFolderExpanded
   }
 }
