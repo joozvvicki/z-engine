@@ -55,7 +55,12 @@ export const useMapManagement = (
   deleteFolder: (folderId: number) => void
   exportMapAsJSON: () => void
   importMapFromJSON: () => Promise<void>
-  moveEntry: (id: number, newParentId: number) => void
+  moveEntry: (
+    id: number,
+    newParentId: number,
+    targetId?: number,
+    position?: 'before' | 'after' | 'inside'
+  ) => void
   renameEntry: (id: number, name: string) => void
   isDescendant: (parent: number, child: number) => boolean
   toggleFolderExpanded: (id: number) => void
@@ -170,19 +175,28 @@ export const useMapManagement = (
   }
 
   const deleteFolder = (folderId: number): void => {
-    // RPG Maker style: maps inside are NOT deleted, they are moved to folder's parent
     const folder = mapInfos.value.find((m) => m.id === folderId)
     if (!folder) return
 
-    const newParentId = folder.parentId
+    const oldParentId = folder.parentId
     mapInfos.value.forEach((m) => {
       if (m.parentId === folderId) {
-        m.parentId = newParentId
+        m.parentId = oldParentId
       }
     })
 
     mapInfos.value = mapInfos.value.filter((m) => m.id !== folderId)
+    normalizeOrders(oldParentId)
     saveProject()
+  }
+
+  const normalizeOrders = (parentId: number): void => {
+    const items = mapInfos.value
+      .filter((m) => m.parentId === parentId)
+      .sort((a, b) => a.order - b.order)
+    items.forEach((item, index) => {
+      item.order = index
+    })
   }
 
   const isDescendant = (parent: number, child: number): boolean => {
@@ -193,9 +207,14 @@ export const useMapManagement = (
     return isDescendant(parent, item.parentId)
   }
 
-  const moveEntry = (id: number, newParentId: number): void => {
+  const moveEntry = (
+    id: number,
+    newParentId: number,
+    targetId?: number,
+    position: 'before' | 'after' | 'inside' = 'inside'
+  ): void => {
     // Prevent moving a folder into itself
-    if (id === newParentId) return
+    if (id === newParentId || id === targetId) return
 
     // Prevent moving a folder into its own descendant
     if (isDescendant(id, newParentId)) {
@@ -204,10 +223,43 @@ export const useMapManagement = (
     }
 
     const entry = mapInfos.value.find((m) => m.id === id)
-    if (entry) {
+    if (!entry) return
+
+    const oldParentId = entry.parentId
+
+    if (position === 'inside') {
       entry.parentId = newParentId
-      saveProject()
+      // Append to end
+      const siblings = mapInfos.value
+        .filter((m) => m.parentId === newParentId && m.id !== id)
+        .sort((a, b) => a.order - b.order)
+      entry.order = siblings.length
+    } else {
+      const target = mapInfos.value.find((m) => m.id === targetId)
+      if (!target) return
+
+      entry.parentId = target.parentId
+
+      const siblings = mapInfos.value
+        .filter((m) => m.parentId === entry.parentId && m.id !== id)
+        .sort((a, b) => a.order - b.order)
+
+      const targetIndex = siblings.findIndex((s) => s.id === targetId)
+      const insertionIndex = position === 'before' ? targetIndex : targetIndex + 1
+
+      siblings.splice(insertionIndex, 0, entry)
+      siblings.forEach((item, index) => {
+        item.order = index
+      })
     }
+
+    // Always normalize old parent and new parent
+    normalizeOrders(oldParentId)
+    if (entry.parentId !== oldParentId) {
+      normalizeOrders(entry.parentId)
+    }
+
+    saveProject()
   }
 
   const renameEntry = (id: number, name: string): void => {

@@ -18,6 +18,7 @@ const props = defineProps<{
 
 const store = useEditorStore()
 const isDragTarget = ref(false)
+const dropPosition = ref<'before' | 'after' | 'inside' | null>(null)
 let dragCounter = 0
 const isRenaming = ref(false)
 const renamingName = ref('')
@@ -60,8 +61,23 @@ const onDragStart = (e: DragEvent): void => {
 
 const onDragOver = (e: DragEvent): void => {
   if (store.isTestMode) return
-  e.preventDefault() // Allow drop on both folders and maps
+  e.preventDefault()
   e.dataTransfer!.dropEffect = 'move'
+
+  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+  const y = e.clientY - rect.top
+  const threshold = rect.height * 0.25
+
+  if (y < threshold) {
+    dropPosition.value = 'before'
+  } else if (y > rect.height - threshold) {
+    dropPosition.value = 'after'
+  } else if (props.item.isFolder) {
+    dropPosition.value = 'inside'
+  } else {
+    // For maps, middle is also 'after' if we don't want nesting maps
+    dropPosition.value = y < rect.height / 2 ? 'before' : 'after'
+  }
 }
 
 const onDragEnter = (e: DragEvent): void => {
@@ -77,6 +93,7 @@ const onDragLeave = (e: DragEvent): void => {
   dragCounter--
   if (dragCounter === 0) {
     isDragTarget.value = false
+    dropPosition.value = null
   }
 }
 
@@ -84,18 +101,16 @@ const onDrop = (e: DragEvent): void => {
   if (store.isTestMode) return
   e.preventDefault()
   e.stopPropagation()
+  const pos = dropPosition.value
   isDragTarget.value = false
+  dropPosition.value = null
   dragCounter = 0
   const data = e.dataTransfer?.getData('application/json')
   if (data) {
     const { id } = JSON.parse(data)
     if (id === props.item.id) return
 
-    // If dropping on a folder, move inside.
-    // If dropping on a map, move to the same level (parent) as that map.
-    const targetParentId = props.item.isFolder ? props.item.id : props.item.parentId
-
-    // Safety check: don't move a folder into itself or its own children
+    // Prevent moving a folder into its own descendant
     if (
       props.item.isFolder &&
       typeof store.isDescendant === 'function' &&
@@ -105,7 +120,11 @@ const onDrop = (e: DragEvent): void => {
       return
     }
 
-    store.moveEntry(id, targetParentId)
+    if (pos === 'inside') {
+      store.moveEntry(id, props.item.id, undefined, 'inside')
+    } else if (pos === 'before' || pos === 'after') {
+      store.moveEntry(id, props.item.parentId, props.item.id, pos)
+    }
   }
 }
 
@@ -161,10 +180,23 @@ const enter = (el: Element): void => {
   htmlEl.style.opacity = '1'
 }
 
+const afterEnter = (el: Element): void => {
+  const htmlEl = el as HTMLElement
+  htmlEl.style.height = ''
+}
+
 const leave = (el: Element): void => {
   const htmlEl = el as HTMLElement
+  htmlEl.style.height = htmlEl.scrollHeight + 'px'
+  // Force reflow
+  void htmlEl.offsetHeight
   htmlEl.style.height = '0'
   htmlEl.style.opacity = '0'
+}
+
+const afterLeave = (el: Element): void => {
+  const htmlEl = el as HTMLElement
+  htmlEl.style.height = ''
 }
 </script>
 
@@ -177,7 +209,7 @@ const leave = (el: Element): void => {
         !item.isFolder && item.id === store.activeMapID
           ? 'bg-black text-white shadow-[0_4px_12px_rgba(0,0,0,0.15)] scale-[1.02] z-10'
           : !store.isTestMode && 'hover:bg-gray-100/50 text-gray-700 hover:text-black',
-        isDragTarget && (item.isFolder ? 'bg-black/5 ring-2 ring-black/10' : 'bg-transparent')
+        isDragTarget && dropPosition === 'inside' && 'bg-black/5 ring-2 ring-black/10'
       ]"
       :style="{ paddingLeft: depth * 12 + 12 + 'px' }"
       :draggable="!store.isTestMode"
@@ -252,15 +284,26 @@ const leave = (el: Element): void => {
         </button>
       </div>
 
-      <!-- Drop Insertion Indicator (precise placement for maps) -->
+      <!-- Drop Insertion Indicator (precise placement) -->
       <div
-        v-if="isDragTarget && !item.isFolder"
-        class="absolute -bottom-1 left-8 right-2 h-[3px] bg-black rounded-full z-20 pointer-events-none shadow-[0_0_8px_rgba(0,0,0,0.3)] animate-pulse"
+        v-if="isDragTarget && dropPosition === 'before'"
+        class="absolute -top-1 left-4 right-2 h-[3px] bg-black rounded-full z-20 pointer-events-none shadow-[0_0_8px_rgba(0,0,0,0.3)] animate-pulse"
+      ></div>
+      <div
+        v-if="isDragTarget && dropPosition === 'after'"
+        class="absolute -bottom-1 left-4 right-2 h-[3px] bg-black rounded-full z-20 pointer-events-none shadow-[0_0_8px_rgba(0,0,0,0.3)] animate-pulse"
       ></div>
     </div>
 
     <!-- Recursive Children with Transition -->
-    <Transition name="expand" @before-enter="beforeEnter" @enter="enter" @leave="leave">
+    <Transition
+      name="expand"
+      @before-enter="beforeEnter"
+      @enter="enter"
+      @after-enter="afterEnter"
+      @leave="leave"
+      @after-leave="afterLeave"
+    >
       <div v-if="item.isFolder && item.expanded" class="overflow-hidden">
         <MapTreeItem
           v-for="child in children"
