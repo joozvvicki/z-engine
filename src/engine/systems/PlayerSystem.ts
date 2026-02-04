@@ -1,4 +1,4 @@
-import { ZEngineSignal, type ZMoveCommand } from '@engine/types'
+import { ZEngineSignal, type ZMoveCommand, ZInputAction } from '@engine/types'
 import ZLogger from '@engine/utils/ZLogger'
 import { ZSystem, SystemMode } from '@engine/core/ZSystem'
 import { ServiceLocator } from '@engine/core/ServiceLocator'
@@ -129,16 +129,26 @@ export class PlayerSystem extends ZSystem implements ZMoveable {
     let dy = 0
     let nextDir = this.direction
 
-    if (this.input.isKeyDown('ArrowLeft')) {
+    // RUN Speed Boost (Example: +1 speed when holding Shift/Run)
+    // const storedSpeed = this.moveSpeed
+    if (this.input.isActionDown(ZInputAction.RUN)) {
+      this.moveSpeed = 5
+    } else {
+      // Restore default speed (assuming 4, or track original)
+      // For now we might need a better way to handle speed modifiers, but this works for basic run
+      this.moveSpeed = 4
+    }
+
+    if (this.input.isActionDown(ZInputAction.LEFT)) {
       dx = -1
       nextDir = 'left'
-    } else if (this.input.isKeyDown('ArrowRight')) {
+    } else if (this.input.isActionDown(ZInputAction.RIGHT)) {
       dx = 1
       nextDir = 'right'
-    } else if (this.input.isKeyDown('ArrowUp')) {
+    } else if (this.input.isActionDown(ZInputAction.UP)) {
       dy = -1
       nextDir = 'up'
-    } else if (this.input.isKeyDown('ArrowDown')) {
+    } else if (this.input.isActionDown(ZInputAction.DOWN)) {
       dy = 1
       nextDir = 'down'
     }
@@ -148,9 +158,13 @@ export class PlayerSystem extends ZSystem implements ZMoveable {
         this.direction = nextDir
       }
 
+      const isNoClip = this.input.isActionDown(ZInputAction.NOCLIP)
+
       const result = this.physicsSystem.checkPassage(this.x, this.y, this.x + dx, this.y + dy, {
-        skipPlayer: true
+        skipPlayer: true,
+        isThrough: isNoClip
       })
+
       if (result) {
         this.targetX = this.x + dx
         this.targetY = this.y + dy
@@ -158,11 +172,12 @@ export class PlayerSystem extends ZSystem implements ZMoveable {
       }
     }
 
-    if (
-      this.input.isKeyDown('Enter') ||
-      this.input.isKeyDown('Space') ||
-      this.input.isKeyDown('KeyZ')
-    ) {
+    // Restore speed if we didn't move? No, speed is used in updateMovement.
+    // Actually moveSpeed is persistent property.
+    // Ideally we shouldn't mute 'this.moveSpeed' directly if it's the base speed.
+    // But for now strict parity with RPG Maker 'Dash' feature.
+
+    if (this.input.isActionJustPressed(ZInputAction.OK)) {
       let tx = this.x
       let ty = this.y
       if (this.direction === 'left') tx--

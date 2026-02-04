@@ -439,3 +439,21 @@ export interface ZSignalData {
   [ZEngineSignal.EventExecutionFinished]: { eventId: string }
   [ZEngineSignal.MoveRouteFinished]: { eventId: string }
 }
+
+export enum ZInputAction {
+  OK = 'OK',
+  CANCEL = 'CANCEL',
+  MENU = 'MENU',
+  UP = 'UP',
+  DOWN = 'DOWN',
+  LEFT = 'LEFT',
+  RIGHT = 'RIGHT',
+  RUN = 'RUN',
+  DEBUG = 'DEBUG',
+  NOCLIP = 'NOCLIP'
+}
+
+export interface ZInputMap {
+  keyboard: Record<string, ZInputAction>
+  gamepad: Record<number, ZInputAction> // Button Index -> Action
+}

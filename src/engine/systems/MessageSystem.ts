@@ -1,5 +1,5 @@
 import { Container, Graphics, Text } from '@engine/utils/pixi'
-import { ZEngineSignal } from '@engine/types'
+import { ZEngineSignal, ZInputAction } from '@engine/types'
 import { ZSystem, SystemMode } from '@engine/core/ZSystem'
 import { ServiceLocator } from '@engine/core/ServiceLocator'
 import { EventSystem } from '@engine/systems/EventSystem'
@@ -47,9 +47,8 @@ export class MessageSystem extends ZSystem {
       } else {
         // Check for input to close message
         if (
-          this.input.isKeyDown('Enter') ||
-          this.input.isKeyDown('Space') ||
-          this.input.isKeyDown('KeyZ')
+          this.input.isActionDown(ZInputAction.OK) ||
+          this.input.isActionDown(ZInputAction.CANCEL)
         ) {
           this.close()
         }
@@ -58,25 +57,17 @@ export class MessageSystem extends ZSystem {
   }
 
   private updateChoiceSelection(): void {
-    if (this.input.isKeyDown('ArrowDown') || this.input.isKeyDown('KeyS')) {
+    if (this.input.isActionJustPressed(ZInputAction.DOWN)) {
       this.selectedChoiceIndex = (this.selectedChoiceIndex + 1) % this.choices.length
       this.renderChoices()
-      this.input.clearKey('ArrowDown')
-      this.input.clearKey('KeyS')
     }
-    if (this.input.isKeyDown('ArrowUp') || this.input.isKeyDown('KeyW')) {
+    if (this.input.isActionJustPressed(ZInputAction.UP)) {
       this.selectedChoiceIndex =
         (this.selectedChoiceIndex - 1 + this.choices.length) % this.choices.length
       this.renderChoices()
-      this.input.clearKey('ArrowUp')
-      this.input.clearKey('KeyW')
     }
 
-    if (
-      this.input.isKeyDown('Enter') ||
-      this.input.isKeyDown('Space') ||
-      this.input.isKeyDown('KeyZ')
-    ) {
+    if (this.input.isActionJustPressed(ZInputAction.OK)) {
       const selectedIndex = this.selectedChoiceIndex
       this.closeChoices()
       this.bus.emit(ZEngineSignal.ChoiceSelected, { index: selectedIndex })
