@@ -1,7 +1,13 @@
 import { Container, Sprite, Rectangle, Graphics, Texture } from '@engine/utils/pixi'
 import ZLogger from '@engine/utils/ZLogger'
 import { SpriteUtils } from '@engine/utils/SpriteUtils'
-import { ZLayer, ZEngineSignal, type ZEventGraphic, type ZMoveCommand } from '@engine/types'
+import {
+  ZLayer,
+  ZEngineSignal,
+  type ZEventGraphic,
+  type ZMoveCommand,
+  type ZEvent
+} from '@engine/types'
 import { ZSystem, SystemMode } from '@engine/core/ZSystem'
 import { ServiceLocator } from '@engine/core/ServiceLocator'
 import { PlayerSystem } from '@engine/systems/PlayerSystem'
@@ -26,6 +32,7 @@ interface SpriteMetadata extends ZMoveable {
   isInteracting?: boolean
   initialX: number
   initialY: number
+  eventInstance?: ZEvent
 }
 
 export class EntityRenderSystem extends ZSystem {
@@ -173,7 +180,8 @@ export class EntityRenderSystem extends ZSystem {
           stepAnim: activePage?.options?.stepAnim ?? false,
           directionFix: activePage?.options?.directionFix ?? false,
           transparent: false,
-          opacity: 255
+          opacity: 255,
+          eventInstance: event
         })
         sprite.zIndex = (event.y + 1) * this.tileSize
 
@@ -204,10 +212,17 @@ export class EntityRenderSystem extends ZSystem {
   }
 
   private restoreEventPositions(): void {
-    const map = this.map.currentMap
-    if (!map || !map.events) return
-
     for (const [eventId, meta] of this.eventMetadata.entries()) {
+      // Use stored reference if available (reliable even if map unloaded)
+      if (meta.eventInstance) {
+        meta.eventInstance.x = meta.initialX
+        meta.eventInstance.y = meta.initialY
+        continue
+      }
+
+      // Fallback to map lookup
+      const map = this.map.currentMap
+      if (!map || !map.events) continue
       const event = map.events.find((e) => e.id === eventId)
       if (event) {
         event.x = meta.initialX
