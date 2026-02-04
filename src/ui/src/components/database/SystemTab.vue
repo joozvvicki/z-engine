@@ -256,6 +256,25 @@ onMounted(() => {
                     />
                   </div>
                 </div>
+                <!-- Zoom Setting -->
+                <div class="space-y-1 mt-4">
+                  <span class="text-[10px] text-slate-500 font-medium ml-1">Default Zoom</span>
+                  <div class="flex items-center gap-3">
+                    <input
+                      v-model.number="store.systemScreenZoom"
+                      type="number"
+                      step="0.5"
+                      min="0.5"
+                      max="10"
+                      class="flex-1 px-4 py-2 bg-white border border-slate-100 rounded-xl outline-none"
+                    />
+                    <div
+                      class="px-4 py-2 bg-slate-900 text-white rounded-xl text-[10px] font-black"
+                    >
+                      {{ store.systemScreenZoom }}x
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

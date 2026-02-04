@@ -131,6 +131,12 @@ export class SceneMap extends ZScene {
 
   public update(): void {
     if (this.mode === 'play' && this.currentMap) {
+      // Sync zoom from system settings if in play mode
+      const engine = this.services.get('ZEngine') as { systemData: { screenZoom: number } }
+      if (engine?.systemData?.screenZoom) {
+        this.zoomLevel = engine.systemData.screenZoom
+      }
+
       const playerSystem = this.services.get(PlayerSystem)
       const renderSystem = this.services.get(RenderSystem)
       if (playerSystem && renderSystem) {
@@ -174,8 +180,10 @@ export class SceneMap extends ZScene {
         this.container.y = screenH / 2
       }
     } else {
-      // Reset scale in editor if needed (though SceneManager usually clears it)
+      // Reset scale in editor
       this.container.scale.set(1)
+      this.container.pivot.set(0)
+      this.container.position.set(0)
     }
   }
 

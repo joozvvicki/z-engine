@@ -52,8 +52,7 @@ defineExpose({ open, close })
 // Resolution and Scaling
 const containerStyle = computed(() => ({
   width: `${store.systemScreenWidth}px`,
-  height: `${store.systemScreenHeight}px`,
-  transform: `scale(${store.systemScreenZoom})`
+  height: `${store.systemScreenHeight}px`
 }))
 
 const resolutionLabel = computed(() => `${store.systemScreenWidth}x${store.systemScreenHeight}`)
@@ -133,6 +132,7 @@ onUnmounted(() => {
         <!-- Letterbox Container -->
         <div
           class="relative bg-black shadow-[0_0_100px_rgba(0,0,0,0.5)] overflow-hidden transition-transform duration-300"
+          style="image-rendering: pixelated"
           :style="containerStyle"
         >
           <div ref="canvasContainer" class="w-full h-full flex items-center justify-center"></div>
