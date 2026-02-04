@@ -4,41 +4,28 @@ import {
   type ZEventCondition,
   type ZEventCommand,
   type ZCommandResult,
-  type ZCommandProcessor,
-  type ZEventGraphic,
-  ZCommandCode,
   ZEngineSignal,
   ZEventTrigger,
-  type ZMoveCommand,
-  ZInputAction
+  ZInputAction,
+  type ZEventInterpreter
 } from '@engine/types'
 import { ZSystem, SystemMode } from '@engine/core/ZSystem'
 import { PlayerSystem } from '@engine/systems/PlayerSystem'
-
 import { ServiceLocator } from '@engine/core/ServiceLocator'
 import { SceneManager } from '@engine/managers/SceneManager'
-import { SceneMap } from '@engine/scenes/SceneMap'
+import { CommandRegistry } from './event-commands'
 
+/**
+ * Manages the execution of event command lists (interpreters).
+ * Now refactored to use a decoupled CommandRegistry.
+ */
 export class EventSystem extends ZSystem {
   private playerSystem: PlayerSystem
   private sceneManager: SceneManager
 
   public isProcessing: boolean = false
-  private activeInterpreter: {
-    list: ZEventCommand[]
-    index: number
-    eventId: string
-    waitCount?: number
-    waitingForMoveEventId?: string | null
-  } | null = null
-
-  private processors: Map<number, ZCommandProcessor> = new Map()
-  private parallelInterpreters: {
-    list: ZEventCommand[]
-    index: number
-    eventId: string
-    waitCount?: number
-  }[] = []
+  private activeInterpreter: ZEventInterpreter | null = null
+  private parallelInterpreters: ZEventInterpreter[] = []
 
   constructor(services: ServiceLocator) {
     super(services)
@@ -46,29 +33,11 @@ export class EventSystem extends ZSystem {
 
     this.sceneManager = undefined as unknown as SceneManager
     this.playerSystem = undefined as unknown as PlayerSystem
-
-    this.registerCommands()
   }
 
-  private registerCommands(): void {
-    this.processors.set(ZCommandCode.TransferPlayer, this.commandTransferPlayer.bind(this))
-    this.processors.set(ZCommandCode.ShowMessage, this.commandShowMessage.bind(this))
-    this.processors.set(ZCommandCode.ControlSwitch, this.commandControlSwitch.bind(this))
-    this.processors.set(ZCommandCode.ControlVariable, this.commandControlVariable.bind(this))
-    this.processors.set(ZCommandCode.ControlSelfSwitch, this.commandControlSelfSwitch.bind(this))
-    this.processors.set(ZCommandCode.ConditionalBranch, this.commandConditionalBranch.bind(this))
-    this.processors.set(ZCommandCode.Else, this.commandElse.bind(this))
-    this.processors.set(ZCommandCode.EndBranch, () => 'continue')
-    this.processors.set(ZCommandCode.ShowChoices, this.commandShowChoices.bind(this))
-    this.processors.set(ZCommandCode.When, this.commandWhen.bind(this))
-    this.processors.set(ZCommandCode.EndChoices, () => 'continue')
-    this.processors.set(ZCommandCode.ShowAnimation, this.commandShowAnimation.bind(this))
-    this.processors.set(ZCommandCode.SetMoveRoute, this.commandSetMoveRoute.bind(this))
-    this.processors.set(ZCommandCode.SetEventDirection, this.commandSetEventDirection.bind(this))
-    this.processors.set(ZCommandCode.SetEventGraphic, this.commandSetEventGraphic.bind(this))
-    this.processors.set(ZCommandCode.Wait, this.commandWait.bind(this))
-  }
-
+  /**
+   * Initializes systems and event listeners.
+   */
   public onBoot(): void {
     this.sceneManager = this.services.require(SceneManager)
     this.playerSystem = this.services.require(PlayerSystem)
@@ -94,32 +63,34 @@ export class EventSystem extends ZSystem {
     })
 
     this.bus.on(ZEngineSignal.MoveRouteFinished, ({ eventId }) => {
-      console.log(`[EventSystem] Received MoveRouteFinished for ${eventId}`)
-      if (this.activeInterpreter) {
-        console.log(
-          `[EventSystem] Active interpreter waiting for: ${this.activeInterpreter.waitingForMoveEventId}`
-        )
-        if (this.activeInterpreter.waitingForMoveEventId === eventId) {
-          console.log('[EventSystem] Resuming interpreter!')
-          this.activeInterpreter.waitingForMoveEventId = null
-          this.isProcessing = true
-          this.executeInterpreter()
-        }
+      if (this.activeInterpreter && this.activeInterpreter.waitingForMoveEventId === eventId) {
+        this.activeInterpreter.waitingForMoveEventId = null
+        this.isProcessing = true
+        this.executeInterpreter()
       }
     })
   }
 
+  /**
+   * Resumes a paused interpreter.
+   */
   public resumeProcessing(): void {
     if (!this.activeInterpreter) return
     this.isProcessing = true
     this.executeInterpreter()
   }
 
+  /**
+   * Main update loop for processing interpreters.
+   */
   public onUpdate(): void {
     if (this.activeInterpreter) {
       if (this.activeInterpreter.waitCount && this.activeInterpreter.waitCount > 0) {
         this.activeInterpreter.waitCount--
-      } else if (!this.activeInterpreter.waitingForMoveEventId && !this.isWaitingForMessage) {
+      } else if (
+        !this.activeInterpreter.waitingForMoveEventId &&
+        !(this.activeInterpreter as any).isWaitingForMessage
+      ) {
         this.executeInterpreter()
       }
     }
@@ -127,12 +98,10 @@ export class EventSystem extends ZSystem {
   }
 
   private updateParallelProcesses(): void {
-    // If we have no parallel interpreters, check if we need to start some
     if (this.parallelInterpreters.length === 0) {
       this.checkParallelTriggers()
     }
 
-    // Update existing parallel interpreters
     for (let i = this.parallelInterpreters.length - 1; i >= 0; i--) {
       const interpreter = this.parallelInterpreters[i]
       if (interpreter.waitCount && interpreter.waitCount > 0) {
@@ -150,7 +119,6 @@ export class EventSystem extends ZSystem {
     map.events.forEach((event) => {
       const page = this.getActivePage(event)
       if (page && page.trigger === ZEventTrigger.Parallel) {
-        // Start parallel process if not already running (simplified check)
         if (!this.parallelInterpreters.find((p) => p.eventId === event.id)) {
           this.parallelInterpreters.push({
             list: page.list,
@@ -162,12 +130,18 @@ export class EventSystem extends ZSystem {
     })
   }
 
-  private isWaitingForMessage: boolean = false
-
+  /**
+   * Clears the message wait flag on the active interpreter.
+   */
   public finishMessage(): void {
-    this.isWaitingForMessage = false
+    if (this.activeInterpreter) {
+      ;(this.activeInterpreter as any).isWaitingForMessage = false
+    }
   }
 
+  /**
+   * Starts a new event interpreter.
+   */
   public startEvent(event: ZEvent, triggererPos?: { x: number; y: number }): void {
     const activePage = this.getActivePage(event)
     if (!activePage) return
@@ -204,20 +178,11 @@ export class EventSystem extends ZSystem {
       if (val < conditions.variableValue) return false
     }
 
-    // Item check
-    if (conditions.item) {
-      // TODO: Implement inventory check
-    }
-
-    // Actor check
-    if (conditions.actor) {
-      // TODO: Implement party check
-    }
+    // TODO: Implement inventory and actor condition checks
 
     return true
   }
 
-  // Overload checkPageConditions to support self-switch
   private checkPageConditionsWithEvent(conditions: ZEventCondition, eventId: string): boolean {
     if (!this.checkPageConditions(conditions)) return false
 
@@ -234,7 +199,6 @@ export class EventSystem extends ZSystem {
     for (let i = event.pages.length - 1; i >= 0; i--) {
       const page = event.pages[i]
       if (this.checkPageConditionsWithEvent(page.conditions, event.id)) {
-        // Sync through status for PhysicsSystem
         event.isThrough = page.options.through
         return page
       }
@@ -243,6 +207,9 @@ export class EventSystem extends ZSystem {
     return null
   }
 
+  /**
+   * Checks for event triggers at the specified coordinates.
+   */
   public checkTrigger(
     x: number,
     y: number,
@@ -277,36 +244,31 @@ export class EventSystem extends ZSystem {
       this.activeInterpreter.index++
 
       const result = this.executeCommand(cmd, this.activeInterpreter)
-      if (result === 'wait') {
-        return
-      }
+      if (result === 'wait') return
       if (result === 'stop') {
-        const eventId = this.activeInterpreter.eventId
-        this.activeInterpreter = null
-        this.isProcessing = false
-        this.bus.emit(ZEngineSignal.EventExecutionFinished, { eventId })
+        this.terminateActiveInterpreter()
         return
       }
     }
 
+    this.terminateActiveInterpreter()
+  }
+
+  private terminateActiveInterpreter(): void {
+    if (!this.activeInterpreter) return
     const eventId = this.activeInterpreter.eventId
     this.activeInterpreter = null
     this.isProcessing = false
     this.bus.emit(ZEngineSignal.EventExecutionFinished, { eventId })
   }
 
-  private executeParallelInterpreter(
-    interpreter: { list: ZEventCommand[]; index: number; eventId: string },
-    index: number
-  ): void {
+  private executeParallelInterpreter(interpreter: ZEventInterpreter, index: number): void {
     while (interpreter.index < interpreter.list.length) {
       const cmd = interpreter.list[interpreter.index]
       interpreter.index++
 
       const result = this.executeCommand(cmd, interpreter)
-      if (result === 'wait') {
-        return
-      }
+      if (result === 'wait') return
       if (result === 'stop') {
         this.parallelInterpreters.splice(index, 1)
         return
@@ -316,313 +278,22 @@ export class EventSystem extends ZSystem {
     interpreter.index = 0
   }
 
-  private executeCommand(
-    cmd: ZEventCommand,
-    interpreter: { list: ZEventCommand[]; index: number; eventId: string }
-  ): ZCommandResult {
-    const processor = this.processors.get(cmd.code)
+  private executeCommand(cmd: ZEventCommand, interpreter: ZEventInterpreter): ZCommandResult {
+    const processor = CommandRegistry[cmd.code]
     if (processor) {
-      return processor(cmd.parameters, interpreter)
+      return processor(cmd.parameters, interpreter, this.services)
     }
 
     return 'continue'
   }
 
-  private commandTransferPlayer(params: unknown[]): ZCommandResult {
-    const mapId = params[0] as number
-    const x = params[1] as number
-    const y = params[2] as number
-    this.sceneManager.goto(SceneMap, { mapOrId: mapId, playerX: x, playerY: y })
-
-    return 'stop'
-  }
-
-  private commandShowMessage(params: unknown[]): ZCommandResult {
-    const text = params[0] as string
-
-    this.isWaitingForMessage = true
-
-    this.bus.emit(ZEngineSignal.ShowMessage, { text })
-
-    const inputManager = this.input
-    if (inputManager) {
-      inputManager.clearAction(ZInputAction.OK)
-      inputManager.clearAction(ZInputAction.CANCEL)
-      // Clear legacy keys too just in case
-      inputManager.clearKey('Enter')
-      inputManager.clearKey('Space')
-      inputManager.clearKey('KeyZ')
-    }
-
-    return 'wait'
-  }
-
-  private commandControlSwitch(params: unknown[]): ZCommandResult {
-    const gameState = this.game
-    const switchId = params[0] as number
-    const operation = params[1] as number
-
-    if (operation === 0) {
-      gameState.setSwitch(switchId, false)
-    } else if (operation === 1) {
-      gameState.setSwitch(switchId, true)
-    } else if (operation === 2) {
-      gameState.toggleSwitch(switchId)
-    }
-
-    return 'continue'
-  }
-
-  private commandControlSelfSwitch(
-    params: unknown[],
-    interpreter: { eventId: string; waitingForMoveEventId?: string | null }
-  ): ZCommandResult {
-    const mapId = this.map.currentMap?.id || 0
-    const eventId = interpreter.eventId
-    const ch = params[0] as string
-    const value = params[1] === 1
-
-    this.game.setSelfSwitch(mapId, eventId, ch, value)
-    return 'continue'
-  }
-
-  private commandControlVariable(params: unknown[]): ZCommandResult {
-    const gameState = this.game
-    const varId = params[0] as number
-    const op = params[1] as number
-    const value = params[2] as number
-
-    let current = gameState.getVariable(varId)
-
-    switch (op) {
-      case 0: // Set
-        current = value
-        break
-      case 1: // Add
-        current += value
-        break
-      case 2: // Sub
-        current -= value
-        break
-      case 3: // Mul
-        current *= value
-        break
-      case 4: // Div
-        current = Math.floor(current / value)
-        break
-      case 5: // Mod
-        current = current % value
-        break
-    }
-
-    gameState.setVariable(varId, current)
-    return 'continue'
-  }
-
-  private pendingChoice: number | null = null
-
-  private commandShowChoices(params: unknown[]): ZCommandResult {
-    const choices = params[0] as string[]
-    this.bus.emit(ZEngineSignal.ShowChoices, { choices })
-    return 'wait'
-  }
-
+  /**
+   * Submits a choice result to the active interpreter.
+   */
   public submitChoice(index: number): void {
-    this.pendingChoice = index
+    if (this.activeInterpreter) {
+      ;(this.activeInterpreter as any).pendingChoice = index
+    }
     this.resumeProcessing()
-  }
-
-  private commandWhen(
-    params: unknown[],
-    interpreter: { list: ZEventCommand[]; index: number }
-  ): ZCommandResult {
-    const choiceIndex = params[0] as number
-
-    if (this.pendingChoice === choiceIndex) {
-      return 'continue'
-    } else {
-      this.advanceToNextWhenOrEnd(interpreter)
-      return 'continue'
-    }
-  }
-
-  private commandConditionalBranch(
-    params: unknown[],
-    interpreter: { list: ZEventCommand[]; index: number }
-  ): ZCommandResult {
-    const gameState = this.game
-    const type = params[0] as number
-    let result = false
-
-    if (type === 0) {
-      const switchId = params[1] as number
-      const requiredState = params[2] === 1
-      const currentVal = gameState.getSwitch(switchId)
-      result = currentVal === requiredState
-    } else if (type === 1) {
-      const varId = params[1] as number
-      const neededVal = params[2] as number
-      const currentVal = gameState.getVariable(varId)
-      result = currentVal === neededVal
-    }
-
-    if (result) {
-      return 'continue'
-    } else {
-      this.advanceToElseOrEnd(interpreter)
-      return 'continue'
-    }
-  }
-
-  private commandElse(
-    _params: unknown[],
-    interpreter: { list: ZEventCommand[]; index: number }
-  ): ZCommandResult {
-    this.advanceToEnd(interpreter)
-    return 'continue'
-  }
-
-  private commandShowAnimation(): ZCommandResult {
-    // TODO: Implement animation system
-    return 'continue'
-  }
-
-  private commandSetEventDirection(
-    params: unknown[],
-    interpreter: { eventId: string; waitingForMoveEventId?: string | null }
-  ): ZCommandResult {
-    const direction = params[0] as 'down' | 'left' | 'right' | 'up'
-    this.bus.emit(ZEngineSignal.EventInternalStateChanged, {
-      eventId: interpreter.eventId,
-      direction
-    })
-    return 'continue'
-  }
-
-  private commandSetEventGraphic(
-    params: unknown[],
-    interpreter: { eventId: string; waitingForMoveEventId?: string | null }
-  ): ZCommandResult {
-    const graphic = params[0] as ZEventGraphic
-    this.bus.emit(ZEngineSignal.EventInternalStateChanged, {
-      eventId: interpreter.eventId,
-      graphic
-    })
-    return 'continue'
-  }
-
-  private commandSetMoveRoute(
-    params: unknown[],
-    interpreter: { eventId: string; waitingForMoveEventId?: string | null }
-  ): ZCommandResult {
-    const targetId = params[0]
-    const route = params[1] as ZMoveCommand[]
-    const wait = params[2] as boolean
-    const repeat = params[3] as boolean
-    const through = params[4] as boolean
-
-    let eventId: string | null = null
-    // Handle both number and string types for safety
-    if (targetId === 0 || targetId === '0') {
-      eventId = interpreter.eventId
-    } else if (targetId === -1 || targetId === '-1' || targetId === 'PLAYER') {
-      eventId = 'PLAYER'
-    } else {
-      eventId = String(targetId)
-    }
-
-    if (eventId) {
-      this.bus.emit(ZEngineSignal.EventInternalStateChanged, {
-        eventId,
-        moveRoute: route,
-        moveType: 'custom',
-        moveRouteRepeat: repeat,
-        moveRouteSkip: false,
-        isThrough: through
-      })
-
-      console.log(`[EventSystem] commandSetMoveRoute: eventId=${eventId}, wait=${wait}`)
-
-      if (wait) {
-        console.log(`[EventSystem] Pausing interpreter for ${eventId}`)
-        interpreter.waitingForMoveEventId = eventId
-        return 'wait'
-      }
-    }
-
-    return 'continue'
-  }
-
-  private advanceToElseOrEnd(interpreter: { list: ZEventCommand[]; index: number }): void {
-    let depth = 0
-    const list = interpreter.list
-
-    while (interpreter.index < list.length) {
-      const cmd = list[interpreter.index]
-
-      if (cmd.code === ZCommandCode.ConditionalBranch) {
-        depth++
-      } else if (cmd.code === ZCommandCode.EndBranch) {
-        if (depth === 0) {
-          return
-        }
-        depth--
-      } else if (cmd.code === ZCommandCode.Else) {
-        if (depth === 0) {
-          interpreter.index++
-          return
-        }
-      }
-
-      interpreter.index++
-    }
-  }
-
-  private advanceToEnd(interpreter: { list: ZEventCommand[]; index: number }): void {
-    let depth = 0
-    const list = interpreter.list
-
-    while (interpreter.index < list.length) {
-      const cmd = list[interpreter.index]
-
-      if (cmd.code === ZCommandCode.ConditionalBranch) {
-        depth++
-      } else if (cmd.code === ZCommandCode.EndBranch) {
-        if (depth === 0) {
-          return
-        }
-        depth--
-      }
-      interpreter.index++
-    }
-  }
-
-  private advanceToNextWhenOrEnd(interpreter: { list: ZEventCommand[]; index: number }): void {
-    let depth = 0
-    const list = interpreter.list
-
-    while (interpreter.index < list.length) {
-      const cmd = list[interpreter.index]
-
-      if (cmd.code === ZCommandCode.ShowChoices) {
-        depth++
-      } else if (cmd.code === ZCommandCode.EndChoices) {
-        if (depth === 0) {
-          return
-        }
-        depth--
-      } else if (cmd.code === ZCommandCode.When) {
-        if (depth === 0) {
-          return
-        }
-      }
-      interpreter.index++
-    }
-  }
-
-  private commandWait(params: unknown[], interpreter: { waitCount?: number }): ZCommandResult {
-    const frames = (params[0] as number) || 60
-    interpreter.waitCount = frames
-    return 'wait'
   }
 }

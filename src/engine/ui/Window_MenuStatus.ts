@@ -1,9 +1,22 @@
 import { Window_Base } from './Window_Base'
 import { Text } from '@engine/utils/pixi'
+import { Game_Actor } from '@engine/objects/Game_Actor'
 
+/**
+ * Displays the status of party members in the main menu.
+ */
 export class Window_MenuStatus extends Window_Base {
+  private _actors: Game_Actor[] = []
+
   constructor(x: number, y: number, width: number, height: number) {
     super(x, y, width, height)
+  }
+
+  /**
+   * Updates the list of actors and refreshes the window content.
+   */
+  public setActors(actors: Game_Actor[]): void {
+    this._actors = actors
     this.refresh()
   }
 
@@ -11,8 +24,16 @@ export class Window_MenuStatus extends Window_Base {
     super.refresh()
     if (!this.contents) return
 
+    this._actors.forEach((actor, index) => {
+      this.drawActorStatus(actor, index)
+    })
+  }
+
+  private drawActorStatus(actor: Game_Actor, index: number): void {
+    const startY = 20 + index * 120
+
     const nameText = new Text({
-      text: 'Bohater',
+      text: actor.name,
       style: {
         fontFamily: 'Arial, sans-serif',
         fontSize: 24,
@@ -21,11 +42,23 @@ export class Window_MenuStatus extends Window_Base {
       }
     })
     nameText.x = 20
-    nameText.y = 20
+    nameText.y = startY
     this.contents.addChild(nameText)
 
+    const levelText = new Text({
+      text: `Lv: ${actor.level}`,
+      style: {
+        fontFamily: 'Arial, sans-serif',
+        fontSize: 18,
+        fill: 0xaaaaaa
+      }
+    })
+    levelText.x = 200
+    levelText.y = startY + 5
+    this.contents.addChild(levelText)
+
     const hpText = new Text({
-      text: 'HP: 100/100',
+      text: `HP: ${actor.hp}/${actor.mhp}`,
       style: {
         fontFamily: 'Arial, sans-serif',
         fontSize: 18,
@@ -33,11 +66,11 @@ export class Window_MenuStatus extends Window_Base {
       }
     })
     hpText.x = 20
-    hpText.y = 60
+    hpText.y = startY + 40
     this.contents.addChild(hpText)
 
     const mpText = new Text({
-      text: 'MP: 50/50',
+      text: `MP: ${actor.mp}/${actor.mmp}`,
       style: {
         fontFamily: 'Arial, sans-serif',
         fontSize: 18,
@@ -45,7 +78,7 @@ export class Window_MenuStatus extends Window_Base {
       }
     })
     mpText.x = 20
-    mpText.y = 90
+    mpText.y = startY + 70
     this.contents.addChild(mpText)
   }
 }

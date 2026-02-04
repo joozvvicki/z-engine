@@ -343,16 +343,19 @@ export enum ZCommandCode {
 
 export type ZCommandResult = 'continue' | 'wait' | 'stop'
 
+export interface ZEventInterpreter {
+  list: ZEventCommand[]
+  index: number
+  eventId: string
+  waitCount?: number
+  waitingForMoveEventId?: string | null
+}
+
 export interface ZCommandProcessor {
   (
     params: unknown[],
-    interpreter: {
-      list: ZEventCommand[]
-      index: number
-      eventId: string
-      waitCount?: number
-      waitingForMoveEventId?: string | null
-    }
+    interpreter: ZEventInterpreter,
+    services: any // ServiceLocator passed from EventSystem
   ): ZCommandResult
 }
 
