@@ -23,10 +23,10 @@ const router = createRouter({
     },
     {
       path: '/editor',
-      name: 'editor',
+
       component: EditorPage,
       children: [
-        { path: '', redirect: '/editor/assets' },
+        { path: '', name: 'editor', redirect: '/editor/assets' },
         {
           path: 'assets',
           name: 'editor-assets',
