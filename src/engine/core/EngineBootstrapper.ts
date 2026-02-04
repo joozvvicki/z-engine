@@ -19,6 +19,7 @@ import { TransitionSystem } from '@engine/systems/TransitionSystem'
 import { MessageSystem } from '@engine/systems/MessageSystem'
 import { PhysicsSystem } from '@engine/systems/PhysicsSystem'
 import { ErrorSystem } from '@engine/systems/ErrorSystem'
+import { MenuSystem } from '@engine/systems/MenuSystem'
 
 export class EngineBootstrapper {
   public static registerManagers(services: ServiceLocator): void {
@@ -45,31 +46,28 @@ export class EngineBootstrapper {
     services.register(GridSystem, new GridSystem(stage, services, tileSize))
     const physicsSystem = new PhysicsSystem(services)
     services.register(PhysicsSystem, physicsSystem)
-    services.register('PhysicsSystem', physicsSystem)
 
     const playerSystem = new PlayerSystem(services, tileSize)
     services.register(PlayerSystem, playerSystem)
-    services.register('PlayerSystem', playerSystem)
 
     services.register(EventSystem, new EventSystem(services))
 
     const entityRenderSystem = new EntityRenderSystem(services, tileSize)
     services.register(EntityRenderSystem, entityRenderSystem)
-    services.register('EntityRenderSystem', entityRenderSystem)
 
     const transitionSystem = new TransitionSystem(services)
     services.register(TransitionSystem, transitionSystem)
-    services.register('TransitionSystem', transitionSystem)
     transitionSystem.resize(screenWidth, screenHeight)
 
     const messageSystem = new MessageSystem(services)
     services.register(MessageSystem, messageSystem)
-    services.register('MessageSystem', messageSystem)
     messageSystem.resize(screenWidth, screenHeight)
 
     const errorSystem = new ErrorSystem(services)
     services.register(ErrorSystem, errorSystem)
-    services.register('ErrorSystem', errorSystem)
     errorSystem.resize(screenWidth, screenHeight)
+
+    const menuSystem = new MenuSystem(services)
+    services.register(MenuSystem, menuSystem)
   }
 }

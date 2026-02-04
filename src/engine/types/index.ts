@@ -400,7 +400,15 @@ export enum ZEngineSignal {
   EventInternalStateChanged = 'event:internal-state',
   EventExecutionStarted = 'event:execution-started',
   EventExecutionFinished = 'event:execution-finished',
-  MoveRouteFinished = 'event:move-route-finished'
+  MoveRouteFinished = 'event:move-route-finished',
+  MenuRequested = 'ui:menu-requested'
+}
+
+export interface ZMenuParams {
+  mapOrId: ZMap | number
+  playerX: number
+  playerY: number
+  direction: string
 }
 
 export interface ZSignalData {
@@ -438,6 +446,7 @@ export interface ZSignalData {
   }
   [ZEngineSignal.EventExecutionFinished]: { eventId: string }
   [ZEngineSignal.MoveRouteFinished]: { eventId: string }
+  [ZEngineSignal.MenuRequested]: ZMenuParams
 }
 
 export enum ZInputAction {

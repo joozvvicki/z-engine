@@ -22,7 +22,7 @@ export class InputManager {
       KeyZ: ZInputAction.OK,
       Escape: ZInputAction.CANCEL,
       Backspace: ZInputAction.CANCEL,
-      KeyX: ZInputAction.CANCEL,
+      KeyX: ZInputAction.MENU,
       ShiftLeft: ZInputAction.RUN,
       ShiftRight: ZInputAction.RUN,
       ControlLeft: ZInputAction.NOCLIP,
