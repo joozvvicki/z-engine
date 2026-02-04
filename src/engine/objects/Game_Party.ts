@@ -47,7 +47,7 @@ export class Game_Party {
   /**
    * Serializes the party state for saving.
    */
-  public getSaveData(): any {
+  public getSaveData(): Record<string, unknown> {
     return {
       actors: this._actors.map((a) => ({ id: a.id, level: a.level, hp: a.hp, mp: a.mp })),
       gold: this._gold

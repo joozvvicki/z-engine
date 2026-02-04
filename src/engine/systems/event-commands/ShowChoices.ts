@@ -22,8 +22,7 @@ export const commandShowChoices: ZCommandProcessor = (
  */
 export const commandWhen: ZCommandProcessor = (
   params: unknown[],
-  interpreter: ZEventInterpreter,
-  _services: ServiceLocator
+  interpreter: ZEventInterpreter
 ): ZCommandResult => {
   const choiceIndex = params[0] as number
   const it = interpreter as unknown as Record<string, unknown>

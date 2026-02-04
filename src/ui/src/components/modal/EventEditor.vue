@@ -166,6 +166,7 @@ const save = (): void => {
     store.updateEvent(props.eventId, eventData)
 
     // Notify engine of internal state changes for immediate feedback
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const engine = (window as any).$zEngine
     if (engine && activePage.value) {
       engine.eventBus.emit(ZEngineSignal.EventInternalStateChanged, {

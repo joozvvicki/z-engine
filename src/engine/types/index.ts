@@ -364,7 +364,8 @@ export interface ZCommandProcessor {
   (
     params: unknown[],
     interpreter: ZEventInterpreter,
-    services: unknown // ServiceLocator passed from EventSystem
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    services: any // ServiceLocator passed from EventSystem
   ): ZCommandResult
 }
 

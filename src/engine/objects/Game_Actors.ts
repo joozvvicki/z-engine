@@ -25,8 +25,8 @@ export class Game_Actors {
   /**
    * Serializes all runtime actor data for saving.
    */
-  public getSaveData(): any[] {
-    const data: any[] = []
+  public getSaveData(): Record<string, unknown>[] {
+    const data: Record<string, unknown>[] = []
     this._data.forEach((actor) => {
       data.push({
         id: actor.id,

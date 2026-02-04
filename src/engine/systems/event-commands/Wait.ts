@@ -1,13 +1,11 @@
 import { ZCommandProcessor, ZCommandResult, ZEventInterpreter } from '@engine/types'
-import { ServiceLocator } from '@engine/core/ServiceLocator'
 
 /**
  * Command 230: Wait
  */
 export const commandWait: ZCommandProcessor = (
   params: unknown[],
-  interpreter: ZEventInterpreter,
-  _services: ServiceLocator
+  interpreter: ZEventInterpreter
 ): ZCommandResult => {
   const frames = (params[0] as number) || 60
   interpreter.waitCount = frames

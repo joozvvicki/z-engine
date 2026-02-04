@@ -40,8 +40,7 @@ export const commandConditionalBranch: ZCommandProcessor = (
  */
 export const commandElse: ZCommandProcessor = (
   _params: unknown[],
-  interpreter: ZEventInterpreter,
-  _services: ServiceLocator
+  interpreter: ZEventInterpreter
 ): ZCommandResult => {
   InterpreterUtils.advanceToEnd(interpreter)
   return 'continue'
