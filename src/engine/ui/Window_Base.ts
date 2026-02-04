@@ -21,8 +21,13 @@ export class Window_Base extends Container {
   protected _contents: Container
   protected _mask: Graphics
 
+  // Animation State
+  private _openness: number = 0
+  private _opening: boolean = false
+  private _closing: boolean = false
+
   // Standard RPG Maker MV skin metrics (192x192, 96x96 tiles)
-  private _cornerSize: number = 32 // Can be 24 or 32 depending on visual preference
+  private _cornerSize: number = 32
 
   constructor(x: number, y: number, width: number, height: number) {
     super()
@@ -30,6 +35,10 @@ export class Window_Base extends Container {
     this.y = y
     this._width = width
     this._height = height
+
+    // Set pivot to center-vertical to allow "opening from center" animation
+    this.pivot.y = height / 2
+    this.y += height / 2
 
     // Frame Container (draws frame parts)
     this._frameContainer = new Container()
@@ -45,6 +54,11 @@ export class Window_Base extends Container {
     this._mask = new Graphics()
     this._contents.mask = this._mask
     this.addChild(this._mask)
+
+    // Default closed state
+    this._openness = 0
+    this.scale.y = 0
+    this.visible = false
 
     this.refresh()
   }
@@ -70,21 +84,17 @@ export class Window_Base extends Container {
     this.addChildAt(this._backSprite, 0)
 
     // 2. Frame Construction (96,0 offset, 96x96 total)
-    // We assume standard MV layout where corners are 24px-32px.
-    // Let's use 32px as a baseline for the texture slicing to ensure we capture the corner detail,
-    // even if we display it smaller.
-    // Texture slice size:
     const slice = 32
 
     // Top-Left (96+0, 0)
     this._tl = new Sprite(
       new Texture({ source: texture.source, frame: new Rectangle(96, 0, slice, slice) })
     )
-    // Top-Right (96+96-slice, 0) -> (192-32, 0) -> (160, 0)
+    // Top-Right (160, 0)
     this._tr = new Sprite(
       new Texture({ source: texture.source, frame: new Rectangle(160, 0, slice, slice) })
     )
-    // Bot-Left (96+0, 96-slice) -> (96, 64)
+    // Bot-Left (96, 64)
     this._bl = new Sprite(
       new Texture({ source: texture.source, frame: new Rectangle(96, 64, slice, slice) })
     )
@@ -96,7 +106,7 @@ export class Window_Base extends Container {
     this._frameContainer.addChild(this._tl, this._tr, this._bl, this._br)
 
     // Edges (Tiling)
-    // Top (96+slice, 0, 32, 32) -> (128, 0)
+    // Top (128, 0)
     const topTex = new Texture({
       source: texture.source,
       frame: new Rectangle(128, 0, slice, slice)
@@ -129,6 +139,51 @@ export class Window_Base extends Container {
     this.refresh()
   }
 
+  public update(): void {
+    if (this._opening) {
+      this._openness += 32
+      if (this._openness >= 255) {
+        this._openness = 255
+        this._opening = false
+      }
+    } else if (this._closing) {
+      this._openness -= 32
+      if (this._openness <= 0) {
+        this._openness = 0
+        this._closing = false
+        this.visible = false
+      }
+    }
+
+    // Apply openness
+    this.scale.y = this._openness / 255
+  }
+
+  public open(): void {
+    if (!this.isOpen()) {
+      this._opening = true
+      this._closing = false
+      this.visible = true
+    }
+    // Force reset opacity/scale just in case
+    if (this._openness <= 0) this.scale.y = 0
+  }
+
+  public close(): void {
+    if (!this.isClosed()) {
+      this._closing = true
+      this._opening = false
+    }
+  }
+
+  public isOpen(): boolean {
+    return this._openness >= 255
+  }
+
+  public isClosed(): boolean {
+    return this._openness <= 0
+  }
+
   public get contents(): Container {
     return this._contents
   }
@@ -159,7 +214,7 @@ export class Window_Base extends Container {
     ) {
       const w = this._width
       const h = this._height
-      const c = this._cornerSize // Visual size of corner
+      const c = this._cornerSize
 
       // Corners
       this._tl.x = 0
@@ -177,25 +232,21 @@ export class Window_Base extends Container {
       this._br.width = this._br.height = c
 
       // Edges
-      // Top
       this._top.x = c
       this._top.y = 0
       this._top.width = w - c * 2
       this._top.height = c
 
-      // Bottom
       this._bottom.x = c
       this._bottom.y = h - c
       this._bottom.width = w - c * 2
       this._bottom.height = c
 
-      // Left
       this._left.x = 0
       this._left.y = c
       this._left.width = c
       this._left.height = h - c * 2
 
-      // Right
       this._right.x = w - c
       this._right.y = c
       this._right.width = c
@@ -211,6 +262,14 @@ export class Window_Base extends Container {
   public resize(width: number, height: number): void {
     this._width = width
     this._height = height
+    // Pivot needs update?
+    // If height changes, center changes.
+    const oldPivotY = this.pivot.y
+    this.pivot.y = height / 2
+
+    // Adjust y position to compensate for pivot shift
+    this.y += this.pivot.y - oldPivotY
+
     this.refresh()
   }
 }

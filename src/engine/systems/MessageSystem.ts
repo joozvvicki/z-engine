@@ -13,7 +13,9 @@ export class MessageSystem extends ZSystem {
   private windowMessage: Window_Message | null = null
   private windowChoice: Window_Choice | null = null
 
+  // State
   private isVisible: boolean = false
+  private isClosing: boolean = false
 
   // Choice state
   private isChoiceVisible: boolean = false
@@ -61,8 +63,22 @@ export class MessageSystem extends ZSystem {
   }
 
   public onUpdate(): void {
+    // Always update animations if system is active
+    if (this.isVisible || this.isClosing) {
+      this.windowMessage?.update()
+      this.windowChoice?.update()
+    }
+
+    if (this.isClosing) {
+      // Wait for window to fully close
+      if (this.windowMessage?.isClosed()) {
+        this.finalizeClose()
+      }
+      return
+    }
+
     if (this.isVisible) {
-      if (this.windowMessage) this.windowMessage.refresh() // Animation?
+      if (this.windowMessage) this.windowMessage.refresh()
 
       if (this.isChoiceVisible) {
         this.updateChoiceSelection()
@@ -106,9 +122,10 @@ export class MessageSystem extends ZSystem {
   private show(text: string): void {
     if (this.windowMessage) {
       this.windowMessage.setText(text)
-      this.windowMessage.visible = true
+      this.windowMessage.open()
     }
     this.isVisible = true
+    this.isClosing = false
     this.container.visible = true
   }
 
@@ -118,21 +135,24 @@ export class MessageSystem extends ZSystem {
     this.isChoiceVisible = true
     this.isVisible = true // Ensure message is also visible if choices appear
 
+    // Ensure message is open
+    if (this.windowMessage && !this.windowMessage.isOpen()) {
+      this.windowMessage.open()
+    }
+
     if (this.windowChoice) {
       this.windowChoice.setChoices(choices)
       this.windowChoice.select(0)
 
       // Resize choice window
-      // 36px per item + 36 padding (18*2)
       const navHeight = choices.length * 36 + 36
-
       this.windowChoice.resize(240, navHeight)
 
       // Position
       this.windowChoice.x = this.boxWidth - 240
       this.windowChoice.y = -navHeight
 
-      this.windowChoice.visible = true
+      this.windowChoice.open()
     }
 
     this.container.visible = true
@@ -141,16 +161,15 @@ export class MessageSystem extends ZSystem {
   private closeChoices(): void {
     this.isChoiceVisible = false
     if (this.windowChoice) {
-      this.windowChoice.visible = false
+      this.windowChoice.close()
     }
     this.close()
   }
 
   private close(): void {
-    this.isVisible = false
-    this.isChoiceVisible = false
-    this.container.visible = false
-    if (this.windowMessage) this.windowMessage.visible = false
+    this.isClosing = true
+    if (this.windowMessage) this.windowMessage.close()
+    if (this.windowChoice) this.windowChoice.close()
 
     const inputManager = this.input
     if (inputManager) {
@@ -158,6 +177,14 @@ export class MessageSystem extends ZSystem {
       inputManager.clearAction(ZInputAction.CANCEL)
       inputManager.clearKey('Enter')
     }
+  }
+
+  private finalizeClose(): void {
+    this.isVisible = false
+    this.isClosing = false
+    this.isChoiceVisible = false
+
+    this.container.visible = false
 
     this.bus.emit(ZEngineSignal.MessageClosed, {})
 
