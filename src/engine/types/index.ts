@@ -338,7 +338,14 @@ export enum ZCommandCode {
   EndChoices = 404,
   SetEventDirection = 213,
   SetEventGraphic = 214,
-  Wait = 230
+  Wait = 230,
+  PlayBGM = 241,
+  FadeOutBGM = 242,
+  PlayBGS = 245,
+  FadeOutBGS = 246,
+  PlayME = 249,
+  PlaySE = 250,
+  StopSE = 251
 }
 
 export type ZCommandResult = 'continue' | 'wait' | 'stop'

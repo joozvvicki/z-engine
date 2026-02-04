@@ -10,6 +10,7 @@ import { commandWait } from './Wait'
 import { commandSetEventDirection } from './SetEventDirection'
 import { commandSetEventGraphic } from './SetEventGraphic'
 import { commandShowChoices, commandWhen } from './ShowChoices'
+import { commandPlayBGM, commandFadeOutBGM, commandPlaySE, commandStopSE } from './AudioCommands'
 
 export const CommandRegistry: Record<number, ZCommandProcessor> = {
   [ZCommandCode.ShowMessage]: commandShowMessage,
@@ -27,5 +28,11 @@ export const CommandRegistry: Record<number, ZCommandProcessor> = {
   [ZCommandCode.ShowChoices]: commandShowChoices,
   [ZCommandCode.When]: commandWhen,
   [ZCommandCode.EndChoices]: () => 'continue',
-  [ZCommandCode.ShowAnimation]: () => 'continue' // TODO: Implement
+  [ZCommandCode.ShowAnimation]: () => 'continue', // TODO: Implement
+
+  // Audio
+  [ZCommandCode.PlayBGM]: commandPlayBGM,
+  [ZCommandCode.FadeOutBGM]: commandFadeOutBGM,
+  [ZCommandCode.PlaySE]: commandPlaySE,
+  [ZCommandCode.StopSE]: commandStopSE
 }

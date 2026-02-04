@@ -20,11 +20,13 @@ import { MessageSystem } from '@engine/systems/MessageSystem'
 import { PhysicsSystem } from '@engine/systems/PhysicsSystem'
 import { ErrorSystem } from '@engine/systems/ErrorSystem'
 import { MenuSystem } from '@engine/systems/MenuSystem'
+import { AudioManager } from '@engine/managers/AudioManager'
 
 export class EngineBootstrapper {
   public static registerManagers(services: ServiceLocator): void {
     services.register(TextureManager, new TextureManager())
     services.register(InputManager, new InputManager())
+    services.register(AudioManager, new AudioManager())
     services.register(TilesetManager, new TilesetManager())
     services.register(MapManager, new MapManager())
     services.register(HistoryManager, new HistoryManager(services))
