@@ -4,11 +4,15 @@ import { ServiceLocator } from '@engine/core/ServiceLocator'
 
 export class TransitionSystem extends ZSystem {
   public container: Graphics
-  private isFading: boolean = false
+  private _isFading: boolean = false
   private fadeTarget: number = 0
   private fadeDuration: number = 0
   private fadeTimer: number = 0
   private resolvePromise: ((value: void | PromiseLike<void>) => void) | null = null
+
+  public get isTransitioning(): boolean {
+    return this._isFading
+  }
 
   constructor(services: ServiceLocator) {
     super(services)
@@ -31,14 +35,14 @@ export class TransitionSystem extends ZSystem {
 
   private startFade(target: number, duration: number): Promise<void> {
     // If already at target, resolve immediately
-    if (this.container.alpha === target && !this.isFading) {
+    if (this.container.alpha === target && !this._isFading) {
       return Promise.resolve()
     }
 
     this.fadeTarget = target
     this.fadeDuration = duration
     this.fadeTimer = 0
-    this.isFading = true
+    this._isFading = true
 
     return new Promise((resolve) => {
       this.resolvePromise = resolve
@@ -52,7 +56,7 @@ export class TransitionSystem extends ZSystem {
   }
 
   onUpdate(delta: number): void {
-    if (this.isFading) {
+    if (this._isFading) {
       this.fadeTimer += delta
       const progress = Math.min(this.fadeTimer / this.fadeDuration, 1)
 
@@ -61,7 +65,7 @@ export class TransitionSystem extends ZSystem {
 
       if (progress >= 1) {
         this.container.alpha = this.fadeTarget
-        this.isFading = false
+        this._isFading = false
         if (this.resolvePromise) {
           const resolve = this.resolvePromise
           this.resolvePromise = null // Clear before calling to avoid re-entry issues

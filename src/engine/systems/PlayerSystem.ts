@@ -3,6 +3,8 @@ import ZLogger from '@engine/utils/ZLogger'
 import { ZSystem, SystemMode } from '@engine/core/ZSystem'
 import { ServiceLocator } from '@engine/core/ServiceLocator'
 import { PhysicsSystem } from '@engine/systems/PhysicsSystem'
+import { SceneManager } from '@engine/managers/SceneManager'
+import { TransitionSystem } from '@engine/systems/TransitionSystem'
 import { MovementProcessor, type ZMoveable } from '@engine/core/MovementProcessor'
 
 export class PlayerSystem extends ZSystem implements ZMoveable {
@@ -131,7 +133,18 @@ export class PlayerSystem extends ZSystem implements ZMoveable {
   }
 
   private updateInput(): void {
-    if (this.isMoving || this.isInputBlocked || this.moveRouteIndex >= 0) return
+    const sceneManager = this.services.require(SceneManager)
+    const transitionSystem = this.services.require(TransitionSystem)
+
+    if (
+      this.isMoving ||
+      this.isInputBlocked ||
+      this.moveRouteIndex >= 0 ||
+      sceneManager.isTransitioning ||
+      transitionSystem.isTransitioning
+    ) {
+      return
+    }
 
     let dx = 0
     let dy = 0

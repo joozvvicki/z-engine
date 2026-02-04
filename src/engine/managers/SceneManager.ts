@@ -11,6 +11,11 @@ export class SceneManager extends ZManager {
   private _sceneLayer: Container | null = null
   private _sceneStack: ZScene[] = []
   private _skipNextUpdate: boolean = false
+  private _isTransitioning: boolean = false
+
+  public get isTransitioning(): boolean {
+    return this._isTransitioning
+  }
 
   // Callback for editor sync (legacy support)
   private onMapChangeRequest: ((mapId: number, x: number, y: number) => Promise<void>) | null = null
@@ -35,53 +40,59 @@ export class SceneManager extends ZManager {
     params?: unknown,
     options: { fade?: boolean } = {}
   ): Promise<void> {
-    const fadeEnabled = options.fade ?? true
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const engine = this.services.get('ZEngine') as any
-    const isPlayMode = engine?.mode === 'play'
-    const transitionSystem = isPlayMode && fadeEnabled ? this.services.get(TransitionSystem) : null
-    // 1. Fade Out (if enabled)
-    if (transitionSystem) {
-      await transitionSystem.fadeOut(300)
-    }
+    this._isTransitioning = true
+    try {
+      const fadeEnabled = options.fade ?? true
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const engine = this.services.get('ZEngine') as any
+      const isPlayMode = engine?.mode === 'play'
+      const transitionSystem =
+        isPlayMode && fadeEnabled ? this.services.get(TransitionSystem) : null
+      // 1. Fade Out (if enabled)
+      if (transitionSystem) {
+        await transitionSystem.fadeOut(300)
+      }
 
-    ZLogger.with('SceneManager').log(`Changing Scene to ${SceneClass.name}`)
+      ZLogger.with('SceneManager').log(`Changing Scene to ${SceneClass.name}`)
 
-    // 2. Stop and cleanup current scene
-    if (this._currentScene) {
-      this._currentScene.stop()
-      this._currentScene.destroy()
-      this._currentScene = null
-    }
+      // 2. Stop and cleanup current scene
+      if (this._currentScene) {
+        this._currentScene.stop()
+        this._currentScene.destroy()
+        this._currentScene = null
+      }
 
-    // 2.5 Clear Stack on goto
-    while (this._sceneStack.length > 0) {
-      const scene = this._sceneStack.pop()
-      scene?.destroy()
-    }
+      // 2.5 Clear Stack on goto
+      while (this._sceneStack.length > 0) {
+        const scene = this._sceneStack.pop()
+        scene?.destroy()
+      }
 
-    // 3. Clear layer
-    if (this._sceneLayer) {
-      this._sceneLayer.removeChildren()
-    }
+      // 3. Clear layer
+      if (this._sceneLayer) {
+        this._sceneLayer.removeChildren()
+      }
 
-    // 4. Instantiate and Init new scene
-    const nextScene = new SceneClass(this.services)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await nextScene.init(params as any)
+      // 4. Instantiate and Init new scene
+      const nextScene = new SceneClass(this.services)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await nextScene.init(params as any)
 
-    // 5. Set as current and add to stage
-    this._currentScene = nextScene
-    if (this._sceneLayer) {
-      this._sceneLayer.addChild(nextScene.container)
-    }
+      // 5. Set as current and add to stage
+      this._currentScene = nextScene
+      if (this._sceneLayer) {
+        this._sceneLayer.addChild(nextScene.container)
+      }
 
-    // 6. Start scene
-    nextScene.start()
+      // 6. Start scene
+      nextScene.start()
 
-    // 7. Fade In (if enabled)
-    if (transitionSystem) {
-      await transitionSystem.fadeIn(300)
+      // 7. Fade In (if enabled)
+      if (transitionSystem) {
+        await transitionSystem.fadeIn(300)
+      }
+    } finally {
+      this._isTransitioning = false
     }
   }
 
@@ -92,31 +103,36 @@ export class SceneManager extends ZManager {
     SceneClass: new (services: ServiceLocator) => ZScene,
     params?: unknown
   ): Promise<void> {
-    ZLogger.with('SceneManager').log(`Pushing Scene ${SceneClass.name}`)
+    this._isTransitioning = true
+    try {
+      ZLogger.with('SceneManager').log(`Pushing Scene ${SceneClass.name}`)
 
-    // 1. Stop current scene and move to stack
-    if (this._currentScene) {
-      this._currentScene.stop()
-      this._sceneStack.push(this._currentScene)
-      if (this._sceneLayer) {
-        this._sceneLayer.removeChild(this._currentScene.container)
+      // 1. Stop current scene and move to stack
+      if (this._currentScene) {
+        this._currentScene.stop()
+        this._sceneStack.push(this._currentScene)
+        if (this._sceneLayer) {
+          this._sceneLayer.removeChild(this._currentScene.container)
+        }
       }
+
+      // 2. Instantiate and Init new scene
+      const nextScene = new SceneClass(this.services)
+      await nextScene.init(params)
+
+      // 3. Set as current and add to stage
+      this._currentScene = nextScene
+      if (this._sceneLayer) {
+        this._sceneLayer.addChild(nextScene.container)
+      }
+
+      // 4. Start scene
+      nextScene.start()
+
+      this._skipNextUpdate = true
+    } finally {
+      this._isTransitioning = false
     }
-
-    // 2. Instantiate and Init new scene
-    const nextScene = new SceneClass(this.services)
-    await nextScene.init(params)
-
-    // 3. Set as current and add to stage
-    this._currentScene = nextScene
-    if (this._sceneLayer) {
-      this._sceneLayer.addChild(nextScene.container)
-    }
-
-    // 4. Start scene
-    nextScene.start()
-
-    this._skipNextUpdate = true
   }
 
   /**
@@ -128,34 +144,39 @@ export class SceneManager extends ZManager {
       return
     }
 
-    ZLogger.with('SceneManager').log('Popping Scene')
+    this._isTransitioning = true
+    try {
+      ZLogger.with('SceneManager').log('Popping Scene')
 
-    // 1. Destroy current scene
-    if (this._currentScene) {
-      this._currentScene.stop()
-      if (this._sceneLayer) {
-        this._sceneLayer.removeChild(this._currentScene.container)
+      // 1. Destroy current scene
+      if (this._currentScene) {
+        this._currentScene.stop()
+        if (this._sceneLayer) {
+          this._sceneLayer.removeChild(this._currentScene.container)
+        }
+        this._currentScene.destroy()
+        this._currentScene = null
       }
-      this._currentScene.destroy()
-      this._currentScene = null
-    }
 
-    // 2. Restore previous scene
-    const prevScene = this._sceneStack.pop()
-    if (prevScene) {
-      this._currentScene = prevScene
-      if (this._sceneLayer) {
-        this._sceneLayer.addChild(prevScene.container)
+      // 2. Restore previous scene
+      const prevScene = this._sceneStack.pop()
+      if (prevScene) {
+        this._currentScene = prevScene
+        if (this._sceneLayer) {
+          this._sceneLayer.addChild(prevScene.container)
+        }
+        // Resume scene
+        prevScene.start()
       }
-      // Resume scene
-      prevScene.start()
-    }
 
-    if (this._sceneStack.length === 0) {
-      this.bus.emit(ZEngineSignal.MenuClosed, {})
-    }
+      if (this._sceneStack.length === 0) {
+        this.bus.emit(ZEngineSignal.MenuClosed, {})
+      }
 
-    this._skipNextUpdate = true
+      this._skipNextUpdate = true
+    } finally {
+      this._isTransitioning = false
+    }
   }
 
   /**
