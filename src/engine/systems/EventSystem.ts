@@ -9,7 +9,8 @@ import {
   ZCommandCode,
   ZEngineSignal,
   ZEventTrigger,
-  type ZMoveCommand
+  type ZMoveCommand,
+  ZInputAction
 } from '@engine/types'
 import { ZSystem, SystemMode } from '@engine/core/ZSystem'
 import { PlayerSystem } from '@engine/systems/PlayerSystem'
@@ -345,6 +346,9 @@ export class EventSystem extends ZSystem {
 
     const inputManager = this.input
     if (inputManager) {
+      inputManager.clearAction(ZInputAction.OK)
+      inputManager.clearAction(ZInputAction.CANCEL)
+      // Clear legacy keys too just in case
       inputManager.clearKey('Enter')
       inputManager.clearKey('Space')
       inputManager.clearKey('KeyZ')

@@ -142,6 +142,16 @@ export class InputManager {
 
   public clearKey(code: string): void {
     this.keys.set(code, false)
+    // Also clear mapped action if needed
+    const action = this.mappings.keyboard[code]
+    if (action !== undefined) {
+      this.actionState.set(action, false)
+    }
+  }
+
+  public clearAction(action: ZInputAction): void {
+    this.actionState.set(action, false)
+    // We could reverse lookup to clear keys, but clearing action state is sufficient for consumers checking action
   }
 
   public destroy(): void {
