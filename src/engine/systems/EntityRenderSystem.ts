@@ -4,6 +4,7 @@ import { ZSystem, SystemMode } from '@engine/core/ZSystem'
 import { ServiceLocator } from '@engine/core/ServiceLocator'
 import { PlayerSystem } from '@engine/systems/PlayerSystem'
 import { RenderSystem } from '@engine/systems/RenderSystem'
+import { SceneManager } from '@engine/managers/SceneManager'
 import { PhysicsSystem } from '@engine/systems/PhysicsSystem'
 import { EventSystem } from '@engine/systems/EventSystem'
 import { CharacterSprite } from '@engine/sprites/CharacterSprite'
@@ -130,9 +131,7 @@ export class EntityRenderSystem extends ZSystem {
     }
   }
 
-  private async onEventStateChanged(
-    data: ZSignalData[ZEngineSignal.EventInternalStateChanged]
-  ): Promise<void> {
+  private onEventStateChanged(data: ZSignalData[ZEngineSignal.EventInternalStateChanged]): void {
     const {
       eventId,
       direction,
@@ -151,7 +150,13 @@ export class EntityRenderSystem extends ZSystem {
     const char = this.eventCharacters.get(eventId)
     if (!char) return
 
-    if (direction) char.direction = direction
+    if (direction) {
+      // If the direction is explicitly changed by a command/state change,
+      // we should clear any pre-interaction direction to prevent it from being
+      // restored back to the original (pre-interaction) state.
+      char.preInteractionDirection = null
+      char.direction = direction
+    }
     if (moveRoute) {
       char.moveRoute = moveRoute
       char.moveRouteIndex = 0
@@ -171,15 +176,11 @@ export class EntityRenderSystem extends ZSystem {
     }
 
     // Allow updating graphic if it is explicitly defined (including null).
-    // The original condition `graphic !== undefined` already handles `null` correctly,
-    // as `null !== undefined` is true, so `char.setGraphic(null)` would be called.
-    // No change is needed here based on the description.
     if (graphic !== undefined) {
       // If the graphic change came from a page switch, we should clear any
       // pre-interaction direction to prevent it from being restored incorrectly.
-      // We do this BEFORE the await to avoid race conditions with onEventExecutionFinished.
       char.preInteractionDirection = null
-      await char.setGraphic(graphic)
+      char.setGraphic(graphic)
     }
   }
 
@@ -224,6 +225,16 @@ export class EntityRenderSystem extends ZSystem {
     if (!char) return
 
     char.isInteracting = false
+
+    // If we are currently transitioning (e.g., Transfer Player fade-out),
+    // we do NOT want to restore the direction, as it might flash the original
+    // direction (like DOWN for a door) before the scene actually changes.
+    const sceneManager = this.services.get(SceneManager) as SceneManager
+    if (sceneManager?.isTransitioning) {
+      char.preInteractionDirection = null
+      return
+    }
+
     if (!char.preInteractionDirection) return
 
     char.direction = char.preInteractionDirection
