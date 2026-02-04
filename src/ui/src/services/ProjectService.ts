@@ -198,6 +198,8 @@ export class ProjectService {
 
     // 2. Create Default Data Files
     const systemData = {
+      projectName: name,
+      version: '1.0.0',
       switches: new Array(20).fill(''),
       variables: new Array(20).fill(''),
       actors: [],

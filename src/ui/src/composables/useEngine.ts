@@ -55,7 +55,7 @@ export const useEngine = (
     },
     getSystemData: async () => {
       return {
-        projectName: 'Z-Engine Project',
+        projectName: store.systemProjectName,
         version: '1.0.0',
         switches: store.systemSwitches,
         variables: store.systemVariables,
@@ -90,7 +90,7 @@ export const useEngine = (
 
       newEngine.setDataProvider(dataProvider)
       newEngine.setSystemData({
-        projectName: 'Z-Engine Project',
+        projectName: store.systemProjectName,
         version: '1.0.0',
         startMapId: store.systemStartMapId,
         startX: store.systemStartX,

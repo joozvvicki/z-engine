@@ -70,6 +70,7 @@ export const useEditorStore = defineStore('editor', () => {
   const storedTilesetConfigs = ref<Record<string, TilesetConfig>>({})
 
   // System Data (Database)
+  const systemProjectName = ref('Z-Engine Project')
   const systemSwitches = ref<string[]>([])
   const systemVariables = ref<string[]>([])
   const systemStartMapId = ref(1)
@@ -121,6 +122,7 @@ export const useEditorStore = defineStore('editor', () => {
     // 1. Load System Data
     const sysData = await ProjectService.loadSystemData()
     if (sysData) {
+      systemProjectName.value = sysData.projectName || 'Z-Engine Project'
       systemSwitches.value = sysData.switches
       systemVariables.value = sysData.variables
       systemStartMapId.value = sysData.startMapId
@@ -198,7 +200,7 @@ export const useEditorStore = defineStore('editor', () => {
     try {
       // 1. Save System
       await ProjectService.saveSystemData({
-        projectName: 'My Z Project',
+        projectName: systemProjectName.value,
         version: '1.0.0',
         switches: systemSwitches.value,
         variables: systemVariables.value,
@@ -230,6 +232,7 @@ export const useEditorStore = defineStore('editor', () => {
   // Auto-Save System Data Changes
   watch(
     [
+      systemProjectName,
       systemSwitches,
       systemVariables,
       systemStartMapId,
@@ -246,7 +249,7 @@ export const useEditorStore = defineStore('editor', () => {
       // ProjectService.isLoaded() check is good.
       if (ProjectService.isLoaded()) {
         const sysData: import('@engine/types').ZSystemData = {
-          projectName: 'My Z Project',
+          projectName: systemProjectName.value,
           version: '1.0.0',
           switches: systemSwitches.value,
           variables: systemVariables.value,
@@ -358,6 +361,7 @@ export const useEditorStore = defineStore('editor', () => {
     loadProject,
 
     // System
+    systemProjectName,
     systemSwitches,
     systemVariables,
     systemStartMapId,

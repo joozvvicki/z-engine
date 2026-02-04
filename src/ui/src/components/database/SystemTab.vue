@@ -182,6 +182,18 @@ onMounted(() => {
             <div class="space-y-4">
               <div class="flex flex-col gap-2">
                 <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest"
+                  >Game Title</label
+                >
+                <input
+                  v-model="store.systemProjectName"
+                  type="text"
+                  class="w-full px-4 py-2.5 bg-white border border-slate-100 rounded-xl focus:border-black/20 outline-none transition-all font-bold text-slate-900"
+                  placeholder="My Z-Engine Game"
+                />
+              </div>
+
+              <div class="flex flex-col gap-2">
+                <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest"
                   >Player Start Map</label
                 >
                 <div class="flex items-center gap-3">

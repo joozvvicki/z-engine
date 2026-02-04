@@ -30,10 +30,12 @@ export class SceneTitle extends ZScene {
     const centerY = this.app.screen.height / 2
     const textureManager = this.services.require(TextureManager)
     const skin = textureManager.get('img/system/window.png')
+    const engine = this.services.get('ZEngine') as { systemData: { projectName: string } }
+    const projectName = engine?.systemData?.projectName || 'Z-Engine Game'
 
     // Title Text
     const titleText = new Text({
-      text: 'Z-Engine Game',
+      text: projectName,
       style: {
         fill: 0xffffff,
         fontSize: 64,
