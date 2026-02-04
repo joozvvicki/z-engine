@@ -15,7 +15,7 @@ export class CharacterSprite implements ZMoveable {
   public y: number = 0 // Grid Y
   public direction: 'down' | 'left' | 'right' | 'up' = 'down'
   public isMoving: boolean = false
-  public moveSpeed: number = 3
+  public moveSpeed: number = 5
   public moveFrequency: number = 3
   public moveRoute: ZMoveCommand[] = []
   public moveRouteIndex: number = -1
@@ -54,6 +54,7 @@ export class CharacterSprite implements ZMoveable {
   // Interaction State (Used by EntityRenderSystem)
   public preInteractionDirection: 'down' | 'left' | 'right' | 'up' | null = null
   public isInteracting: boolean = false
+  public autoUpdateMovement: boolean = true
 
   constructor(id: string, textureManager: TextureManager, tileSize: number) {
     this.id = id
@@ -111,16 +112,17 @@ export class CharacterSprite implements ZMoveable {
    * Updates movement interpolation and animation.
    */
   public update(delta: number): void {
-    if (this.isMoving) {
+    if (this.isMoving && this.autoUpdateMovement) {
       this.updateMovement(delta)
     }
     this.updateAnimation(delta)
     this.refreshTexture()
+    this.updateVisualPosition()
   }
 
   private updateMovement(delta: number): void {
     // RPG Maker style speed: Speed 4 = 1 tile per 32 frames (at 60fps)
-    const baseSpeed = Math.pow(2, this.moveSpeed - 2) * (this._tileSize / 48)
+    const baseSpeed = Math.pow(2, this.moveSpeed - 4) * (this._tileSize / 32)
     const speed = (baseSpeed * delta) / 16.66
     const targetRealX = this.targetX * this._tileSize
     const targetRealY = this.targetY * this._tileSize
@@ -130,8 +132,6 @@ export class CharacterSprite implements ZMoveable {
 
     if (this.realY < targetRealY) this.realY = Math.min(this.realY + speed, targetRealY)
     else if (this.realY > targetRealY) this.realY = Math.max(this.realY - speed, targetRealY)
-
-    this.updateVisualPosition()
 
     if (this.realX === targetRealX && this.realY === targetRealY) {
       this.isMoving = false

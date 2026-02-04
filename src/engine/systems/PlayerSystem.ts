@@ -16,7 +16,7 @@ export class PlayerSystem extends ZSystem implements ZMoveable {
   public y: number = 0
   public direction: 'down' | 'left' | 'right' | 'up' = 'down'
   public isMoving: boolean = false
-  public moveSpeed: number = 4
+  public moveSpeed: number = 5
   public moveFrequency: number = 5
   public moveRoute: ZMoveCommand[] = []
   public moveRouteIndex: number = -1
@@ -140,11 +140,9 @@ export class PlayerSystem extends ZSystem implements ZMoveable {
     // RUN Speed Boost (Example: +1 speed when holding Shift/Run)
     // const storedSpeed = this.moveSpeed
     if (this.input.isActionDown(ZInputAction.RUN)) {
-      this.moveSpeed = 5
+      this.moveSpeed = 6
     } else {
-      // Restore default speed (assuming 4, or track original)
-      // For now we might need a better way to handle speed modifiers, but this works for basic run
-      this.moveSpeed = 4
+      this.moveSpeed = 5
     }
 
     if (this.input.isActionDown(ZInputAction.LEFT)) {

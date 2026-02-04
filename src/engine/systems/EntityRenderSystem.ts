@@ -1,12 +1,5 @@
 import { Container } from '@engine/utils/pixi'
-import ZLogger from '@engine/utils/ZLogger'
-import {
-  ZLayer,
-  ZEngineSignal,
-  type ZEventGraphic,
-  type ZMoveCommand,
-  type ZEvent
-} from '@engine/types'
+import { ZLayer, ZEngineSignal, type ZEvent } from '@engine/types'
 import { ZSystem, SystemMode } from '@engine/core/ZSystem'
 import { ServiceLocator } from '@engine/core/ServiceLocator'
 import { PlayerSystem } from '@engine/systems/PlayerSystem'
@@ -86,7 +79,7 @@ export class EntityRenderSystem extends ZSystem {
       char.setGridPosition(event.x, event.y)
 
       // Initialize state from event/page
-      char.moveSpeed = activePage?.moveSpeed || 3
+      char.moveSpeed = activePage?.moveSpeed || 5
       char.moveFrequency = activePage?.moveFrequency || 3
       char.moveRoute = activePage?.moveRoute || []
       char.moveRouteIndex = (activePage?.moveRoute?.length || 0) > 0 ? 0 : -1
@@ -103,9 +96,9 @@ export class EntityRenderSystem extends ZSystem {
       char.directionFix = activePage?.options?.directionFix ?? false
 
       // Store event instance for persistence (casting for safe access)
-      ;(char as any).eventInstance = event
-      ;(char as any).initialX = event.x
-      ;(char as any).initialY = event.y
+      ;(char as unknown as Record<string, unknown>).eventInstance = event
+      ;(char as unknown as Record<string, unknown>).initialX = event.x
+      ;(char as unknown as Record<string, unknown>).initialY = event.y
 
       await char.setGraphic(activePage?.graphic || null)
 
@@ -116,10 +109,11 @@ export class EntityRenderSystem extends ZSystem {
 
   private restoreEventPositions(): void {
     for (const char of this.eventCharacters.values()) {
-      const event = (char as any).eventInstance as ZEvent
+      const it = char as unknown as Record<string, unknown>
+      const event = it.eventInstance as ZEvent
       if (event) {
-        event.x = (char as any).initialX
-        event.y = (char as any).initialY
+        event.x = it.initialX as number
+        event.y = it.initialY as number
       }
     }
   }
@@ -136,18 +130,19 @@ export class EntityRenderSystem extends ZSystem {
     }
   }
 
-  private async onEventStateChanged({
-    eventId,
-    direction,
-    graphic,
-    moveType,
-    moveSpeed,
-    moveFrequency,
-    moveRoute,
-    moveRouteRepeat,
-    moveRouteSkip,
-    isThrough
-  }: any): Promise<void> {
+  private async onEventStateChanged(data: any): Promise<void> {
+    const {
+      eventId,
+      direction,
+      graphic,
+      moveType,
+      moveSpeed,
+      moveFrequency,
+      moveRoute,
+      moveRouteRepeat,
+      moveRouteSkip,
+      isThrough
+    } = data
     const char = this.eventCharacters.get(eventId)
     if (!char) return
 
@@ -184,7 +179,8 @@ export class EntityRenderSystem extends ZSystem {
       char.isMoving = false
       char.updateVisualPosition()
 
-      const event = (char as any).eventInstance as ZEvent
+      const it = char as unknown as Record<string, unknown>
+      const event = it.eventInstance as ZEvent
       if (event) {
         event.x = char.x
         event.y = char.y
@@ -227,6 +223,7 @@ export class EntityRenderSystem extends ZSystem {
       w: 1,
       h: 1
     })
+    this.playerCharacter.autoUpdateMovement = false
     this.container.addChild(this.playerCharacter.container)
   }
 
@@ -294,8 +291,18 @@ export class EntityRenderSystem extends ZSystem {
     this.playerCharacter.update(delta)
 
     this.eventCharacters.forEach((char, eventId) => {
+      const wasMoving = char.isMoving
       this.updateEventMovement(char, eventId, delta)
       char.update(delta)
+
+      // If movement just finished, sync back to logical data
+      if (wasMoving && !char.isMoving) {
+        const event = (char as unknown as Record<string, unknown>).eventInstance as ZEvent
+        if (event) {
+          event.x = char.x
+          event.y = char.y
+        }
+      }
     })
 
     this.container.sortChildren()
