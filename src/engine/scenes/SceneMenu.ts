@@ -20,25 +20,42 @@ export class SceneMenu extends ZScene {
 
   private _isClosing: boolean = false
 
-  constructor(services: ServiceLocator, params: ZMenuParams) {
+  constructor(services: ServiceLocator) {
     super(services)
-    // We can use params if we need to return to the correct position/direction
+  }
+
+  public async init(params: ZMenuParams): Promise<void> {
     console.log('[SceneMenu] Initialized with params:', params)
+
+    // Preload window skin
+    const textureManager = this.services.require(TextureManager)
+    try {
+      await textureManager.load('img/system/window.png')
+    } catch (e) {
+      console.error('[SceneMenu] Failed to load window skin', e)
+    }
   }
 
   public start(): void {
     const textureManager = this.services.require(TextureManager)
     const skin = textureManager.get('img/system/window.png')
-    if (!skin) return
 
-    const screenW = 800
-    const screenH = 600
+    if (!skin) {
+      console.error('[SceneMenu] Window skin not found, aborting render')
+      return
+    }
+
+    const screenW = this.app.screen.width
+    const screenH = this.app.screen.height
 
     // Command Window (Left Top)
+    // Command Window (Left Top)
     const cmdW = 240
-    const cmdH = 300
-    this.commandWindow = new Window_MenuCommand(20, 20, cmdW, cmdH)
+    const cmdHeight = 300 // Fixed height for commands
+
+    this.commandWindow = new Window_MenuCommand(20, 20, cmdW, cmdHeight)
     this.commandWindow.windowSkin = skin
+    this.commandWindow.setInput(this.services.require(InputManager))
     this.container.addChild(this.commandWindow)
 
     // Gold Window (Left Bottom)
@@ -70,8 +87,14 @@ export class SceneMenu extends ZScene {
     this.goldWindow?.open()
   }
 
-  public update(): void {
+  public update(delta: number): void {
+    super.update(delta)
     if (this._isClosing) return
+
+    // Update Windows (for animations)
+    this.commandWindow?.update()
+    this.statusWindow?.update()
+    this.goldWindow?.update()
 
     const input = this.services.require(InputManager)
 

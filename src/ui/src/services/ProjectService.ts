@@ -373,5 +373,29 @@ export class ProjectService {
         console.error(`Failed to copy character ${path}`, e)
       }
     }
+
+    // 3. System
+    const system = import.meta.glob('@ui/assets/img/system/*.png', {
+      eager: true,
+      query: '?url',
+      import: 'default'
+    })
+
+    await window.api.createDirectory(`${projectPath}/img/system`)
+
+    for (const [path, url] of Object.entries(system)) {
+      try {
+        const response = await fetch(url as string)
+        const blob = await response.blob()
+        const arrayBuffer = await blob.arrayBuffer()
+        const buffer = new Uint8Array(arrayBuffer)
+        const filename = path.split('/').pop()
+        if (filename) {
+          await window.api.writeProjectFile(`${projectPath}/img/system/${filename}`, buffer)
+        }
+      } catch (e) {
+        console.error(`Failed to copy system asset ${path}`, e)
+      }
+    }
   }
 }

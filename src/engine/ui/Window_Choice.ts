@@ -1,5 +1,7 @@
 import { Window_Base } from './Window_Base'
 import { Text, TextStyle, Graphics, Container } from '@engine/utils/pixi'
+import { InputManager } from '@engine/managers/InputManager'
+import { ZInputAction } from '@engine/types'
 
 export class Window_Choice extends Window_Base {
   protected _choices: string[] = []
@@ -50,6 +52,30 @@ export class Window_Choice extends Window_Base {
       text.y = i * this._itemHeight + (this._itemHeight - text.height) / 2
       this._itemContainer.addChild(text)
     })
+  }
+
+  private _input: InputManager | null = null
+
+  public setInput(input: InputManager): void {
+    this._input = input
+  }
+
+  public override update(): void {
+    super.update()
+    this.processCursorMove()
+  }
+
+  private processCursorMove(): void {
+    if (!this.isOpen() || !this._input) return
+
+    if (this._input.isActionJustPressed(ZInputAction.DOWN)) {
+      this.select(this._index + 1)
+      // Play cursor sound?
+    }
+    if (this._input.isActionJustPressed(ZInputAction.UP)) {
+      this.select(this._index - 1)
+      // Play cursor sound?
+    }
   }
 
   private updateCursor(): void {

@@ -23,6 +23,7 @@ import {
   IconEyeOff,
   IconVolume,
   IconCode,
+  IconMusic,
   IconChevronDownLeft,
   IconChevronDownRight,
   IconChevronUpLeft,
@@ -81,6 +82,12 @@ const transferMapId = ref(1)
 const transferX = ref(0)
 const transferY = ref(0)
 const transferDirection = ref(2)
+
+// Audio
+const audioFile = ref('')
+const audioVolume = ref(90)
+const audioPitch = ref(100)
+const audioDuration = ref(1)
 
 // Set Move Route
 const moveRouteTarget = ref<string | number>(0) // 0: This, -1: Player
@@ -227,6 +234,16 @@ watch(
           moveRouteWait.value = Boolean(params[2] ?? true)
           moveRouteRepeat.value = Boolean(params[3] ?? false)
           moveRouteThrough.value = Boolean(params[4] ?? false)
+        } else if (
+          props.initialCommand.code === ZCommandCode.PlayBGM ||
+          props.initialCommand.code === ZCommandCode.PlaySE
+        ) {
+          const config = params[0] as { name: string; volume: number; pitch: number }
+          audioFile.value = config.name
+          audioVolume.value = config.volume
+          audioPitch.value = config.pitch
+        } else if (props.initialCommand.code === ZCommandCode.FadeOutBGM) {
+          audioDuration.value = Number(params[0] || 1)
         }
       } else {
         commandSelectorStep.value = 'grid'
@@ -249,6 +266,10 @@ watch(
         moveRouteWait.value = true
         moveRouteRepeat.value = false
         moveRouteThrough.value = false
+        audioFile.value = ''
+        audioVolume.value = 90
+        audioPitch.value = 100
+        audioDuration.value = 1
       }
     }
   },
@@ -293,9 +314,16 @@ const commandCategories = [
   {
     id: 'Visuals',
     icon: IconFlare,
+    commands: [{ code: ZCommandCode.SetEventGraphic, label: 'Change Graphic', icon: IconFlare }]
+  },
+  {
+    id: 'Audio',
+    icon: IconMusic,
     commands: [
-      { code: ZCommandCode.SetEventGraphic, label: 'Change Graphic', icon: IconFlare },
-      { code: ZCommandCode.ShowAnimation, label: 'Show Animation', icon: IconFlare }
+      { code: ZCommandCode.PlayBGM, label: 'Play BGM', icon: IconMusic },
+      { code: ZCommandCode.FadeOutBGM, label: 'Fadeout BGM', icon: IconVolume },
+      { code: ZCommandCode.PlaySE, label: 'Play SE', icon: IconVolume },
+      { code: ZCommandCode.StopSE, label: 'Stop SE', icon: IconVolume }
     ]
   }
 ]
@@ -356,6 +384,15 @@ const handleSave = (): void => {
         moveRouteRepeat.value,
         moveRouteThrough.value
       ]
+    } else if (
+      selectedCommandType.value === ZCommandCode.PlayBGM ||
+      selectedCommandType.value === ZCommandCode.PlaySE
+    ) {
+      finalParams = [{ name: audioFile.value, volume: audioVolume.value, pitch: audioPitch.value }]
+    } else if (selectedCommandType.value === ZCommandCode.FadeOutBGM) {
+      finalParams = [audioDuration.value]
+    } else if (selectedCommandType.value === ZCommandCode.StopSE) {
+      finalParams = []
     }
 
     emit('save', {
@@ -971,6 +1008,67 @@ const handleSave = (): void => {
                   action.label
                 }}</span>
               </button>
+            </div>
+          </div>
+
+          <!-- Audio Helpers -->
+          <div
+            v-else-if="
+              selectedCommandType === ZCommandCode.PlayBGM ||
+              selectedCommandType === ZCommandCode.PlaySE
+            "
+            class="space-y-4"
+          >
+            <div class="space-y-2">
+              <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1">
+                Audio File
+              </label>
+              <input
+                v-model="audioFile"
+                type="text"
+                class="w-full bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 text-xs font-bold focus:bg-white focus:border-slate-900 outline-none transition-all"
+                placeholder="e.g. Theme1.mp3"
+              />
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+              <div class="space-y-2">
+                <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1">
+                  Volume (0-100)
+                </label>
+                <input
+                  v-model.number="audioVolume"
+                  type="number"
+                  min="0"
+                  max="100"
+                  class="w-full bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 text-xs font-bold focus:bg-white focus:border-slate-900 outline-none transition-all"
+                />
+              </div>
+              <div class="space-y-2">
+                <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1">
+                  Pitch (50-150)
+                </label>
+                <input
+                  v-model.number="audioPitch"
+                  type="number"
+                  min="50"
+                  max="150"
+                  class="w-full bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 text-xs font-bold focus:bg-white focus:border-slate-900 outline-none transition-all"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div v-else-if="selectedCommandType === ZCommandCode.FadeOutBGM" class="space-y-4">
+            <div class="space-y-2">
+              <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1">
+                Duration (Seconds)
+              </label>
+              <input
+                v-model.number="audioDuration"
+                type="number"
+                min="1"
+                class="w-full bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 text-xs font-bold focus:bg-white focus:border-slate-900 outline-none transition-all"
+              />
             </div>
           </div>
 

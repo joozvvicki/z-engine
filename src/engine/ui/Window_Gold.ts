@@ -24,7 +24,7 @@ export class Window_Gold extends Window_Base {
     if (!this.contents) return
 
     const goldText = new Text({
-      text: `${this._gold} G`,
+      text: `${this._gold || 0} G`,
       style: {
         fontFamily: 'Arial, sans-serif',
         fontSize: 20,

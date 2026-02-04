@@ -22,7 +22,7 @@ export class Window_MenuStatus extends Window_Base {
 
   public override refresh(): void {
     super.refresh()
-    if (!this.contents) return
+    if (!this.contents || !this._actors) return
 
     this._actors.forEach((actor, index) => {
       this.drawActorStatus(actor, index)
