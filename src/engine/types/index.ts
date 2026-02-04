@@ -401,7 +401,8 @@ export enum ZEngineSignal {
   EventExecutionStarted = 'event:execution-started',
   EventExecutionFinished = 'event:execution-finished',
   MoveRouteFinished = 'event:move-route-finished',
-  MenuRequested = 'ui:menu-requested'
+  MenuRequested = 'ui:menu-requested',
+  MenuClosed = 'ui:menu-closed'
 }
 
 export interface ZMenuParams {
@@ -447,6 +448,7 @@ export interface ZSignalData {
   [ZEngineSignal.EventExecutionFinished]: { eventId: string }
   [ZEngineSignal.MoveRouteFinished]: { eventId: string }
   [ZEngineSignal.MenuRequested]: ZMenuParams
+  [ZEngineSignal.MenuClosed]: Record<string, never>
 }
 
 export enum ZInputAction {

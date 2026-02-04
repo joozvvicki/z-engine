@@ -76,6 +76,14 @@ export class PlayerSystem extends ZSystem implements ZMoveable {
     this.bus.on(ZEngineSignal.EventExecutionFinished, () => {
       this.isInputBlocked = false
     })
+    this.bus.on(ZEngineSignal.MenuRequested, () => {
+      console.log('[PlayerSystem] MenuRequested received -> Blocking input')
+      this.isInputBlocked = true
+    })
+    this.bus.on(ZEngineSignal.MenuClosed, () => {
+      console.log('[PlayerSystem] MenuClosed received -> Unblocking input')
+      this.isInputBlocked = false
+    })
 
     this.bus.on(ZEngineSignal.EventInternalStateChanged, (data) => {
       if (data.eventId === 'PLAYER' && data.moveRoute) {

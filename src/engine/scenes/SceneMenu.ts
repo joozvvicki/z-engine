@@ -6,23 +6,19 @@ import { ZInputAction } from '@engine/types'
 import { Window_MenuCommand } from '@engine/ui/Window_MenuCommand'
 import { Window_MenuStatus } from '@engine/ui/Window_MenuStatus'
 import { Window_Gold } from '@engine/ui/Window_Gold'
-import { SceneMap } from '@engine/scenes/SceneMap'
-import { ZMenuParams } from '@engine/types'
+import { InputManager } from '@engine/managers/InputManager'
 
 export class SceneMenu extends ZScene {
   private commandWindow: Window_MenuCommand | null = null
   private statusWindow: Window_MenuStatus | null = null
   private goldWindow: Window_Gold | null = null
-
-  private prevState: ZMenuParams | null = null
+  private _exiting: boolean = false
 
   constructor(services: ServiceLocator) {
     super(services)
   }
 
-  public async init(params: ZMenuParams): Promise<void> {
-    this.prevState = params
-
+  public async init(): Promise<void> {
     const textureManager = this.services.require(TextureManager)
     await textureManager.load('img/system/window.png')
   }
@@ -66,6 +62,18 @@ export class SceneMenu extends ZScene {
     this.statusWindow?.update()
     this.goldWindow?.update()
 
+    if (this._exiting) {
+      if (
+        (!this.commandWindow || this.commandWindow.isClosed()) &&
+        (!this.statusWindow || this.statusWindow.isClosed()) &&
+        (!this.goldWindow || this.goldWindow.isClosed())
+      ) {
+        const sceneManager = this.services.require(SceneManager)
+        sceneManager.pop()
+      }
+      return
+    }
+
     if (
       this.input.isActionJustPressed(ZInputAction.CANCEL) ||
       this.input.isActionJustPressed(ZInputAction.MENU)
@@ -93,7 +101,17 @@ export class SceneMenu extends ZScene {
   }
 
   private returnToMap(): void {
-    const sceneManager = this.services.require(SceneManager)
-    sceneManager.goto(SceneMap, this.prevState)
+    if (this._exiting) return
+    this._exiting = true
+
+    const inputManager = this.services.require(InputManager)
+
+    // Consume the cancel/menu button press
+    inputManager.clearAction(ZInputAction.CANCEL)
+    inputManager.clearAction(ZInputAction.MENU)
+
+    this.commandWindow?.close()
+    this.statusWindow?.close()
+    this.goldWindow?.close()
   }
 }

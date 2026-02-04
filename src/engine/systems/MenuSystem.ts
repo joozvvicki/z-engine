@@ -1,7 +1,8 @@
 import { ZSystem } from '@engine/core/ZSystem'
 import { ServiceLocator } from '@engine/core/ServiceLocator'
-import { ZEngineSignal, ZMenuParams } from '@engine/types'
+import { ZEngineSignal, ZMenuParams, ZInputAction } from '@engine/types'
 import { SceneManager } from '@engine/managers/SceneManager'
+import { InputManager } from '@engine/managers/InputManager'
 import { SceneMenu } from '@engine/scenes/SceneMenu'
 
 export class MenuSystem extends ZSystem {
@@ -17,6 +18,11 @@ export class MenuSystem extends ZSystem {
 
   private callMenu(data: ZMenuParams): void {
     const sceneManager = this.services.require(SceneManager)
-    sceneManager.goto(SceneMenu, data)
+    const inputManager = this.services.require(InputManager)
+
+    // Consume the menu button press
+    inputManager.clearAction(ZInputAction.MENU)
+
+    sceneManager.push(SceneMenu, data)
   }
 }

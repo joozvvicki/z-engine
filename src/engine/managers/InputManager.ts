@@ -151,7 +151,15 @@ export class InputManager {
 
   public clearAction(action: ZInputAction): void {
     this.actionState.set(action, false)
-    // We could reverse lookup to clear keys, but clearing action state is sufficient for consumers checking action
+    this.lastActionState.set(action, false) // Also clear last state to be safe
+
+    // Clear physical keys that map to this action
+    for (const code in this.mappings.keyboard) {
+      if (this.mappings.keyboard[code] === action) {
+        this.keys.set(code, false)
+      }
+    }
+    // Note: Gamepad buttons are polled, so they will be cleared in the next poll if physically released
   }
 
   public destroy(): void {
