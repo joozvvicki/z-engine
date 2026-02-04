@@ -2,11 +2,11 @@ import { Window_Base } from './Window_Base'
 import { Text, TextStyle, Graphics, Container } from '@engine/utils/pixi'
 
 export class Window_Choice extends Window_Base {
-  private _choices: string[] = []
-  private _index: number = 0
-  private _itemHeight: number = 36
-  private _cursor: Graphics
-  private _itemContainer: Container
+  protected _choices: string[] = []
+  protected _index: number = 0
+  protected _itemHeight: number = 36
+  protected _cursor: Graphics
+  protected _itemContainer: Container
 
   constructor(x: number, y: number, width: number, height: number) {
     super(x, y, width, height)
@@ -15,8 +15,7 @@ export class Window_Choice extends Window_Base {
     this.contents.addChild(this._itemContainer)
 
     this._cursor = new Graphics()
-    this.contents.addChild(this._cursor) // Draw cursor on top or bottom? usually behind text but above bg.
-    // Actually typically cursor is behind text.
+    this.contents.addChild(this._cursor)
     this.contents.setChildIndex(this._cursor, 0)
   }
 
@@ -35,7 +34,7 @@ export class Window_Choice extends Window_Base {
     return this._index
   }
 
-  private refreshItems(): void {
+  protected refreshItems(): void {
     this._itemContainer.removeChildren()
 
     this._choices.forEach((choice, i) => {

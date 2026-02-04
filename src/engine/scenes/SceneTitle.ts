@@ -4,20 +4,34 @@ import { ZScene } from '@engine/core/ZScene'
 import { ServiceLocator } from '@engine/core/ServiceLocator'
 import { SceneManager } from '@engine/managers/SceneManager'
 import { SceneMap } from '@engine/scenes/SceneMap'
+import { Window_TitleCommand } from '@engine/ui/Window_TitleCommand'
+import { TextureManager } from '@engine/managers/TextureManager'
+import { ZInputAction } from '@engine/types'
 
 export class SceneTitle extends ZScene {
+  private commandWindow: Window_TitleCommand | null = null
+  private isStarting: boolean = false
+
   constructor(services: ServiceLocator) {
     super(services)
   }
 
   public async init(): Promise<void> {
     ZLogger.with('SceneTitle').log('Initializing UI...')
+
+    // Load UI Assets
+    const textureManager = this.services.require(TextureManager)
+    const skinPath = 'img/system/window.png'
+    await textureManager.load(skinPath)
   }
 
   public start(): void {
     const centerX = this.app.screen.width / 2
     const centerY = this.app.screen.height / 2
+    const textureManager = this.services.require(TextureManager)
+    const skin = textureManager.get('img/system/window.png')
 
+    // Title Text
     const titleText = new Text({
       text: 'Z-Engine Game',
       style: {
@@ -34,46 +48,85 @@ export class SceneTitle extends ZScene {
     })
     titleText.anchor.set(0.5)
     titleText.x = centerX
-    titleText.y = centerY - 50
+    titleText.y = centerY - 100
     this.container.addChild(titleText)
 
-    const subText = new Text({
-      text: 'Press ENTER to Start',
-      style: {
-        fill: 0xdddddd,
-        fontSize: 28
-      }
-    })
-    subText.anchor.set(0.5)
-    subText.x = centerX
-    subText.y = centerY + 80
-    this.container.addChild(subText)
+    // Command Window
+    if (skin) {
+      const choices = ['Nowa Gra', 'Wczytaj', 'Opcje']
+      const w = 300
+      // Calculate dynamic height: choices * 36px + padding (18*2)
+      const h = choices.length * 36 + 36
 
-    ZLogger.with('SceneTitle').log("I'm ready!")
+      this.commandWindow = new Window_TitleCommand(0, 0, w, h)
+      this.commandWindow.windowSkin = skin
+
+      this.commandWindow.setChoices(choices)
+
+      // Center Window (pivot is center-y due to base, but x is top-left usually)
+      // Window_Base default pivot.x = 0.
+      this.commandWindow.x = centerX - w / 2
+      this.commandWindow.y = centerY + h
+
+      this.container.addChild(this.commandWindow)
+      this.commandWindow.open()
+      this.commandWindow.select(0)
+    }
+
+    ZLogger.with('SceneTitle').log('SceneTitle Started with Window System')
   }
-
-  private isStarting: boolean = false
 
   public update(): void {
     if (this.isStarting) return
+    if (!this.commandWindow) return
 
-    const okKeys = ['Enter', 'Space', 'NumpadEnter', 'KeyZ']
-    const pressed = okKeys.find((k) => this.input.isKeyJustPressed(k))
+    this.commandWindow.update()
 
-    if (pressed) {
-      this.isStarting = true
-      ZLogger.with('SceneTitle').log(`Starting Game... (Key: ${pressed})`)
-      // Transition to first map
-      const engine = this.services.get('ZEngine') as {
-        systemData: { startMapId: number; startX: number; startY: number }
-      }
-      const { startMapId = 1, startX = 0, startY = 0 } = engine?.systemData || {}
-      const sceneManager = this.services.require(SceneManager)
+    // Input Handling
+    if (this.input.isActionJustPressed(ZInputAction.DOWN)) {
+      this.commandWindow.select(this.commandWindow.index + 1)
+    }
+    if (this.input.isActionJustPressed(ZInputAction.UP)) {
+      this.commandWindow.select(this.commandWindow.index - 1)
+    }
+
+    if (this.input.isActionJustPressed(ZInputAction.OK)) {
+      this.onCommandOk()
+    }
+  }
+
+  private onCommandOk(): void {
+    if (!this.commandWindow) return
+    const index = this.commandWindow.index
+
+    if (index === 0) {
+      // New Game
+      this.startGame()
+    } else {
+      ZLogger.with('SceneTitle').log(`Selected option ${index} (Not implemented)`)
+      // TODO: Load / Options
+    }
+  }
+
+  private startGame(): void {
+    this.isStarting = true
+    this.commandWindow?.close()
+
+    ZLogger.with('SceneTitle').log(`Starting New Game...`)
+
+    const engine = this.services.get('ZEngine') as {
+      systemData: { startMapId: number; startX: number; startY: number }
+    }
+    const { startMapId = 1, startX = 0, startY = 0 } = engine?.systemData || {}
+
+    const sceneManager = this.services.require(SceneManager)
+    // Small delay for close animation
+    setTimeout(() => {
       sceneManager.goto(SceneMap, {
         mapOrId: startMapId,
         playerX: startX,
         playerY: startY
       })
-    }
+    }, 500)
   }
 }
