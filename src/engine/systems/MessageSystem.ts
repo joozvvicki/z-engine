@@ -1,37 +1,57 @@
-import { Container, Graphics, Text } from '@engine/utils/pixi'
+import { Container } from '@engine/utils/pixi'
 import { ZEngineSignal, ZInputAction } from '@engine/types'
 import { ZSystem, SystemMode } from '@engine/core/ZSystem'
 import { ServiceLocator } from '@engine/core/ServiceLocator'
 import { EventSystem } from '@engine/systems/EventSystem'
+import { TextureManager } from '@engine/managers/TextureManager'
+import { Window_Message } from '@engine/ui/Window_Message'
+import { Window_Choice } from '@engine/ui/Window_Choice'
 
 export class MessageSystem extends ZSystem {
   public container: Container
+
+  private windowMessage: Window_Message | null = null
+  private windowChoice: Window_Choice | null = null
+
   private isVisible: boolean = false
-  private messageText: string = ''
-  private messageBox: Graphics | null = null
-  private textDisplay: Text | null = null
 
   // Choice state
   private isChoiceVisible: boolean = false
   private choices: string[] = []
   private selectedChoiceIndex: number = 0
-  private choicesContainer: Container | null = null
 
   private boxWidth: number = 600
-  private boxHeight: number = 120
-  private padding: number = 20
-  private choiceWidth: number = 200
-  private choiceHeight: number = 40
+  private boxHeight: number = 140
 
   constructor(services: ServiceLocator) {
     super(services)
     this.updateMode = SystemMode.PLAY
     this.container = new Container()
     this.container.visible = false
-    this.container.zIndex = 100000 // Very high to ensure it's always on top
+    this.container.zIndex = 100000
   }
 
-  public onBoot(): void {
+  public async onBoot(): Promise<void> {
+    const textureManager = this.services.require(TextureManager)
+
+    // Load Window Skin
+    const skinPath = 'img/system/window.png'
+    await textureManager.load(skinPath)
+    const skin = textureManager.get(skinPath)
+
+    // Init Windows
+    if (skin) {
+      this.windowMessage = new Window_Message(0, 0, this.boxWidth, this.boxHeight)
+      this.windowMessage.windowSkin = skin
+      this.container.addChild(this.windowMessage)
+
+      // Choice window setup (variable height, defaults for now)
+      this.windowChoice = new Window_Choice(0, 0, 240, 0) // Height variable
+      this.windowChoice.windowSkin = skin
+      this.windowChoice.visible = false
+      this.container.addChild(this.windowChoice)
+    }
+
     this.bus.on(ZEngineSignal.ShowMessage, ({ text }) => {
       this.show(text)
     })
@@ -42,6 +62,8 @@ export class MessageSystem extends ZSystem {
 
   public onUpdate(): void {
     if (this.isVisible) {
+      if (this.windowMessage) this.windowMessage.refresh() // Animation?
+
       if (this.isChoiceVisible) {
         this.updateChoiceSelection()
       } else {
@@ -57,14 +79,21 @@ export class MessageSystem extends ZSystem {
   }
 
   private updateChoiceSelection(): void {
+    if (!this.windowChoice) return
+
+    let changed = false
     if (this.input.isActionJustPressed(ZInputAction.DOWN)) {
       this.selectedChoiceIndex = (this.selectedChoiceIndex + 1) % this.choices.length
-      this.renderChoices()
+      changed = true
     }
     if (this.input.isActionJustPressed(ZInputAction.UP)) {
       this.selectedChoiceIndex =
         (this.selectedChoiceIndex - 1 + this.choices.length) % this.choices.length
-      this.renderChoices()
+      changed = true
+    }
+
+    if (changed) {
+      this.windowChoice.select(this.selectedChoiceIndex)
     }
 
     if (this.input.isActionJustPressed(ZInputAction.OK)) {
@@ -75,80 +104,11 @@ export class MessageSystem extends ZSystem {
   }
 
   private show(text: string): void {
-    this.messageText = text
-    this.isVisible = true
-    this.render()
-  }
-
-  private close(): void {
-    this.isVisible = false
-    this.isChoiceVisible = false
-    this.container.visible = false
-
-    this.input.clearKey('Enter')
-    this.input.clearKey('Space')
-    this.input.clearKey('KeyZ')
-
-    this.bus.emit(ZEngineSignal.MessageClosed, {})
-
-    const eventSystem = this.services.get(EventSystem)
-    if (eventSystem) {
-      eventSystem.finishMessage()
+    if (this.windowMessage) {
+      this.windowMessage.setText(text)
+      this.windowMessage.visible = true
     }
-  }
-
-  private render(): void {
-    this.container.removeChildren()
-
-    this.messageBox = new Graphics()
-
-    this.messageBox.rect(0, 0, this.boxWidth, this.boxHeight)
-    this.messageBox.fill({ color: 0x000000, alpha: 0.85 })
-
-    this.messageBox.roundRect(0, 0, this.boxWidth, this.boxHeight, 12)
-    this.messageBox.stroke({ width: 3, color: 0xffffff, alpha: 0.3 })
-
-    const corner = new Graphics()
-    corner.moveTo(0, 10).lineTo(0, 0).lineTo(10, 0)
-    corner
-      .moveTo(this.boxWidth - 10, 0)
-      .lineTo(this.boxWidth, 0)
-      .lineTo(this.boxWidth, 10)
-    corner
-      .moveTo(0, this.boxHeight - 10)
-      .lineTo(0, this.boxHeight)
-      .lineTo(10, this.boxHeight)
-    corner
-      .moveTo(this.boxWidth - 10, this.boxHeight)
-      .lineTo(this.boxWidth, this.boxHeight)
-      .lineTo(this.boxWidth, this.boxHeight - 10)
-    corner.stroke({ width: 2, color: 0xffffff, alpha: 0.5 })
-    this.messageBox.addChild(corner)
-
-    this.container.addChild(this.messageBox)
-
-    this.textDisplay = new Text({
-      text: this.messageText,
-      style: {
-        fontFamily: 'Arial, sans-serif',
-        fontSize: 18,
-        fill: 0xffffff,
-        wordWrap: true,
-        wordWrapWidth: this.boxWidth - this.padding * 2,
-        lineHeight: 24
-      }
-    })
-    this.textDisplay.x = this.padding
-    this.textDisplay.y = this.padding
-    this.container.addChild(this.textDisplay)
-
-    const indicator = new Graphics()
-    indicator.moveTo(0, 0).lineTo(6, 0).lineTo(3, 8).closePath()
-    indicator.fill({ color: 0xffffff, alpha: 0.6 })
-    indicator.x = this.boxWidth - 15
-    indicator.y = this.boxHeight - 15
-    this.container.addChild(indicator)
-
+    this.isVisible = true
     this.container.visible = true
   }
 
@@ -156,67 +116,55 @@ export class MessageSystem extends ZSystem {
     this.choices = choices
     this.selectedChoiceIndex = 0
     this.isChoiceVisible = true
-    this.isVisible = true
-    this.renderChoices()
+    this.isVisible = true // Ensure message is also visible if choices appear
+
+    if (this.windowChoice) {
+      this.windowChoice.setChoices(choices)
+      this.windowChoice.select(0)
+
+      // Resize choice window
+      // 36px per item + 36 padding (18*2)
+      const navHeight = choices.length * 36 + 36
+
+      this.windowChoice.resize(240, navHeight)
+
+      // Position
+      this.windowChoice.x = this.boxWidth - 240
+      this.windowChoice.y = -navHeight
+
+      this.windowChoice.visible = true
+    }
+
+    this.container.visible = true
   }
 
   private closeChoices(): void {
     this.isChoiceVisible = false
-    if (this.choicesContainer) {
-      this.container.removeChild(this.choicesContainer)
-      this.choicesContainer = null
+    if (this.windowChoice) {
+      this.windowChoice.visible = false
     }
     this.close()
   }
 
-  private renderChoices(): void {
-    if (this.choicesContainer) {
-      this.container.removeChild(this.choicesContainer)
+  private close(): void {
+    this.isVisible = false
+    this.isChoiceVisible = false
+    this.container.visible = false
+    if (this.windowMessage) this.windowMessage.visible = false
+
+    const inputManager = this.input
+    if (inputManager) {
+      inputManager.clearAction(ZInputAction.OK)
+      inputManager.clearAction(ZInputAction.CANCEL)
+      inputManager.clearKey('Enter')
     }
 
-    const choicesContainer = new Container()
-    this.choicesContainer = choicesContainer
-    this.container.addChild(choicesContainer)
+    this.bus.emit(ZEngineSignal.MessageClosed, {})
 
-    const totalHeight = this.choices.length * this.choiceHeight + this.padding * 2
-    const totalWidth = this.choiceWidth + this.padding * 2
-
-    const bg = new Graphics()
-    bg.rect(0, 0, totalWidth, totalHeight)
-    bg.fill({ color: 0x000000, alpha: 0.9 })
-    bg.roundRect(0, 0, totalWidth, totalHeight, 8)
-    bg.stroke({ width: 2, color: 0xffffff, alpha: 0.4 })
-    choicesContainer.addChild(bg)
-
-    this.choices.forEach((choice, index) => {
-      const isSelected = index === this.selectedChoiceIndex
-      const y = this.padding + index * this.choiceHeight
-
-      if (isSelected) {
-        const highlight = new Graphics()
-        highlight.rect(this.padding / 2, y, totalWidth - this.padding, this.choiceHeight)
-        highlight.fill({ color: 0xffffff, alpha: 0.2 })
-        choicesContainer.addChild(highlight)
-      }
-
-      const text = new Text({
-        text: choice,
-        style: {
-          fontFamily: 'Arial, sans-serif',
-          fontSize: 16,
-          fill: isSelected ? 0xffff00 : 0xffffff,
-          fontWeight: isSelected ? 'bold' : 'normal'
-        }
-      })
-      text.x = this.padding
-      text.y = y + (this.choiceHeight - text.height) / 2
-      choicesContainer.addChild(text)
-    })
-
-    choicesContainer.x = this.boxWidth - totalWidth
-    choicesContainer.y = -totalHeight - 10
-
-    this.container.visible = true
+    const eventSystem = this.services.get(EventSystem)
+    if (eventSystem) {
+      eventSystem.finishMessage()
+    }
   }
 
   public resize(width: number, height: number): void {
