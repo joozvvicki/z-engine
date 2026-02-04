@@ -1,5 +1,5 @@
 import { Container } from '@engine/utils/pixi'
-import { ZLayer, ZEngineSignal, type ZEvent } from '@engine/types'
+import { ZLayer, ZEngineSignal, type ZEvent, type ZSignalData } from '@engine/types'
 import { ZSystem, SystemMode } from '@engine/core/ZSystem'
 import { ServiceLocator } from '@engine/core/ServiceLocator'
 import { PlayerSystem } from '@engine/systems/PlayerSystem'
@@ -74,7 +74,7 @@ export class EntityRenderSystem extends ZSystem {
     for (const event of map.events) {
       if (event.name === 'PlayerStart') continue
 
-      const activePage = event.pages[0]
+      const activePage = this.eventSystem.getActivePage(event)
       const char = new CharacterSprite(event.id, this.textures, this.tileSize)
       char.setGridPosition(event.x, event.y)
 
@@ -130,7 +130,9 @@ export class EntityRenderSystem extends ZSystem {
     }
   }
 
-  private async onEventStateChanged(data: any): Promise<void> {
+  private async onEventStateChanged(
+    data: ZSignalData[ZEngineSignal.EventInternalStateChanged]
+  ): Promise<void> {
     const {
       eventId,
       direction,
@@ -141,7 +143,10 @@ export class EntityRenderSystem extends ZSystem {
       moveRoute,
       moveRouteRepeat,
       moveRouteSkip,
-      isThrough
+      isThrough,
+      walkAnim,
+      stepAnim,
+      directionFix
     } = data
     const char = this.eventCharacters.get(eventId)
     if (!char) return
@@ -156,13 +161,26 @@ export class EntityRenderSystem extends ZSystem {
     if (moveFrequency !== undefined) char.moveFrequency = moveFrequency
     if (moveRouteRepeat !== undefined) char.moveRouteRepeat = moveRouteRepeat
     if (moveRouteSkip !== undefined) char.moveRouteSkip = moveRouteSkip
+    if (walkAnim !== undefined) char.walkAnim = walkAnim
+    if (stepAnim !== undefined) char.stepAnim = stepAnim
+    if (directionFix !== undefined) char.directionFix = directionFix
     if (isThrough !== undefined) {
       char.isThrough = isThrough
       const mapEvent = this.map.currentMap?.events.find((e) => e.id === eventId)
       if (mapEvent) mapEvent.isThrough = isThrough
     }
 
-    if (graphic) await char.setGraphic(graphic)
+    // Allow updating graphic if it is explicitly defined (including null).
+    // The original condition `graphic !== undefined` already handles `null` correctly,
+    // as `null !== undefined` is true, so `char.setGraphic(null)` would be called.
+    // No change is needed here based on the description.
+    if (graphic !== undefined) {
+      // If the graphic change came from a page switch, we should clear any
+      // pre-interaction direction to prevent it from being restored incorrectly.
+      // We do this BEFORE the await to avoid race conditions with onEventExecutionFinished.
+      char.preInteractionDirection = null
+      await char.setGraphic(graphic)
+    }
   }
 
   private onEventExecutionStarted(eventId: string, triggererPos?: { x: number; y: number }): void {

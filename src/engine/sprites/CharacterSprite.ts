@@ -67,17 +67,32 @@ export class CharacterSprite implements ZMoveable {
     this.container.addChild(this._mainSprite)
   }
 
+  private _currentGraphic: ZEventGraphic | null = null
+
   /**
    * Loads and sets the character's graphic.
    */
   public async setGraphic(graphic: ZEventGraphic | null): Promise<void> {
+    const isSameGraphic = this.areGraphicsEqual(graphic, this._currentGraphic)
+
+    // If the logical graphic object is EXACTLY the same, we can return early.
+    // If it's different (e.g. different y but same character), we continue to allow direction/base updates.
+    if (isSameGraphic) return
+
+    const isSameAsset = graphic?.assetId === this._currentGraphic?.assetId
+    this._currentGraphic = graphic
+
     if (!graphic || !graphic.assetId) {
       this._mainSprite.visible = false
       return
     }
 
     try {
-      await this._textureManager.load(graphic.assetId)
+      // Avoid async gap if asset is already loaded and same
+      if (!isSameAsset) {
+        await this._textureManager.load(graphic.assetId)
+      }
+
       const tex = this._textureManager.get(graphic.assetId)
       if (!tex) return
 
@@ -88,13 +103,34 @@ export class CharacterSprite implements ZMoveable {
 
       this._baseX = Math.floor((graphic.x || 0) / snapX) * snapX
       this._baseY = Math.floor((graphic.y || 0) / snapY) * snapY
+
+      // Extract initial direction if using a character sheet
+      if (snapY === 4) {
+        const rowOffset = (graphic.y || 0) - this._baseY
+        const dirMap: Record<number, 'down' | 'left' | 'right' | 'up'> = {
+          0: 'down',
+          1: 'left',
+          2: 'right',
+          3: 'up'
+        }
+        if (dirMap[rowOffset]) {
+          this.direction = dirMap[rowOffset]
+        }
+      }
       this._frameW = frameW
       this._frameH = frameH
 
-      // Set initial texture from source
+      // Calculate the final frame coordinates immediately
+      const row = this.getDirectionRow(this.direction)
+      const frames = this._colsPerChar === 4 ? [0, 1, 2, 3] : [0, 1, 2, 1]
+      const col = frames[this._animationFrame] || 0
+      const finalX = (this._baseX + col) * this._frameW
+      const finalY = (this._baseY + row) * this._frameH
+
+      // Always update the texture when graphic changes to ensure correct initial frame
       this._mainSprite.texture = new Texture({
         source: tex.source,
-        frame: new Rectangle(0, 0, frameW, frameH)
+        frame: new Rectangle(finalX, finalY, frameW, frameH)
       })
 
       // Alignment: Bottom-Center feet at Tile Bottom-Center
@@ -108,6 +144,29 @@ export class CharacterSprite implements ZMoveable {
     }
   }
 
+  private areGraphicsEqual(g1: ZEventGraphic | null, g2: ZEventGraphic | null): boolean {
+    if (g1 === g2) return true
+    if (!g1 || !g2) return false
+
+    // Helper to treat undefined/null as 0 for numeric fields
+    const eq = (a?: number | null, b?: number | null): boolean => (a || 0) === (b || 0)
+
+    return (
+      g1.assetId === g2.assetId &&
+      g1.group === g2.group &&
+      eq(g1.x, g2.x) &&
+      eq(g1.y, g2.y) &&
+      eq(g1.w, g2.w) &&
+      eq(g1.h, g2.h) &&
+      eq(g1.srcX, g2.srcX) &&
+      eq(g1.srcY, g2.srcY) &&
+      eq(g1.srcW, g2.srcW) &&
+      eq(g1.srcH, g2.srcH) &&
+      eq(g1.divW, g2.divW) &&
+      eq(g1.divH, g2.divH)
+    )
+  }
+
   /**
    * Updates movement interpolation and animation.
    */
@@ -119,6 +178,8 @@ export class CharacterSprite implements ZMoveable {
     this.refreshTexture()
     this.updateVisualPosition()
   }
+
+  private _lastFrame: { x: number; y: number; w: number; h: number; source: unknown } | null = null
 
   private updateMovement(delta: number): void {
     // RPG Maker style speed: Speed 4 = 1 tile per 32 frames (at 60fps)
@@ -179,11 +240,24 @@ export class CharacterSprite implements ZMoveable {
 
     const finalX = (this._baseX + col) * this._frameW
     const finalY = (this._baseY + row) * this._frameH
+    const source = this._mainSprite.texture.source
 
-    // Update texture frame without creating excessive objects if possible
-    // Note: PIXI Texture with frame is relatively cheap
+    // Optimization: Only update texture object if frame or source changed
+    if (
+      this._lastFrame &&
+      this._lastFrame.x === finalX &&
+      this._lastFrame.y === finalY &&
+      this._lastFrame.w === this._frameW &&
+      this._lastFrame.h === this._frameH &&
+      this._lastFrame.source === source
+    ) {
+      return
+    }
+
+    this._lastFrame = { x: finalX, y: finalY, w: this._frameW, h: this._frameH, source }
+
     this._mainSprite.texture = new Texture({
-      source: this._mainSprite.texture.source,
+      source: source,
       frame: new Rectangle(finalX, finalY, this._frameW, this._frameH)
     })
 

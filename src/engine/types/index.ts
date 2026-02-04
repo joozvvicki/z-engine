@@ -356,13 +356,15 @@ export interface ZEventInterpreter {
   eventId: string
   waitCount?: number
   waitingForMoveEventId?: string | null
+  isWaitingForMessage?: boolean
+  pendingChoice?: number
 }
 
 export interface ZCommandProcessor {
   (
     params: unknown[],
     interpreter: ZEventInterpreter,
-    services: any // ServiceLocator passed from EventSystem
+    services: unknown // ServiceLocator passed from EventSystem
   ): ZCommandResult
 }
 
@@ -441,15 +443,19 @@ export interface ZSignalData {
   [ZEngineSignal.EventInternalStateChanged]: {
     eventId: string
     direction?: 'down' | 'left' | 'right' | 'up'
-    graphic?: ZEventGraphic
+    graphic?: ZEventGraphic | null
     moveType?: 'fixed' | 'random' | 'approach' | 'custom'
     moveSpeed?: number
     moveFrequency?: number
     moveRoute?: ZMoveCommand[]
-    moveRouteIndex?: number
     moveRouteRepeat?: boolean
     moveRouteSkip?: boolean
     isThrough?: boolean
+    walkAnim?: boolean
+    stepAnim?: boolean
+    directionFix?: boolean
+    opacity?: number
+    transparent?: boolean
   }
   [ZEngineSignal.EventExecutionStarted]: {
     eventId: string

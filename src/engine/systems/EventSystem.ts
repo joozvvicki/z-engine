@@ -6,13 +6,11 @@ import {
   type ZCommandResult,
   ZEngineSignal,
   ZEventTrigger,
-  ZInputAction,
   type ZEventInterpreter
 } from '@engine/types'
 import { ZSystem, SystemMode } from '@engine/core/ZSystem'
 import { PlayerSystem } from '@engine/systems/PlayerSystem'
 import { ServiceLocator } from '@engine/core/ServiceLocator'
-import { SceneManager } from '@engine/managers/SceneManager'
 import { CommandRegistry } from './event-commands'
 
 /**
@@ -21,7 +19,6 @@ import { CommandRegistry } from './event-commands'
  */
 export class EventSystem extends ZSystem {
   private playerSystem: PlayerSystem
-  private sceneManager: SceneManager
 
   public isProcessing: boolean = false
   private activeInterpreter: ZEventInterpreter | null = null
@@ -31,7 +28,6 @@ export class EventSystem extends ZSystem {
     super(services)
     this.updateMode = SystemMode.PLAY
 
-    this.sceneManager = undefined as unknown as SceneManager
     this.playerSystem = undefined as unknown as PlayerSystem
   }
 
@@ -39,11 +35,14 @@ export class EventSystem extends ZSystem {
    * Initializes systems and event listeners.
    */
   public onBoot(): void {
-    this.sceneManager = this.services.require(SceneManager)
     this.playerSystem = this.services.require(PlayerSystem)
 
     this.bus.on(ZEngineSignal.EventTriggered, ({ event }) => {
       this.startEvent(event)
+    })
+
+    this.bus.on(ZEngineSignal.MapWillLoad, () => {
+      this._activePageCache.clear()
     })
 
     this.bus.on(ZEngineSignal.InteractionRequested, ({ x, y }) => {
@@ -56,6 +55,10 @@ export class EventSystem extends ZSystem {
       if (this.playerSystem) {
         this.checkTrigger(this.playerSystem.x, this.playerSystem.y, ZEventTrigger.Action, playerPos)
       }
+    })
+
+    this.bus.on(ZEngineSignal.GameStateChanged, () => {
+      this.refreshAllEvents()
     })
 
     this.bus.on(ZEngineSignal.PlayerMoved, ({ x, y }) => {
@@ -89,7 +92,7 @@ export class EventSystem extends ZSystem {
         this.activeInterpreter.waitCount--
       } else if (
         !this.activeInterpreter.waitingForMoveEventId &&
-        !(this.activeInterpreter as any).isWaitingForMessage
+        !this.activeInterpreter.isWaitingForMessage
       ) {
         this.executeInterpreter()
       }
@@ -135,7 +138,52 @@ export class EventSystem extends ZSystem {
    */
   public finishMessage(): void {
     if (this.activeInterpreter) {
-      ;(this.activeInterpreter as any).isWaitingForMessage = false
+      this.activeInterpreter.isWaitingForMessage = false
+    }
+  }
+
+  // Cache associated with the current map's events
+  private _activePageCache: Map<string, number> = new Map()
+
+  public refreshAllEvents(): void {
+    const map = this.map.currentMap
+    if (!map) return
+
+    map.events.forEach((event) => {
+      this.refreshEvent(event)
+    })
+  }
+
+  public refreshEvent(event: ZEvent): void {
+    const lastPageIndex = this._activePageCache.get(event.id) ?? -1
+    const newPage = this.getActivePage(event)
+
+    // Determine new page index
+    let newPageIndex = -1
+    if (newPage) {
+      newPageIndex = event.pages.indexOf(newPage)
+    }
+
+    if (newPageIndex !== lastPageIndex) {
+      this._activePageCache.set(event.id, newPageIndex)
+
+      this.bus.emit(ZEngineSignal.EventInternalStateChanged, {
+        eventId: event.id,
+        graphic: newPage?.graphic ?? null,
+        moveSpeed: newPage?.moveSpeed,
+        moveFrequency: newPage?.moveFrequency,
+        moveType: newPage?.moveType,
+        moveRoute: newPage?.moveRoute,
+        moveRouteRepeat: newPage?.moveRouteRepeat,
+        moveRouteSkip: newPage?.moveRouteSkip,
+        isThrough: newPage?.options?.through ?? false,
+        walkAnim: newPage?.options?.walkAnim ?? true,
+        stepAnim: newPage?.options?.stepAnim ?? false,
+        directionFix: newPage?.options?.directionFix ?? false
+      })
+
+      // If switching to a page with Parallel trigger, ensure it gets picked up
+      this.checkParallelTriggers()
     }
   }
 
@@ -195,7 +243,7 @@ export class EventSystem extends ZSystem {
     return true
   }
 
-  private getActivePage(event: ZEvent): ZEventPage | null {
+  public getActivePage(event: ZEvent): ZEventPage | null {
     for (let i = event.pages.length - 1; i >= 0; i--) {
       const page = event.pages[i]
       if (this.checkPageConditionsWithEvent(page.conditions, event.id)) {
@@ -292,7 +340,7 @@ export class EventSystem extends ZSystem {
    */
   public submitChoice(index: number): void {
     if (this.activeInterpreter) {
-      ;(this.activeInterpreter as any).pendingChoice = index
+      this.activeInterpreter.pendingChoice = index
     }
     this.resumeProcessing()
   }
