@@ -20,8 +20,7 @@ export class MenuSystem extends ZSystem {
     const sceneManager = this.services.require(SceneManager)
     const inputManager = this.services.require(InputManager)
 
-    // Consume the menu button press
-    inputManager.clearAction(ZInputAction.MENU)
+    inputManager.clearAction(ZInputAction.CANCEL)
 
     sceneManager.push(SceneMenu, data)
   }

@@ -22,7 +22,7 @@ export class InputManager {
       KeyZ: ZInputAction.OK,
       Escape: ZInputAction.CANCEL,
       Backspace: ZInputAction.CANCEL,
-      KeyX: ZInputAction.MENU,
+      KeyX: ZInputAction.CANCEL,
       ShiftLeft: ZInputAction.RUN,
       ShiftRight: ZInputAction.RUN,
       ControlLeft: ZInputAction.NOCLIP,
@@ -36,8 +36,7 @@ export class InputManager {
       15: ZInputAction.RIGHT, // D-Pad Right
       0: ZInputAction.OK, // A / Cross
       1: ZInputAction.CANCEL, // B / Circle
-      2: ZInputAction.RUN, // X / Square (Run?)
-      3: ZInputAction.MENU // Y / Triangle
+      2: ZInputAction.RUN // X / Square (Run?)
     }
   }
 

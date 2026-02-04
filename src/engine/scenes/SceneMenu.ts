@@ -98,10 +98,7 @@ export class SceneMenu extends ZScene {
 
     const input = this.services.require(InputManager)
 
-    if (
-      input.isActionJustPressed(ZInputAction.CANCEL) ||
-      input.isActionJustPressed(ZInputAction.MENU)
-    ) {
+    if (input.isActionJustPressed(ZInputAction.CANCEL)) {
       this.closeMenu()
     }
   }

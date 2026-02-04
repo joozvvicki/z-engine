@@ -207,7 +207,7 @@ export class PlayerSystem extends ZSystem implements ZMoveable {
       this.bus.emit(ZEngineSignal.InteractionRequested, { x: tx, y: ty })
     }
 
-    if (this.input.isActionJustPressed(ZInputAction.MENU)) {
+    if (this.input.isActionJustPressed(ZInputAction.CANCEL)) {
       if (this.map.currentMap) {
         this.bus.emit(ZEngineSignal.MenuRequested, {
           mapOrId: this.map.currentMap,

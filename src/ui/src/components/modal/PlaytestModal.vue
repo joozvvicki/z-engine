@@ -58,9 +58,9 @@ const containerStyle = computed(() => ({
 
 const resolutionLabel = computed(() => `${store.systemScreenWidth}x${store.systemScreenHeight}`)
 
-// Handle ESC key to close
+// Handle Shift + ESC key to close
 const handleKeydown = (e: KeyboardEvent): void => {
-  if (e.key === 'Escape' && isVisible.value) {
+  if (e.key === 'Escape' && e.shiftKey && isVisible.value) {
     close()
   }
 }
@@ -157,7 +157,7 @@ onUnmounted(() => {
         <div
           class="absolute bottom-8 left-1/2 -translate-x-1/2 text-[10px] font-medium text-white/20 uppercase tracking-[0.2em] pointer-events-none"
         >
-          Press ESC to Exit Playtest
+          Press Shift + ESC to Exit Playtest
         </div>
       </main>
     </div>
