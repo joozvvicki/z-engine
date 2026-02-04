@@ -22,8 +22,9 @@ export class SceneMap extends ZScene {
     mapOrId: number | ZMap
     playerX?: number
     playerY?: number
+    direction?: 'down' | 'left' | 'right' | 'up'
   }): Promise<void> {
-    const { mapOrId, playerX, playerY } = params
+    const { mapOrId, playerX, playerY, direction } = params
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const engine = this.services.get('ZEngine') as any
     const dataProvider = engine?.dataProvider
@@ -74,6 +75,9 @@ export class SceneMap extends ZScene {
         if (playerSystem) {
           playerSystem.x = playerX
           playerSystem.y = playerY
+          if (direction) {
+            playerSystem.direction = direction
+          }
           playerSystem.snapToGrid()
         }
       }
