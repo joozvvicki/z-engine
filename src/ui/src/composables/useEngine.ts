@@ -140,8 +140,8 @@ export const useEngine = (
         }
       } else {
         // PLAYTEST MODE: Start from Title directly or Boot
-        const { SceneTitle } = await import('@engine/scenes/SceneTitle')
-        await sceneManager.goto(SceneTitle, null, { fade: false })
+        const { SceneIntro } = await import('@engine/scenes/SceneIntro')
+        await sceneManager.goto(SceneIntro, null, { fade: false })
       }
 
       // Now set the engine ref to trigger watchers with a fully initialized engine
