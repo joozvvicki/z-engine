@@ -79,10 +79,12 @@ export class SceneTitle extends ZScene {
   }
 
   public update(): void {
+    if (this.commandWindow) {
+      this.commandWindow.update()
+    }
+
     if (this.isStarting) return
     if (!this.commandWindow) return
-
-    this.commandWindow.update()
 
     // Input Handling
     if (this.input.isActionJustPressed(ZInputAction.DOWN)) {

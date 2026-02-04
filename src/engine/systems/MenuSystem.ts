@@ -22,6 +22,6 @@ export class MenuSystem extends ZSystem {
 
     inputManager.clearAction(ZInputAction.CANCEL)
 
-    sceneManager.push(SceneMenu, data)
+    sceneManager.push(SceneMenu, data, { fade: true })
   }
 }

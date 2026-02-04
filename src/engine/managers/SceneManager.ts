@@ -101,13 +101,26 @@ export class SceneManager extends ZManager {
    */
   public async push(
     SceneClass: new (services: ServiceLocator) => ZScene,
-    params?: unknown
+    params?: unknown,
+    options: { fade?: boolean } = {}
   ): Promise<void> {
     this._isTransitioning = true
     try {
+      const fadeEnabled = options.fade ?? true
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const engine = this.services.get('ZEngine') as any
+      const isPlayMode = engine?.mode === 'play'
+      const transitionSystem =
+        isPlayMode && fadeEnabled ? this.services.get(TransitionSystem) : null
+
+      // 1. Fade Out (if enabled)
+      if (transitionSystem) {
+        await transitionSystem.fadeOut(150)
+      }
+
       ZLogger.with('SceneManager').log(`Pushing Scene ${SceneClass.name}`)
 
-      // 1. Stop current scene and move to stack
+      // 2. Stop current scene and move to stack
       if (this._currentScene) {
         this._currentScene.stop()
         this._sceneStack.push(this._currentScene)
@@ -116,18 +129,23 @@ export class SceneManager extends ZManager {
         }
       }
 
-      // 2. Instantiate and Init new scene
+      // 3. Instantiate and Init new scene
       const nextScene = new SceneClass(this.services)
       await nextScene.init(params)
 
-      // 3. Set as current and add to stage
+      // 4. Set as current and add to stage
       this._currentScene = nextScene
       if (this._sceneLayer) {
         this._sceneLayer.addChild(nextScene.container)
       }
 
-      // 4. Start scene
+      // 5. Start scene
       nextScene.start()
+
+      // 6. Fade In (if enabled)
+      if (transitionSystem) {
+        await transitionSystem.fadeIn(150)
+      }
 
       this._skipNextUpdate = true
     } finally {
@@ -138,7 +156,7 @@ export class SceneManager extends ZManager {
   /**
    * Pops the current scene from the stack.
    */
-  public async pop(): Promise<void> {
+  public async pop(options: { fade?: boolean } = {}): Promise<void> {
     if (this._sceneStack.length === 0) {
       ZLogger.with('SceneManager').warn('Cannot pop scene: Stack is empty')
       return
@@ -146,9 +164,21 @@ export class SceneManager extends ZManager {
 
     this._isTransitioning = true
     try {
+      const fadeEnabled = options.fade ?? true
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const engine = this.services.get('ZEngine') as any
+      const isPlayMode = engine?.mode === 'play'
+      const transitionSystem =
+        isPlayMode && fadeEnabled ? this.services.get(TransitionSystem) : null
+
+      // 1. Fade Out (if enabled)
+      if (transitionSystem) {
+        await transitionSystem.fadeOut(150)
+      }
+
       ZLogger.with('SceneManager').log('Popping Scene')
 
-      // 1. Destroy current scene
+      // 2. Destroy current scene
       if (this._currentScene) {
         this._currentScene.stop()
         if (this._sceneLayer) {
@@ -158,7 +188,7 @@ export class SceneManager extends ZManager {
         this._currentScene = null
       }
 
-      // 2. Restore previous scene
+      // 3. Restore previous scene
       const prevScene = this._sceneStack.pop()
       if (prevScene) {
         this._currentScene = prevScene
@@ -167,6 +197,11 @@ export class SceneManager extends ZManager {
         }
         // Resume scene
         prevScene.start()
+      }
+
+      // 4. Fade In (if enabled)
+      if (transitionSystem) {
+        await transitionSystem.fadeIn(150)
       }
 
       if (this._sceneStack.length === 0) {

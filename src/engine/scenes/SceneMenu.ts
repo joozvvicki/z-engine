@@ -89,12 +89,13 @@ export class SceneMenu extends ZScene {
 
   public update(delta: number): void {
     super.update(delta)
-    if (this._isClosing) return
 
-    // Update Windows (for animations)
+    // Update Windows (for animations) - Must happen even if closing!
     this.commandWindow?.update()
     this.statusWindow?.update()
     this.goldWindow?.update()
+
+    if (this._isClosing) return
 
     const input = this.services.require(InputManager)
 
@@ -103,7 +104,7 @@ export class SceneMenu extends ZScene {
     }
   }
 
-  private closeMenu(): void {
+  private async closeMenu(): Promise<void> {
     if (this._isClosing) return
     this._isClosing = true
 
@@ -112,10 +113,11 @@ export class SceneMenu extends ZScene {
     this.statusWindow?.close()
     this.goldWindow?.close()
 
-    // Short delay for animation before popping the scene
-    setTimeout(() => {
-      const sceneManager = this.services.require(SceneManager)
-      sceneManager.pop()
-    }, 200)
+    // Short delay for window closing animation before starting the scene fade-out
+    // We use a slightly shorter delay here so the scene fade starts while windows are finishing
+    await new Promise((resolve) => setTimeout(resolve, 100))
+
+    const sceneManager = this.services.require(SceneManager)
+    await sceneManager.pop({ fade: true })
   }
 }
