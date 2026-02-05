@@ -179,6 +179,7 @@ export class ZEngine implements IEngineContext {
       // 4. Boot Logic
       this.entities.onBoot() // Loads initial sprites
       this.events.onBoot() // Sets up listeners
+      this.menus.onBoot() // Listen for MenuRequested
 
       // 5. Connect Scene Manager
       this.scenes.setSceneLayer(this.sceneLayer)

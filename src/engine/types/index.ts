@@ -530,6 +530,7 @@ export interface ZSignalData {
     walkAnim?: boolean
     stepAnim?: boolean
     directionFix?: boolean
+    trigger?: ZEventTrigger
     opacity?: number
     transparent?: boolean
   }

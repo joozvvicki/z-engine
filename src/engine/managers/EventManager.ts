@@ -199,7 +199,8 @@ export class EventManager implements IObstacleProvider {
         isThrough: newPage?.options?.through ?? false,
         walkAnim: newPage?.options?.walkAnim ?? true,
         stepAnim: newPage?.options?.stepAnim ?? false,
-        directionFix: newPage?.options?.directionFix ?? false
+        directionFix: newPage?.options?.directionFix ?? false,
+        trigger: newPage?.trigger
       })
 
       // FIX: Clear pre-interaction direction on page change

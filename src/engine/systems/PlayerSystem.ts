@@ -1,8 +1,8 @@
-import { ZEngineSignal, type ZMoveCommand, ZInputAction } from '@engine/types'
+import { ZEngineSignal, type ZMoveCommand, ZInputAction, type ZMoveable } from '@engine/types'
 import { type IObstacleProvider } from '@engine/interfaces/IPhysicsSystem'
 import ZLogger from '@engine/utils/ZLogger'
 import type { IPhysicsSystem } from '@engine/interfaces/IPhysicsSystem'
-import { MovementProcessor, type ZMoveable } from '@engine/core/MovementProcessor'
+import { MovementProcessor } from '@engine/core/MovementProcessor'
 import { InputManager } from '@engine/managers/InputManager'
 import { MapManager } from '@engine/managers/MapManager'
 import { ZEventBus } from '@engine/core/ZEventBus'
@@ -49,7 +49,22 @@ export class PlayerSystem implements ZMoveable, IObstacleProvider {
   public realY: number = 0
 
   private isBooted: boolean = false
-  private isInputBlocked: boolean = false
+  // Input Blocking State
+  private blockState = {
+    message: false,
+    event: false,
+    menu: false,
+    transition: false
+  }
+
+  private get isInputBlocked(): boolean {
+    return (
+      this.blockState.message ||
+      this.blockState.event ||
+      this.blockState.menu ||
+      this.blockState.transition
+    )
+  }
 
   constructor(
     input: InputManager,
@@ -87,30 +102,29 @@ export class PlayerSystem implements ZMoveable, IObstacleProvider {
 
   private setupListeners(): void {
     this.bus.on(ZEngineSignal.ShowMessage, () => {
-      this.isInputBlocked = true
+      this.blockState.message = true
     })
     this.bus.on(ZEngineSignal.MessageClosed, () => {
-      this.isInputBlocked = false
+      this.blockState.message = false
     })
     this.bus.on(ZEngineSignal.EventExecutionStarted, () => {
-      this.isInputBlocked = true
+      this.blockState.event = true
     })
     this.bus.on(ZEngineSignal.EventExecutionFinished, () => {
-      this.isInputBlocked = false
+      this.blockState.event = false
     })
     this.bus.on(ZEngineSignal.MenuRequested, () => {
       ZLogger.with('PlayerSystem').info('MenuRequested -> Blocking input')
-      this.isInputBlocked = true
+      this.blockState.menu = true
     })
     this.bus.on(ZEngineSignal.MenuClosed, () => {
-      ZLogger.with('PlayerSystem').info('MenuClosed -> Unblocking input')
-      this.isInputBlocked = false
+      this.blockState.menu = false
     })
     this.bus.on(ZEngineSignal.SceneTransitionStarted, () => {
-      this.isInputBlocked = true
+      this.blockState.transition = true
     })
     this.bus.on(ZEngineSignal.SceneTransitionFinished, () => {
-      this.isInputBlocked = false
+      this.blockState.transition = false
     })
 
     // Listen for Map Load to reset position if needed

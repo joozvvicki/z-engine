@@ -33,7 +33,7 @@ export const useHistory = (
   let timer: ReturnType<typeof setInterval> | null = null
 
   const syncStatus = (): void => {
-    const history = window.$zEngine.history
+    const history = window.$zEngine?.history
     if (history) {
       canUndo.value = history.canUndo
       canRedo.value = history.canRedo

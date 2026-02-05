@@ -46,6 +46,7 @@ export class InputManager {
   }
 
   private onKeyDown(e: KeyboardEvent): void {
+    if (e.repeat) return
     this.keys.set(e.code, true)
   }
 

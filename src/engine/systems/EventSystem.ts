@@ -22,6 +22,7 @@ import { InterpreterSystem } from './InterpreterSystem'
 export class EventSystem implements IObstacleProvider {
   // Dependencies
   private bus: ZEventBus
+  private mapManager: MapManager
 
   // Sub-Systems
   public eventManager: EventManager
@@ -36,6 +37,7 @@ export class EventSystem implements IObstacleProvider {
     mapManager: MapManager
   ) {
     this.bus = bus
+    this.mapManager = mapManager
 
     this.eventManager = new EventManager(physics, gameState, mapManager, bus)
     this.interpreterSystem = new InterpreterSystem(bus)
@@ -109,6 +111,22 @@ export class EventSystem implements IObstacleProvider {
     })
     this.bus.on(ZEngineSignal.SceneTransitionFinished, () => {
       this.isTransitioning = false
+    })
+
+    this.bus.on(ZEngineSignal.EventInternalStateChanged, ({ eventId, trigger }) => {
+      if (trigger === ZEventTrigger.Autorun || trigger === ZEventTrigger.Parallel) {
+        const event = this.mapManager.currentMap?.events.find((e) => e.id === eventId)
+        if (!event) return
+
+        const page = this.eventManager.getActivePage(event)
+        if (!page) return
+
+        if (trigger === ZEventTrigger.Autorun) {
+          this.startEvent(event)
+        } else if (trigger === ZEventTrigger.Parallel) {
+          this.interpreterSystem.addParallelInterpreter(page, event.id)
+        }
+      }
     })
   }
 

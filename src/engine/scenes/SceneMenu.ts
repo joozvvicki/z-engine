@@ -1,6 +1,6 @@
 import { ZScene } from '@engine/core/ZScene'
 import ZLogger from '@engine/utils/ZLogger'
-import { ZInputAction, ZMenuParams, IEngineContext } from '@engine/types'
+import { ZInputAction, ZMenuParams, IEngineContext, ZEngineSignal } from '@engine/types'
 import { Window_MenuCommand } from '@engine/ui/Window_MenuCommand'
 import { Window_MenuStatus } from '@engine/ui/Window_MenuStatus'
 import { Window_Gold } from '@engine/ui/Window_Gold'
@@ -108,10 +108,10 @@ export class SceneMenu extends ZScene {
     this.statusWindow?.close()
     this.goldWindow?.close()
 
-    // Short delay for window closing animation before starting the scene fade-out
     await new Promise((resolve) => setTimeout(resolve, 100))
 
     // Pop scene via Engine Context
     await this.engine.scenes.pop({ fade: true })
+    this.engine.eventBus.emit(ZEngineSignal.MenuClosed, {})
   }
 }
