@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import type { ZMap, TilesetConfig, ZSystemData, TileSelection } from '@engine/types'
+import type { ZMap, TilesetConfig, ZSystemData, TileSelection, GameSaveFile } from '@engine/types'
 import { VERSION } from 'pixi.js'
 
 export class ProjectService {
@@ -177,6 +177,39 @@ export class ProjectService {
       `${this.projectPath}/data/MapInfos.json`,
       JSON.stringify(infos)
     )
+  }
+
+  public static async saveGame(slotId: number, data: GameSaveFile): Promise<void> {
+    if (!this.projectPath) return
+    const filename = `save_${slotId}.json`
+    await this.ensureSaveDirectory()
+    await window.api.writeProjectFile(`${this.projectPath}/saves/${filename}`, JSON.stringify(data))
+  }
+
+  public static async loadGame(slotId: number): Promise<GameSaveFile | null> {
+    if (!this.projectPath) return null
+    const filename = `save_${slotId}.json`
+    try {
+      const content = await window.api.readProjectFile(`${this.projectPath}/saves/${filename}`)
+      return JSON.parse(content)
+    } catch {
+      return null
+    }
+  }
+
+  public static async doesSaveExist(slotId: number): Promise<boolean> {
+    if (!this.projectPath) return false
+    const filename = `save_${slotId}.json`
+    return await window.api.checkFileExists(`${this.projectPath}/saves/${filename}`)
+  }
+
+  private static async ensureSaveDirectory(): Promise<void> {
+    if (!this.projectPath) return
+    const saveDir = `${this.projectPath}/saves`
+    const exists = await window.api.checkFileExists(saveDir)
+    if (!exists) {
+      await window.api.createDirectory(saveDir)
+    }
   }
 
   public static async createProject(parentPath: string, name: string): Promise<string> {

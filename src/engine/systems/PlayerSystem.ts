@@ -307,4 +307,23 @@ export class PlayerSystem implements ZMoveable, IObstacleProvider {
     if (this.isMoving && this.targetX === x && this.targetY === y) return true
     return false
   }
+
+  public getSaveData(): any {
+    return {
+      x: this.x,
+      y: this.y,
+      direction: this.direction,
+      transparent: this.transparent,
+      mapId: this.mapManager.currentMap?.id || 0
+    }
+  }
+
+  public loadSaveData(data: any): void {
+    if (!data) return
+    this.x = data.x
+    this.y = data.y
+    this.direction = data.direction
+    this.transparent = data.transparent
+    this.snapToGrid()
+  }
 }

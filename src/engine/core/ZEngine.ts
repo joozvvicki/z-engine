@@ -13,6 +13,7 @@ import { TextureManager } from '@engine/managers/TextureManager'
 import { MapManager } from '@engine/managers/MapManager'
 import { TilesetManager } from '@engine/managers/TilesetManager'
 import { AudioManager } from '@engine/managers/AudioManager'
+import { SaveManager } from '@engine/managers/SaveManager'
 
 // Systems
 import { EntityRenderSystem } from '@engine/systems/EntityRenderSystem'
@@ -56,6 +57,7 @@ export class ZEngine implements IEngineContext {
   public history: HistoryManager
   public tools: ToolManager
   public scenes: SceneManager // Implements IEngineContext
+  public save: SaveManager
 
   // 3. Logic Systems (Initialized in Constructor)
   public physics: PhysicsSystem
@@ -97,6 +99,7 @@ export class ZEngine implements IEngineContext {
     this.player = new PlayerSystem(this.input, this.physics, this.eventBus, this.map)
     this.events = new EventSystem(this.physics, this.gameState, this.eventBus, this.map)
     this.tools = new ToolManager(this.map, this.history)
+    this.save = new SaveManager(this.eventBus, this.gameState)
 
     // --- Phase 4: Scene Manager ---
     this.scenes = new SceneManager(this)
@@ -176,6 +179,9 @@ export class ZEngine implements IEngineContext {
       this.player.init(tileSize)
       this.events.init(tileSize)
 
+      // Register logic systems to save manager
+      this.save.registerSystems(this.player, this.map)
+
       // 4. Boot Logic
       this.entities.onBoot() // Loads initial sprites
       this.events.onBoot() // Sets up listeners
@@ -252,6 +258,7 @@ export class ZEngine implements IEngineContext {
     this.textures.setDataProvider(provider)
     this.tools.setDataProvider(provider)
     this.history.setDataProvider(provider)
+    this.save.setDataProvider(provider)
     // this.gameState.setDataProvider(provider)
     // this.scenes.setDataProvider(provider) // Optional if SceneManager uses this.engine.dataProvider
 

@@ -62,6 +62,15 @@ export const useEngine = (
         startingParty: store.systemStartingParty,
         sounds: store.systemSounds
       }
+    },
+    saveGame: async (slotId, data) => {
+      await ProjectService.saveGame(slotId, data)
+    },
+    loadGame: async (slotId) => {
+      return await ProjectService.loadGame(slotId)
+    },
+    doesSaveExist: async (slotId) => {
+      return await ProjectService.doesSaveExist(slotId)
     }
   }
 

@@ -9,6 +9,7 @@ import {
   TilesetManager
 } from '@engine/managers'
 import { AudioManager } from '@engine/managers/AudioManager'
+import type { SaveManager } from '@engine/managers/SaveManager'
 import {
   EntityRenderSystem,
   GhostSystem,
@@ -425,6 +426,7 @@ export interface IEngineContext {
   map: MapManager
   dataProvider: ZDataProvider | null
   transitions: TransitionSystem
+  save: SaveManager
   config: { mode: 'play' | 'edit' }
 }
 
@@ -456,6 +458,28 @@ export interface ZHistoryEntry {
   deltas: ZTileDelta[]
 }
 
+export interface GameSaveFile {
+  header: {
+    timestamp: number
+    playtime: number
+    version: string
+  }
+  player: {
+    x: number
+    y: number
+    direction: string
+    mapId: number
+    transparent: boolean
+  }
+  system: {
+    switches: Record<number, boolean>
+    variables: Record<number, number>
+    selfSwitches: Record<string, boolean>
+    party: any // Serialized Party
+    actors: any // Serialized Actors
+  }
+}
+
 export interface ZDataProvider {
   getMap(id: number): Promise<ZMap | null>
   getTilesetConfigs(): Promise<Record<string, TilesetConfig>> // URL-indexed
@@ -469,6 +493,11 @@ export interface ZDataProvider {
     layer: ZLayer
   ): void
   resolveAssetUrl(path: string): string
+
+  // Persistence
+  saveGame(slotId: number, data: GameSaveFile): Promise<void>
+  loadGame(slotId: number): Promise<GameSaveFile | null>
+  doesSaveExist(slotId: number): Promise<boolean>
 }
 
 export enum ZEngineSignal {
