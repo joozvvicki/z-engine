@@ -89,6 +89,13 @@ export class EntityRenderSystem {
 
       await char.setGraphic(activePage?.graphic || null)
 
+      // Sync initial direction logic if the graphic enforced a specific one (e.g. Left-facing sprite)
+      // activePage?.graphic can provide a Y offset that implies direction.
+      // We accept the Sprite's interpretation as the initial truth.
+      if (char.direction !== 'down') {
+        this.eventSystem.setEventDirection(event.id, char.direction)
+      }
+
       this.container.addChild(char.container)
       this.eventCharacters.set(event.id, char)
     }
@@ -115,6 +122,7 @@ export class EntityRenderSystem {
 
     // Update graphic
     if (graphic !== undefined) {
+      // Runtime update: Smart heuristic in CharacterSprite handles direction
       char.setGraphic(graphic)
     }
   }

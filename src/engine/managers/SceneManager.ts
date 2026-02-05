@@ -64,6 +64,7 @@ export class SceneManager {
 
       // 1. Fade Out
       if (transitionSystem) {
+        this.engine.eventBus.emit(ZEngineSignal.SceneTransitionStarted, {})
         await transitionSystem.fadeOut(300)
       }
 
@@ -104,6 +105,7 @@ export class SceneManager {
       // 7. Fade In
       if (transitionSystem) {
         await transitionSystem.fadeIn(300)
+        this.engine.eventBus.emit(ZEngineSignal.SceneTransitionFinished, {})
       }
     } finally {
       this._isTransitioning = false
@@ -124,6 +126,7 @@ export class SceneManager {
 
       // 1. Fade Out
       if (transitionSystem) {
+        this.engine.eventBus.emit(ZEngineSignal.SceneTransitionStarted, {})
         await transitionSystem.fadeOut(150)
       }
 
@@ -154,6 +157,7 @@ export class SceneManager {
       // 6. Fade In
       if (transitionSystem) {
         await transitionSystem.fadeIn(150)
+        this.engine.eventBus.emit(ZEngineSignal.SceneTransitionFinished, {})
       }
 
       this._skipNextUpdate = true
@@ -177,6 +181,7 @@ export class SceneManager {
 
       // 1. Fade Out
       if (transitionSystem) {
+        this.engine.eventBus.emit(ZEngineSignal.SceneTransitionStarted, {})
         await transitionSystem.fadeOut(150)
       }
 
@@ -206,6 +211,7 @@ export class SceneManager {
       // 4. Fade In
       if (transitionSystem) {
         await transitionSystem.fadeIn(150)
+        this.engine.eventBus.emit(ZEngineSignal.SceneTransitionFinished, {})
       }
 
       if (this._sceneStack.length === 0) {

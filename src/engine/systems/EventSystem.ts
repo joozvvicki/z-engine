@@ -386,6 +386,12 @@ export class EventSystem implements IObstacleProvider {
         directionFix: newPage?.options?.directionFix ?? false
       })
 
+      // FIX: If page changes, the event might have changed appearance or context.
+      // Any automatic "return to original direction" logic from a previous interaction
+      // is likely invalid or unwanted (e.g. we manually turned the event Up, then switched page).
+      // Clearing this prevents onEventInteractionFinished from reverting the direction.
+      this.preInteractionDirections.delete(event.id)
+
       this.checkParallelTriggers()
     }
   }
@@ -413,6 +419,19 @@ export class EventSystem implements IObstacleProvider {
       state.isThrough = data.isThrough
       const mapEvent = this.mapManager.currentMap?.events.find((e) => e.id === data.eventId)
       if (mapEvent) mapEvent.isThrough = data.isThrough
+    }
+  }
+
+  public setEventDirection(eventId: string, direction: 'down' | 'left' | 'right' | 'up'): void {
+    const state = this.eventStates.get(eventId)
+    if (!state) return
+
+    if (state.direction !== direction) {
+      state.direction = direction
+      // We don't need to circle back to EntityRenderSystem via signal because
+      // EntityRenderSystem is the one calling this.
+      // But we should update the Map Event data source of truth for persistence if needed
+      // (though runtime state is primary).
     }
   }
 

@@ -48,6 +48,7 @@ export class CharacterSprite implements ZMoveable {
   private _frameW: number = 0
   private _frameH: number = 0
   private _colsPerChar: number = 3
+  private _isDirectional: boolean = true // Track if graphic supports 4-dir rows
   private _animationFrame: number = 0
   private _animationTimer: number = 0
 
@@ -74,12 +75,10 @@ export class CharacterSprite implements ZMoveable {
    */
   public async setGraphic(graphic: ZEventGraphic | null): Promise<void> {
     const isSameGraphic = this.areGraphicsEqual(graphic, this._currentGraphic)
-
-    // If the logical graphic object is EXACTLY the same, we can return early.
-    // If it's different (e.g. different y but same character), we continue to allow direction/base updates.
     if (isSameGraphic) return
 
     const isSameAsset = graphic?.assetId === this._currentGraphic?.assetId
+
     this._currentGraphic = graphic
 
     if (!graphic || !graphic.assetId) {
@@ -88,7 +87,6 @@ export class CharacterSprite implements ZMoveable {
     }
 
     try {
-      // Avoid async gap if asset is already loaded and same
       if (!isSameAsset) {
         await this._textureManager.load(graphic.assetId)
       }
@@ -100,12 +98,16 @@ export class CharacterSprite implements ZMoveable {
       this._colsPerChar = divW % 4 === 0 && divW % 3 !== 0 ? 4 : 3
       const snapX = this._colsPerChar
       const snapY = divH % 4 === 0 ? 4 : 1
+      this._isDirectional = snapY === 4
 
       this._baseX = Math.floor((graphic.x || 0) / snapX) * snapX
       this._baseY = Math.floor((graphic.y || 0) / snapY) * snapY
 
+      this._frameW = frameW
+      this._frameH = frameH
+
       // Extract initial direction if using a character sheet
-      if (snapY === 4) {
+      if (this._isDirectional) {
         const rowOffset = (graphic.y || 0) - this._baseY
         const dirMap: Record<number, 'down' | 'left' | 'right' | 'up'> = {
           0: 'down',
@@ -117,23 +119,19 @@ export class CharacterSprite implements ZMoveable {
           this.direction = dirMap[rowOffset]
         }
       }
-      this._frameW = frameW
-      this._frameH = frameH
 
       // Calculate the final frame coordinates immediately
-      const row = this.getDirectionRow(this.direction)
+      const row = this._isDirectional ? this.getDirectionRow(this.direction) : 0
       const frames = this._colsPerChar === 4 ? [0, 1, 2, 3] : [0, 1, 2, 1]
       const col = frames[this._animationFrame] || 0
       const finalX = (this._baseX + col) * this._frameW
       const finalY = (this._baseY + row) * this._frameH
 
-      // Always update the texture when graphic changes to ensure correct initial frame
       this._mainSprite.texture = new Texture({
         source: tex.source,
         frame: new Rectangle(finalX, finalY, frameW, frameH)
       })
 
-      // Alignment: Bottom-Center feet at Tile Bottom-Center
       this._mainSprite.anchor.set(0.5, 1)
       this._mainSprite.visible = true
 
@@ -234,7 +232,7 @@ export class CharacterSprite implements ZMoveable {
     if (!this._mainSprite.visible || !this._mainSprite.texture || !this._mainSprite.texture.source)
       return
 
-    const row = this.getDirectionRow(this.direction)
+    const row = this._isDirectional ? this.getDirectionRow(this.direction) : 0
     const frames = this._colsPerChar === 4 ? [0, 1, 2, 3] : [0, 1, 2, 1]
     const col = frames[this._animationFrame] || 0
 
