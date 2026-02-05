@@ -1,6 +1,4 @@
 export * from './ZScene'
-export * from './SystemManager'
 export * from './ZEngine'
 export * from './ZEventBus'
 export * from './ZSystem'
-export * from './ZManager'

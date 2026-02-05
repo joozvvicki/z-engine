@@ -177,7 +177,6 @@ export class ZEngine implements IEngineContext {
       this.events.init(tileSize)
 
       // 4. Boot Logic
-      // Previously SystemManager.boot(), now we just mark ready or run explicit boot logic
       this.entities.onBoot() // Loads initial sprites
       this.events.onBoot() // Sets up listeners
 
