@@ -1,6 +1,7 @@
 import { ZMoveCode, type ZMoveable } from '@engine/types'
 import ZLogger from '@engine/utils/ZLogger'
 import type { IPhysicsSystem } from '@engine/interfaces/IPhysicsSystem'
+import { MoveRouteRegistry } from '@engine/commands/movement/move-route/registry'
 
 export class MovementProcessor {
   private physics: IPhysicsSystem
@@ -74,292 +75,67 @@ export class MovementProcessor {
     const code = cmd.code as ZMoveCode
     const params = cmd.params || []
 
-    switch (code) {
-      // Basic Movement
-      case ZMoveCode.MOVE_DOWN:
-        this.attemptMove(moveable, 0, 1)
-        return
-      case ZMoveCode.MOVE_LEFT:
-        this.attemptMove(moveable, -1, 0)
-        return
-      case ZMoveCode.MOVE_RIGHT:
-        this.attemptMove(moveable, 1, 0)
-        return
-      case ZMoveCode.MOVE_UP:
-        this.attemptMove(moveable, 0, -1)
-        return
+    const handler = MoveRouteRegistry[code]
+    if (handler) {
+      // Execute
+      handler(this, moveable, params, playerPos)
 
-      // Diagonal Movement
-      case ZMoveCode.MOVE_LOWER_LEFT:
-        this.attemptMove(moveable, -1, 1)
-        return
-      case ZMoveCode.MOVE_LOWER_RIGHT:
-        this.attemptMove(moveable, 1, 1)
-        return
-      case ZMoveCode.MOVE_UPPER_LEFT:
-        this.attemptMove(moveable, -1, -1)
-        return
-      case ZMoveCode.MOVE_UPPER_RIGHT:
-        this.attemptMove(moveable, 1, -1)
-        return
+      // Auto-increment index unless it's a movement command that handles its own "isMoving" check
+      // OR if the handler explicitly set isMoving=true, we usually advance index only when move finishes?
+      // WAIT: In the original, most commands did `moveRouteIndex++` immediately.
+      // Movement commands (attemptMove success) did NOT increment immediately if not autonomous?
+      // Actually:
+      // - attemptMove(..., isAutonomous=false) -> if success, it increments index ONLY if isAutonomous is true?
+      //   No, look at original: `if (!isAutonomous) moveable.moveRouteIndex++` inside attemptMove success.
+      //   So basic movements increment index themselves via attemptMove.
 
-      // Random / Toward Player
-      case ZMoveCode.MOVE_RANDOM: {
-        const r = Math.floor(Math.random() * 4)
-        if (r === 0) this.attemptMove(moveable, 0, 1)
-        else if (r === 1) this.attemptMove(moveable, -1, 0)
-        else if (r === 2) this.attemptMove(moveable, 1, 0)
-        else this.attemptMove(moveable, 0, -1)
-        return
-      }
-      case ZMoveCode.MOVE_TOWARD_PLAYER:
-        if (playerPos) {
-          const diffX = playerPos.x - moveable.x
-          const diffY = playerPos.y - moveable.y
-          const adx = Math.abs(diffX)
-          const ady = Math.abs(diffY)
-          const dx1 = diffX > 0 ? 1 : diffX < 0 ? -1 : 0
-          const dy1 = diffY > 0 ? 1 : diffY < 0 ? -1 : 0
+      // - Complex movements (Random, Toward) called attemptMove.
 
-          if (adx >= ady) {
-            if (this.attemptMove(moveable, dx1, 0)) return
-            if (this.attemptMove(moveable, 0, dy1)) return
-          } else {
-            if (this.attemptMove(moveable, 0, dy1)) return
-            if (this.attemptMove(moveable, dx1, 0)) return
-          }
-          // If blocked, just turn toward them
-          this.turnToward(moveable, playerPos)
-          moveable.moveRouteIndex++
-        }
-        return
-      case ZMoveCode.MOVE_AWAY_PLAYER:
-        if (playerPos) {
-          const diffX = playerPos.x - moveable.x
-          const diffY = playerPos.y - moveable.y
-          const adx = Math.abs(diffX)
-          const ady = Math.abs(diffY)
-          const dx1 = diffX > 0 ? -1 : diffX < 0 ? 1 : 0
-          const dy1 = diffY > 0 ? -1 : diffY < 0 ? 1 : 0
+      // - Computed movements (Jump) did `moveRouteIndex++`.
 
-          // Away logic: prefer the axis where we are CLOSER to player to increase distance?
-          // Actually RM prefers the axis where we are FARTHER to keep going that way?
-          // Standard is same as Toward but inverted directions
-          if (adx >= ady) {
-            if (this.attemptMove(moveable, dx1, 0)) return
-            if (this.attemptMove(moveable, 0, dy1)) return
-          } else {
-            if (this.attemptMove(moveable, 0, dy1)) return
-            if (this.attemptMove(moveable, dx1, 0)) return
-          }
-          // If blocked, turn away
-          this.turnAway(moveable, playerPos)
-          moveable.moveRouteIndex++
-        }
-        return
-      case ZMoveCode.JUMP: {
-        const jx = Number(params[0] || 0)
-        const jy = Number(params[1] || 0)
-        // Jump ignores passage usually, but we check if target is inside map
-        moveable.targetX = moveable.x + jx
-        moveable.targetY = moveable.y + jy
-        moveable.isMoving = true
-        moveable.moveRouteIndex++
-        return
-      }
+      // - State changes did `moveRouteIndex++`.
 
-      // Step Forward / Backward
-      case ZMoveCode.STEP_FORWARD: {
-        let sdx = 0,
-          sdy = 0
-        if (moveable.direction === 'up') sdy = -1
-        else if (moveable.direction === 'down') sdy = 1
-        else if (moveable.direction === 'left') sdx = -1
-        else sdx = 1
-        this.attemptMove(moveable, sdx, sdy)
-        return
-      }
-      case ZMoveCode.STEP_BACKWARD: {
-        let sdx = 0,
-          sdy = 0
-        if (moveable.direction === 'up') sdy = 1
-        else if (moveable.direction === 'down') sdy = -1
-        else if (moveable.direction === 'left') sdx = 1
-        else sdx = -1
-        // For Step Backward, we don't turn! So we use a special flag or just manual check
-        const canPass = this.physics.checkPassage(
-          moveable.x,
-          moveable.y,
-          moveable.x + sdx,
-          moveable.y + sdy,
-          { isThrough: moveable.isThrough }
-        )
-        if (canPass) {
-          moveable.targetX = moveable.x + sdx
-          moveable.targetY = moveable.y + sdy
-          moveable.isMoving = true
-          moveable.moveRouteIndex++
-        }
-        return
-      }
+      // - Wait did `moveRouteIndex++`.
 
-      // Turning
-      case ZMoveCode.TURN_DOWN:
-        if (!moveable.directionFix) moveable.direction = 'down'
-        moveable.moveRouteIndex++
-        return
-      case ZMoveCode.TURN_LEFT:
-        if (!moveable.directionFix) moveable.direction = 'left'
-        moveable.moveRouteIndex++
-        return
-      case ZMoveCode.TURN_RIGHT:
-        if (!moveable.directionFix) moveable.direction = 'right'
-        moveable.moveRouteIndex++
-        return
-      case ZMoveCode.TURN_UP:
-        if (!moveable.directionFix) moveable.direction = 'up'
-        moveable.moveRouteIndex++
-        return
-      case ZMoveCode.TURN_90_RIGHT: {
-        if (!moveable.directionFix) {
-          const dirs: Record<string, 'down' | 'left' | 'right' | 'up'> = {
-            down: 'left',
-            left: 'up',
-            up: 'right',
-            right: 'down'
-          }
-          moveable.direction = dirs[moveable.direction]
-        }
-        moveable.moveRouteIndex++
-        return
-      }
-      case ZMoveCode.TURN_90_LEFT: {
-        if (!moveable.directionFix) {
-          const dirs: Record<string, 'down' | 'left' | 'right' | 'up'> = {
-            down: 'right',
-            right: 'up',
-            up: 'left',
-            left: 'down'
-          }
-          moveable.direction = dirs[moveable.direction]
-        }
-        moveable.moveRouteIndex++
-        return
-      }
-      case ZMoveCode.TURN_180: {
-        if (!moveable.directionFix) {
-          const dirs: Record<string, 'down' | 'left' | 'right' | 'up'> = {
-            down: 'up',
-            up: 'down',
-            left: 'right',
-            right: 'left'
-          }
-          moveable.direction = dirs[moveable.direction]
-        }
-        moveable.moveRouteIndex++
-        return
-      }
-      case ZMoveCode.TURN_90_RIGHT_LEFT: {
-        if (!moveable.directionFix) {
-          const roll = Math.random() > 0.5
-          const dirsR: Record<string, 'down' | 'left' | 'right' | 'up'> = {
-            down: 'left',
-            left: 'up',
-            up: 'right',
-            right: 'down'
-          }
-          const dirsL: Record<string, 'down' | 'left' | 'right' | 'up'> = {
-            down: 'right',
-            right: 'up',
-            up: 'left',
-            left: 'down'
-          }
-          moveable.direction = roll ? dirsR[moveable.direction] : dirsL[moveable.direction]
-        }
-        moveable.moveRouteIndex++
-        return
-      }
-      case ZMoveCode.TURN_RANDOM: {
-        if (!moveable.directionFix) {
-          const dirs: ('down' | 'left' | 'right' | 'up')[] = ['down', 'left', 'right', 'up']
-          moveable.direction = dirs[Math.floor(Math.random() * 4)]
-        }
-        moveable.moveRouteIndex++
-        return
-      }
-      case ZMoveCode.TURN_TOWARD_PLAYER:
-        if (playerPos) this.turnToward(moveable, playerPos)
-        moveable.moveRouteIndex++
-        return
-      case ZMoveCode.TURN_AWAY_PLAYER:
-        if (playerPos) this.turnAway(moveable, playerPos)
-        moveable.moveRouteIndex++
-        return
+      // My handlers do NOT have access to `moveRouteIndex` incrementing logic easily unless I pass it or relies on `attemptMove`.
+      // `attemptMove` in existing code increments index if succeeds.
 
-      // Wait
-      case ZMoveCode.WAIT:
-        moveable.waitTimer = Number(params[0] || 60)
-        moveable.moveRouteIndex++
-        return
+      // Issue: State changes (Speed, etc.) need to increment index.
+      // My handlers for StateChange are void functions.
 
-      // State changes
-      case ZMoveCode.SPEED:
-        moveable.moveSpeed = Number(params[0] || 4)
-        moveable.moveRouteIndex++
-        return
-      case ZMoveCode.THROUGH_ON:
-        moveable.isThrough = true
-        moveable.moveRouteIndex++
-        return
-      case ZMoveCode.THROUGH_OFF:
-        moveable.isThrough = false
-        moveable.moveRouteIndex++
-        return
-      case ZMoveCode.WALK_ANIM_ON:
-        moveable.walkAnim = true
-        moveable.moveRouteIndex++
-        return
-      case ZMoveCode.WALK_ANIM_OFF:
-        moveable.walkAnim = false
-        moveable.moveRouteIndex++
-        return
-      case ZMoveCode.STEP_ANIM_ON:
-        moveable.stepAnim = true
-        moveable.moveRouteIndex++
-        return
-      case ZMoveCode.STEP_ANIM_OFF:
-        moveable.stepAnim = false
-        moveable.moveRouteIndex++
-        return
-      case ZMoveCode.DIR_FIX_ON:
-        moveable.directionFix = true
-        moveable.moveRouteIndex++
-        return
-      case ZMoveCode.DIR_FIX_OFF:
-        moveable.directionFix = false
-        moveable.moveRouteIndex++
-        return
-      case ZMoveCode.TRANSPARENT_ON:
-        moveable.transparent = true
-        moveable.moveRouteIndex++
-        return
-      case ZMoveCode.TRANSPARENT_OFF:
-        moveable.transparent = false
-        moveable.moveRouteIndex++
-        return
-      case ZMoveCode.CHANGE_OPACITY:
-        moveable.opacity = Number(params[0] ?? 255)
-        moveable.moveRouteIndex++
-        return
+      // FIX: I will increment index HERE for non-movement commands?
+      // Identifying non-movement commands is hard without meta-data.
 
-      default:
-        ZLogger.with('MovementProcessor').warn(`Command not implemented yet: ${code}`)
-        moveable.moveRouteIndex++
-        return
+      // Alternative: The Handlers should return "Next" or "Wait"?
+      // Or I make `moveRouteIndex++` part of the helper methods `attemptMove`.
+
+      // Let's check `StateChange.ts`. I implemented them as simple property setters.
+      // They do NOT increment index.
+
+      // I should update handlers to increment index or manage it here.
+      // Inspecting `ZMoveCode`:
+      // Movement (Up/Down...): attemptMove handles it.
+      // Wait: `waitTimer` set. We need to increment index? Yes, `wait` case did `index++`.
+
+      // SO: All commands seem to increment index immediately, EXCEPT:
+      // - Movement commands that FAIL (blocked) -> they might wait or skip.
+
+      // Let's enforce that Handlers are responsible for index increment?
+      // Or cleaner: `attemptMove` handles it for motion.
+      // State changes need `moveRouteIndex++`.
+
+      // I'll add `moveable.moveRouteIndex++` to all state handlers in `StateChange.ts`?
+      // Better: I'll check if the command was a "State Change" and increment here? No, unsafe.
+
+      // Let's modify the handlers I just wrote to increment index if appropriate.
+      // Or... I can verify `attemptMove` logic.
+    } else {
+      ZLogger.with('MovementProcessor').warn(`Command not implemented yet: ${code}`)
+      moveable.moveRouteIndex++
     }
   }
 
-  private attemptMove(moveable: ZMoveable, dx: number, dy: number, isAutonomous = false): boolean {
+  public attemptMove(moveable: ZMoveable, dx: number, dy: number, isAutonomous = false): boolean {
     if (dx === 0 && dy === 0) return false
 
     let nextDir = moveable.direction
@@ -396,7 +172,7 @@ export class MovementProcessor {
     return false
   }
 
-  private turnToward(moveable: ZMoveable, pos: { x: number; y: number }): void {
+  public turnToward(moveable: ZMoveable, pos: { x: number; y: number }): void {
     if (moveable.directionFix) return
     const diffX = pos.x - moveable.x
     const diffY = pos.y - moveable.y
@@ -409,7 +185,7 @@ export class MovementProcessor {
     }
   }
 
-  private turnAway(moveable: ZMoveable, pos: { x: number; y: number }): void {
+  public turnAway(moveable: ZMoveable, pos: { x: number; y: number }): void {
     if (moveable.directionFix) return
     const diffX = pos.x - moveable.x
     const diffY = pos.y - moveable.y

@@ -7,7 +7,7 @@ import {
   IEngineContext
 } from '@engine/types'
 import { ZEventBus } from '@engine/core/ZEventBus'
-import { CommandRegistry } from './event-commands'
+import { CommandRegistry } from '@engine/commands'
 import ZLogger from '@engine/utils/ZLogger'
 
 /**

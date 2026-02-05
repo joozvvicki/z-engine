@@ -5,7 +5,7 @@ import {
   ZEngineSignal,
   IEngineContext
 } from '@engine/types'
-import { InterpreterUtils } from './InterpreterUtils'
+import { InterpreterUtils } from '../InterpreterUtils'
 
 /**
  * Command 102: Show Choices

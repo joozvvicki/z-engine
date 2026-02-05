@@ -1,5 +1,5 @@
 import { IEngineContext, ZCommandProcessor, ZCommandResult, ZEventInterpreter } from '@engine/types'
-import { InterpreterUtils } from './InterpreterUtils'
+import { InterpreterUtils } from '../InterpreterUtils'
 
 /**
  * Command 111: Conditional Branch

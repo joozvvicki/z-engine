@@ -1,5 +1,10 @@
-import { ZCommandProcessor, ZCommandResult, ZEventInterpreter } from '@engine/types'
-import { IEngineContext } from '@engine/managers'
+import {
+  IEngineContext,
+  ZAudioConfig,
+  ZCommandProcessor,
+  ZCommandResult,
+  ZEventInterpreter
+} from '@engine/types'
 
 /**
  * Command 241: Play BGM
@@ -9,9 +14,9 @@ export const commandPlayBGM: ZCommandProcessor = (
   _interpreter: ZEventInterpreter,
   engine: IEngineContext
 ): ZCommandResult => {
-  const config = params[0]
+  const config = params[0] as ZAudioConfig
 
-  audioManager.playBgm(config)
+  engine.audio.playBgm(config)
 
   return 'continue'
 }
@@ -26,7 +31,7 @@ export const commandFadeOutBGM: ZCommandProcessor = (
 ): ZCommandResult => {
   const duration = (params[0] as number) || 1 // seconds
 
-  audioManager.fadeOutBgm(duration)
+  engine.audio.fadeOutBgm(duration)
 
   return 'continue'
 }
@@ -39,9 +44,9 @@ export const commandPlaySE: ZCommandProcessor = (
   _interpreter: ZEventInterpreter,
   engine: IEngineContext
 ): ZCommandResult => {
-  const config = params[0]
+  const config = params[0] as ZAudioConfig
 
-  audioManager.playSe(config)
+  engine.audio.playSe(config)
 
   return 'continue'
 }
