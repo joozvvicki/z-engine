@@ -96,6 +96,42 @@ export class SceneMenu extends ZScene {
     // Input Handling via Engine Context
     if (this.engine.input.isActionJustPressed(ZInputAction.CANCEL)) {
       this.closeMenu()
+    } else if (this.engine.input.isActionJustPressed(ZInputAction.OK)) {
+      this.processCommand()
+    }
+  }
+
+  private processCommand(): void {
+    if (!this.commandWindow) return
+    const index = this.commandWindow.index
+
+    // ['Przedmioty', 'Status', 'Zapisz', 'Koniec Gry']
+    switch (index) {
+      case 0:
+        ZLogger.with('SceneMenu').info('Items selected (Not implemented)')
+        break
+      case 1:
+        ZLogger.with('SceneMenu').info('Status selected (Not implemented)')
+        break
+      case 2:
+        this.onSave()
+        break
+      case 3:
+        this.engine.scenes.pop()
+        // Or go to Title
+        break
+    }
+  }
+
+  private async onSave(): Promise<void> {
+    ZLogger.with('SceneMenu').info('Saving game...')
+    // Save to slot 1 for now
+    const success = await this.engine.save.saveGame(1)
+    if (success) {
+      // this.engine.audio.playSe('Audio/Se/Save.ogg') // Assuming standard path, might need adjustment
+      this.closeMenu()
+    } else {
+      // this.engine.audio.playSe('Audio/Se/Buzzer.ogg')
     }
   }
 

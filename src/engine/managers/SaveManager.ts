@@ -51,12 +51,12 @@ export class SaveManager {
     }
   }
 
-  public async loadGame(slotId: number): Promise<boolean> {
-    if (!this.dataProvider) return false
+  public async loadGame(slotId: number): Promise<GameSaveFile | null> {
+    if (!this.dataProvider) return null
 
     try {
       const data = await this.dataProvider.loadGame(slotId)
-      if (!data) return false
+      if (!data) return null
 
       // 1. Load System State
       this.gameState.loadSaveData(data.system)
@@ -67,15 +67,16 @@ export class SaveManager {
       }
 
       // 3. Request Transition
+      // Keep this for other systems, but SceneTitle will handle navigation manually too.
       this.bus.emit(ZEngineSignal.MapWillLoad, {
         mapId: data.player.mapId,
         map: null as any
       })
 
-      return true
+      return data
     } catch (e) {
       console.error('Failed to load game', e)
-      return false
+      return null
     }
   }
 

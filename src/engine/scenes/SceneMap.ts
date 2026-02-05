@@ -34,6 +34,7 @@ export class SceneMap extends ZScene {
       if (!map) throw new Error(`Map with id ${mapOrId} not found.`)
 
       this.currentMap = map
+      this.engine.map.setMap(map)
       this.engine.eventBus.emit(ZEngineSignal.MapWillLoad, { mapId: map.id, map })
 
       // 2. Load Tileset Configs

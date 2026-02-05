@@ -8,6 +8,7 @@ import { IEngineContext, ZInputAction } from '@engine/types'
 export class SceneTitle extends ZScene {
   private commandWindow: Window_TitleCommand | null = null
   private isStarting: boolean = false
+  private hasSave: boolean = false
 
   constructor(engine: IEngineContext) {
     super(engine)
@@ -55,13 +56,17 @@ export class SceneTitle extends ZScene {
       this.commandWindow = new Window_TitleCommand(0, 0, w, h)
       this.commandWindow.windowSkin = skin
       this.commandWindow.setChoices(choices)
+      // Note: Window_Choice doesn't support disabling items yet visually,
+      // but we can handle the logic selection.
 
       this.commandWindow.x = centerX - w / 2
       this.commandWindow.y = centerY + h
 
       this.container.addChild(this.commandWindow)
       this.commandWindow.open()
-      this.commandWindow.select(0)
+
+      // Default to "Continue" if save exists
+      this.commandWindow.select(this.hasSave ? 1 : 0)
     }
 
     ZLogger.with('SceneTitle').log('SceneTitle Started')
@@ -89,14 +94,35 @@ export class SceneTitle extends ZScene {
     }
   }
 
-  private onCommandOk(): void {
+  private async onCommandOk(): Promise<void> {
     if (!this.commandWindow) return
     const index = this.commandWindow.index
 
     if (index === 0) {
       this.startGame()
+    } else if (index === 1) {
+      await this.continueGame()
     } else {
       ZLogger.with('SceneTitle').log(`Selected option ${index} (Not implemented)`)
+    }
+  }
+
+  private async continueGame(): Promise<void> {
+    ZLogger.with('SceneTitle').log('Attempting to load game...')
+    const saveData = await this.engine.save.loadGame(1)
+
+    if (saveData) {
+      ZLogger.with('SceneTitle').log('Game loaded successfully')
+
+      const { mapId: loadedMapId } = saveData.player
+
+      // Fallback for potentially broken saves (e.g. 0)
+      const targetMapId = loadedMapId > 0 ? loadedMapId : 1
+
+      this.engine.scenes.goto(SceneMap, { mapOrId: targetMapId })
+    } else {
+      ZLogger.with('SceneTitle').warn('Failed to load game')
+      // this.engine.audio.playSe('Audio/Se/Buzzer.ogg')
     }
   }
 
