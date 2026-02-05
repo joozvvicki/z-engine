@@ -58,16 +58,16 @@ export const MoveRouteRegistry: Record<string, MoveCommandHandler> = {
   [ZMoveCode.TRANSPARENT_OFF]: State.transparentOff,
   [ZMoveCode.CHANGE_OPACITY]: State.changeOpacity,
 
-  [ZMoveCode.CHANGE_GRAPHIC]: (_sys, _m, _p) => {
+  [ZMoveCode.CHANGE_GRAPHIC]: () => {
     /* TODO: visual update needs signal or direct access? */
   },
-  [ZMoveCode.CHANGE_BLEND]: (_sys, _m, _p) => {
+  [ZMoveCode.CHANGE_BLEND]: () => {
     /* TODO */
   },
-  [ZMoveCode.PLAY_SE]: (_sys, _m, _p) => {
+  [ZMoveCode.PLAY_SE]: () => {
     /* TODO: Audio needs ZEngine reference usually... */
   },
-  [ZMoveCode.SCRIPT]: (_sys, _m, _p) => {
+  [ZMoveCode.SCRIPT]: () => {
     /* TODO */
   }
 }

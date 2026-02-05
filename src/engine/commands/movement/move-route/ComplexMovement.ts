@@ -57,12 +57,13 @@ export const moveAwayPlayer = (
   sys.turnAway(m, playerPos)
 }
 
-export const jump = (sys: MovementProcessor, m: ZMoveable, params: unknown[]): void => {
+export const jump = (_sys: MovementProcessor, m: ZMoveable, params: unknown[]): void => {
   const jx = Number(params[0] || 0)
   const jy = Number(params[1] || 0)
   m.targetX = m.x + jx
   m.targetY = m.y + jy
   m.isMoving = true
+  m.moveRouteIndex++
 }
 
 export const stepForward = (sys: MovementProcessor, m: ZMoveable): void => {
@@ -83,10 +84,5 @@ export const stepBackward = (sys: MovementProcessor, m: ZMoveable): void => {
   else if (m.direction === 'left') sdx = 1
   else sdx = -1
 
-  const canPass = sys.checkPassage(m.x, m.y, m.x + sdx, m.y + sdy, { isThrough: m.isThrough })
-  if (canPass) {
-    m.targetX = m.x + sdx
-    m.targetY = m.y + sdy
-    m.isMoving = true
-  }
+  sys.attemptMove(m, sdx, sdy)
 }
