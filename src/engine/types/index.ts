@@ -248,6 +248,8 @@ export interface ZMap {
   name: string
   width: number
   height: number
+  tileWidth?: number
+  tileHeight?: number
   layers: Record<
     ZLayer,
     {
@@ -415,7 +417,9 @@ export enum ZEngineSignal {
   EventExecutionFinished = 'event:execution-finished',
   MoveRouteFinished = 'event:move-route-finished',
   MenuRequested = 'ui:menu-requested',
-  MenuClosed = 'ui:menu-closed'
+  MenuClosed = 'ui:menu-closed',
+  SceneTransitionStarted = 'scene:transition-started',
+  SceneTransitionFinished = 'scene:transition-finished'
 }
 
 export interface ZMenuParams {
@@ -466,6 +470,8 @@ export interface ZSignalData {
   [ZEngineSignal.MoveRouteFinished]: { eventId: string }
   [ZEngineSignal.MenuRequested]: ZMenuParams
   [ZEngineSignal.MenuClosed]: Record<string, never>
+  [ZEngineSignal.SceneTransitionStarted]: Record<string, never>
+  [ZEngineSignal.SceneTransitionFinished]: Record<string, never>
 }
 
 export enum ZInputAction {

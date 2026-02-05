@@ -41,6 +41,7 @@ export class SceneManager extends ZManager {
     options: { fade?: boolean } = {}
   ): Promise<void> {
     this._isTransitioning = true
+    this.bus.emit(ZEngineSignal.SceneTransitionStarted, {})
     try {
       const fadeEnabled = options.fade ?? true
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -93,6 +94,7 @@ export class SceneManager extends ZManager {
       }
     } finally {
       this._isTransitioning = false
+      this.bus.emit(ZEngineSignal.SceneTransitionFinished, {})
     }
   }
 
@@ -105,6 +107,7 @@ export class SceneManager extends ZManager {
     options: { fade?: boolean } = {}
   ): Promise<void> {
     this._isTransitioning = true
+    this.bus.emit(ZEngineSignal.SceneTransitionStarted, {})
     try {
       const fadeEnabled = options.fade ?? true
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -150,6 +153,7 @@ export class SceneManager extends ZManager {
       this._skipNextUpdate = true
     } finally {
       this._isTransitioning = false
+      this.bus.emit(ZEngineSignal.SceneTransitionFinished, {})
     }
   }
 
@@ -163,6 +167,7 @@ export class SceneManager extends ZManager {
     }
 
     this._isTransitioning = true
+    this.bus.emit(ZEngineSignal.SceneTransitionStarted, {})
     try {
       const fadeEnabled = options.fade ?? true
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -211,6 +216,7 @@ export class SceneManager extends ZManager {
       this._skipNextUpdate = true
     } finally {
       this._isTransitioning = false
+      this.bus.emit(ZEngineSignal.SceneTransitionFinished, {})
     }
   }
 

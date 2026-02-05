@@ -2,7 +2,7 @@ import { ZLayer } from '@engine/types'
 import { ZSystem, SystemMode } from '@engine/core/ZSystem'
 import { ServiceLocator } from '@engine/core/ServiceLocator'
 import type { PlayerSystem } from './PlayerSystem'
-import type { EntityRenderSystem } from './EntityRenderSystem'
+import type { EventSystem } from './EventSystem'
 
 export class PhysicsSystem extends ZSystem {
   constructor(services: ServiceLocator) {
@@ -31,17 +31,13 @@ export class PhysicsSystem extends ZSystem {
     }
 
     // Check Events (Collision Priority)
-    // If an event is at (x,y) and is NOT through, it blocks regardless of tiles.
-    // FIX: Only block if the event itself is NOT through
-    const blockingEvent = map.events.find((e) => e.x === x && e.y === y && !e.isThrough)
-
-    // If there is a blocking event, AND we (the mover) are not phantom, collision occurs.
-    if (blockingEvent && !options?.isThrough) return false
-
-    // Check moving event targets (via EntityRenderSystem)
+    // We delegate ALL event collision checks to EventSystem to ensure a single source of truth (Runtime State).
     if (!options?.isThrough) {
-      const entitySystem = this.services.get('EntityRenderSystem') as unknown as EntityRenderSystem
-      if (entitySystem && entitySystem.isTileOccupiedByMovingEntity(x, y)) {
+      const eventSystem = this.services.get('EventSystem') as unknown as EventSystem
+      // Note: We don't exclude 'self' here because we don't know our own ID.
+      // However, isOccupied checks coordinate 'x,y'.
+      // If we are at (0,0) and check (0,1), we won't collide with ourselves.
+      if (eventSystem && eventSystem.isOccupied(x, y)) {
         return false
       }
     }

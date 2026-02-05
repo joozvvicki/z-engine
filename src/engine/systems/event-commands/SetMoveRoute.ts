@@ -21,7 +21,7 @@ export const commandSetMoveRoute: ZCommandProcessor = (
   const route = params[1] as ZMoveCommand[]
   const wait = params[2] as boolean
   const repeat = params[3] as boolean
-  const through = params[4] as boolean
+  const skip = params[4] as boolean
 
   let eventId: string | null = null
   if (targetId === 0 || targetId === '0') {
@@ -38,8 +38,8 @@ export const commandSetMoveRoute: ZCommandProcessor = (
       moveRoute: route,
       moveType: 'custom',
       moveRouteRepeat: repeat,
-      moveRouteSkip: false,
-      isThrough: through
+      moveRouteSkip: skip
+      // isThrough: ... // DO NOT SET THIS! Let the route commands handle it.
     })
 
     if (wait) {
