@@ -69,7 +69,6 @@ export class EventSystem implements IObstacleProvider {
         const state = this.eventManager.getEventState(result.event.id)
         if (state && state.isMoving) return
 
-        this.eventManager.savePreInteractionDirection(result.event.id)
         this.startEvent(result.event, this.playerPos)
         return
       }
@@ -85,7 +84,6 @@ export class EventSystem implements IObstacleProvider {
         const state = this.eventManager.getEventState(result2.event.id)
         if (state && state.isMoving) return
 
-        this.eventManager.savePreInteractionDirection(result2.event.id)
         this.startEvent(result2.event, this.playerPos)
       }
     })
@@ -141,6 +139,9 @@ export class EventSystem implements IObstacleProvider {
   public startEvent(event: ZEvent, triggererPos?: { x: number; y: number }): void {
     const page = this.eventManager.getActivePage(event)
     if (!page) return
+
+    // Prevent freeze on empty events
+    if (!page.list || page.list.length === 0) return
 
     this.eventManager.savePreInteractionDirection(event.id)
     this.interpreterSystem.startInterpreter(page, event.id)
