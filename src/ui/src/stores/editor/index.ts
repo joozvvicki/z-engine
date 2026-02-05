@@ -32,6 +32,7 @@ export const useEditorStore = defineStore('editor', () => {
   const cursorX = ref(0)
   const cursorY = ref(1)
   const renamingId = ref<number | null>(null)
+  const isEventEditorOpen = ref(false)
 
   // Stan UI Edytora
   const activeTab = useLocalStorage('Z_ActiveTab', 'A')
@@ -374,6 +375,7 @@ export const useEditorStore = defineStore('editor', () => {
     systemStartingParty,
     systemSounds,
     isProjectLoaded,
-    mapAlignment
+    mapAlignment,
+    isEventEditorOpen
   }
 })

@@ -69,6 +69,8 @@ const actions = [
 ]
 
 const handleKeydown = (e: KeyboardEvent): void => {
+  if (store.isEventEditorOpen) return
+
   if (e.ctrlKey || e.metaKey) {
     if (e.shiftKey) {
       switch (e.key) {
@@ -132,24 +134,26 @@ const handleKeydown = (e: KeyboardEvent): void => {
           store.setTool(ZTool.brush)
           break
         case '2':
-          store.setTool(ZTool.bucket)
-          break
-        case '3':
-          store.setTool(ZTool.rectangle)
-          break
-        case '4':
-          store.setTool(ZTool.circle)
-          break
-        case '5':
-          store.setTool(ZTool.event)
-          break
-        case '6':
-          store.setTool(ZTool.eraser)
-          break
         case 's':
         case 'S':
           store.setTool(ZTool.select)
           break
+        case '3':
+          store.setTool(ZTool.bucket)
+          break
+        case '4':
+          store.setTool(ZTool.rectangle)
+          break
+        case '5':
+          store.setTool(ZTool.circle)
+          break
+        case '6':
+          store.setTool(ZTool.event)
+          break
+        case '7':
+          store.setTool(ZTool.eraser)
+          break
+
         case 'Escape':
           store.setSelectionCoords(null)
           // Reset selection pattern if it exists (stop stamping)

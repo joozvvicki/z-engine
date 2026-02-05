@@ -313,10 +313,12 @@ const handleKeydown = (e: KeyboardEvent): void => {
 
 onMounted(() => {
   initialize()
+  store.isEventEditorOpen = true
   isLocked.value = true
   window.addEventListener('keydown', handleKeydown)
 })
 onUnmounted(() => {
+  store.isEventEditorOpen = false
   isLocked.value = false
   window.removeEventListener('keydown', handleKeydown)
 })
