@@ -88,6 +88,13 @@ export class GhostSystem {
     this.dirty = true
   }
 
+  public setTool(tool: ZTool): void {
+    if (this.currentTool !== tool) {
+      this.currentTool = tool
+      this.dirty = true
+    }
+  }
+
   public updateShape(
     start: { x: number; y: number },
     end: { x: number; y: number },
@@ -524,6 +531,9 @@ export class GhostSystem {
   }
 
   private renderExistingEvents(): void {
+    // Only render event placeholders if we are in Event Tool mode
+    if (this.currentTool !== ZTool.event) return
+
     const map = this.mapManager.currentMap
     if (!map || !map.events) return
 

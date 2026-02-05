@@ -247,6 +247,16 @@ export class ZEngine implements IEngineContext {
       this.grid.setVisible(true)
     }
   }
+
+  /**
+   * Propagates tool changes to editor-mode systems (like GhostSystem).
+   */
+  public setTool(tool: import('@engine/types').ZTool): void {
+    if (this.ghost) {
+      this.ghost.setTool(tool)
+    }
+  }
+
   /**
    * Sets the DataProvider and propagates it to managers that need explicit reference.
    * Note: SceneManager accesses it directly via EngineContext, so strict propagation there isn't needed,

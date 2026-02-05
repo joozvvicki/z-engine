@@ -254,7 +254,10 @@ export const useEngine = (
     // 1. Grid
     syncGridSize(engine.value)
 
-    // 2. Layers & Markers
+    // 2. Ghost Tool State
+    engine.value.setTool(store.currentTool as ZTool)
+
+    // 3. Layers & Markers
     if (store.currentTool === ZTool.event) {
       engine.value.renderer.updateLayerDimming(null, true)
       engine.value.renderer.setEventMarkersVisible(true)
