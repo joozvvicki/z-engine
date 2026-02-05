@@ -5,8 +5,6 @@ import { useEditorStore } from '@ui/stores/editor'
 import { useViewport } from './useViewport'
 import { useEditorTools } from './useEditorTools'
 import { ZTool } from '@engine/types'
-import { GridSystem } from '@engine/systems/GridSystem'
-import { GhostSystem } from '@engine/systems/GhostSystem'
 
 export const useEditorInput = (
   engine: Ref<ZEngine | null>,
@@ -59,7 +57,7 @@ export const useEditorInput = (
     if (event.button !== 0 || !engine.value) return
     if (store.isTestMode) return
     if (engine.value) {
-      target.value = engine.value.services.get(GridSystem)?.getTileCoords(event)
+      target.value = engine.value.grid.getTileCoords(event)
     }
 
     // Alt + Click -> Pick Tile
@@ -91,7 +89,7 @@ export const useEditorInput = (
     }
     if (!engine.value) return
 
-    target.value = engine.value.services.get(GridSystem)?.getTileCoords(event)
+    target.value = engine.value.grid.getTileCoords(event)
     const tool = store.currentTool
 
     if (target.value) {
@@ -105,16 +103,24 @@ export const useEditorInput = (
       shapeStartPos.value
     ) {
       if (target.value)
-        engine.value.services
-          .get(GhostSystem)
-          ?.updateShape(shapeStartPos.value, target.value, tool, store.selection, store.activeLayer)
+        engine.value.ghost.updateShape(
+          shapeStartPos.value,
+          target.value,
+          tool,
+          store.selection,
+          store.activeLayer
+        )
     } else {
       if (target.value) {
-        engine.value.services
-          .get(GhostSystem)
-          ?.update(target.value.x, target.value.y, store.selection, tool, store.activeLayer)
+        engine.value.ghost.update(
+          target.value.x,
+          target.value.y,
+          store.selection,
+          tool,
+          store.activeLayer
+        )
       } else {
-        engine.value.services.get(GhostSystem)?.hide()
+        engine.value.ghost.hide()
       }
 
       if (
@@ -144,7 +150,7 @@ export const useEditorInput = (
     }
     isPointerDown.value = false
     shapeStartPos.value = null
-    engine.value?.services.get(GhostSystem)?.hide()
+    engine.value?.ghost.hide()
   }
 
   const onWheel = (event: WheelEvent): void => {
@@ -156,7 +162,7 @@ export const useEditorInput = (
   watch(
     () => store.selectionCoords,
     () => {
-      const ghostSystem = engine.value?.services.get(GhostSystem)
+      const ghostSystem = engine.value?.ghost
       if (engine.value && ghostSystem && store.selectionCoords) {
         ghostSystem.setSelectionBox(store.selectionCoords)
       } else if (engine.value && ghostSystem) {
@@ -169,7 +175,7 @@ export const useEditorInput = (
   watch(
     () => [store.selectedEventId, store.activeMap?.events],
     () => {
-      const ghostSystem = engine.value?.services.get(GhostSystem)
+      const ghostSystem = engine.value?.ghost
       if (engine.value && ghostSystem && store.selectedEventId && store.activeMap) {
         const ev = store.activeMap.events.find((e) => e.id === store.selectedEventId)
         if (ev) {
@@ -188,15 +194,13 @@ export const useEditorInput = (
     [() => store.selection, () => store.currentTool],
     () => {
       if (engine.value && target.value) {
-        engine.value.services
-          .get(GhostSystem)
-          ?.update(
-            target.value.x,
-            target.value.y,
-            store.selection,
-            store.currentTool,
-            store.activeLayer
-          )
+        engine.value.ghost.update(
+          target.value.x,
+          target.value.y,
+          store.selection,
+          store.currentTool,
+          store.activeLayer
+        )
       }
     },
     { deep: true }

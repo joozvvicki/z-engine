@@ -3,9 +3,6 @@ import { ZEngine } from '@engine/core/ZEngine'
 import { useEditorStore } from '@ui/stores/editor'
 import { ZTool } from '@engine/types'
 import type { FederatedPointerEvent } from '@engine/utils/pixi'
-import { ToolManager } from '@engine/managers/ToolManager'
-import { GridSystem } from '@engine/systems/GridSystem'
-import { GhostSystem } from '@engine/systems/GhostSystem'
 
 export const useEditorTools = (): {
   shapeStartPos: Ref<{ x: number; y: number } | null>
@@ -34,7 +31,7 @@ export const useEditorTools = (): {
     isCommit = false
   ): void => {
     if (!engine || !store.selection || !store.activeMap) return
-    const gridSystem = engine.services.get(GridSystem)
+    const gridSystem = engine.grid
     if (!gridSystem) return
     const target = gridSystem.getTileCoords(event)
 
@@ -52,7 +49,7 @@ export const useEditorTools = (): {
     const isStacking = event.shiftKey
 
     if (tool === ZTool.bucket && isCommit) {
-      engine.services.require(ToolManager).bucketFill(target, store.selection, layer, isStacking)
+      engine.tools.bucketFill(target, store.selection, layer, isStacking)
       return
     }
 
@@ -66,7 +63,7 @@ export const useEditorTools = (): {
           const hasMoved = dragStartPos.value.x !== target.x || dragStartPos.value.y !== target.y
           if (hasMoved) {
             store.moveEvent(draggingEventId.value, target.x, target.y)
-            const ghost = engine.services.get(GhostSystem)
+            const ghost = engine.ghost
             ghost?.setSelectedEventPos({ x: target.x, y: target.y })
             ghost?.setDirty()
           } else {
@@ -86,7 +83,7 @@ export const useEditorTools = (): {
         }
         draggingEventId.value = null
         dragStartPos.value = null
-        engine.services.get(GhostSystem)?.setDraggingEventId(null)
+        engine.ghost.setDraggingEventId(null)
       } else {
         // Pointer Down or Move
         if (!draggingEventId.value && existing) {
@@ -94,15 +91,15 @@ export const useEditorTools = (): {
           draggingEventId.value = existing.id
           dragStartPos.value = { x: target.x, y: target.y }
           store.selectedEventId = existing.id
-          const ghost = engine.services.get(GhostSystem)
-          ghost?.setDraggingEventId(existing.id)
-          ghost?.setSelectedEventPos({ x: target.x, y: target.y })
-          ghost?.setVisible(true)
+          const ghost = engine.ghost
+          ghost.setDraggingEventId(existing.id)
+          ghost.setSelectedEventPos({ x: target.x, y: target.y })
+          ghost.setVisible(true)
         }
 
         if (draggingEventId.value) {
           // Update Ghost during drag
-          const ghost = engine.services.require(GhostSystem)
+          const ghost = engine.ghost
           ghost.update(target.x, target.y, store.selection, tool, layer)
           ghost.setSelectedEventPos({ x: target.x, y: target.y })
         }
@@ -111,16 +108,14 @@ export const useEditorTools = (): {
     }
 
     if ((tool === ZTool.rectangle || tool === ZTool.circle) && isCommit && shapeStartPos.value) {
-      engine.services
-        .require(ToolManager)
-        .drawShape(
-          shapeStartPos.value,
-          target,
-          tool as ZTool.rectangle | ZTool.circle,
-          store.selection,
-          layer,
-          isStacking
-        )
+      engine.tools.drawShape(
+        shapeStartPos.value,
+        target,
+        tool as ZTool.rectangle | ZTool.circle,
+        store.selection,
+        layer,
+        isStacking
+      )
       return
     }
 
@@ -138,9 +133,7 @@ export const useEditorTools = (): {
 
     // Default brush/eraser behavior
     if ((tool === ZTool.brush || tool === ZTool.eraser) && !shapeStartPos.value) {
-      engine.services
-        .require(ToolManager)
-        .brush(target, store.selection, layer, isStacking, tool === ZTool.eraser)
+      engine.tools.brush(target, store.selection, layer, isStacking, tool === ZTool.eraser)
       return
     }
   }
@@ -157,7 +150,7 @@ export const useEditorTools = (): {
 
     for (let dy = 0; dy < h; dy++) {
       for (let dx = 0; dx < w; dx++) {
-        engine.services.require(ToolManager).applyTile(x + dx, y + dy, null, false, layer)
+        engine.tools.applyTile(x + dx, y + dy, null, false, layer)
       }
     }
 

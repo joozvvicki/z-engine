@@ -6,7 +6,6 @@ import EventEditor from './modal/EventEditor.vue'
 import ZContextMenu from './ZContextMenu.vue'
 import { useEngine } from '@ui/composables/useEngine'
 import { useEditorInput } from '@ui/composables/useEditorInput'
-import { GhostSystem } from '@engine/systems/GhostSystem'
 
 const canvasContainer = ref<HTMLElement | null>(null)
 const store = useEditorStore()
@@ -94,7 +93,7 @@ onMounted(async () => {
     engine.value.app.stage.on('pointerdown', onPointerDown)
     engine.value.app.stage.on('pointermove', onPointerMove)
     engine.value.app.stage.on('pointerup', onPointerUp)
-    engine.value.app.stage.on('pointerleave', () => engine.value?.services.get(GhostSystem)?.hide())
+    engine.value.app.stage.on('pointerleave', () => engine.value?.ghost.hide())
   }
 
   // Handle Deletion
