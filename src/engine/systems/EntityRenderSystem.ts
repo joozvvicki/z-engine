@@ -96,6 +96,12 @@ export class EntityRenderSystem {
         this.eventSystem.setEventDirection(event.id, char.direction)
       }
 
+      // Bind to Event Runtime State
+      const state = this.eventSystem.getEventState(event.id)
+      if (state) {
+        char.bindState(state)
+      }
+
       this.container.addChild(char.container)
       this.eventCharacters.set(event.id, char)
     }
@@ -139,6 +145,10 @@ export class EntityRenderSystem {
       h: 1
     })
     this.playerCharacter.autoUpdateMovement = false
+
+    // Bind Player Sprite to Player System (which implements ZMoveable)
+    this.playerCharacter.bindState(this.playerSystem)
+
     this.container.addChild(this.playerCharacter.container)
   }
 
@@ -185,28 +195,13 @@ export class EntityRenderSystem {
     })
 
     // Sync PlayerCharacter with PlayerSystem
-    this.playerCharacter.realX = this.playerSystem.realX
-    this.playerCharacter.realY = this.playerSystem.realY
-    this.playerCharacter.isMoving = this.playerSystem.isMoving
-    this.playerCharacter.direction = this.playerSystem.direction
-    this.playerCharacter.moveSpeed = this.playerSystem.moveSpeed
-    this.playerCharacter.walkAnim = this.playerSystem.walkAnim
-    this.playerCharacter.stepAnim = this.playerSystem.stepAnim
-    this.playerCharacter.transparent = this.playerSystem.transparent
-    this.playerCharacter.opacity = this.playerSystem.opacity
+    // Sync PlayerCharacter with PlayerSystem
+    // Note: Data binding handles property sync now.
     this.playerCharacter.update(delta)
 
-    this.eventCharacters.forEach((char, eventId) => {
+    this.eventCharacters.forEach((char) => {
       // Sync with EventSystem State
-      const state = this.eventSystem.getEventState(eventId)
-      if (state) {
-        char.realX = state.realX
-        char.realY = state.realY
-        char.isMoving = state.isMoving
-        char.direction = state.direction
-        char.opacity = state.opacity ?? 255
-        char.transparent = state.transparent ?? false
-      }
+      // Note: Data binding handles property sync now.
 
       char.update(delta)
     })

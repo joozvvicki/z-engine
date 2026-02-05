@@ -1,5 +1,5 @@
 import { Container, Sprite, Texture, Rectangle } from '@engine/utils/pixi'
-import { ZMoveable } from '@engine/core/MovementProcessor'
+import { ZMoveable } from '@engine/types'
 import { ZEventGraphic, ZMoveCommand } from '@engine/types'
 import { SpriteUtils } from '@engine/utils/SpriteUtils'
 import { TextureManager } from '@engine/managers/TextureManager'
@@ -57,6 +57,8 @@ export class CharacterSprite implements ZMoveable {
   public isInteracting: boolean = false
   public autoUpdateMovement: boolean = true
 
+  private _boundState: ZMoveable | null = null
+
   constructor(id: string, textureManager: TextureManager, tileSize: number) {
     this.id = id
     this._textureManager = textureManager
@@ -66,6 +68,10 @@ export class CharacterSprite implements ZMoveable {
     this.container.label = `Character:${id}`
     this._mainSprite = new Sprite()
     this.container.addChild(this._mainSprite)
+  }
+
+  public bindState(state: ZMoveable): void {
+    this._boundState = state
   }
 
   private _currentGraphic: ZEventGraphic | null = null
@@ -169,6 +175,10 @@ export class CharacterSprite implements ZMoveable {
    * Updates movement interpolation and animation.
    */
   public update(delta: number): void {
+    if (this._boundState) {
+      this.syncFromState()
+    }
+
     if (this.isMoving && this.autoUpdateMovement) {
       this.updateMovement(delta)
     }
@@ -177,9 +187,39 @@ export class CharacterSprite implements ZMoveable {
     this.updateVisualPosition()
   }
 
+  private syncFromState(): void {
+    if (!this._boundState) return
+    const s = this._boundState
+
+    // Sync Movement Properties
+    this.x = s.x
+    this.y = s.y
+    this.targetX = s.targetX ?? s.x
+    this.targetY = s.targetY ?? s.y
+    this.realX = s.realX ?? s.x * this._tileSize
+    this.realY = s.realY ?? s.y * this._tileSize
+    this.isMoving = s.isMoving
+    this.direction = s.direction
+
+    // Sync Visual Options
+    this.moveSpeed = s.moveSpeed
+    this.opacity = s.opacity ?? 255
+    this.transparent = s.transparent ?? false
+    this.walkAnim = s.walkAnim ?? true
+    this.stepAnim = s.stepAnim ?? false
+    this.directionFix = s.directionFix ?? false
+    this.isThrough = s.isThrough
+  }
+
   private _lastFrame: { x: number; y: number; w: number; h: number; source: unknown } | null = null
 
   private updateMovement(delta: number): void {
+    // If bound, we might trust the source for realX/Y if it simulates physics?
+    if (this._boundState) {
+      return
+    }
+
+    // Legacy / Unbound fallback (e.g. Player if not fully unified yet, or decorative sprites)
     // RPG Maker style speed: Speed 4 = 1 tile per 32 frames (at 60fps)
     const baseSpeed = Math.pow(2, this.moveSpeed - 4) * (this._tileSize / 32)
     const speed = (baseSpeed * delta) / 16.66
