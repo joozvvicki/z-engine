@@ -1,36 +1,6 @@
-import { ZMoveCode, type ZMoveCommand } from '@engine/types'
+import { ZMoveCode, type ZMoveable } from '@engine/types'
 import ZLogger from '@engine/utils/ZLogger'
 import type { IPhysicsSystem } from '@engine/interfaces/IPhysicsSystem'
-
-export interface ZMoveable {
-  id: string
-  x: number
-  y: number
-  direction: 'down' | 'left' | 'right' | 'up'
-  isMoving: boolean
-  moveSpeed: number
-  moveFrequency: number
-  moveRoute: ZMoveCommand[]
-  moveRouteIndex: number
-  moveRouteRepeat: boolean
-  moveRouteSkip: boolean
-  moveType: 'fixed' | 'random' | 'approach' | 'custom'
-  isThrough: boolean
-  waitTimer: number
-
-  startX?: number
-  startY?: number
-  targetX?: number
-  targetY?: number
-  realX?: number
-  realY?: number
-
-  walkAnim?: boolean
-  stepAnim?: boolean
-  directionFix?: boolean
-  opacity?: number
-  transparent?: boolean
-}
 
 export class MovementProcessor {
   private physics: IPhysicsSystem
