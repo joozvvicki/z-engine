@@ -98,10 +98,7 @@ export class ProjectService {
     }
 
     // Final cleanup: remove leading slashes and legacy prefixes
-    return path
-      .replace(/^\/+/, '')
-      .replace('src/ui/assets/img/', 'img/')
-      .replace('@ui/assets/img/', 'img/')
+    return path.replace(/^\/+/, '')
   }
 
   public static async loadSystemData(): Promise<ZSystemData | null> {

@@ -65,12 +65,6 @@ export class TilesetManager {
       return clean.substring(imgIndex)
     }
 
-    // Also handle src/ui/assets/img/ legacy
-    const legacyIndex = clean.indexOf('src/ui/assets/')
-    if (legacyIndex !== -1) {
-      return clean.substring(legacyIndex + 'src/ui/assets/'.length)
-    }
-
     // Fallback: remove leading slash
     return clean.replace(/^\/+/, '')
   }
