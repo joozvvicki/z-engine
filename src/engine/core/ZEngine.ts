@@ -159,7 +159,13 @@ export class ZEngine implements IEngineContext {
 
       // UI & Global Overlays (Attached to GlobalLayer)
       this.transitions = new TransitionSystem()
-      this.messages = new MessageSystem(this.input, this.eventBus, this.textures, this.events)
+      this.messages = new MessageSystem(
+        this.input,
+        this.eventBus,
+        this.textures,
+        this.events,
+        this.entities
+      )
       await this.messages.init()
 
       this.errors = new ErrorSystem()

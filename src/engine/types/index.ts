@@ -537,8 +537,8 @@ export interface ZSignalData {
   [ZEngineSignal.MapLoadFailed]: { mapId: number; error: Error }
   [ZEngineSignal.EventTriggered]: { event: ZEvent; trigger: ZEventTrigger }
   [ZEngineSignal.InteractionRequested]: { x: number; y: number }
-  [ZEngineSignal.ShowMessage]: { text: string }
-  [ZEngineSignal.ShowChoices]: { choices: string[] }
+  [ZEngineSignal.ShowMessage]: { text: string; style?: number; target?: number | string }
+  [ZEngineSignal.ShowChoices]: { choices: string[]; style?: number; target?: number | string }
   [ZEngineSignal.ChoiceSelected]: { index: number }
   [ZEngineSignal.MessageClosed]: Record<string, never>
   [ZEngineSignal.MessageCloseDirective]: Record<string, never>

@@ -209,6 +209,11 @@ export class EntityRenderSystem {
     this.container.sortChildren()
   }
 
+  public getEntitySprite(eventId: string): CharacterSprite | null {
+    if (eventId === 'PLAYER') return this.playerCharacter
+    return this.eventCharacters.get(eventId) || null
+  }
+
   public onDestroy(): void {
     if (this.playerCharacter) this.playerCharacter.destroy()
     this.eventCharacters.forEach((char) => char.destroy())

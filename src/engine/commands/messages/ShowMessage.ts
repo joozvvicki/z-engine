@@ -16,23 +16,26 @@ export const commandShowMessage: ZCommandProcessor = (
   engine: IEngineContext
 ): ZCommandResult => {
   const text = params[0] as string
+  const style = params[1] as number | undefined
+  let target = params[2] as number | string | undefined
 
-  engine.eventBus.emit(ZEngineSignal.ShowMessage, { text })
+  if (target === 0 || target === '0') {
+    target = interpreter.eventId
+  }
 
-  // Consume any lingering input that might have triggered the event
+  engine.eventBus.emit(ZEngineSignal.ShowMessage, { text, style, target })
+
   engine.input.clearAction(ZInputAction.OK)
   engine.input.clearAction(ZInputAction.CANCEL)
 
-  // Tag interpreter for update loop
   const nextCmd = interpreter.list[interpreter.index]
-  const isNextChoices = nextCmd && nextCmd.code === 102 // ZCommandCode.ShowChoices
+  const isNextChoices = nextCmd && nextCmd.code === 102
 
   if (isNextChoices) {
     return 'continue'
   }
 
-  const it = interpreter as unknown as Record<string, unknown>
-  it.isWaitingForMessage = true
+  interpreter.isWaitingForMessage = true
 
   return 'wait'
 }

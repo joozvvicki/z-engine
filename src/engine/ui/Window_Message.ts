@@ -32,4 +32,15 @@ export class Window_Message extends Window_Base {
       this._textObject.style.wordWrapWidth = this.innerWidth
     }
   }
+
+  public setBubbleMode(enabled: boolean): void {
+    if (enabled) {
+      // Resize for bubble
+      // Simple visual change: Make it smaller and potentially change padding
+      this.resize(200, 100)
+      // Ideally we would change windowSkin or opacity here too to look like a bubble
+    } else {
+      // Standard size is reset by MessageSystem usually
+    }
+  }
 }

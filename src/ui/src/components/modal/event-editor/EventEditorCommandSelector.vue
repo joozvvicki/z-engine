@@ -64,6 +64,8 @@ const selectedCommandType = ref<number | null>(null)
 
 // Messages
 const messageText = ref('')
+const messageStyle = ref(0) // 0: Window, 1: Bubble
+const messageTarget = ref(0) // 0: This Event, -1: Player, >0: Event ID
 
 // Flow
 const waitFrames = ref(60)
@@ -227,6 +229,8 @@ watch(
 
         if (props.initialCommand.code === ZCommandCode.ShowMessage) {
           messageText.value = String(params[0] || '')
+          messageStyle.value = Number(params[1] || 0)
+          messageTarget.value = Number(params[2] ?? 0)
         } else if (props.initialCommand.code === ZCommandCode.Wait) {
           waitFrames.value = Number(params[0] || 60)
         } else if (props.initialCommand.code === ZCommandCode.ControlSelfSwitch) {
@@ -268,6 +272,8 @@ watch(
           audioDuration.value = Number(params[0] || 1)
         } else if (props.initialCommand.code === ZCommandCode.ShowChoices) {
           choiceTexts.value = JSON.parse(JSON.stringify(params[0] || ['Yes', 'No']))
+          messageStyle.value = Number(params[1] || 0)
+          messageTarget.value = Number(params[2] ?? 0)
         } else if (props.initialCommand.code === ZCommandCode.ConditionalBranch) {
           branchType.value = Number(params[0] || 0)
           if (branchType.value === 0) {
@@ -321,9 +327,10 @@ watch(
         moveRouteRepeat.value = false
         moveRouteThrough.value = false
         audioFile.value = ''
-        audioVolume.value = 90
         audioPitch.value = 100
         audioDuration.value = 1
+        messageStyle.value = 0
+        messageTarget.value = 0
       }
     }
   },
@@ -419,7 +426,7 @@ const handleSave = (): void => {
     let finalParams: unknown[] = []
 
     if (selectedCommandType.value === ZCommandCode.ShowMessage) {
-      finalParams = [messageText.value]
+      finalParams = [messageText.value, messageStyle.value, messageTarget.value]
     } else if (selectedCommandType.value === ZCommandCode.Wait) {
       finalParams = [waitFrames.value]
     } else if (selectedCommandType.value === ZCommandCode.ControlSelfSwitch) {
@@ -454,7 +461,7 @@ const handleSave = (): void => {
     } else if (selectedCommandType.value === ZCommandCode.StopSE) {
       finalParams = []
     } else if (selectedCommandType.value === ZCommandCode.ShowChoices) {
-      finalParams = [[...choiceTexts.value]]
+      finalParams = [[...choiceTexts.value], messageStyle.value, messageTarget.value]
     } else if (selectedCommandType.value === ZCommandCode.ConditionalBranch) {
       if (branchType.value === 0) {
         finalParams = [0, branchSwitchId.value, branchSwitchValue.value]
@@ -604,16 +611,65 @@ const handleSave = (): void => {
         <!-- Param Fields based on command type -->
         <div class="space-y-4 flex-1">
           <!-- Show Message -->
-          <div v-if="selectedCommandType === ZCommandCode.ShowMessage" class="space-y-3">
-            <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1"
-              >Message Text</label
-            >
-            <textarea
-              v-model="messageText"
-              rows="4"
-              class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm font-sans resize-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900/10 outline-none transition-all"
-              placeholder="Enter message text..."
-            ></textarea>
+          <div v-if="selectedCommandType === ZCommandCode.ShowMessage" class="space-y-4">
+            <div class="space-y-3">
+              <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1"
+                >Message Text</label
+              >
+              <textarea
+                v-model="messageText"
+                rows="4"
+                class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm font-sans resize-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900/10 outline-none transition-all"
+                placeholder="Enter message text..."
+              ></textarea>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+              <div class="space-y-2">
+                <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1"
+                  >Window Style</label
+                >
+                <div class="flex gap-2">
+                  <button
+                    v-for="s in [
+                      { val: 0, label: 'Standard' },
+                      { val: 1, label: 'Bubble' }
+                    ]"
+                    :key="s.val"
+                    class="flex-1 py-2 rounded-lg text-[10px] font-black border transition-all"
+                    :class="
+                      messageStyle === s.val
+                        ? 'bg-slate-900 border-slate-900 text-white'
+                        : 'bg-slate-50 border-slate-100 text-slate-400 hover:border-slate-300'
+                    "
+                    @click="messageStyle = s.val"
+                  >
+                    {{ s.label }}
+                  </button>
+                </div>
+              </div>
+
+              <div class="space-y-2" v-if="messageStyle === 1">
+                <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1"
+                  >Target</label
+                >
+                <select
+                  v-model.number="messageTarget"
+                  class="w-full bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 text-xs font-bold focus:bg-white focus:border-slate-900 outline-none transition-all"
+                >
+                  <option :value="0">This Event</option>
+                  <option :value="-1">Player</option>
+                  <option disabled>--- Events ---</option>
+                  <option
+                    v-for="ev in store.activeMap?.events.filter((e) => e.name !== 'PlayerStart')"
+                    :key="ev.id"
+                    :value="Number(ev.id)"
+                  >
+                    ID {{ ev.id }}: {{ ev.name }}
+                  </option>
+                </select>
+              </div>
+            </div>
           </div>
 
           <!-- Wait -->
@@ -1180,6 +1236,53 @@ const handleSave = (): void => {
               >
                 Add Choice
               </button>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4 pt-4 border-t border-slate-100">
+              <div class="space-y-2">
+                <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1"
+                  >Window Style</label
+                >
+                <div class="flex gap-2">
+                  <button
+                    v-for="s in [
+                      { val: 0, label: 'Standard' },
+                      { val: 1, label: 'Bubble' }
+                    ]"
+                    :key="s.val"
+                    class="flex-1 py-2 rounded-lg text-[10px] font-black border transition-all"
+                    :class="
+                      messageStyle === s.val
+                        ? 'bg-slate-900 border-slate-900 text-white'
+                        : 'bg-slate-50 border-slate-100 text-slate-400 hover:bg-slate-300'
+                    "
+                    @click="messageStyle = s.val"
+                  >
+                    {{ s.label }}
+                  </button>
+                </div>
+              </div>
+
+              <div class="space-y-2" v-if="messageStyle === 1">
+                <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1"
+                  >Target</label
+                >
+                <select
+                  v-model.number="messageTarget"
+                  class="w-full bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 text-xs font-bold focus:bg-white focus:border-slate-900 outline-none transition-all"
+                >
+                  <option :value="0">This Event</option>
+                  <option :value="-1">Player</option>
+                  <option disabled>--- Events ---</option>
+                  <option
+                    v-for="ev in store.activeMap?.events.filter((e) => e.name !== 'PlayerStart')"
+                    :key="ev.id"
+                    :value="Number(ev.id)"
+                  >
+                    ID {{ ev.id }}: {{ ev.name }}
+                  </option>
+                </select>
+              </div>
             </div>
           </div>
 

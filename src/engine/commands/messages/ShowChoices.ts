@@ -16,8 +16,15 @@ export const commandShowChoices: ZCommandProcessor = (
   engine: IEngineContext
 ): ZCommandResult => {
   const choices = params[0] as string[]
+  const style = params[1] as number | undefined
+  let target = params[2] as number | string | undefined
+
+  if (target === 0 || target === '0') {
+    target = interpreter.eventId
+  }
+
   interpreter.isWaitingForMessage = true
-  engine.eventBus.emit(ZEngineSignal.ShowChoices, { choices })
+  engine.eventBus.emit(ZEngineSignal.ShowChoices, { choices, style, target })
   return 'wait'
 }
 
