@@ -40,6 +40,7 @@ export const useEditorStore = defineStore('editor', () => {
   const activeLayer = useLocalStorage<ZLayer>('ZLayer', ZLayer.ground)
   const currentTool = useLocalStorage<ZTool>('ZTool', ZTool.brush)
   const mapAlignment = useLocalStorage<'top-left' | 'center'>('Z_MapAlignment', 'center')
+  const lastTileTool = ref<ZTool>(ZTool.brush)
 
   // Aktualna selekcja (pędzel)
   const selection = useLocalStorage<TileSelection>('Z_Location', {
@@ -355,8 +356,20 @@ export const useEditorStore = defineStore('editor', () => {
     ...history,
 
     // Actions that remain local or simple setters
-    setLayer: (l: ZLayer) => (activeLayer.value = l),
-    setTool: (t: ZTool) => (currentTool.value = t),
+    setLayer: (l: ZLayer) => {
+      activeLayer.value = l
+      // If we are in Event tool and switching layers, go back to last tile tool
+      if (currentTool.value === ZTool.event) {
+        currentTool.value = lastTileTool.value
+      }
+    },
+    setTool: (t: ZTool) => {
+      // If picking a standard tile tool, remember it
+      if (t !== ZTool.event && t !== ZTool.select) {
+        lastTileTool.value = t
+      }
+      currentTool.value = t
+    },
     setSelection: (s: TileSelection) => (selection.value = { ...s, pattern: s.pattern }),
 
     saveProject,
