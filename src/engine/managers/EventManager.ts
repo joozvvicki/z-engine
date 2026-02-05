@@ -326,6 +326,12 @@ export class EventManager implements IObstacleProvider {
     return false
   }
 
+  public turnEventToward(eventId: string, targetPos: { x: number; y: number }): void {
+    const state = this.eventStates.get(eventId)
+    if (!state || state.directionFix) return
+    this.movementProcessor.turnToward(state, targetPos)
+  }
+
   public setEventDirection(eventId: string, direction: 'down' | 'left' | 'right' | 'up'): void {
     const state = this.eventStates.get(eventId)
     if (!state) return

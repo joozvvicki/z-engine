@@ -144,6 +144,11 @@ export class EventSystem implements IObstacleProvider {
     if (!page.list || page.list.length === 0) return
 
     this.eventManager.savePreInteractionDirection(event.id)
+
+    if (triggererPos) {
+      this.eventManager.turnEventToward(event.id, triggererPos)
+    }
+
     this.interpreterSystem.startInterpreter(page, event.id)
 
     this.bus.emit(ZEngineSignal.EventExecutionStarted, {
