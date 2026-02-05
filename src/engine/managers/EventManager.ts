@@ -296,12 +296,9 @@ export class EventManager implements IObstacleProvider {
           state.x = tx
           state.y = ty
 
-          // Sync back to ZEvent source of truth
-          const event = this.mapManager.currentMap?.events.find((e) => e.id === state.id)
-          if (event) {
-            event.x = state.x
-            event.y = state.y
-          }
+          // REMOVED: Sync back to ZEvent source of truth
+          // We do NOT want to mutate the initial map data.
+          // The ZEventRuntimeState is the source of truth for current position.
         }
       }
     })
@@ -368,12 +365,17 @@ export class EventManager implements IObstacleProvider {
     const map = this.mapManager.currentMap
     if (!map) return null
 
-    const event = map.events.find((e) => e.x === x && e.y === y)
-    if (!event) return null
+    // Look up event via Runtime State (to handle moved events correctly)
+    for (const state of this.eventStates.values()) {
+      if (state.x === x && state.y === y) {
+        const event = map.events.find((e) => e.id === state.id)
+        if (!event) continue
 
-    const activePage = this.getActivePage(event)
-    if (activePage && activePage.trigger === trigger) {
-      return { event, page: activePage }
+        const activePage = this.getActivePage(event)
+        if (activePage && activePage.trigger === trigger) {
+          return { event, page: activePage }
+        }
+      }
     }
     return null
   }
