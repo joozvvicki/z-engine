@@ -194,7 +194,7 @@ export class ZEngine implements IEngineContext {
       this.app.ticker.add((ticker) => this.tick(ticker.deltaMS))
 
       this.isBooted = true
-      ZLogger.log('Hello 👋🏽 Everything is ready (No ServiceLocator)!')
+      ZLogger.log('Hello there 👋🏽 This game is using the best Engine in the world!')
     } catch (e) {
       ZLogger.error('Error during init:', e)
       this.errors?.show(e as Error)
@@ -259,8 +259,6 @@ export class ZEngine implements IEngineContext {
     this.tools.setDataProvider(provider)
     this.history.setDataProvider(provider)
     this.save.setDataProvider(provider)
-    // this.gameState.setDataProvider(provider)
-    // this.scenes.setDataProvider(provider) // Optional if SceneManager uses this.engine.dataProvider
 
     ZLogger.info('Data Provider set')
   }
