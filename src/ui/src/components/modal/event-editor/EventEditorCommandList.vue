@@ -58,8 +58,7 @@ const emit = defineEmits(['open-editor', 'delete-command'])
                 : 'hover:bg-slate-50 hover:border-slate-100'
             "
             :style="{ paddingLeft: `${item.indent * 20 + 16}px` }"
-            @click="selectedCommandIndex = item.index"
-            @dblclick="emit('open-editor', item.index)"
+            @click="emit('open-editor', item.index)"
           >
             <span class="text-slate-300 text-[10px] w-6 text-right select-none shrink-0">{{
               String(item.index + 1).padStart(3, '0')
@@ -254,8 +253,7 @@ const emit = defineEmits(['open-editor', 'delete-command'])
             v-else
             class="group flex items-center gap-3 px-4 py-1.5 hover:bg-slate-50 cursor-pointer transition-colors"
             :style="{ paddingLeft: `${item.indent * 20 + 16}px` }"
-            @dblclick="emit('open-editor', item.index, true)"
-            @click="selectedCommandIndex = item.index - 1"
+            @click="emit('open-editor', item.index, true)"
           >
             <span class="text-slate-300 text-[10px] w-6 text-right select-none opacity-0 shrink-0"
               >@</span
