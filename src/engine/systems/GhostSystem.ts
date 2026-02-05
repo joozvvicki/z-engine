@@ -134,6 +134,32 @@ export class GhostSystem {
     this.dirty = true
   }
 
+  // Player Start Dragging Support
+  private draggingPlayerStart: {
+    graphic: string
+    charX: number
+    charY: number
+    srcX?: number
+    srcY?: number
+    srcW?: number
+    srcH?: number
+  } | null = null
+
+  public setDraggingPlayerStart(
+    info: {
+      graphic: string
+      charX: number
+      charY: number
+      srcX?: number
+      srcY?: number
+      srcW?: number
+      srcH?: number
+    } | null
+  ): void {
+    this.draggingPlayerStart = info
+    this.dirty = true
+  }
+
   // --- Rendering Logic ---
 
   public onUpdate(): void {
@@ -162,6 +188,9 @@ export class GhostSystem {
     }
     if (this.selectionBox) {
       this.renderSelectionBox()
+    }
+    if (this.draggingPlayerStart) {
+      this.renderPlayerStartGhost()
     }
 
     this.dirty = false
@@ -585,5 +614,64 @@ export class GhostSystem {
       .rect(x - 2, y - 2, this.tileSize + 4, this.tileSize + 4)
       .stroke({ width: 1, color: 0x000000, alpha: 0.6 })
     this.container.addChild(g)
+  }
+
+  private renderPlayerStartGhost(): void {
+    if (!this.draggingPlayerStart) return
+
+    const x = this.position.x * this.tileSize
+    const y = this.position.y * this.tileSize
+
+    // 1. Draw Tile Box
+    const g = new Graphics()
+      .rect(x, y, this.tileSize, this.tileSize)
+      .fill({ color: 0x00ff00, alpha: 0.3 })
+      .stroke({ width: 2, color: 0x00ff00, alpha: 0.8 })
+    this.container.addChild(g)
+
+    // 2. Draw Sprite
+    const graphicData = {
+      assetId: this.draggingPlayerStart.graphic,
+      group: 'character' as const,
+      x: this.draggingPlayerStart.charX,
+      y: this.draggingPlayerStart.charY,
+      srcX: this.draggingPlayerStart.srcX,
+      srcY: this.draggingPlayerStart.srcY,
+      srcW: this.draggingPlayerStart.srcW,
+      srcH: this.draggingPlayerStart.srcH,
+      w: 0,
+      h: 0
+    }
+
+    // Load if needed
+    if (!this.textures.get(graphicData.assetId)) {
+      this.textures.load(graphicData.assetId).then(() => {
+        this.dirty = true
+      })
+      return
+    }
+
+    // Determine idle frame if needed
+    const tex = this.textures.get(graphicData.assetId)
+    if (tex && !graphicData.srcW && !this.draggingPlayerStart.charX) {
+      // Logic check: if no explicit src rect AND no specific grid char index provided?
+      // Actually SpriteUtils handles x=0 y=0 defaults mostly, but let's check basic idle logic
+      const { divW } = SpriteUtils.getFrameRect(graphicData, tex)
+      // We might want to force idle frame if not specified
+      if (graphicData.x === 0 && graphicData.y === 0 && !graphicData.srcX) {
+        graphicData.x = SpriteUtils.getIdleFrameIndex(divW)
+      }
+    }
+
+    const sprite = SpriteUtils.createEventSprite(graphicData, this.textures, this.tileSize, true)
+    if (sprite) {
+      sprite.x = x + this.tileSize / 2
+      sprite.y = y + this.tileSize
+      sprite.alpha = 0.6
+      this.container.addChild(sprite)
+    }
+
+    // 3. Label
+    // (Optional, simple text requires importing TextStyle/Text which might bloat this file imports if not already there)
   }
 }

@@ -82,6 +82,13 @@ const handleContextAction = (action: string): void => {
         store.deleteEvent(existing.id)
       }
       break
+    case 'setPlayerStart':
+      if (store.activeMap) {
+        store.systemStartMapId = store.activeMap.id
+        store.systemStartX = tx
+        store.systemStartY = ty
+      }
+      break
   }
   contextMenu.value.show = false
 }
@@ -195,6 +202,13 @@ onMounted(async () => {
           @click="handleContextAction('paste')"
         >
           Paste Event
+        </button>
+        <div class="h-px bg-black/5 my-1"></div>
+        <button
+          class="px-3 py-1.5 text-xs hover:bg-black/5 text-left flex items-center gap-2"
+          @click="handleContextAction('setPlayerStart')"
+        >
+          Set Player Start
         </button>
       </div>
     </ZContextMenu>

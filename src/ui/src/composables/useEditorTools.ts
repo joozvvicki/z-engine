@@ -1,6 +1,7 @@
 import { Ref, ref } from 'vue'
 import { ZEngine } from '@engine/core/ZEngine'
 import { useEditorStore } from '@ui/stores/editor'
+import { useDatabaseStore } from '@ui/stores/database'
 import { ZTool } from '@engine/types'
 import type { FederatedPointerEvent } from '@engine/utils/pixi'
 
@@ -20,9 +21,11 @@ export const useEditorTools = (): {
   const shapeStartPos = ref<{ x: number; y: number } | null>(null)
 
   // State for event editor
+  const db = useDatabaseStore()
   const activeEventCoords = ref<{ x: number; y: number } | null>(null)
   const activeEventId = ref<string | null>(null)
   const draggingEventId = ref<string | null>(null)
+  const draggingPlayerStart = ref(false)
   const dragStartPos = ref<{ x: number; y: number } | null>(null)
 
   const handleInteraction = (
@@ -59,7 +62,7 @@ export const useEditorTools = (): {
       if (isCommit) {
         // Pointer Up (Commit)
         if (draggingEventId.value && dragStartPos.value) {
-          // Finish Drag
+          // Finish Event Drag
           const hasMoved = dragStartPos.value.x !== target.x || dragStartPos.value.y !== target.y
           if (hasMoved) {
             store.moveEvent(draggingEventId.value, target.x, target.y)
@@ -67,41 +70,97 @@ export const useEditorTools = (): {
             ghost?.setSelectedEventPos({ x: target.x, y: target.y })
             ghost?.setDirty()
           } else {
-            // It was a click, not a drag
+            // Clicked, not moved
             if (existing?.name !== 'PlayerStart') {
               activeEventCoords.value = { x: target.x, y: target.y }
               activeEventId.value = existing?.id || null
               store.selectedEventId = existing?.id || null
             }
           }
-        } else if (!draggingEventId.value) {
-          // Click on empty space (possibly to create new event or just deselect)
+        } else if (draggingPlayerStart.value && dragStartPos.value) {
+          // Finish Player Start Drag
+          const hasMoved = dragStartPos.value.x !== target.x || dragStartPos.value.y !== target.y
+          if (hasMoved) {
+            store.systemStartX = target.x
+            store.systemStartY = target.y
+            // Force redraw of player start marker via engine/store sync
+            // The watcher in useEngine will pick this up
+          }
+          engine.ghost.setDraggingPlayerStart(null)
+        } else if (!draggingEventId.value && !draggingPlayerStart.value) {
+          // Click on empty space
           if (!existing) {
-            activeEventCoords.value = { x: target.x, y: target.y }
-            activeEventId.value = null
+            // Check if we clicked Player Start to select it (optional, maybe just visual feedback?)
+            // For now, if we click player start without dragging, we do nothing or clear selection
+            const isPlayerStart =
+              store.activeMap.id === store.systemStartMapId &&
+              store.systemStartX === target.x &&
+              store.systemStartY === target.y
+
+            if (!isPlayerStart) {
+              activeEventCoords.value = { x: target.x, y: target.y }
+              activeEventId.value = null
+            }
           }
         }
         draggingEventId.value = null
+        draggingPlayerStart.value = false
         dragStartPos.value = null
         engine.ghost.setDraggingEventId(null)
+        engine.ghost.setDraggingPlayerStart(null)
       } else {
-        // Pointer Down or Move
-        if (!draggingEventId.value && existing) {
-          // Start Drag
-          draggingEventId.value = existing.id
-          dragStartPos.value = { x: target.x, y: target.y }
-          store.selectedEventId = existing.id
-          const ghost = engine.ghost
-          ghost.setDraggingEventId(existing.id)
-          ghost.setSelectedEventPos({ x: target.x, y: target.y })
-          ghost.setVisible(true)
+        // Pointer Down or Move (Drag Start / Dragging)
+
+        // Check for Player Start Drag Initiation
+        const isPlayerStart =
+          store.activeMap.id === store.systemStartMapId &&
+          store.systemStartX === target.x &&
+          store.systemStartY === target.y
+
+        if (!draggingEventId.value && !draggingPlayerStart.value) {
+          if (existing) {
+            // Start Event Drag
+            draggingEventId.value = existing.id
+            dragStartPos.value = { x: target.x, y: target.y }
+            store.selectedEventId = existing.id
+            const ghost = engine.ghost
+            ghost.setDraggingEventId(existing.id)
+            ghost.setSelectedEventPos({ x: target.x, y: target.y })
+            ghost.setVisible(true)
+          } else if (isPlayerStart) {
+            // Start Player Start Drag
+            draggingPlayerStart.value = true
+            dragStartPos.value = { x: target.x, y: target.y }
+
+            // Prepare Ghost Data
+            const actor1 = db.actors.find((a) => a.id === 1)
+            let charPath = actor1?.character || ''
+            if (charPath && !charPath.startsWith('img/')) {
+              charPath = `img/characters/${charPath}`
+            }
+
+            engine.ghost.setDraggingPlayerStart({
+              graphic: charPath,
+              charX: actor1?.characterX || 0,
+              charY: actor1?.characterY || 0,
+              srcX: actor1?.characterSrcX,
+              srcY: actor1?.characterSrcY,
+              srcW: actor1?.characterSrcW,
+              srcH: actor1?.characterSrcH
+            })
+            engine.ghost.setVisible(true)
+          }
         }
 
         if (draggingEventId.value) {
-          // Update Ghost during drag
+          // Update Event Ghost
           const ghost = engine.ghost
           ghost.update(target.x, target.y, store.selection, tool, layer)
           ghost.setSelectedEventPos({ x: target.x, y: target.y })
+        } else if (draggingPlayerStart.value) {
+          // Update Player Start Ghost
+          const ghost = engine.ghost
+          ghost.update(target.x, target.y, store.selection, tool, layer)
         }
       }
       return
