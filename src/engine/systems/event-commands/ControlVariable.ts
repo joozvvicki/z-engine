@@ -1,21 +1,18 @@
-import { ZCommandProcessor, ZCommandResult, ZEventInterpreter } from '@engine/types'
-import { ServiceLocator } from '@engine/core/ServiceLocator'
-import { GameStateManager } from '@engine/managers/GameStateManager'
+import { IEngineContext, ZCommandProcessor, ZCommandResult, ZEventInterpreter } from '@engine/types'
 
 /**
  * Command 122: Control Variable
  */
 export const commandControlVariable: ZCommandProcessor = (
   params: unknown[],
-  interpreter: ZEventInterpreter,
-  services: ServiceLocator
+  _interpreter: ZEventInterpreter,
+  engine: IEngineContext
 ): ZCommandResult => {
-  const gameState = services.require(GameStateManager)
   const varId = params[0] as number
   const op = params[1] as number
   const value = params[2] as number
 
-  let current = gameState.getVariable(varId)
+  let current = engine.gameState.getVariable(varId)
 
   switch (op) {
     case 0: // Set
@@ -38,6 +35,6 @@ export const commandControlVariable: ZCommandProcessor = (
       break
   }
 
-  gameState.setVariable(varId, current)
+  engine.gameState.setVariable(varId, current)
   return 'continue'
 }

@@ -7,21 +7,21 @@ export class ZEventBus {
   private handlers: Map<ZEngineSignal, Set<ZSignalCallback<any>>> = new Map()
 
   public on<T extends keyof ZSignalData>(signal: T, callback: ZSignalCallback<T>): void {
-    if (!this.handlers.has(signal as any)) {
-      this.handlers.set(signal as any, new Set())
+    if (!this.handlers.has(signal)) {
+      this.handlers.set(signal, new Set())
     }
-    this.handlers.get(signal as any)!.add(callback)
+    this.handlers.get(signal)!.add(callback)
   }
 
   public off<T extends keyof ZSignalData>(signal: T, callback: ZSignalCallback<T>): void {
-    const set = this.handlers.get(signal as any)
+    const set = this.handlers.get(signal)
     if (set) {
       set.delete(callback)
     }
   }
 
   public emit<T extends keyof ZSignalData>(signal: T, data: ZSignalData[T]): void {
-    const set = this.handlers.get(signal as any)
+    const set = this.handlers.get(signal)
     if (set) {
       set.forEach((cb) => cb(data))
     }

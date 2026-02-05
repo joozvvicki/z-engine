@@ -1,54 +1,66 @@
 import { Container } from '@engine/utils/pixi'
 import { ZLayer, ZEngineSignal, type ZSignalData } from '@engine/types'
-import { ZSystem, SystemMode } from '@engine/core/ZSystem'
-import { ServiceLocator } from '@engine/core/ServiceLocator'
 import { PlayerSystem } from '@engine/systems/PlayerSystem'
 import { RenderSystem } from '@engine/systems/RenderSystem'
 import { EventSystem } from '@engine/systems/EventSystem'
 import { CharacterSprite } from '@engine/sprites/CharacterSprite'
+import { TextureManager } from '@engine/managers/TextureManager'
+import { MapManager } from '@engine/managers/MapManager'
+import { ZEventBus } from '@engine/core/ZEventBus'
 
 /**
  * Manages the rendering of entities (Player and Events) on the map.
- * Now refactored to be PURELY visual, tracking EventSystem state.
+ * Refactored for Manual Dependency Injection.
  */
-export class EntityRenderSystem extends ZSystem {
-  public container: Container
+export class EntityRenderSystem {
+  // Dependencies
   private playerSystem: PlayerSystem
   private eventSystem: EventSystem
+  private renderSystem: RenderSystem
+  private textures: TextureManager
+  private mapManager: MapManager
+  private eventBus: ZEventBus
+
+  public container: Container
   private tileSize: number
 
   private playerCharacter: CharacterSprite | null = null
   private eventCharacters: Map<string, CharacterSprite> = new Map()
 
-  constructor(services: ServiceLocator, tileSize: number) {
-    super(services)
-    this.updateMode = SystemMode.PLAY
+  constructor(
+    playerSystem: PlayerSystem,
+    eventSystem: EventSystem,
+    renderSystem: RenderSystem,
+    textures: TextureManager,
+    mapManager: MapManager,
+    eventBus: ZEventBus,
+    tileSize: number
+  ) {
+    this.playerSystem = playerSystem
+    this.eventSystem = eventSystem
+    this.renderSystem = renderSystem
+    this.textures = textures
+    this.mapManager = mapManager
+    this.eventBus = eventBus
     this.tileSize = tileSize
 
     this.container = new Container()
     this.container.label = 'EntityLayer'
     this.container.sortableChildren = true
-
-    this.playerSystem = undefined as unknown as PlayerSystem
-    this.eventSystem = undefined as unknown as EventSystem
   }
 
   /**
    * Initializes systems and triggers initial entity creation.
+   * Called explicitly by ZEngine.init()
    */
   public async onBoot(): Promise<void> {
-    this.playerSystem = this.services.require(PlayerSystem)
-    this.eventSystem = this.services.require(EventSystem)
-    const renderSystem = this.services.require(RenderSystem)
-
     // Entities share the decoration layer for Y-sorting with tiles
-    this.container = renderSystem.getLayerContainer(ZLayer.decoration)
+    // We replace the internal container with the one from RenderSystem to allow interleaving
+    this.container = this.renderSystem.getLayerContainer(ZLayer.decoration)
 
     await this.createPlayerCharacter()
 
-    this.bus.on(ZEngineSignal.EventInternalStateChanged, this.onEventStateChanged.bind(this))
-    // We listen to visual cues if needed, but EventSystem handles logic.
-    // We just poll state in update.
+    this.eventBus.on(ZEngineSignal.EventInternalStateChanged, this.onEventStateChanged.bind(this))
   }
 
   /**
@@ -58,19 +70,13 @@ export class EntityRenderSystem extends ZSystem {
     this.eventCharacters.forEach((char) => char.destroy())
     this.eventCharacters.clear()
 
-    const map = this.map.currentMap
+    const map = this.mapManager.currentMap
     if (!map || !map.events) return
 
     for (const event of map.events) {
       if (event.name === 'PlayerStart') continue
 
-      const eventSystem = this.eventSystem || this.services.get(EventSystem)
-      if (!eventSystem) {
-        console.error('EntityRenderSystem: EventSystem not found during loadEvents')
-        return
-      }
-
-      const activePage = eventSystem.getActivePage(event)
+      const activePage = this.eventSystem.getActivePage(event)
       const char = new CharacterSprite(event.id, this.textures, this.tileSize)
       char.setGridPosition(event.x, event.y)
 
@@ -79,7 +85,7 @@ export class EntityRenderSystem extends ZSystem {
       char.walkAnim = activePage?.options?.walkAnim ?? true
       char.stepAnim = activePage?.options?.stepAnim ?? false
       char.directionFix = activePage?.options?.directionFix ?? false
-      char.transparent = false // TODO: if event has transparent flag
+      char.transparent = false
 
       await char.setGraphic(activePage?.graphic || null)
 
@@ -89,14 +95,10 @@ export class EntityRenderSystem extends ZSystem {
   }
 
   public forceSetEventPosition(eventId: string, x: number, y: number): void {
-    // With Logic separation, this might be tricky if used for Logic placement.
-    // But if used for visual snap, we update sprite.
-    // Ideally we ask EventSystem to update state.
     const char = this.eventCharacters.get(eventId)
     if (char) {
       char.setGridPosition(x, y) // Snap visual
     }
-    // We assume caller also updated EventSystem or Map event data if this was a logic change.
   }
 
   private onEventStateChanged(data: ZSignalData[ZEngineSignal.EventInternalStateChanged]): void {
@@ -104,12 +106,11 @@ export class EntityRenderSystem extends ZSystem {
     const char = this.eventCharacters.get(eventId)
     if (!char) return
 
-    // Visual only updates (props that CharacterSprite uses for rendering)
+    // Visual only updates
     if (moveSpeed !== undefined) char.moveSpeed = moveSpeed
     if (walkAnim !== undefined) char.walkAnim = walkAnim
     if (stepAnim !== undefined) char.stepAnim = stepAnim
     if (directionFix !== undefined) char.directionFix = directionFix
-    // isThrough is logical but CharacterSprite might use it for debug tint?
     if (isThrough !== undefined) char.isThrough = isThrough
 
     // Update graphic
@@ -139,10 +140,6 @@ export class EntityRenderSystem extends ZSystem {
     if (visible) this.loadEvents()
   }
 
-  // DEPRECATED/MOVED: This method is now in EventSystem / used by PhysicsSystem via EventSystem
-  // We keep it here returning false or error if something still calls it, or remove it.
-  // PhysicsSystem no longer calls it.
-
   public async setPlayerGraphic(
     assetPath: string,
     x: number = 0,
@@ -168,7 +165,7 @@ export class EntityRenderSystem extends ZSystem {
   public onUpdate(delta: number): void {
     if (!this.playerCharacter) return
 
-    // Ensure sprites are in the correct container
+    // Ensure sprites are in the correct container (in case RenderSystem reset layers)
     if (this.playerCharacter.container.parent !== this.container) {
       this.container.addChild(this.playerCharacter.container)
     }

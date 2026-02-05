@@ -1,10 +1,6 @@
 import { ZScene } from '@engine/core/ZScene'
-import { ServiceLocator } from '@engine/core/ServiceLocator'
-import { TextureManager } from '@engine/managers/TextureManager'
-import { SceneManager } from '@engine/managers/SceneManager'
-import { InputManager } from '@engine/managers/InputManager'
-import { GameStateManager } from '@engine/managers/GameStateManager'
-import { ZInputAction, ZMenuParams } from '@engine/types'
+import ZLogger from '@engine/utils/ZLogger'
+import { ZInputAction, ZMenuParams, IEngineContext } from '@engine/types'
 import { Window_MenuCommand } from '@engine/ui/Window_MenuCommand'
 import { Window_MenuStatus } from '@engine/ui/Window_MenuStatus'
 import { Window_Gold } from '@engine/ui/Window_Gold'
@@ -12,6 +8,7 @@ import { Window_Gold } from '@engine/ui/Window_Gold'
 /**
  * The main menu scene of the game.
  * Displays party status, gold, and command options.
+ * Refactored for Manual Dependency Injection.
  */
 export class SceneMenu extends ZScene {
   private commandWindow: Window_MenuCommand | null = null
@@ -20,52 +17,50 @@ export class SceneMenu extends ZScene {
 
   private _isClosing: boolean = false
 
-  constructor(services: ServiceLocator) {
-    super(services)
+  constructor(engine: IEngineContext) {
+    super(engine)
   }
 
   public async init(params: ZMenuParams): Promise<void> {
-    console.log('[SceneMenu] Initialized with params:', params)
+    ZLogger.with('SceneMenu').info('Initialized with params:', params)
 
     // Preload window skin
-    const textureManager = this.services.require(TextureManager)
     try {
-      await textureManager.load('img/system/window.png')
+      await this.engine.textures.load('img/system/window.png')
     } catch (e) {
-      console.error('[SceneMenu] Failed to load window skin', e)
+      ZLogger.with('SceneMenu').error('Failed to load window skin', e)
     }
   }
 
   public start(): void {
-    const textureManager = this.services.require(TextureManager)
-    const skin = textureManager.get('img/system/window.png')
+    const skin = this.engine.textures.get('img/system/window.png')
 
     if (!skin) {
-      console.error('[SceneMenu] Window skin not found, aborting render')
+      ZLogger.with('SceneMenu').error('Window skin not found, aborting render')
       return
     }
 
-    const screenW = this.app.screen.width
-    const screenH = this.app.screen.height
+    const screenW = this.engine.app.screen.width
+    const screenH = this.engine.app.screen.height
 
-    // Command Window (Left Top)
-    // Command Window (Left Top)
+    // 1. Command Window (Left Top)
     const cmdW = 240
     const cmdHeight = 300 // Fixed height for commands
 
     this.commandWindow = new Window_MenuCommand(20, 20, cmdW, cmdHeight)
     this.commandWindow.windowSkin = skin
-    this.commandWindow.setInput(this.services.require(InputManager))
+    // Wstrzykujemy InputManager bezpośrednio z silnika
+    this.commandWindow.setInput(this.engine.input)
     this.container.addChild(this.commandWindow)
 
-    // Gold Window (Left Bottom)
+    // 2. Gold Window (Left Bottom)
     const goldW = 240
     const goldH = 70
     this.goldWindow = new Window_Gold(20, screenH - goldH - 20, goldW, goldH)
     this.goldWindow.windowSkin = skin
     this.container.addChild(this.goldWindow)
 
-    // Status Window (Right)
+    // 3. Status Window (Right)
     const statusX = cmdW + 40
     const statusW = screenW - statusX - 20
     const statusH = screenH - 40
@@ -73,8 +68,9 @@ export class SceneMenu extends ZScene {
     this.statusWindow.windowSkin = skin
     this.container.addChild(this.statusWindow)
 
-    // Refresh windows with real data
-    const gameState = this.services.require(GameStateManager)
+    // 4. Refresh windows with real data from GameStateManager
+    const gameState = this.engine.gameState
+
     if (this.statusWindow) {
       this.statusWindow.setActors(gameState.party.members)
     }
@@ -90,16 +86,15 @@ export class SceneMenu extends ZScene {
   public update(delta: number): void {
     super.update(delta)
 
-    // Update Windows (for animations) - Must happen even if closing!
+    // Update Windows (for animations)
     this.commandWindow?.update()
     this.statusWindow?.update()
     this.goldWindow?.update()
 
     if (this._isClosing) return
 
-    const input = this.services.require(InputManager)
-
-    if (input.isActionJustPressed(ZInputAction.CANCEL)) {
+    // Input Handling via Engine Context
+    if (this.engine.input.isActionJustPressed(ZInputAction.CANCEL)) {
       this.closeMenu()
     }
   }
@@ -114,10 +109,9 @@ export class SceneMenu extends ZScene {
     this.goldWindow?.close()
 
     // Short delay for window closing animation before starting the scene fade-out
-    // We use a slightly shorter delay here so the scene fade starts while windows are finishing
     await new Promise((resolve) => setTimeout(resolve, 100))
 
-    const sceneManager = this.services.require(SceneManager)
-    await sceneManager.pop({ fade: true })
+    // Pop scene via Engine Context
+    await this.engine.scenes.pop({ fade: true })
   }
 }

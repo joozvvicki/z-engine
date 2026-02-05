@@ -7,14 +7,17 @@ import {
   ZEngineSignal,
   ZEventTrigger,
   type ZEventInterpreter,
-  type ZSignalData
+  type ZSignalData,
+  IEngineContext
 } from '@engine/types'
-import { ZSystem, SystemMode } from '@engine/core/ZSystem'
 import type { IPhysicsSystem, IObstacleProvider } from '@engine/interfaces/IPhysicsSystem'
-import { ServiceLocator } from '@engine/core/ServiceLocator'
+import { ZEventBus } from '@engine/core/ZEventBus'
+import { MapManager } from '@engine/managers/MapManager'
+import { GameStateManager } from '@engine/managers/GameStateManager'
 
 import { CommandRegistry } from './event-commands'
 import { MovementProcessor, type ZMoveable } from '@engine/core/MovementProcessor'
+import ZLogger from '@engine/utils/ZLogger'
 
 /**
  * Runtime state for an event, tracking movement and visual properties logically.
@@ -27,11 +30,19 @@ export interface ZEventRuntimeState extends ZMoveable {
 
 /**
  * Manages the execution of event command lists (interpreters).
- * Now refactored to use a decoupled CommandRegistry and handle Event Movement Logic.
+ * Refactored for Manual Dependency Injection.
  */
-export class EventSystem extends ZSystem implements IObstacleProvider {
+export class EventSystem implements IObstacleProvider {
+  // Dependencies
   private physicsSystem: IPhysicsSystem
+  private gameState: GameStateManager
+  private bus: ZEventBus
+  private mapManager: MapManager
+
+  private engine: IEngineContext | null = null
+
   private movementProcessor: MovementProcessor
+  private tileSize: number = 48 // Default, updated in init()
 
   private playerPos: { x: number; y: number } = { x: 0, y: 0 }
 
@@ -46,21 +57,36 @@ export class EventSystem extends ZSystem implements IObstacleProvider {
   // Cache associated with the current map's events
   private _activePageCache: Map<string, number> = new Map()
 
-  constructor(services: ServiceLocator) {
-    super(services)
-    this.updateMode = SystemMode.PLAY
+  constructor(
+    physics: IPhysicsSystem,
+    gameState: GameStateManager,
+    bus: ZEventBus,
+    mapManager: MapManager
+  ) {
+    this.physicsSystem = physics
+    this.gameState = gameState
+    this.bus = bus
+    this.mapManager = mapManager
 
-    this.physicsSystem = undefined as unknown as IPhysicsSystem
-    this.movementProcessor = undefined as unknown as MovementProcessor
+    this.movementProcessor = new MovementProcessor(this.physicsSystem)
   }
 
   /**
-   * Initializes systems and event listeners.
+   * Called by ZEngine after constructor to set environment details.
+   */
+  public init(tileSize: number): void {
+    this.tileSize = tileSize
+  }
+
+  public setEngineContext(engine: IEngineContext): void {
+    this.engine = engine
+  }
+
+  /**
+   * Initializes event listeners.
    */
   public onBoot(): void {
-    this.physicsSystem = this.services.get('PhysicsSystem') as unknown as IPhysicsSystem
     this.physicsSystem.registerProvider(this)
-    this.movementProcessor = new MovementProcessor(this.physicsSystem)
 
     this.bus.on(ZEngineSignal.EventTriggered, ({ event }) => {
       this.startEvent(event)
@@ -76,22 +102,8 @@ export class EventSystem extends ZSystem implements IObstacleProvider {
     })
 
     this.bus.on(ZEngineSignal.InteractionRequested, ({ x, y }) => {
-      // Use cached playerPos
       const handled = this.checkTrigger(x, y, ZEventTrigger.Action, this.playerPos)
       if (handled) return
-
-      // Self-check if player is standing on event?
-      // checkTrigger works on target x,y. if player requested interaction at x,y.
-      // logic is: check if ANY event at x,y has Action trigger.
-
-      // Also check player's current tile for "On Player Touch" or similar?
-      // No, Action is usually "Face Button".
-
-      // The original code checked 'this.playerSystem.x/y'.
-      // If we are replacing 'this.playerSystem', we assume checkTrigger uses x,y.
-      // But wait, the original code had a SECOND check:
-      // checkTrigger(this.playerSystem.x, this.playerSystem.y, ... Action ... )
-      // Why? Maybe for "Events under player" (Action Button on same tile)?
 
       this.checkTrigger(this.playerPos.x, this.playerPos.y, ZEventTrigger.Action, this.playerPos)
     })
@@ -131,7 +143,7 @@ export class EventSystem extends ZSystem implements IObstacleProvider {
   }
 
   private initializeEventStates(): void {
-    const map = this.map.currentMap
+    const map = this.mapManager.currentMap
     if (!map || !map.events) return
 
     // Clean existing (though MapWillLoad clears it)
@@ -147,15 +159,8 @@ export class EventSystem extends ZSystem implements IObstacleProvider {
         eventId: event.id,
         x: event.x,
         y: event.y,
-        realX: event.x * 48, // Default, will update with tileSize? We don't have tileSize here easily?
-        // actually we should probably inject tileSize or get it from MapManager.
-        // Assuming 48 for now or fetching from somewhere?
-        // Wait, RenderSystem has tileSize. System doesn't necessarily know it?
-        // Let's assume passed in constructor or accessible.
-        // BUT for Logic, realX/Y is only needed for interpolation.
-        // Let's assume standard tile size or get from service.
-        // Actually map.tileSize might be available?
-        realY: event.y * 48,
+        realX: event.x * this.tileSize,
+        realY: event.y * this.tileSize,
         direction: 'down',
         isMoving: false,
         targetX: event.x,
@@ -175,11 +180,6 @@ export class EventSystem extends ZSystem implements IObstacleProvider {
         transparent: false, // Default
         opacity: 255
       }
-      // Correct real position if map has tilewidth
-      // if (this.map.currentMap?.tileWidth) {
-      //   state.realX = state.x * 48
-      //   state.realY = state.y * 48
-      // }
 
       this.eventStates.set(event.id, state)
     }
@@ -216,21 +216,14 @@ export class EventSystem extends ZSystem implements IObstacleProvider {
   }
 
   private updateEventMovements(delta: number): void {
-    const tileSize = this.map.currentMap?.tileWidth || 48 // Fallback
+    const tileSize = this.mapManager.currentMap?.tileWidth || this.tileSize
 
     this.eventStates.forEach((state) => {
       // A. Process Logic (Command Selection)
       if (!state.isMoving) {
-        // Sync logical position if needed (should be in sync)
-
         const isCustomMove = state.moveType === 'custom'
-        // Only process autonomous moves if NOT interacting and system NOT paused (message)
-        if (isCustomMove || (!this.isProcessing && !this.activeInterpreter)) {
-          // Note: simple check for "isProcessing" might block all events during any event.
-          // RPG Maker only blocks autonomous movement during "Stop All Movement" or simple events?
-          // Usually autonomous movement continues unless explicitly stopped?
-          // For now, let's allow it unless specifically blocked.
 
+        if (isCustomMove || (!this.isProcessing && !this.activeInterpreter)) {
           // Need Player Position for 'Approach' type
           const playerPos = this.playerPos
           this.movementProcessor.processNextCommand(state, playerPos, delta)
@@ -251,10 +244,6 @@ export class EventSystem extends ZSystem implements IObstacleProvider {
 
       // B. Process Motion (Interpolation)
       if (state.isMoving) {
-        // Logic copied/adapted from EntityRenderSystem but purely on data
-        // Speed 4 = 1 tile per 32 frames at 60fps (base)
-        // Speed formula: distance_per_frame = 2^(speed - 4) * (tileSize / 32)
-        // Note: This needs to match PlayerSystem's formula for consistency
         const baseSpeed = Math.pow(2, state.moveSpeed - 4) * (tileSize / 32)
         const speed = baseSpeed * (delta / 16.66) // delta normalized to ~1 frame
 
@@ -286,7 +275,7 @@ export class EventSystem extends ZSystem implements IObstacleProvider {
           state.y = ty
 
           // Sync back to ZEvent source of truth
-          const event = this.map.currentMap?.events.find((e) => e.id === state.id)
+          const event = this.mapManager.currentMap?.events.find((e) => e.id === state.id)
           if (event) {
             event.x = state.x
             event.y = state.y
@@ -296,12 +285,6 @@ export class EventSystem extends ZSystem implements IObstacleProvider {
     })
   }
 
-  /**
-   * Queries if a tile is occupied by an event (stationary or moving target).
-  /**
-   * Queries if a tile is occupied by an event (stationary or moving target).
-   * Used by PhysicsSystem.
-   */
   public isOccupied(
     x: number,
     y: number,
@@ -310,9 +293,6 @@ export class EventSystem extends ZSystem implements IObstacleProvider {
     for (const state of this.eventStates.values()) {
       if (options?.excludeId && state.id === options.excludeId) continue
       if (state.isThrough) continue // Event itself is through
-      // if options.isThrough is true, the caller ignores obstacles, but PhysicsSystem usually handles that check before calling providers?
-      // Actually PhysicsSystem says: "if (!options?.isThrough) check providers"
-      // So here we just report if WE are an obstacle.
 
       if (state.x === x && state.y === y) return true
       // Also check target if moving (claimed)
@@ -327,9 +307,6 @@ export class EventSystem extends ZSystem implements IObstacleProvider {
     return false
   }
 
-  /**
-   * Returns the runtime state of an event, used by EntityRenderSystem.
-   */
   public getEventState(eventId: string): ZEventRuntimeState | undefined {
     return this.eventStates.get(eventId)
   }
@@ -350,7 +327,7 @@ export class EventSystem extends ZSystem implements IObstacleProvider {
   }
 
   private checkParallelTriggers(): void {
-    const map = this.map.currentMap
+    const map = this.mapManager.currentMap
     if (!map) return
 
     map.events.forEach((event) => {
@@ -367,9 +344,6 @@ export class EventSystem extends ZSystem implements IObstacleProvider {
     })
   }
 
-  /**
-   * Clears the message wait flag on the active interpreter.
-   */
   public finishMessage(): void {
     if (this.activeInterpreter) {
       this.activeInterpreter.isWaitingForMessage = false
@@ -377,7 +351,7 @@ export class EventSystem extends ZSystem implements IObstacleProvider {
   }
 
   public refreshAllEvents(): void {
-    const map = this.map.currentMap
+    const map = this.mapManager.currentMap
     if (!map) return
 
     map.events.forEach((event) => {
@@ -389,7 +363,6 @@ export class EventSystem extends ZSystem implements IObstacleProvider {
     const lastPageIndex = this._activePageCache.get(event.id) ?? -1
     const newPage = this.getActivePage(event)
 
-    // Determine new page index
     let newPageIndex = -1
     if (newPage) {
       newPageIndex = event.pages.indexOf(newPage)
@@ -413,22 +386,15 @@ export class EventSystem extends ZSystem implements IObstacleProvider {
         directionFix: newPage?.options?.directionFix ?? false
       })
 
-      // If switching to a page with Parallel trigger, ensure it gets picked up
       this.checkParallelTriggers()
     }
   }
 
-  // Handles State Changes to sync with Runtime State
   private onEventStateChanged(data: ZSignalData[ZEngineSignal.EventInternalStateChanged]): void {
     const state = this.eventStates.get(data.eventId)
     if (!state) return
 
-    if (data.direction) {
-      // Clear pre-interaction direction if explicit change
-      // We need to track preInteractionDirection in state if we want to support it logic-side?
-      // Yes, state needs to handle this.
-      state.direction = data.direction
-    }
+    if (data.direction) state.direction = data.direction
     if (data.moveRoute) {
       state.moveRoute = data.moveRoute
       state.moveRouteIndex = 0
@@ -445,15 +411,11 @@ export class EventSystem extends ZSystem implements IObstacleProvider {
     if (data.directionFix !== undefined) state.directionFix = data.directionFix
     if (data.isThrough !== undefined) {
       state.isThrough = data.isThrough
-      // Sync to ZEvent too?
-      const mapEvent = this.map.currentMap?.events.find((e) => e.id === data.eventId)
+      const mapEvent = this.mapManager.currentMap?.events.find((e) => e.id === data.eventId)
       if (mapEvent) mapEvent.isThrough = data.isThrough
     }
   }
 
-  // Interaction Logic (Face Player)
-  // We need to store pre-interaction direction in state to restore it
-  // So we add a property to ZEventRuntimeState? Or just keep it map-side here?
   private preInteractionDirections: Map<string, 'down' | 'left' | 'right' | 'up'> = new Map()
 
   private onEventInteractionStarted(
@@ -463,21 +425,16 @@ export class EventSystem extends ZSystem implements IObstacleProvider {
     const state = this.eventStates.get(eventId)
     if (!state) return
 
-    // Stop moving
     if (state.isMoving) {
-      // Snap to target? Or just stop?
-      // Usually we finish the step. But for instant response:
-      const tileSize = this.map.currentMap?.tileWidth || 48
-      state.realX = state.targetX * tileSize
-      state.realY = state.targetY * tileSize
+      state.realX = state.targetX! * this.tileSize
+      state.realY = state.targetY! * this.tileSize
       const tx = state.targetX ?? state.x
       const ty = state.targetY ?? state.y
       state.x = tx
       state.y = ty
       state.isMoving = false
 
-      // Sync ZEvent
-      const mapEvent = this.map.currentMap?.events.find((e) => e.id === eventId)
+      const mapEvent = this.mapManager.currentMap?.events.find((e) => e.id === eventId)
       if (mapEvent) {
         mapEvent.x = state.x
         mapEvent.y = state.y
@@ -504,7 +461,6 @@ export class EventSystem extends ZSystem implements IObstacleProvider {
     const state = this.eventStates.get(eventId)
     if (!state) return
 
-    // Check if transitioning?
     if (this.isTransitioning) {
       this.preInteractionDirections.delete(eventId)
       return
@@ -517,9 +473,6 @@ export class EventSystem extends ZSystem implements IObstacleProvider {
     }
   }
 
-  /**
-   * Starts a new event interpreter.
-   */
   public startEvent(event: ZEvent, triggererPos?: { x: number; y: number }): void {
     const activePage = this.getActivePage(event)
     if (!activePage) return
@@ -539,7 +492,7 @@ export class EventSystem extends ZSystem implements IObstacleProvider {
   }
 
   private checkPageConditions(conditions: ZEventCondition): boolean {
-    const gameState = this.game
+    const gameState = this.gameState
 
     if (conditions.switch1Id) {
       const val = gameState.getSwitch(Number(conditions.switch1Id))
@@ -563,8 +516,8 @@ export class EventSystem extends ZSystem implements IObstacleProvider {
     if (!this.checkPageConditions(conditions)) return false
 
     if (conditions.selfSwitchCh) {
-      const mapId = this.map.currentMap?.id || 0
-      const val = this.game.getSelfSwitch(mapId, eventId, conditions.selfSwitchCh)
+      const mapId = this.mapManager.currentMap?.id || 0
+      const val = this.gameState.getSelfSwitch(mapId, eventId, conditions.selfSwitchCh)
       if (!val) return false
     }
 
@@ -583,9 +536,6 @@ export class EventSystem extends ZSystem implements IObstacleProvider {
     return null
   }
 
-  /**
-   * Checks for event triggers at the specified coordinates.
-   */
   public checkTrigger(
     x: number,
     y: number,
@@ -594,7 +544,7 @@ export class EventSystem extends ZSystem implements IObstacleProvider {
   ): boolean {
     if (this.isProcessing) return false
 
-    const map = this.map.currentMap
+    const map = this.mapManager.currentMap
     if (!map) return false
 
     const event = map.events.find((e) => e.x === x && e.y === y)
@@ -657,15 +607,17 @@ export class EventSystem extends ZSystem implements IObstacleProvider {
   private executeCommand(cmd: ZEventCommand, interpreter: ZEventInterpreter): ZCommandResult {
     const processor = CommandRegistry[cmd.code]
     if (processor) {
-      return processor(cmd.parameters, interpreter, this.services)
+      if (!this.engine) {
+        ZLogger.with(EventSystem.name).error('Engine context not set! Cannot execute commands.')
+        return 'continue'
+      }
+
+      return processor(cmd.parameters, interpreter, this.engine)
     }
 
     return 'continue'
   }
 
-  /**
-   * Submits a choice result to the active interpreter.
-   */
   public submitChoice(index: number): void {
     if (this.activeInterpreter) {
       this.activeInterpreter.pendingChoice = index

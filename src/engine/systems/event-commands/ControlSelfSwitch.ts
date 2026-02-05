@@ -1,7 +1,4 @@
-import { ZCommandProcessor, ZCommandResult, ZEventInterpreter } from '@engine/types'
-import { ServiceLocator } from '@engine/core/ServiceLocator'
-import { GameStateManager } from '@engine/managers/GameStateManager'
-import { MapManager } from '@engine/managers/MapManager'
+import { IEngineContext, ZCommandProcessor, ZCommandResult, ZEventInterpreter } from '@engine/types'
 
 /**
  * Command 123: Control Self Switch
@@ -9,16 +6,13 @@ import { MapManager } from '@engine/managers/MapManager'
 export const commandControlSelfSwitch: ZCommandProcessor = (
   params: unknown[],
   interpreter: ZEventInterpreter,
-  services: ServiceLocator
+  engine: IEngineContext
 ): ZCommandResult => {
-  const gameState = services.require(GameStateManager)
-  const mapManager = services.require(MapManager)
-
-  const mapId = mapManager.currentMap?.id || 0
+  const mapId = engine.map.currentMap?.id || 0
   const eventId = interpreter.eventId
   const ch = params[0] as string
   const value = params[1] === 1
 
-  gameState.setSelfSwitch(mapId, eventId, ch, value)
+  engine.gameState.setSelfSwitch(mapId, eventId, ch, value)
   return 'continue'
 }

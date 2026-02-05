@@ -1,27 +1,29 @@
-import { ZSystem } from '@engine/core/ZSystem'
-import { ServiceLocator } from '@engine/core/ServiceLocator'
 import { ZEngineSignal, ZMenuParams, ZInputAction } from '@engine/types'
-import { SceneManager } from '@engine/managers/SceneManager'
-import { InputManager } from '@engine/managers/InputManager'
 import { SceneMenu } from '@engine/scenes/SceneMenu'
+import { ZEventBus } from '@engine/core'
+import { InputManager } from '@engine/managers'
+import { SceneManager } from '@engine/managers'
 
-export class MenuSystem extends ZSystem {
-  constructor(services: ServiceLocator) {
-    super(services)
+export class MenuSystem {
+  private eventBus: ZEventBus
+  private input: InputManager
+  private scenes: SceneManager
+
+  constructor(eventBus: ZEventBus, input: InputManager, scenes: SceneManager) {
+    this.eventBus = eventBus
+    this.input = input
+    this.scenes = scenes
   }
 
   public onBoot(): void {
-    this.bus.on(ZEngineSignal.MenuRequested, (data) => {
+    this.eventBus.on(ZEngineSignal.MenuRequested, (data) => {
       this.callMenu(data)
     })
   }
 
   private callMenu(data: ZMenuParams): void {
-    const sceneManager = this.services.require(SceneManager)
-    const inputManager = this.services.require(InputManager)
+    this.input.clearAction(ZInputAction.CANCEL)
 
-    inputManager.clearAction(ZInputAction.CANCEL)
-
-    sceneManager.push(SceneMenu, data, { fade: true })
+    this.scenes.push(SceneMenu, data, { fade: true })
   }
 }

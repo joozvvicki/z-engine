@@ -1,6 +1,10 @@
-import { ZCommandProcessor, ZCommandResult, ZEventInterpreter, ZEngineSignal } from '@engine/types'
-import { ServiceLocator } from '@engine/core/ServiceLocator'
-import { ZEventBus } from '@engine/core/ZEventBus'
+import {
+  ZCommandProcessor,
+  ZCommandResult,
+  ZEventInterpreter,
+  ZEngineSignal,
+  IEngineContext
+} from '@engine/types'
 import { InterpreterUtils } from './InterpreterUtils'
 
 /**
@@ -9,11 +13,10 @@ import { InterpreterUtils } from './InterpreterUtils'
 export const commandShowChoices: ZCommandProcessor = (
   params: unknown[],
   _interpreter: ZEventInterpreter,
-  services: ServiceLocator
+  engine: IEngineContext
 ): ZCommandResult => {
-  const bus = services.require(ZEventBus)
   const choices = params[0] as string[]
-  bus.emit(ZEngineSignal.ShowChoices, { choices })
+  engine.eventBus.emit(ZEngineSignal.ShowChoices, { choices })
   return 'wait'
 }
 

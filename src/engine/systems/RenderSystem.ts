@@ -2,39 +2,60 @@ import PIXI from '@engine/utils/pixi'
 import { AutotileSolver } from '@engine/utils/AutotileSolver'
 import { SpriteUtils } from '@engine/utils/SpriteUtils'
 import { type ZMap, type ZEventGraphic, type TileSelection, ZLayer } from '@engine/types'
-import { ZSystem } from '@engine/core/ZSystem'
-import { ServiceLocator } from '@engine/core/ServiceLocator'
+import { TextureManager } from '@engine/managers/TextureManager'
+import { MapManager } from '@engine/managers/MapManager'
+import { TilesetManager } from '@engine/managers/TilesetManager'
 
-export class RenderSystem extends ZSystem {
+/**
+ * Handles the rendering of the static Tilemap (Ground, Walls, Decorations).
+ * Refactored for Manual Dependency Injection.
+ */
+export class RenderSystem {
+  // Dependencies
+  private wrapper: PIXI.Container
+  private textures: TextureManager
+  private mapManager: MapManager
+  private tilesetManager: TilesetManager
+  public tileSize: number
+
+  // Internal State
   private layers: Record<ZLayer, PIXI.Container>
   private eventMarkersLayer: PIXI.Container // Dedicated layer for editor event markers
   private tileContainers: Record<ZLayer, PIXI.Container[][][]>
-  public tileSize: number
-
-  private wrapper: PIXI.Container
 
   private fullRenderDirty: boolean = false
   private tileUpdates: { x: number; y: number; layer: ZLayer; tiles: TileSelection[] }[] = []
 
-  constructor(stage: PIXI.Container, services: ServiceLocator, tileSize: number) {
-    super(services)
-    this.wrapper = stage
+  // Editor specific state (Player Start Marker)
+  private playerStartMarker: PIXI.Container | null = null
+  private showPlayerStart: boolean = false
+  private playerStartX: number = 0
+  private playerStartY: number = 0
+  private playerStartGraphic: string = ''
+  private playerStartCharX: number = 0
+  private playerStartCharY: number = 0
+  private playerStartSrcX?: number
+  private playerStartSrcY?: number
+  private playerStartSrcW?: number
+  private playerStartSrcH?: number
 
+  private eventMarkers: PIXI.Container[] = []
+  private showEventMarkers: boolean = false
+
+  constructor(
+    stage: PIXI.Container,
+    textures: TextureManager,
+    mapManager: MapManager,
+    tilesetManager: TilesetManager,
+    tileSize: number
+  ) {
+    this.wrapper = stage
+    this.textures = textures
+    this.mapManager = mapManager
+    this.tilesetManager = tilesetManager
     this.tileSize = tileSize
 
-    this.layers = null!
-    this.eventMarkersLayer = null!
-    this.tileContainers = null!
-  }
-
-  public onBoot(): void {
-    // We attach layers directly to wrapper (Stage) to allow interleaving with Entities (Player)
-    // Z-Index Strategy:
-    // Ground: 0
-    // Decoration: 200
-    // Events: 300
-    // Highest: 500
-
+    // Initialize layers immediately
     this.layers = {
       [ZLayer.ground]: new PIXI.Container({ label: 'GroundLayer' }),
       [ZLayer.walls]: new PIXI.Container({ label: 'WallsLayer' }),
@@ -42,6 +63,17 @@ export class RenderSystem extends ZSystem {
       [ZLayer.highest]: new PIXI.Container({ label: 'HighestLayer' })
     }
     this.eventMarkersLayer = new PIXI.Container({ label: 'EventMarkersLayer' })
+    this.tileContainers = this.createEmptyContainerStructure(0, 0)
+
+    this.initLayers()
+  }
+
+  private initLayers(): void {
+    // Z-Index Strategy:
+    // Ground: 0
+    // Decoration: 200
+    // Events: 300 (Handled by EntityRenderSystem usually, but markers are here)
+    // Highest: 500
 
     this.layers[ZLayer.ground].zIndex = 0
     this.layers[ZLayer.walls].zIndex = 100
@@ -54,24 +86,6 @@ export class RenderSystem extends ZSystem {
     this.layers[ZLayer.decoration].sortableChildren = true
     this.eventMarkersLayer.sortableChildren = true
     this.layers[ZLayer.highest].sortableChildren = true
-
-    // Since wrapper (Stage) has sortableChildren=true, zIndex will be respected?
-    // Actually, SceneMap will now manage these layers.
-    this.tileContainers = this.createEmptyContainerStructure(0, 0)
-
-    // Load Player Texture for Editor Visualization
-    // We register it with TextureManager so SpriteUtils can find it.
-    // Load Player Texture for Editor Visualization
-    // We register it with TextureManager so SpriteUtils can find it.
-    // TODO: This should be data-driven via TextureManager or Engine Config
-    /*
-    import('@ui/assets/img/characters/character.png').then((mod) => {
-      // mod.default is the URL
-      this.textures.loadTileset('@ui/assets/img/characters/character.png', mod.default).then(() => {
-        this.fullRenderDirty = true
-      })
-    })
-    */
   }
 
   public getLayerContainer(layer: ZLayer): PIXI.Container {
@@ -87,35 +101,47 @@ export class RenderSystem extends ZSystem {
   }
 
   public onUpdate(): void {
-    if (this.fullRenderDirty && this.map.currentMap) {
-      this.performFullRender(this.map.currentMap)
+    if (this.fullRenderDirty && this.mapManager.currentMap) {
+      this.performFullRender(this.mapManager.currentMap)
       this.fullRenderDirty = false
     }
 
     if (this.tileUpdates.length > 0) {
       const batch = this.tileUpdates.splice(0, this.tileUpdates.length)
       batch.forEach((update) => {
-        this.performDrawTile(update.x, update.y, update.tiles, update.layer, this.map.currentMap!)
+        this.performDrawTile(
+          update.x,
+          update.y,
+          update.tiles,
+          update.layer,
+          this.mapManager.currentMap!
+        )
       })
     }
   }
 
   public onDestroy(): void {
     Object.values(this.layers).forEach((layer) => {
-      this.wrapper.removeChild(layer)
+      // Remove from parent (wrapper/stage) if attached
+      if (layer.parent === this.wrapper) {
+        this.wrapper.removeChild(layer)
+      }
       layer.destroy({ children: true })
     })
-    this.wrapper.removeChild(this.eventMarkersLayer)
+
+    if (this.eventMarkersLayer.parent === this.wrapper) {
+      this.wrapper.removeChild(this.eventMarkersLayer)
+    }
     this.eventMarkersLayer.destroy({ children: true })
   }
 
   public requestTileUpdate(x: number, y: number, tiles: TileSelection[], layer: ZLayer): void {
-    if (!this.map.currentMap) return
+    if (!this.mapManager.currentMap) return
     this.tileUpdates.push({ x, y, layer, tiles })
   }
 
   public setMap(mapData: ZMap): void {
-    this.map.setMap(mapData)
+    this.mapManager.setMap(mapData)
     this.fullRenderDirty = true
     this.tileUpdates = []
     this.showPlayerStart = false // Hide marker on map change until explicitly updated
@@ -142,7 +168,7 @@ export class RenderSystem extends ZSystem {
 
       // --- Determine Priority & Offset for THIS tile ---
       const tilesetUrl = mapData.tilesetConfig?.[selection.tilesetId] || selection.tilesetId
-      const config = this.tilesets.getTileConfig(tilesetUrl, selection.x, selection.y)
+      const config = this.tilesetManager.getTileConfig(tilesetUrl, selection.x, selection.y)
 
       const isHighPriority = config?.isHighPriority || false
       const ySortOffset = config?.sortYOffset ? Number(config.sortYOffset) : 0
@@ -206,7 +232,6 @@ export class RenderSystem extends ZSystem {
 
       // Track it
       if (!this.tileContainers[layer]) {
-        console.warn(`[RenderSystem] Layer ${layer} not initialized in tileContainers`)
         return
       }
       if (!this.tileContainers[layer][y]) this.tileContainers[layer][y] = []
@@ -238,7 +263,6 @@ export class RenderSystem extends ZSystem {
     layersOrder.forEach((layer) => {
       const grid = mapData.layers[layer].data
       for (let y = 0; y < mapData.height; y++) {
-        // Safety check for invalid map data
         if (!grid[y]) continue
 
         for (let x = 0; x < mapData.width; x++) {
@@ -250,27 +274,10 @@ export class RenderSystem extends ZSystem {
       }
     })
 
-    // Render Object Events - Disabled in favour of GhostSystem placeholders in editor
-    // this.renderEvents(mapData)
-
-    // Ensure startups are restored (they are cleared by resetLayers)
     this.drawPlayerStartMarker()
   }
 
-  private eventMarkers: PIXI.Container[] = []
-  private showEventMarkers: boolean = false
-
-  private playerStartMarker: PIXI.Container | null = null
-  private showPlayerStart: boolean = false
-  private playerStartX: number = 0
-  private playerStartY: number = 0
-  private playerStartGraphic: string = ''
-  private playerStartCharX: number = 0
-  private playerStartCharY: number = 0
-  private playerStartSrcX?: number
-  private playerStartSrcY?: number
-  private playerStartSrcW?: number
-  private playerStartSrcH?: number
+  // --- Editor Visuals: Event Markers & Player Start ---
 
   public setEventMarkersVisible(visible: boolean): void {
     this.showEventMarkers = visible
@@ -347,10 +354,10 @@ export class RenderSystem extends ZSystem {
       container.addChild(sprite)
     }
 
-    // Add Overlay (Distinct from normal events - maybe Green?)
+    // Add Overlay (Green for Player Start)
     const overlay = new PIXI.Graphics()
     overlay.rect(0, 0, this.tileSize, this.tileSize)
-    overlay.fill({ color: 0x00ff00, alpha: 0.2 }) // Green tint for Player Start
+    overlay.fill({ color: 0x00ff00, alpha: 0.2 })
     overlay.stroke({ color: 0x00ff00, width: 2 })
     container.addChild(overlay)
 
@@ -359,7 +366,7 @@ export class RenderSystem extends ZSystem {
       fontFamily: 'Arial',
       fontSize: 10,
       fill: '#00ff00',
-      stroke: { color: '#000000', width: 2 }, // Fixed V8 syntax
+      stroke: { color: '#000000', width: 2 },
       fontWeight: 'bold'
     })
     const text = new PIXI.Text({ text: 'START', style })
@@ -389,7 +396,7 @@ export class RenderSystem extends ZSystem {
       return
     }
 
-    this.eventMarkersLayer.alpha = 1 // Events markers usually stays visible
+    this.eventMarkersLayer.alpha = 1
 
     // Loop through all layers
     Object.values(this.layers).forEach((container) => {
@@ -398,10 +405,9 @@ export class RenderSystem extends ZSystem {
         if (activeContainer && container === activeContainer) {
           container.alpha = 1
         } else if (!activeContainer) {
-          // If focusOnly is true but no layer is active (e.g. Event Tool), keep all full opacity
           container.alpha = 1
         } else {
-          container.alpha = 0.3 // Dim everything else if there IS an active layer
+          container.alpha = 0.3
         }
         return
       }
@@ -410,79 +416,12 @@ export class RenderSystem extends ZSystem {
       if (container === activeContainer) {
         container.alpha = 1
       } else if (container.zIndex > activeZ) {
-        // Higher layer -> DIM IT (so we can see the active layer)
         container.alpha = 0.3
       } else {
-        // Lower layer -> Keep visible (context)
         container.alpha = 1
       }
     })
   }
-
-  /*
-  private renderEvents(mapData: ZMap): void {
-    this.eventMarkers = [] // Reset list (containers cleared by resetLayers? No, renderEvents runs after resetLayers usually, wait)
-    // resetLayers clears children of layers. So old markers are gone from PIXI.
-    // We just need to clear our reference list.
-
-    if (!mapData.events) return
-
-    mapData.events.forEach((event) => {
-      // Container for the event
-      const container = new PIXI.Container()
-      container.label = 'EditorEventMarker' // Tag it
-      container.x = event.x * this.tileSize
-      container.y = event.y * this.tileSize
-      container.zIndex = (event.y + 1) * this.tileSize
-      container.visible = this.showEventMarkers // Apply Saved Visibility State!
-
-      let graphicSprite: PIXI.Sprite | null = null
-
-      // 2. Determine Graphic
-      const activePage = event.pages[0] // Default to first page for now until Interpreter
-
-      // Helper to construct a ZEventGraphic-like object for PlayerStart/Asset
-      let graphicData: ZEventGraphic | null = null
-
-      if (activePage && activePage.graphic) {
-        graphicData = { ...activePage.graphic }
-        // Determine idle frame
-        const tex = this.textures.get(graphicData.assetId)
-        if (tex && !graphicData.srcW) {
-          const { divW } = SpriteUtils.getFrameRect(graphicData, tex)
-          graphicData.x = SpriteUtils.getIdleFrameIndex(divW)
-        }
-      }
-
-      if (graphicData) {
-        // Ensure TextureManager has this loaded?
-        // RenderSystem.onBoot preloads '@ui/assets/img/characters/character.png' manually,
-        // but TextureManager needs to know it by that KEY.
-
-        graphicSprite = SpriteUtils.createEventSprite(
-          graphicData,
-          this.textures,
-          this.tileSize,
-          true
-        )
-      }
-
-      // 3. Add Graphic (Bottom Layer)
-      if (graphicSprite) {
-        container.addChild(graphicSprite)
-      }
-
-      // 3. Add Event Box Overlay (Semi-transparent Black + Border)
-      const overlay = new PIXI.Graphics()
-      overlay.rect(0, 0, this.tileSize, this.tileSize)
-      overlay.fill({ color: 0x000000, alpha: 0.5 })
-      overlay.stroke({ color: 0x000000, width: 2 })
-      container.addChild(overlay)
-
-      this.eventMarkersLayer.addChild(container)
-      this.eventMarkers.push(container)
-    })
-  } */
 
   public IsMapLoaded(): boolean {
     return this.tileUpdates.length === 0

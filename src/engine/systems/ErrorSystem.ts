@@ -1,19 +1,18 @@
 import PIXI from '@engine/utils/pixi'
 import ZLogger from '@engine/utils/ZLogger'
-import { ZSystem, SystemMode } from '@engine/core/ZSystem'
-import { ServiceLocator } from '@engine/core/ServiceLocator'
 
-export class ErrorSystem extends ZSystem {
+/**
+ * Displays critical errors overlay.
+ * Refactored to be a standalone system without dependencies.
+ */
+export class ErrorSystem {
   public container: PIXI.Container
   private background: PIXI.Graphics
   private titleText: PIXI.Text
   private messageText: PIXI.Text
   private isVisible: boolean = false
 
-  constructor(services: ServiceLocator) {
-    super(services)
-    this.updateMode = SystemMode.ALWAYS
-
+  constructor() {
     this.container = new PIXI.Container()
     this.container.label = 'ErrorOverlay'
     this.container.zIndex = 11000
@@ -81,8 +80,8 @@ export class ErrorSystem extends ZSystem {
     this.messageText.y = this.titleText.y + 60
   }
 
-  onUpdate(): void {
-    // Keep it on top if other things are added
+  // Called by ZEngine loop if needed, ensures overlay stays on top
+  public onUpdate(): void {
     if (this.isVisible && this.container.parent) {
       this.container.parent.setChildIndex(this.container, this.container.parent.children.length - 1)
     }

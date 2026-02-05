@@ -1,6 +1,4 @@
-import { ZCommandProcessor, ZCommandResult, ZEventInterpreter } from '@engine/types'
-import { ServiceLocator } from '@engine/core/ServiceLocator'
-import { GameStateManager } from '@engine/managers/GameStateManager'
+import { IEngineContext, ZCommandProcessor, ZCommandResult, ZEventInterpreter } from '@engine/types'
 import { InterpreterUtils } from './InterpreterUtils'
 
 /**
@@ -9,21 +7,20 @@ import { InterpreterUtils } from './InterpreterUtils'
 export const commandConditionalBranch: ZCommandProcessor = (
   params: unknown[],
   interpreter: ZEventInterpreter,
-  services: ServiceLocator
+  engine: IEngineContext
 ): ZCommandResult => {
-  const gameState = services.require(GameStateManager)
   const type = params[0] as number
   let result = false
 
   if (type === 0) {
     const switchId = params[1] as number
     const requiredState = params[2] === 1
-    const currentVal = gameState.getSwitch(switchId)
+    const currentVal = engine.gameState.getSwitch(switchId)
     result = currentVal === requiredState
   } else if (type === 1) {
     const varId = params[1] as number
     const neededVal = params[2] as number
-    const currentVal = gameState.getVariable(varId)
+    const currentVal = engine.gameState.getVariable(varId)
     result = currentVal === neededVal
   }
 

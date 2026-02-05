@@ -8,7 +8,6 @@ import {
   getCurrentInstance
 } from 'vue'
 import type { ZMap } from '@engine/types'
-import { HistoryManager } from '@engine/managers/HistoryManager'
 
 export const useHistory = (
   _activeMap: Ref<ZMap | undefined>,
@@ -34,13 +33,12 @@ export const useHistory = (
   let timer: ReturnType<typeof setInterval> | null = null
 
   const syncStatus = (): void => {
-    const engine = window.$zEngine
-    const historyManager = engine?.services.get(HistoryManager)
-    if (historyManager) {
-      canUndo.value = historyManager.canUndo
-      canRedo.value = historyManager.canRedo
-      undoCount.value = historyManager.undoCount
-      redoCount.value = historyManager.redoCount
+    const history = window.$zEngine.history
+    if (history) {
+      canUndo.value = history.canUndo
+      canRedo.value = history.canRedo
+      undoCount.value = history.undoCount
+      redoCount.value = history.redoCount
     }
   }
 
@@ -62,20 +60,18 @@ export const useHistory = (
   }
 
   const undo = (): void => {
-    const engine = window.$zEngine
-    const historyManager = engine?.services.get(HistoryManager)
-    if (historyManager) {
-      historyManager.undo()
+    const history = window.$zEngine.history
+    if (history) {
+      history.undo()
       saveCallback()
       syncStatus()
     }
   }
 
   const redo = (): void => {
-    const engine = window.$zEngine
-    const historyManager = engine?.services.get(HistoryManager)
-    if (historyManager) {
-      historyManager.redo()
+    const history = window.$zEngine.history
+    if (history) {
+      history.redo()
       saveCallback()
       syncStatus()
     }
@@ -85,10 +81,9 @@ export const useHistory = (
   // This remains for manual/UI triggered snapshots if needed, but mostly it's a no-op or
   // can be used to commit currently open entry.
   const recordHistory = (): void => {
-    const engine = window.$zEngine
-    const historyManager = engine?.services.get(HistoryManager)
-    if (historyManager) {
-      historyManager.commitEntry()
+    const history = window.$zEngine.history
+    if (history) {
+      history.commitEntry()
       syncStatus()
     }
   }

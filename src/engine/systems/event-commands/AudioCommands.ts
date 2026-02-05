@@ -1,6 +1,5 @@
-import { ZCommandProcessor, ZCommandResult, ZEventInterpreter, ZAudioConfig } from '@engine/types'
-import { ServiceLocator } from '@engine/core/ServiceLocator'
-import { AudioManager } from '@engine/managers/AudioManager'
+import { ZCommandProcessor, ZCommandResult, ZEventInterpreter } from '@engine/types'
+import { IEngineContext } from '@engine/managers'
 
 /**
  * Command 241: Play BGM
@@ -8,13 +7,10 @@ import { AudioManager } from '@engine/managers/AudioManager'
 export const commandPlayBGM: ZCommandProcessor = (
   params: unknown[],
   _interpreter: ZEventInterpreter,
-  services: ServiceLocator
+  engine: IEngineContext
 ): ZCommandResult => {
-  const audioManager = services.require(AudioManager)
-  const config = params[0] as ZAudioConfig
+  const config = params[0]
 
-  // Optional fade out previous BGM (default 0)
-  // RM doesn't send this in PlayBGM usually, relies on separate FadeOut or auto-cut
   audioManager.playBgm(config)
 
   return 'continue'
@@ -26,9 +22,8 @@ export const commandPlayBGM: ZCommandProcessor = (
 export const commandFadeOutBGM: ZCommandProcessor = (
   params: unknown[],
   _interpreter: ZEventInterpreter,
-  services: ServiceLocator
+  engine: IEngineContext
 ): ZCommandResult => {
-  const audioManager = services.require(AudioManager)
   const duration = (params[0] as number) || 1 // seconds
 
   audioManager.fadeOutBgm(duration)
@@ -42,10 +37,9 @@ export const commandFadeOutBGM: ZCommandProcessor = (
 export const commandPlaySE: ZCommandProcessor = (
   params: unknown[],
   _interpreter: ZEventInterpreter,
-  services: ServiceLocator
+  engine: IEngineContext
 ): ZCommandResult => {
-  const audioManager = services.require(AudioManager)
-  const config = params[0] as ZAudioConfig
+  const config = params[0]
 
   audioManager.playSe(config)
 

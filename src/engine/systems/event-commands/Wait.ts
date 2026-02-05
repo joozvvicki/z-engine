@@ -9,6 +9,6 @@ export const commandWait: ZCommandProcessor = (
 ): ZCommandResult => {
   const frames = (params[0] as number) || 60
   interpreter.waitCount = frames
-  // The services parameter is part of the ZCommandProcessor signature but not used here.
+
   return 'wait'
 }

@@ -1,27 +1,24 @@
 import { ZLayer } from '@engine/types'
-import { ZSystem, SystemMode } from '@engine/core/ZSystem'
-import { ServiceLocator } from '@engine/core/ServiceLocator'
-
 import type { IPhysicsSystem, IObstacleProvider } from '@engine/interfaces/IPhysicsSystem'
+import { MapManager } from '@engine/managers/MapManager'
+import { TilesetManager } from '@engine/managers/TilesetManager'
 
-export class PhysicsSystem extends ZSystem implements IPhysicsSystem {
+/**
+ * Handles collision detection and movement logic.
+ * Refactored for Manual Dependency Injection.
+ */
+export class PhysicsSystem implements IPhysicsSystem {
+  private mapManager: MapManager
+  private tilesetManager: TilesetManager
   private obstacleProviders: IObstacleProvider[] = []
 
-  constructor(services: ServiceLocator) {
-    super(services)
-    this.updateMode = SystemMode.PLAY
+  constructor(mapManager: MapManager, tilesetManager: TilesetManager) {
+    this.mapManager = mapManager
+    this.tilesetManager = tilesetManager
   }
 
   public registerProvider(provider: IObstacleProvider): void {
     this.obstacleProviders.push(provider)
-  }
-
-  public onBoot(): void {
-    // No specific boot logic needed yet
-  }
-
-  public onUpdate(): void {
-    // No continuous update needed yet, passive system
   }
 
   public isPassable(
@@ -29,33 +26,22 @@ export class PhysicsSystem extends ZSystem implements IPhysicsSystem {
     y: number,
     options?: { isThrough?: boolean; skipPlayer?: boolean }
   ): boolean {
-    const map = this.map.currentMap
+    const map = this.mapManager.currentMap
     if (!map) return false
 
     if (x < 0 || x >= map.width || y < 0 || y >= map.height) {
       return false
     }
 
-    // Check Obstacle Providers (Events, Player, etc.)
+    // 1. Check Obstacle Providers (Dynamic Entities like Events, Player)
     if (!options?.isThrough) {
       for (const provider of this.obstacleProviders) {
-        // We pass context if needed, but for now simple check
-        // Note: skipPlayer option implies we might need to filter providers?
-        // Or providers handle it?
-        // Let's pass 'skipPlayer' as a generic exclude tag?
-        // Ideally PhysicsSystem shouldn't know about 'skipPlayer' concept if fully decoupled?
-        // But SetMoveRoute might assume it.
-        // Let's assume providers return false if they shouldn't trigger.
-
-        // Actually, PlayerSystem IS an obstacle provider.
-        // If options.skipPlayer is true, we want to skip that specific provider?
-        // Or we pass options to the provider?
-
-        // Let's assume we pass options.
+        // Providers handle internal logic (like skipping self/player) based on options
         if (provider.isOccupied(x, y, options)) return false
       }
     }
 
+    // 2. Check Static Tile Collisions
     const strictLayers = [ZLayer.decoration, ZLayer.walls]
 
     for (const layerKey of strictLayers) {
@@ -66,10 +52,12 @@ export class PhysicsSystem extends ZSystem implements IPhysicsSystem {
       if (tiles && tiles.length > 0) {
         for (const tile of tiles) {
           const tilesetUrl = map.tilesetConfig?.[tile.tilesetId] || tile.tilesetId
-          const config = this.tilesets.getTileConfig(tilesetUrl, tile.x, tile.y)
+          const config = this.tilesetManager.getTileConfig(tilesetUrl, tile.x, tile.y)
+
           if (config?.isSolid) {
-            // Check if any event at this position is 'through'
-            // If so, override tile solidity
+            // RPG Maker logic: If an event is on this tile and is "Through",
+            // it overrides the tile's solidity (e.g. bridge).
+            // Note: This relies on Map data, separate from ObstacleProviders
             const isThroughEvent = map.events.some((e) => e.x === x && e.y === y && e.isThrough)
             if (!isThroughEvent && !options?.isThrough) return false
           }
@@ -85,7 +73,7 @@ export class PhysicsSystem extends ZSystem implements IPhysicsSystem {
           const tile = tiles[i]
           if (!tile) continue
           const tilesetUrl = map.tilesetConfig?.[tile.tilesetId] || tile.tilesetId
-          const config = this.tilesets.getTileConfig(tilesetUrl, tile.x, tile.y)
+          const config = this.tilesetManager.getTileConfig(tilesetUrl, tile.x, tile.y)
 
           if (config?.isSolid) {
             const isThroughEvent = map.events.some((e) => e.x === x && e.y === y && e.isThrough)
@@ -117,7 +105,7 @@ export class PhysicsSystem extends ZSystem implements IPhysicsSystem {
     // 1. Check General Solidity first
     if (!this.isPassable(targetX, targetY, options)) return false
 
-    // 2. Check Directional Blocking
+    // 2. Check Directional Blocking (Walls, Fences)
     let bitLeaving = 0
     let bitEntering = 0
 
@@ -142,7 +130,7 @@ export class PhysicsSystem extends ZSystem implements IPhysicsSystem {
   }
 
   private isDirectionBlocked(x: number, y: number, dirBit: number): boolean {
-    const map = this.map.currentMap
+    const map = this.mapManager.currentMap
     if (!map) return false
 
     const layers = [ZLayer.decoration, ZLayer.walls, ZLayer.ground]
@@ -155,7 +143,7 @@ export class PhysicsSystem extends ZSystem implements IPhysicsSystem {
         const tile = layerStack[i]
         if (!tile) continue
         const tilesetUrl = map.tilesetConfig?.[tile.tilesetId] || tile.tilesetId
-        const config = this.tilesets.getTileConfig(tilesetUrl, tile.x, tile.y)
+        const config = this.tilesetManager.getTileConfig(tilesetUrl, tile.x, tile.y)
 
         if (config && config.dirBlock !== undefined) {
           if ((config.dirBlock & dirBit) !== 0) return true

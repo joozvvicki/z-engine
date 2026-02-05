@@ -1,8 +1,8 @@
 import { Text } from '@engine/utils/pixi'
+import ZLogger from '@engine/utils/ZLogger'
 import { ZScene } from '@engine/core/ZScene'
-import { ServiceLocator } from '@engine/core/ServiceLocator'
-import { SceneManager } from '@engine/managers/SceneManager'
 import { SceneTitle } from '@engine/scenes/SceneTitle'
+import { IEngineContext } from '@engine/types'
 
 export class SceneIntro extends ZScene {
   private introText: Text | null = null
@@ -10,14 +10,18 @@ export class SceneIntro extends ZScene {
   private phase: 'fadein' | 'wait' | 'fadeout' = 'fadein'
   private isFinished: boolean = false
 
-  constructor(services: ServiceLocator) {
-    super(services)
+  // Stałe konfiguracyjne dla animacji
+  private readonly FADE_SPEED = 0.0015 // Alpha na milisekundę (1.5s fade)
+  private readonly WAIT_TIME = 2000 // Czas oczekiwania w ms
+
+  constructor(engine: IEngineContext) {
+    super(engine)
   }
 
   public async init(): Promise<void> {
-    console.log('[SceneIntro] Init Start')
-    const centerX = this.app.screen.width / 2
-    const centerY = this.app.screen.height / 2
+    ZLogger.with('SceneIntro').info('Init Start')
+    const centerX = this.engine.app.screen.width / 2
+    const centerY = this.engine.app.screen.height / 2
 
     this.introText = new Text({
       text: 'Made by Z-Engine',
@@ -39,43 +43,40 @@ export class SceneIntro extends ZScene {
     this.introText.alpha = 0
 
     this.container.addChild(this.introText)
-    console.log('[SceneIntro] Init Complete. Text added at', centerX, centerY)
   }
 
   public start(): void {
-    console.log('[SceneIntro] Start called')
+    ZLogger.with('SceneIntro').info('Start called')
   }
 
-  public update(): void {
+  // Używamy delta (czas w ms od ostatniej klatki) do płynnej animacji
+  public update(delta: number): void {
     if (!this.introText) return
-    // console.log('[SceneIntro] Update', this.phase, this.introText.alpha)
 
     switch (this.phase) {
       case 'fadein':
-        this.introText.alpha += 0.02
+        this.introText.alpha += this.FADE_SPEED * delta
         if (this.introText.alpha >= 1) {
           this.introText.alpha = 1
           this.phase = 'wait'
           this.timer = 0
-          console.log('[SceneIntro] Phase -> WAIT')
+          ZLogger.with('SceneIntro').info('Phase -> WAIT')
         }
         break
 
       case 'wait':
-        this.timer++
-        if (this.timer > 120) {
-          // 2 seconds
+        this.timer += delta
+        if (this.timer > this.WAIT_TIME) {
           this.phase = 'fadeout'
-          console.log('[SceneIntro] Phase -> FADEOUT')
+          ZLogger.with('SceneIntro').info('Phase -> FADEOUT')
         }
         break
 
       case 'fadeout':
-        this.introText.alpha -= 0.02
+        this.introText.alpha -= this.FADE_SPEED * delta
         if (this.introText.alpha <= 0) {
           this.introText.alpha = 0
           if (!this.isFinished) {
-            console.log('[SceneIntro] Finishing Intro')
             this.isFinished = true
             this.finishIntro()
           }
@@ -85,8 +86,8 @@ export class SceneIntro extends ZScene {
   }
 
   private finishIntro(): void {
-    console.log('[SceneIntro] Changing to SceneTitle')
-    const sceneManager = this.services.require(SceneManager)
-    sceneManager.goto(SceneTitle)
+    ZLogger.with('SceneIntro').info('Changing to SceneTitle')
+    // Bezpośredni dostęp do Managera Scen z kontekstu silnika
+    this.engine.scenes.goto(SceneTitle)
   }
 }

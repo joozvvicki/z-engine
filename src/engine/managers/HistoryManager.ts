@@ -1,25 +1,41 @@
-import { ZHistoryEntry, ZTileDelta, ZLayer } from '@engine/types'
+import { ZHistoryEntry, ZTileDelta, ZLayer, ZDataProvider } from '@engine/types'
 import ZLogger from '@engine/utils/ZLogger'
-import { ServiceLocator } from '@engine/core/ServiceLocator'
-import { ZManager } from '@engine/core/ZManager'
 import { RenderSystem } from '@engine/systems/RenderSystem'
+import { MapManager } from '@engine/managers/MapManager'
 
 /**
  * Manages editor history using a delta-based approach.
+ * Refactored for Manual Dependency Injection.
  */
-export class HistoryManager extends ZManager {
+export class HistoryManager {
   private undoStack: ZHistoryEntry[] = []
   private redoStack: ZHistoryEntry[] = []
   private currentEntry: ZHistoryEntry | null = null
   private maxHistory: number = 50
 
-  constructor(services: ServiceLocator, maxHistory: number = 50) {
-    super(services)
+  // Dependencies
+  private mapManager: MapManager
+  private renderSystem: RenderSystem | null = null
+  private dataProvider: ZDataProvider | null = null
+
+  constructor(mapManager: MapManager, maxHistory: number = 50) {
+    this.mapManager = mapManager
     this.maxHistory = maxHistory
   }
 
-  private get renderSystem(): RenderSystem | undefined {
-    return this.services.get(RenderSystem)
+  /**
+   * Links the DataProvider (called by ZEngine).
+   */
+  public setDataProvider(provider: ZDataProvider): void {
+    this.dataProvider = provider
+  }
+
+  /**
+   * Links the RenderSystem (called by ZEngine.init).
+   * Needed because RenderSystem is created after HistoryManager.
+   */
+  public registerRenderer(renderSystem: RenderSystem): void {
+    this.renderSystem = renderSystem
   }
 
   /**
@@ -102,38 +118,44 @@ export class HistoryManager extends ZManager {
   }
 
   private applyDelta(delta: ZTileDelta, isUndo: boolean): void {
-    const provider = this.dataProvider
-    if (!provider) return
+    if (!this.dataProvider) {
+      ZLogger.with('HistoryManager').warn('Cannot apply delta: No DataProvider set')
+      return
+    }
 
     const stack = isUndo ? delta.oldStack : delta.newStack
 
     // 1. Update the Data Store
     if (stack && stack.length > 0) {
-      provider.setTileAt(delta.x, delta.y, null, false, delta.layer)
+      this.dataProvider.setTileAt(delta.x, delta.y, null, false, delta.layer)
       stack.forEach((tile) => {
-        provider.setTileAt(delta.x, delta.y, tile, true, delta.layer)
+        this.dataProvider!.setTileAt(delta.x, delta.y, tile, true, delta.layer)
       })
     } else {
-      provider.setTileAt(delta.x, delta.y, null, false, delta.layer)
+      this.dataProvider.setTileAt(delta.x, delta.y, null, false, delta.layer)
     }
 
     // 2. Trigger Engine Render Update
-    // After store update, the reference in mapManager should be updated too.
-    const map = this.map.currentMap
+    const map = this.mapManager.currentMap
     if (map) {
       const newStack = map.layers[delta.layer].data[delta.y]?.[delta.x]
-      if (newStack) {
-        this.renderSystem?.requestTileUpdate(delta.x, delta.y, newStack, delta.layer)
-      } else {
-        this.renderSystem?.clearTileAt(delta.x, delta.y, delta.layer)
+
+      // Use locally registered render system
+      if (this.renderSystem) {
+        if (newStack) {
+          this.renderSystem.requestTileUpdate(delta.x, delta.y, newStack, delta.layer)
+        } else {
+          this.renderSystem.clearTileAt(delta.x, delta.y, delta.layer)
+        }
       }
+
       this.refreshNeighbors(delta.x, delta.y, delta.layer)
     }
   }
 
   private refreshNeighbors(tx: number, ty: number, layer: ZLayer): void {
-    const map = this.map.currentMap
-    if (!map) return
+    const map = this.mapManager.currentMap
+    if (!map || !this.renderSystem) return
 
     for (let dy = -1; dy <= 1; dy++) {
       for (let dx = -1; dx <= 1; dx++) {
@@ -142,7 +164,7 @@ export class HistoryManager extends ZManager {
         if (nx >= 0 && nx < map.width && ny >= 0 && ny < map.height) {
           const stack = map.layers[layer].data[ny]?.[nx]
           if (stack && stack.length > 0) {
-            this.renderSystem?.requestTileUpdate(nx, ny, stack, layer)
+            this.renderSystem.requestTileUpdate(nx, ny, stack, layer)
           }
         }
       }

@@ -1,15 +1,25 @@
 import { ZEngineSignal, type ZMoveCommand, ZInputAction } from '@engine/types'
 import { type IObstacleProvider } from '@engine/interfaces/IPhysicsSystem'
 import ZLogger from '@engine/utils/ZLogger'
-import { ZSystem, SystemMode } from '@engine/core/ZSystem'
-import { ServiceLocator } from '@engine/core/ServiceLocator'
 import type { IPhysicsSystem } from '@engine/interfaces/IPhysicsSystem'
 import { MovementProcessor, type ZMoveable } from '@engine/core/MovementProcessor'
+import { InputManager } from '@engine/managers/InputManager'
+import { MapManager } from '@engine/managers/MapManager'
+import { ZEventBus } from '@engine/core/ZEventBus'
 
-export class PlayerSystem extends ZSystem implements ZMoveable, IObstacleProvider {
+/**
+ * Handles Player controls, movement, and interaction.
+ * Refactored for Manual Dependency Injection.
+ */
+export class PlayerSystem implements ZMoveable, IObstacleProvider {
+  // Dependencies
+  private input: InputManager
   private physicsSystem: IPhysicsSystem
+  private bus: ZEventBus
+  private mapManager: MapManager
+
   private movementProcessor: MovementProcessor
-  private tileSize: number
+  private tileSize: number = 48 // Default, updated in init()
 
   // ZMoveable Implementation
   public readonly id = 'PLAYER'
@@ -41,31 +51,41 @@ export class PlayerSystem extends ZSystem implements ZMoveable, IObstacleProvide
   private isBooted: boolean = false
   private isInputBlocked: boolean = false
 
-  constructor(services: ServiceLocator, tileSize: number) {
-    super(services)
-    this.updateMode = SystemMode.PLAY
-    this.tileSize = tileSize
-    this.physicsSystem = undefined as unknown as IPhysicsSystem
-    this.movementProcessor = undefined as unknown as MovementProcessor
+  constructor(
+    input: InputManager,
+    physics: IPhysicsSystem,
+    bus: ZEventBus,
+    mapManager: MapManager
+  ) {
+    this.input = input
+    this.physicsSystem = physics
+    this.bus = bus
+    this.mapManager = mapManager
+
+    // MovementProcessor can be instantiated immediately as we have physics
+    this.movementProcessor = new MovementProcessor(this.physicsSystem)
   }
 
-  public onBoot(): void {
+  /**
+   * Called by ZEngine during initialization phase.
+   */
+  public init(tileSize: number): void {
     if (this.isBooted) return
     this.isBooted = true
-    this.physicsSystem = this.services.get('PhysicsSystem') as unknown as IPhysicsSystem
+
+    this.tileSize = tileSize
+
+    // Register as obstacle
     this.physicsSystem.registerProvider(this)
-    this.movementProcessor = new MovementProcessor(this.physicsSystem)
 
-    const startEvent = this.map.currentMap?.events.find((e) => e.name === 'PlayerStart')
+    // Attempt to locate start position (if map is already loaded, though usually it loads later)
+    this.resetPositionToStart()
 
-    if (startEvent) {
-      this.x = startEvent.x
-      this.y = startEvent.y
-    }
+    this.setupListeners()
+    this.snapToGrid()
+  }
 
-    this.realX = this.x * this.tileSize
-    this.realY = this.y * this.tileSize
-
+  private setupListeners(): void {
     this.bus.on(ZEngineSignal.ShowMessage, () => {
       this.isInputBlocked = true
     })
@@ -79,11 +99,11 @@ export class PlayerSystem extends ZSystem implements ZMoveable, IObstacleProvide
       this.isInputBlocked = false
     })
     this.bus.on(ZEngineSignal.MenuRequested, () => {
-      console.log('[PlayerSystem] MenuRequested received -> Blocking input')
+      ZLogger.with('PlayerSystem').info('MenuRequested -> Blocking input')
       this.isInputBlocked = true
     })
     this.bus.on(ZEngineSignal.MenuClosed, () => {
-      console.log('[PlayerSystem] MenuClosed received -> Unblocking input')
+      ZLogger.with('PlayerSystem').info('MenuClosed -> Unblocking input')
       this.isInputBlocked = false
     })
     this.bus.on(ZEngineSignal.SceneTransitionStarted, () => {
@@ -91,6 +111,15 @@ export class PlayerSystem extends ZSystem implements ZMoveable, IObstacleProvide
     })
     this.bus.on(ZEngineSignal.SceneTransitionFinished, () => {
       this.isInputBlocked = false
+    })
+
+    // Listen for Map Load to reset position if needed
+    this.bus.on(ZEngineSignal.MapLoaded, () => {
+      // Optional: If we want to move player to Start Position on map load
+      // this.resetPositionToStart()
+      // NOTE: Usually SceneMap sets player position manually via params,
+      // so we might not want to force override here unless strictly necessary.
+      // Keeping it manual for now via SceneMap.
     })
 
     this.bus.on(ZEngineSignal.EventInternalStateChanged, (data) => {
@@ -101,11 +130,18 @@ export class PlayerSystem extends ZSystem implements ZMoveable, IObstacleProvide
         this.waitTimer = 0
         this.moveRouteRepeat = data.moveRouteRepeat ?? false
         this.moveRouteSkip = data.moveRouteSkip ?? false
-        this.moveType = 'custom' // Enforce custom type for player too
+        this.moveType = 'custom'
       }
     })
+  }
 
-    this.snapToGrid()
+  public resetPositionToStart(): void {
+    const startEvent = this.mapManager.currentMap?.events.find((e) => e.name === 'PlayerStart')
+    if (startEvent) {
+      this.x = startEvent.x
+      this.y = startEvent.y
+      this.snapToGrid()
+    }
   }
 
   public onUpdate(delta: number): void {
@@ -117,14 +153,12 @@ export class PlayerSystem extends ZSystem implements ZMoveable, IObstacleProvide
   }
 
   private updateMoveRoute(delta: number): void {
-    // Allow scripted movement even if input is blocked (e.g. cutscenes)
     if (this.isInputBlocked && this.moveRouteIndex < 0) return
 
     this.movementProcessor.processNextCommand(this, undefined, delta)
 
     const routeFinished = this.moveRouteIndex >= this.moveRoute.length
 
-    // State-Based Completion Check
     if (
       routeFinished &&
       !this.isMoving &&
@@ -147,8 +181,6 @@ export class PlayerSystem extends ZSystem implements ZMoveable, IObstacleProvide
     let dy = 0
     let nextDir = this.direction
 
-    // RUN Speed Boost (Example: +1 speed when holding Shift/Run)
-    // const storedSpeed = this.moveSpeed
     if (this.input.isActionDown(ZInputAction.RUN)) {
       this.moveSpeed = 6
     } else {
@@ -188,11 +220,6 @@ export class PlayerSystem extends ZSystem implements ZMoveable, IObstacleProvide
       }
     }
 
-    // Restore speed if we didn't move? No, speed is used in updateMovement.
-    // Actually moveSpeed is persistent property.
-    // Ideally we shouldn't mute 'this.moveSpeed' directly if it's the base speed.
-    // But for now strict parity with RPG Maker 'Dash' feature.
-
     if (this.input.isActionJustPressed(ZInputAction.OK)) {
       let tx = this.x
       let ty = this.y
@@ -205,9 +232,9 @@ export class PlayerSystem extends ZSystem implements ZMoveable, IObstacleProvide
     }
 
     if (this.input.isActionJustPressed(ZInputAction.CANCEL)) {
-      if (this.map.currentMap) {
+      if (this.mapManager.currentMap) {
         this.bus.emit(ZEngineSignal.MenuRequested, {
-          mapOrId: this.map.currentMap,
+          mapOrId: this.mapManager.currentMap,
           playerX: this.x,
           playerY: this.y,
           direction: this.direction
@@ -219,11 +246,6 @@ export class PlayerSystem extends ZSystem implements ZMoveable, IObstacleProvide
   private updateMovement(delta: number): void {
     if (!this.isMoving) return
 
-    // speed in RPG Maker: 4 is normal, 3 is slow, 5 is fast
-    // Let's map it roughly: 4 -> 4px/frame? No, standard 1/15 per frame?
-    // Current speed 4 is 4 pixels per frame (at 60fps = 240px/s).
-    // Tile size is usually 48 or 64. 48/4 = 12 frames to cross a tile.
-    // RPG Maker style speed: Speed 4 = 1 tile per 32 frames (at 60fps)
     const baseSpeed = Math.pow(2, this.moveSpeed - 4) * (this.tileSize / 32)
     const speed = baseSpeed * (delta / 16.6)
     const targetRealX = this.targetX * this.tileSize
@@ -265,9 +287,6 @@ export class PlayerSystem extends ZSystem implements ZMoveable, IObstacleProvide
   ): boolean {
     if (options?.skipPlayer) return false
     if (options?.excludeId === this.id) return false
-    // If player is through-mode (noclip), they don't block?
-    // Usually Player blocking is physical.
-    // If Player 'isThrough' property is true (set via SetMoveRoute), then they don't block.
     if (this.isThrough) return false
 
     if (this.x === x && this.y === y) return true

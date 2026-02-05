@@ -4,12 +4,6 @@ import { useEditorStore } from '@ui/stores/editor'
 import { useDatabaseStore } from '@ui/stores/database'
 import { ProjectService } from '../services/ProjectService'
 import { ZLayer, ZTool, type TileSelection, type ZDataProvider, type ZMap } from '@engine/types'
-import { TextureManager } from '@engine/managers/TextureManager'
-import { TilesetManager } from '@engine/managers/TilesetManager'
-import { SceneManager } from '@engine/managers/SceneManager'
-import { RenderSystem } from '@engine/systems/RenderSystem'
-import { EntityRenderSystem } from '@engine/systems/EntityRenderSystem'
-import { GridSystem } from '@engine/systems/GridSystem'
 
 import { SceneMap } from '@engine/scenes/SceneMap'
 import { nextTick } from 'vue'
@@ -112,7 +106,7 @@ export const useEngine = (
           pngFiles.map((filename) => {
             const key = `img/characters/${filename}`
             const url = ProjectService.resolveAssetUrl(key)
-            return newEngine.services.require(TextureManager).loadTileset(key, url)
+            return newEngine.textures.loadTileset(key, url)
           })
         )
       } catch (e) {
@@ -128,11 +122,10 @@ export const useEngine = (
       // Initial sync
       syncCanvasSize(newEngine)
 
-      const sceneManager = newEngine.services.require(SceneManager)
       if (isEditorView) {
         if (store.activeMap) {
           const isStartMap = store.activeMap.id === store.systemStartMapId
-          await sceneManager.goto(SceneMap, {
+          await newEngine.scenes.goto(SceneMap, {
             mapOrId: store.activeMap,
             playerX: isStartMap ? store.systemStartX : 0,
             playerY: isStartMap ? store.systemStartY : 0
@@ -141,7 +134,7 @@ export const useEngine = (
       } else {
         // PLAYTEST MODE: Start from Title directly or Boot
         const { SceneIntro } = await import('@engine/scenes/SceneIntro')
-        await sceneManager.goto(SceneIntro, null, { fade: false })
+        await newEngine.scenes.goto(SceneIntro, null, { fade: false })
       }
 
       // Now set the engine ref to trigger watchers with a fully initialized engine
@@ -150,10 +143,9 @@ export const useEngine = (
       // Grid Size setup
       syncGridSize(newEngine)
 
-      const renderSystem = newEngine.services.get(RenderSystem)
-      isEngineReady.value = renderSystem?.IsMapLoaded() ?? false
+      isEngineReady.value = newEngine.renderer.IsMapLoaded() ?? false
 
-      const entitySystem = newEngine.services.get(EntityRenderSystem)
+      const entitySystem = newEngine.entities
       if (entitySystem) {
         const actor1 = db.actors.find((a) => a.id === 1)
         if (actor1) {
@@ -168,12 +160,12 @@ export const useEngine = (
       }
 
       // Setup Map Change Callback
-      newEngine.services.require(SceneManager).setMapChangeCallback(async (mapId, x, y) => {
+      newEngine.scenes.setMapChangeCallback(async (mapId, x, y) => {
         const targetMap = store.maps.find((m) => m.id === mapId)
         if (targetMap) {
           if (isEditorView) store.setActiveMap(mapId)
           syncCanvasSize(newEngine, targetMap)
-          await newEngine.services.require(SceneManager).goto(SceneMap, {
+          await newEngine.scenes.goto(SceneMap, {
             mapOrId: targetMap,
             playerX: x,
             playerY: y
@@ -229,10 +221,9 @@ export const useEngine = (
 
   const syncGridSize = (eng: ZEngine): void => {
     if (!store.activeMap) return
-    const gridSystem = eng.services.get(GridSystem)
-    if (gridSystem) {
+    if (eng.grid) {
       const isVisible = store.currentTool === ZTool.event && isEditorView
-      gridSystem.setSize(
+      eng.grid.setSize(
         isVisible ? store.activeMap.width : 0,
         isVisible ? store.activeMap.height : 0
       )
@@ -241,16 +232,13 @@ export const useEngine = (
 
   const syncEditorVisualization = (): void => {
     if (!engine.value || !isEditorView) return
-    const renderSystem = engine.value.services.get(RenderSystem)
-    if (!renderSystem) return
 
     // If in Play Mode, hide ALL editor visuals
-    if (engine.value.mode === 'play') {
-      renderSystem.hidePlayerStartMarker()
-      renderSystem.setEventMarkersVisible(false)
-      renderSystem.updateLayerDimming(null, false)
-      const gridSystem = engine.value.services.get(GridSystem)
-      if (gridSystem) gridSystem.setSize(0, 0)
+    if (engine.value.config.mode === 'play') {
+      engine.value.renderer.hidePlayerStartMarker()
+      engine.value.renderer.setEventMarkersVisible(false)
+      engine.value.renderer.updateLayerDimming(null, false)
+      if (engine.value.grid) engine.value.grid.setSize(0, 0)
       return
     }
 
@@ -259,8 +247,8 @@ export const useEngine = (
 
     // 2. Layers & Markers
     if (store.currentTool === ZTool.event) {
-      renderSystem.updateLayerDimming(null, true)
-      renderSystem.setEventMarkersVisible(true)
+      engine.value.renderer.updateLayerDimming(null, true)
+      engine.value.renderer.setEventMarkersVisible(true)
 
       const activeMapId = store.activeMap?.id
       const isStartMap =
@@ -275,7 +263,7 @@ export const useEngine = (
           charPath = `img/characters/${charPath}`
         }
 
-        renderSystem.setPlayerStartMarker(
+        engine.value.renderer.setPlayerStartMarker(
           store.systemStartX,
           store.systemStartY,
           charPath,
@@ -287,12 +275,12 @@ export const useEngine = (
           actor1?.characterSrcH
         )
       } else {
-        renderSystem.hidePlayerStartMarker()
+        engine.value.renderer.hidePlayerStartMarker()
       }
     } else {
-      renderSystem.updateLayerDimming(store.activeLayer as ZLayer, false)
-      renderSystem.setEventMarkersVisible(false)
-      renderSystem.hidePlayerStartMarker()
+      engine.value.renderer.updateLayerDimming(store.activeLayer as ZLayer, false)
+      engine.value.renderer.setEventMarkersVisible(false)
+      engine.value.renderer.hidePlayerStartMarker()
     }
   }
 
@@ -317,7 +305,7 @@ export const useEngine = (
           try {
             syncCanvasSize(engine.value)
             if (mapChanged) {
-              await engine.value.services.require(SceneManager).goto(SceneMap, {
+              await engine.value.scenes.goto(SceneMap, {
                 mapOrId: store.activeMap
               })
             }
@@ -336,9 +324,9 @@ export const useEngine = (
   watch(
     () => store.tilesetConfigs,
     (newConfigs) => {
-      if (engine.value && engine.value.services.has(TilesetManager)) {
-        engine.value.services.require(TilesetManager).setConfigs(newConfigs)
-        engine.value.services.get(RenderSystem)?.refresh()
+      if (engine.value && engine.value.tilesets) {
+        engine.value.tilesets.setConfigs(newConfigs)
+        engine.value.renderer.refresh()
       }
     },
     { deep: true, immediate: true }

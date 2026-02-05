@@ -1,27 +1,29 @@
 import { Container } from '@engine/utils/pixi'
-import { ServiceLocator } from '@engine/core/ServiceLocator'
 import { ZScene } from '@engine/core/ZScene'
-import { ZManager } from '@engine/core/ZManager'
 import { TransitionSystem } from '@engine/systems/TransitionSystem'
-import { ZEngineSignal } from '@engine/types'
+import { ZEngineSignal, IEngineContext } from '@engine/types'
 import ZLogger from '@engine/utils/ZLogger'
 
-export class SceneManager extends ZManager {
+export type SceneConstructor = new (engine: IEngineContext) => ZScene
+
+export class SceneManager {
+  private engine: IEngineContext
+
   private _currentScene: ZScene | null = null
   private _sceneLayer: Container | null = null
   private _sceneStack: ZScene[] = []
   private _skipNextUpdate: boolean = false
   private _isTransitioning: boolean = false
 
-  public get isTransitioning(): boolean {
-    return this._isTransitioning
-  }
-
   // Callback for editor sync (legacy support)
   private onMapChangeRequest: ((mapId: number, x: number, y: number) => Promise<void>) | null = null
 
-  constructor(services: ServiceLocator) {
-    super(services)
+  constructor(engine: IEngineContext) {
+    this.engine = engine
+  }
+
+  public get isTransitioning(): boolean {
+    return this._isTransitioning
   }
 
   public setSceneLayer(layer: Container): void {
@@ -33,30 +35,41 @@ export class SceneManager extends ZManager {
   }
 
   /**
+   * Helper: Sprawdza czy należy uruchomić tranzycję.
+   * Dostęp bezpośredni przez this.engine, bez ServiceLocatora.
+   */
+  private getTransitionSystem(options: { fade?: boolean }): TransitionSystem | null {
+    const fadeEnabled = options.fade ?? true
+    if (!fadeEnabled) return null
+
+    const isPlayMode = this.engine.config.mode === 'play'
+
+    if (isPlayMode) {
+      return this.engine.transitions
+    }
+    return null
+  }
+
+  /**
    * Transitions to a new scene.
    */
   public async goto(
-    SceneClass: new (services: ServiceLocator) => ZScene,
+    SceneClass: SceneConstructor,
     params?: unknown,
     options: { fade?: boolean } = {}
   ): Promise<void> {
     this._isTransitioning = true
-    this.bus.emit(ZEngineSignal.SceneTransitionStarted, {})
     try {
-      const fadeEnabled = options.fade ?? true
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const engine = this.services.get('ZEngine') as any
-      const isPlayMode = engine?.mode === 'play'
-      const transitionSystem =
-        isPlayMode && fadeEnabled ? this.services.get(TransitionSystem) : null
-      // 1. Fade Out (if enabled)
+      const transitionSystem = this.getTransitionSystem(options)
+
+      // 1. Fade Out
       if (transitionSystem) {
         await transitionSystem.fadeOut(300)
       }
 
       ZLogger.with('SceneManager').log(`Changing Scene to ${SceneClass.name}`)
 
-      // 2. Stop and cleanup current scene
+      // 2. Cleanup old scene
       if (this._currentScene) {
         this._currentScene.stop()
         this._currentScene.destroy()
@@ -75,26 +88,25 @@ export class SceneManager extends ZManager {
       }
 
       // 4. Instantiate and Init new scene
-      const nextScene = new SceneClass(this.services)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await nextScene.init(params as any)
+      // Przekazujemy kontekst silnika (Manual DI)
+      const nextScene = new SceneClass(this.engine)
+      await nextScene.init(params)
 
-      // 5. Set as current and add to stage
+      // 5. Mount
       this._currentScene = nextScene
       if (this._sceneLayer) {
         this._sceneLayer.addChild(nextScene.container)
       }
 
-      // 6. Start scene
+      // 6. Start
       nextScene.start()
 
-      // 7. Fade In (if enabled)
+      // 7. Fade In
       if (transitionSystem) {
         await transitionSystem.fadeIn(300)
       }
     } finally {
       this._isTransitioning = false
-      this.bus.emit(ZEngineSignal.SceneTransitionFinished, {})
     }
   }
 
@@ -102,21 +114,15 @@ export class SceneManager extends ZManager {
    * Pushes a new scene onto the stack.
    */
   public async push(
-    SceneClass: new (services: ServiceLocator) => ZScene,
+    SceneClass: SceneConstructor,
     params?: unknown,
     options: { fade?: boolean } = {}
   ): Promise<void> {
     this._isTransitioning = true
-    this.bus.emit(ZEngineSignal.SceneTransitionStarted, {})
     try {
-      const fadeEnabled = options.fade ?? true
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const engine = this.services.get('ZEngine') as any
-      const isPlayMode = engine?.mode === 'play'
-      const transitionSystem =
-        isPlayMode && fadeEnabled ? this.services.get(TransitionSystem) : null
+      const transitionSystem = this.getTransitionSystem(options)
 
-      // 1. Fade Out (if enabled)
+      // 1. Fade Out
       if (transitionSystem) {
         await transitionSystem.fadeOut(150)
       }
@@ -133,19 +139,19 @@ export class SceneManager extends ZManager {
       }
 
       // 3. Instantiate and Init new scene
-      const nextScene = new SceneClass(this.services)
+      const nextScene = new SceneClass(this.engine)
       await nextScene.init(params)
 
-      // 4. Set as current and add to stage
+      // 4. Set as current and mount
       this._currentScene = nextScene
       if (this._sceneLayer) {
         this._sceneLayer.addChild(nextScene.container)
       }
 
-      // 5. Start scene
+      // 5. Start
       nextScene.start()
 
-      // 6. Fade In (if enabled)
+      // 6. Fade In
       if (transitionSystem) {
         await transitionSystem.fadeIn(150)
       }
@@ -153,7 +159,6 @@ export class SceneManager extends ZManager {
       this._skipNextUpdate = true
     } finally {
       this._isTransitioning = false
-      this.bus.emit(ZEngineSignal.SceneTransitionFinished, {})
     }
   }
 
@@ -167,16 +172,10 @@ export class SceneManager extends ZManager {
     }
 
     this._isTransitioning = true
-    this.bus.emit(ZEngineSignal.SceneTransitionStarted, {})
     try {
-      const fadeEnabled = options.fade ?? true
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const engine = this.services.get('ZEngine') as any
-      const isPlayMode = engine?.mode === 'play'
-      const transitionSystem =
-        isPlayMode && fadeEnabled ? this.services.get(TransitionSystem) : null
+      const transitionSystem = this.getTransitionSystem(options)
 
-      // 1. Fade Out (if enabled)
+      // 1. Fade Out
       if (transitionSystem) {
         await transitionSystem.fadeOut(150)
       }
@@ -204,19 +203,18 @@ export class SceneManager extends ZManager {
         prevScene.start()
       }
 
-      // 4. Fade In (if enabled)
+      // 4. Fade In
       if (transitionSystem) {
         await transitionSystem.fadeIn(150)
       }
 
       if (this._sceneStack.length === 0) {
-        this.bus.emit(ZEngineSignal.MenuClosed, {})
+        this.engine.eventBus.emit(ZEngineSignal.MenuClosed, {})
       }
 
       this._skipNextUpdate = true
     } finally {
       this._isTransitioning = false
-      this.bus.emit(ZEngineSignal.SceneTransitionFinished, {})
     }
   }
 
@@ -228,7 +226,6 @@ export class SceneManager extends ZManager {
       this._skipNextUpdate = false
       return
     }
-
     if (this._currentScene) {
       this._currentScene.update(delta)
     }

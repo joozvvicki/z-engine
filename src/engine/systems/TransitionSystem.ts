@@ -1,9 +1,12 @@
 import { Graphics } from '@engine/utils/pixi'
-import { ZSystem, SystemMode } from '@engine/core/ZSystem'
-import { ServiceLocator } from '@engine/core/ServiceLocator'
 
-export class TransitionSystem extends ZSystem {
+/**
+ * Handles global screen transitions (Fade In/Out).
+ * Refactored to be a standalone system without dependencies.
+ */
+export class TransitionSystem {
   public container: Graphics
+
   private _isFading: boolean = false
   private fadeTarget: number = 0
   private fadeDuration: number = 0
@@ -14,9 +17,7 @@ export class TransitionSystem extends ZSystem {
     return this._isFading
   }
 
-  constructor(services: ServiceLocator) {
-    super(services)
-    this.updateMode = SystemMode.PLAY
+  constructor() {
     this.container = new Graphics()
     // Initial size, will be updated by resize()
     this.container.rect(0, 0, 1, 1)
@@ -55,7 +56,7 @@ export class TransitionSystem extends ZSystem {
     this.container.fill(0x000000)
   }
 
-  onUpdate(delta: number): void {
+  public onUpdate(delta: number): void {
     if (this._isFading) {
       this.fadeTimer += delta
       const progress = Math.min(this.fadeTimer / this.fadeDuration, 1)

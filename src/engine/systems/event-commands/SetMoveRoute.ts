@@ -3,10 +3,9 @@ import {
   ZCommandResult,
   ZEventInterpreter,
   ZEngineSignal,
-  ZMoveCommand
+  ZMoveCommand,
+  IEngineContext
 } from '@engine/types'
-import { ServiceLocator } from '@engine/core/ServiceLocator'
-import { ZEventBus } from '@engine/core/ZEventBus'
 
 /**
  * Command 205: Set Move Route
@@ -14,9 +13,8 @@ import { ZEventBus } from '@engine/core/ZEventBus'
 export const commandSetMoveRoute: ZCommandProcessor = (
   params: unknown[],
   interpreter: ZEventInterpreter,
-  services: ServiceLocator
+  engine: IEngineContext
 ): ZCommandResult => {
-  const bus = services.require(ZEventBus)
   const targetId = params[0]
   const route = params[1] as ZMoveCommand[]
   const wait = params[2] as boolean
@@ -33,13 +31,12 @@ export const commandSetMoveRoute: ZCommandProcessor = (
   }
 
   if (eventId) {
-    bus.emit(ZEngineSignal.EventInternalStateChanged, {
+    engine.eventBus.emit(ZEngineSignal.EventInternalStateChanged, {
       eventId,
       moveRoute: route,
       moveType: 'custom',
       moveRouteRepeat: repeat,
       moveRouteSkip: skip
-      // isThrough: ... // DO NOT SET THIS! Let the route commands handle it.
     })
 
     if (wait) {

@@ -3,10 +3,9 @@ import {
   ZCommandResult,
   ZEventInterpreter,
   ZEngineSignal,
-  ZEventGraphic
+  ZEventGraphic,
+  IEngineContext
 } from '@engine/types'
-import { ServiceLocator } from '@engine/core/ServiceLocator'
-import { ZEventBus } from '@engine/core/ZEventBus'
 
 /**
  * Command 214: Set Event Graphic
@@ -14,11 +13,10 @@ import { ZEventBus } from '@engine/core/ZEventBus'
 export const commandSetEventGraphic: ZCommandProcessor = (
   params: unknown[],
   interpreter: ZEventInterpreter,
-  services: ServiceLocator
+  engine: IEngineContext
 ): ZCommandResult => {
-  const bus = services.require(ZEventBus)
   const graphic = params[0] as ZEventGraphic
-  bus.emit(ZEngineSignal.EventInternalStateChanged, {
+  engine.eventBus.emit(ZEngineSignal.EventInternalStateChanged, {
     eventId: interpreter.eventId,
     graphic
   })

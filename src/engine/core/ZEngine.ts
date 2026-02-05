@@ -1,54 +1,116 @@
 import { Application, Container } from '@engine/utils/pixi'
 import ZLogger from '@engine/utils/ZLogger'
-import { ServiceLocator } from '@engine/core/ServiceLocator'
-import { SystemManager } from '@engine/core/SystemManager'
-import { EngineBootstrapper } from '@engine/core/EngineBootstrapper'
 import { ZEventBus } from '@engine/core/ZEventBus'
-import { ZDataProvider, ZSystemData } from '@engine/types'
+import { IEngineContext, ZDataProvider, ZSystemData } from '@engine/types'
+
+// Managers
 import { SceneManager } from '@engine/managers/SceneManager'
 import { ToolManager } from '@engine/managers/ToolManager'
 import { HistoryManager } from '@engine/managers/HistoryManager'
 import { GameStateManager } from '@engine/managers/GameStateManager'
 import { InputManager } from '@engine/managers/InputManager'
 import { TextureManager } from '@engine/managers/TextureManager'
+import { MapManager } from '@engine/managers/MapManager'
+import { TilesetManager } from '@engine/managers/TilesetManager'
+import { AudioManager } from '@engine/managers/AudioManager'
+
+// Systems
 import { EntityRenderSystem } from '@engine/systems/EntityRenderSystem'
 import { GhostSystem } from '@engine/systems/GhostSystem'
 import { GridSystem } from '@engine/systems/GridSystem'
 import { MessageSystem } from '@engine/systems/MessageSystem'
 import { TransitionSystem } from '@engine/systems/TransitionSystem'
 import { ErrorSystem } from '@engine/systems/ErrorSystem'
+import { RenderSystem } from '@engine/systems/RenderSystem'
+import { PhysicsSystem } from '@engine/systems/PhysicsSystem'
+import { PlayerSystem } from '@engine/systems/PlayerSystem'
+import { EventSystem } from '@engine/systems/EventSystem'
+import { MenuSystem } from '@engine/systems/MenuSystem'
 
-export class ZEngine {
+// Config Token
+export class EngineConfig {
+  public mode: 'edit' | 'play' = 'edit'
+}
+
+/**
+ * ZEngine - Composition Root
+ * Central point where all systems are wired together manually.
+ */
+export class ZEngine implements IEngineContext {
   public app: Application
-  public services: ServiceLocator
+
   public dataProvider: ZDataProvider | null = null
   public systemData: ZSystemData | null = null
-  private lifecycle: SystemManager
-  public mode: 'edit' | 'play' = 'edit'
-  private isBooted: boolean = false
+
+  // 1. Core Services (Initialized in Constructor)
+  public config: EngineConfig
+  public eventBus: ZEventBus
+  public input: InputManager
+  public audio: AudioManager
+  public textures: TextureManager
+  public tilesets: TilesetManager
+  public map: MapManager
+
+  // 2. State & Logic Managers (Initialized in Constructor)
+  public gameState: GameStateManager
+  public history: HistoryManager
+  public tools: ToolManager
+  public scenes: SceneManager // Implements IEngineContext
+
+  // 3. Logic Systems (Initialized in Constructor)
+  public physics: PhysicsSystem
+  public player: PlayerSystem
+  public events: EventSystem
+  public menus: MenuSystem
+
+  // 4. Visual Systems (Initialized in Init - require Stage/TileSize)
+  public renderer!: RenderSystem
+  public entities!: EntityRenderSystem
+  public ghost!: GhostSystem
+  public grid!: GridSystem
+  public transitions!: TransitionSystem
+  public messages!: MessageSystem
+  public errors!: ErrorSystem
 
   private sceneLayer: Container
   private globalLayer: Container
+  private isBooted: boolean = false
 
   constructor() {
     this.app = new Application()
-    this.services = new ServiceLocator()
-    this.services.register('ZEngine', this)
+    this.config = new EngineConfig()
+
+    // --- Phase 1: Foundation ---
+    this.eventBus = new ZEventBus()
+    this.input = new InputManager()
+    this.audio = new AudioManager()
+    this.textures = new TextureManager()
+    this.tilesets = new TilesetManager()
+    this.map = new MapManager()
+
+    // --- Phase 2: State & Data ---
+    this.gameState = new GameStateManager(this.eventBus)
+    this.history = new HistoryManager(this.map)
+
+    // --- Phase 3: Logic Systems (Dependency Injection) ---
+    this.physics = new PhysicsSystem(this.map, this.tilesets)
+    this.player = new PlayerSystem(this.input, this.physics, this.eventBus, this.map)
+    this.events = new EventSystem(this.physics, this.gameState, this.eventBus, this.map)
+    this.tools = new ToolManager(this.map, this.history)
+
+    // --- Phase 4: Scene Manager ---
+    this.scenes = new SceneManager(this)
+    this.menus = new MenuSystem(this.eventBus, this.input, this.scenes)
+    this.events.setEngineContext(this)
 
     this.sceneLayer = new Container()
     this.sceneLayer.label = 'SceneLayer'
     this.globalLayer = new Container()
     this.globalLayer.label = 'GlobalLayer'
-
-    EngineBootstrapper.registerManagers(this.services)
-    this.lifecycle = new SystemManager(this.services, this.app)
-  }
-
-  public get eventBus(): ZEventBus {
-    return this.services.require(ZEventBus)
   }
 
   public async init(container: HTMLElement, tileSize: number): Promise<void> {
+    // 1. Init Pixi Application
     await this.app.init({
       backgroundColor: 0x000000,
       autoDensity: true,
@@ -56,94 +118,143 @@ export class ZEngine {
       eventMode: 'static',
       antialias: false
     })
-    this.app.canvas.tabIndex = 1
-    this.app.canvas.style.outline = 'none'
-    this.app.canvas.addEventListener('mouseenter', () => this.app.canvas.focus())
-    container.appendChild(this.app.canvas)
 
-    this.app.stage.eventMode = 'static'
-    this.app.stage.hitArea = this.app.screen
-    this.app.stage.sortableChildren = true
-
-    this.app.stage.addChild(this.sceneLayer)
-    this.app.stage.addChild(this.globalLayer)
+    this.setupCanvas(container)
+    this.setupStage()
 
     try {
-      EngineBootstrapper.registerSystems(
-        this.services,
+      this.renderer = new RenderSystem(
         this.sceneLayer,
-        tileSize,
-        this.app.screen.width,
-        this.app.screen.height
+        this.textures,
+        this.map,
+        this.tilesets,
+        tileSize
       )
 
-      // Override stage for global systems
-      const transitionSystem = this.services.get(TransitionSystem)
-      const messageSystem = this.services.get(MessageSystem)
-      const errorSystem = this.services.get(ErrorSystem)
+      this.history.registerRenderer(this.renderer)
+      this.tools.registerRenderer(this.renderer)
 
-      if (transitionSystem) {
-        this.globalLayer.addChild(transitionSystem.container)
-      }
-      if (messageSystem) {
-        this.globalLayer.addChild(messageSystem.container)
-      }
-      if (errorSystem) {
-        this.globalLayer.addChild(errorSystem.container)
-      }
+      this.entities = new EntityRenderSystem(
+        this.player,
+        this.events,
+        this.renderer,
+        this.textures,
+        this.map,
+        this.eventBus,
+        tileSize
+      )
 
-      this.services.require(SceneManager).setSceneLayer(this.sceneLayer)
+      // Editor Helpers
+      this.ghost = new GhostSystem(
+        this.sceneLayer,
+        this.textures,
+        this.map,
+        this.eventBus,
+        tileSize
+      )
+      this.grid = new GridSystem(this.sceneLayer, tileSize)
 
-      this.lifecycle.boot()
+      // UI & Global Overlays (Attached to GlobalLayer)
+      this.transitions = new TransitionSystem()
+      this.messages = new MessageSystem(this.input, this.eventBus, this.textures, this.events)
+
+      this.messages.init()
+
+      this.errors = new ErrorSystem()
+
+      this.globalLayer.addChild(this.transitions.container)
+      this.globalLayer.addChild(this.messages.container)
+      this.globalLayer.addChild(this.errors.container)
+
+      // Resize systems to match screen
+      const { width, height } = this.app.screen
+      this.transitions.resize(width, height)
+      this.messages.resize(width, height)
+      this.errors.resize(width, height)
+
+      // 3. Init Logic Systems that need TileSize
+      this.player.init(tileSize)
+      this.events.init(tileSize)
+
+      // 4. Boot Logic
+      // Previously SystemManager.boot(), now we just mark ready or run explicit boot logic
+      this.entities.onBoot() // Loads initial sprites
+      this.events.onBoot() // Sets up listeners
+
+      // 5. Connect Scene Manager
+      this.scenes.setSceneLayer(this.sceneLayer)
+
+      // 6. Start Loop
+      this.app.ticker.add((ticker) => this.tick(ticker.deltaMS))
+
       this.isBooted = true
-
-      ZLogger.log('Hello 👋🏽 Everything is ready!')
+      ZLogger.log('Hello 👋🏽 Everything is ready (No ServiceLocator)!')
     } catch (e) {
       ZLogger.error('Error during init:', e)
-      this.services.get(ErrorSystem)?.show(e as Error)
+      this.errors?.show(e as Error)
+    }
+  }
+
+  private tick(delta: number): void {
+    // Explicit Update Order
+
+    // 1. Update Input (Prepare for this frame)
+    this.input.update() // Note: Input usually updates at start or end of frame
+
+    // 2. Logic Updates (Only in Play Mode usually, but handled inside systems)
+    if (this.config.mode === 'play') {
+      this.player.onUpdate(delta)
+      this.events.onUpdate(delta)
+    }
+
+    // 3. Scene Logic (Updates current scene)
+    this.scenes.update(delta)
+
+    // 4. Visual Updates
+    this.renderer.onUpdate()
+
+    if (this.config.mode === 'play') {
+      this.entities.onUpdate(delta)
+      this.messages.onUpdate()
+      this.transitions.onUpdate(delta)
+    } else {
+      // Edit Mode Systems
+      this.ghost.onUpdate()
+      this.grid.onUpdate()
     }
   }
 
   public async setMode(mode: 'edit' | 'play'): Promise<void> {
-    try {
-      this.mode = mode
-      this.lifecycle.setMode(mode)
-      ZLogger.log(`Switched to ${mode} mode`)
+    this.config.mode = mode
 
-      if (mode === 'play') {
-        ZLogger.log('Entering Play Mode...')
-      } else {
-        ZLogger.log('Entering Edit Mode...')
-      }
+    ZLogger.log(`Switched to ${mode} mode`)
 
-      const entitySystem = this.services.get(EntityRenderSystem)
-      const ghostSystem = this.services.get(GhostSystem)
-      const gridSystem = this.services.get(GridSystem)
-      const messageSystem = this.services.get(MessageSystem)
-
-      if (mode === 'play') {
-        entitySystem?.setVisible(true)
-        ghostSystem?.setVisible(false)
-        gridSystem?.setVisible(false)
-        messageSystem?.resize(this.app.screen.width, this.app.screen.height)
-      } else {
-        entitySystem?.setVisible(false)
-        ghostSystem?.setVisible(true)
-        gridSystem?.setVisible(true)
-      }
-    } catch (e) {
-      ZLogger.error('Error during setMode:', e)
-      this.services.get(ErrorSystem)?.show(e as Error)
+    // Visibility Toggles
+    if (mode === 'play') {
+      this.entities.setVisible(true)
+      this.ghost.setVisible(false)
+      this.grid.setVisible(false)
+      this.messages.resize(this.app.screen.width, this.app.screen.height)
+    } else {
+      this.entities.setVisible(false)
+      this.ghost.setVisible(true)
+      this.grid.setVisible(true)
     }
   }
-
+  /**
+   * Sets the DataProvider and propagates it to managers that need explicit reference.
+   * Note: SceneManager accesses it directly via EngineContext, so strict propagation there isn't needed,
+   * but we do it for managers that might cache it.
+   */
   public setDataProvider(provider: ZDataProvider): void {
     this.dataProvider = provider
-    this.services.require(TextureManager).setDataProvider(provider)
-    this.services.require(SceneManager).setDataProvider(provider)
-    this.services.require(ToolManager).setDataProvider(provider)
-    this.services.require(HistoryManager).setDataProvider(provider)
-    this.services.require(GameStateManager).setDataProvider(provider)
+
+    this.textures.setDataProvider(provider)
+    this.tools.setDataProvider(provider)
+    this.history.setDataProvider(provider)
+    // this.gameState.setDataProvider(provider)
+    // this.scenes.setDataProvider(provider) // Optional if SceneManager uses this.engine.dataProvider
+
     ZLogger.info('Data Provider set')
   }
 
@@ -153,32 +264,41 @@ export class ZEngine {
   }
 
   public resize(width: number, height: number): void {
-    try {
-      ZLogger.info(`Resizing to ${width}x${height}`)
-      const transitionSystem = this.services.get(TransitionSystem)
-      const messageSystem = this.services.get(MessageSystem)
-      const errorSystem = this.services.get(ErrorSystem)
+    if (!this.isBooted) return
 
-      // Notify systems
-      transitionSystem?.resize(width, height)
-      messageSystem?.resize(width, height)
-      errorSystem?.resize(width, height)
+    this.transitions.resize(width, height)
+    this.messages.resize(width, height)
+    this.errors.resize(width, height)
 
-      // Update PIXI internals
-      this.app.renderer.resize(width, height)
-      this.app.stage.hitArea = this.app.screen
-
-      ZLogger.info(`Resized to ${width}x${height}`)
-    } catch (e) {
-      this.services.get(ErrorSystem)?.show(e as Error)
-    }
+    this.app.renderer.resize(width, height)
+    this.app.stage.hitArea = this.app.screen
   }
 
   public destroy(): void {
     if (!this.isBooted) return
-    this.services.require(InputManager).destroy()
-    this.lifecycle.destroy()
+
+    this.input.destroy()
+    this.ghost.onDestroy()
+    this.grid.onDestroy()
+    this.renderer.onDestroy()
+    this.entities.onDestroy()
+
     this.app.destroy({ removeView: true })
     ZLogger.log('Goodbye 👋🏽 Everything is gone!')
+  }
+
+  private setupCanvas(container: HTMLElement): void {
+    this.app.canvas.tabIndex = 1
+    this.app.canvas.style.outline = 'none'
+    this.app.canvas.addEventListener('mouseenter', () => this.app.canvas.focus())
+    container.appendChild(this.app.canvas)
+  }
+
+  private setupStage(): void {
+    this.app.stage.eventMode = 'static'
+    this.app.stage.hitArea = this.app.screen
+    this.app.stage.sortableChildren = true
+    this.app.stage.addChild(this.sceneLayer)
+    this.app.stage.addChild(this.globalLayer)
   }
 }

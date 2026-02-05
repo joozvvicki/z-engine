@@ -1,6 +1,4 @@
-import { ZCommandProcessor, ZCommandResult, ZEventInterpreter } from '@engine/types'
-import { ServiceLocator } from '@engine/core/ServiceLocator'
-import { SceneManager } from '@engine/managers/SceneManager'
+import { IEngineContext, ZCommandProcessor, ZCommandResult, ZEventInterpreter } from '@engine/types'
 import { SceneMap } from '@engine/scenes/SceneMap'
 
 /**
@@ -9,9 +7,8 @@ import { SceneMap } from '@engine/scenes/SceneMap'
 export const commandTransferPlayer: ZCommandProcessor = (
   params: unknown[],
   _interpreter: ZEventInterpreter,
-  services: ServiceLocator
+  engine: IEngineContext
 ): ZCommandResult => {
-  const sceneManager = services.require(SceneManager)
   const mapId = params[0] as number
   const x = params[1] as number
   const y = params[2] as number
@@ -23,7 +20,7 @@ export const commandTransferPlayer: ZCommandProcessor = (
   if (dirValue === 6) direction = 'right'
   if (dirValue === 8) direction = 'up'
 
-  sceneManager.goto(SceneMap, { mapOrId: mapId, playerX: x, playerY: y, direction })
+  engine.scenes.goto(SceneMap, { mapOrId: mapId, playerX: x, playerY: y, direction })
 
   return 'stop'
 }

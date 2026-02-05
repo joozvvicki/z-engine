@@ -1,23 +1,37 @@
-import { ZLayer, TileSelection, ZTool, ZTileDelta } from '@engine/types'
-import { ServiceLocator } from '@engine/core/ServiceLocator'
-import { ZManager } from '@engine/core/ZManager'
+import { ZLayer, TileSelection, ZTool, ZTileDelta, ZDataProvider } from '@engine/types'
 import { RenderSystem } from '@engine/systems/RenderSystem'
 import { HistoryManager } from '@engine/managers/HistoryManager'
+import { MapManager } from '@engine/managers/MapManager'
 
 /**
  * Handles editor tool logic (painting, fill, etc.) inside the engine.
+ * Refactored for Manual Dependency Injection.
  */
-export class ToolManager extends ZManager {
-  constructor(services: ServiceLocator) {
-    super(services)
+export class ToolManager {
+  // Dependencies
+  private mapManager: MapManager
+  private historyManager: HistoryManager
+  private renderSystem: RenderSystem | null = null
+  private dataProvider: ZDataProvider | null = null
+
+  constructor(mapManager: MapManager, historyManager: HistoryManager) {
+    this.mapManager = mapManager
+    this.historyManager = historyManager
   }
 
-  private get historyManager(): HistoryManager {
-    return this.services.require(HistoryManager)
+  /**
+   * Sets the Data Provider (called by ZEngine).
+   */
+  public setDataProvider(provider: ZDataProvider): void {
+    this.dataProvider = provider
   }
 
-  private get renderSystem(): RenderSystem | undefined {
-    return this.services.get(RenderSystem)
+  /**
+   * Registers the RenderSystem (called by ZEngine.init).
+   * Required for visual updates after tool application.
+   */
+  public registerRenderer(renderSystem: RenderSystem): void {
+    this.renderSystem = renderSystem
   }
 
   /**
@@ -30,7 +44,7 @@ export class ToolManager extends ZManager {
     isStacking: boolean,
     layer: ZLayer
   ): void {
-    const map = this.map.currentMap
+    const map = this.mapManager.currentMap
     if (!map) return
     if (x < 0 || x >= map.width || y < 0 || y >= map.height) return
 
@@ -58,11 +72,13 @@ export class ToolManager extends ZManager {
       this.historyManager.addDelta(delta)
     }
 
-    if (newStack && newStack.length > 0) {
-      this.renderSystem?.requestTileUpdate(x, y, newStack, layer)
-    } else {
-      // If stack is empty/null, clear the tile
-      this.renderSystem?.clearTileAt(x, y, layer)
+    if (this.renderSystem) {
+      if (newStack && newStack.length > 0) {
+        this.renderSystem.requestTileUpdate(x, y, newStack, layer)
+      } else {
+        // If stack is empty/null, clear the tile
+        this.renderSystem.clearTileAt(x, y, layer)
+      }
     }
 
     // 3. Refresh Neighbors for Autotiles
@@ -179,7 +195,7 @@ export class ToolManager extends ZManager {
     isStacking: boolean
   ): void {
     this.historyManager.beginEntry('Bucket Fill')
-    const map = this.map.currentMap
+    const map = this.mapManager.currentMap
     if (!map) return
 
     const stack = map.layers[layer].data[target.y]?.[target.x]
@@ -288,8 +304,8 @@ export class ToolManager extends ZManager {
   }
 
   private refreshNeighbors(tx: number, ty: number, layer: ZLayer): void {
-    const map = this.map.currentMap
-    if (!map) return
+    const map = this.mapManager.currentMap
+    if (!map || !this.renderSystem) return
 
     for (let dy = -1; dy <= 1; dy++) {
       for (let dx = -1; dx <= 1; dx++) {
@@ -298,7 +314,7 @@ export class ToolManager extends ZManager {
         if (nx >= 0 && nx < map.width && ny >= 0 && ny < map.height) {
           const stack = map.layers[layer].data[ny]?.[nx]
           if (stack && stack.length > 0) {
-            this.renderSystem?.requestTileUpdate(nx, ny, stack, layer)
+            this.renderSystem.requestTileUpdate(nx, ny, stack, layer)
           }
         }
       }

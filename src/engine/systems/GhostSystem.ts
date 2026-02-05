@@ -1,17 +1,25 @@
 import { type TileSelection, ZTool, ZLayer, ZEngineSignal } from '@engine/types'
 import { Container, Graphics, Sprite, Texture, Rectangle, AnimatedSprite } from '@engine/utils/pixi'
-import { ZSystem, SystemMode } from '@engine/core/ZSystem'
-import { ServiceLocator } from '@engine/core/ServiceLocator'
 import { AutotileSolver } from '@engine/utils/AutotileSolver'
-import { MapManager } from '@engine/managers/MapManager'
 import { SpriteUtils } from '@engine/utils/SpriteUtils'
+import { MapManager } from '@engine/managers/MapManager'
+import { TextureManager } from '@engine/managers/TextureManager'
+import { ZEventBus } from '@engine/core/ZEventBus'
 
-export class GhostSystem extends ZSystem {
-  public container: Container
+/**
+ * Handles Editor visualization (Ghosting, Selection, Event placeholders).
+ * Refactored for Manual Dependency Injection.
+ */
+export class GhostSystem {
+  // Dependencies
   private wrapper: Container
+  private textures: TextureManager
+  private mapManager: MapManager
+  private eventBus: ZEventBus
   private tileSize: number
 
-  // State
+  // Internal State
+  public container: Container
   private active: boolean = false
   private dirty: boolean = false
   private position: { x: number; y: number } = { x: 0, y: 0 }
@@ -26,23 +34,36 @@ export class GhostSystem extends ZSystem {
   private selectionBox: { x: number; y: number; w: number; h: number } | null = null
   private selectedEventPos: { x: number; y: number } | null = null
 
-  constructor(stage: Container, services: ServiceLocator, tileSize: number) {
-    super(services)
-    this.wrapper = stage
-    this.updateMode = SystemMode.EDIT
-    this.tileSize = tileSize
-    this.container = null!
-  }
+  // System Mode is now external (EngineConfig), but GhostSystem only renders in EDIT mode
+  // or when explicitly active. We will control update calls from ZEngine.
 
-  public onBoot(): void {
+  constructor(
+    stage: Container,
+    textures: TextureManager,
+    mapManager: MapManager,
+    eventBus: ZEventBus,
+    tileSize: number
+  ) {
+    this.wrapper = stage
+    this.textures = textures
+    this.mapManager = mapManager
+    this.eventBus = eventBus
+    this.tileSize = tileSize
+
     this.container = new Container()
     this.container.label = 'GhostContainer'
     this.container.zIndex = 999
     this.container.visible = false
     this.container.eventMode = 'none'
+
+    // Init immediately or in separate call? Constructor is fine for creating container.
     this.wrapper.addChild(this.container)
 
-    this.bus.on(ZEngineSignal.MapLoaded, () => {
+    this.setupListeners()
+  }
+
+  private setupListeners(): void {
+    this.eventBus.on(ZEngineSignal.MapLoaded, () => {
       this.dirty = true
     })
   }
@@ -106,13 +127,45 @@ export class GhostSystem extends ZSystem {
     this.dirty = true
   }
 
+  // --- Rendering Logic ---
+
+  public onUpdate(): void {
+    if (!this.dirty) return
+    this.container.removeChildren()
+
+    // Visibility logic is now controlled by ZEngine or local state
+    // We assume if onUpdate is called, we should render something if active/edit mode.
+
+    this.container.x = 0
+    this.container.y = 0
+
+    if (this.active) {
+      if (this.isShape && this.shapeStart && this.shapeEnd) {
+        this.renderShape()
+      } else {
+        this.renderSingleGhost()
+      }
+    }
+
+    // Always render placeholders for existing events if they exist (Editor Context)
+    this.renderExistingEvents()
+
+    if (this.selectedEventPos) {
+      this.renderSelectedEventHighlight()
+    }
+    if (this.selectionBox) {
+      this.renderSelectionBox()
+    }
+
+    this.dirty = false
+  }
+
   private renderSingleGhost(): void {
     const sel = this.selection
     const x = this.position.x * this.tileSize
     const y = this.position.y * this.tileSize
 
     if (!sel) {
-      // 1x1 Guide for Brush/Eraser/Select/Shapes when no selection
       const isPickableTool = [
         ZTool.brush,
         ZTool.eraser,
@@ -145,12 +198,10 @@ export class GhostSystem extends ZSystem {
         .stroke({ width: 1, color: 0x000000, alpha: 0.6 })
       this.container.addChild(g)
 
-      // If we are dragging an existing event, show its graphic too!
       if (this.draggingEventId) {
-        const event = this.map.currentMap?.events.find((e) => e.id === this.draggingEventId)
+        const event = this.mapManager.currentMap?.events.find((e) => e.id === this.draggingEventId)
         const activePage = event?.pages[0]
         if (activePage?.graphic) {
-          // Ensure texture is available in cache
           const assetPath = activePage.graphic.assetId
           if (!this.textures.get(assetPath)) {
             this.textures.load(assetPath).then(() => {
@@ -179,7 +230,6 @@ export class GhostSystem extends ZSystem {
       this.currentTool === ZTool.circle
     ) {
       if (sel.tilesetId.endsWith('.png')) {
-        // Render large object (character) as a single unit at the foot position
         this.renderSingleTileSource(sel, this.position.x, this.position.y)
       } else {
         this.renderTileSelectionAt(this.position.x, this.position.y, sel)
@@ -200,7 +250,6 @@ export class GhostSystem extends ZSystem {
     const x = xOrigin * this.tileSize
     const y = yOrigin * this.tileSize
 
-    // 1. Render Tiled Content if selection exists
     const sel = this.selection
     if (sel && (this.currentTool === ZTool.rectangle || this.currentTool === ZTool.circle)) {
       const selW = sel.w || 1
@@ -220,12 +269,10 @@ export class GhostSystem extends ZSystem {
           const dy = (sy - yOrigin) % selH
 
           if (sel.tilesetId.endsWith('.png')) {
-            // Characters in shapes: render one full character per "tiled slot" if it's the top-left of the slot
             if (dx === 0 && dy === 0) {
               this.renderSingleTileSource(sel, sx, sy)
             }
           } else if (sel.isAutotile) {
-            // New logic: Autotile solver for shape ghosts
             const checkInShape = (tx: number, ty: number): boolean => {
               if (this.currentTool === ZTool.rectangle) {
                 return tx >= xOrigin && tx <= xMax && ty >= yOrigin && ty <= yMax
@@ -246,7 +293,6 @@ export class GhostSystem extends ZSystem {
       }
     }
 
-    // 2. Render Shape Border/Outline
     const g = new Graphics()
     if (this.currentTool === ZTool.rectangle) {
       g.rect(x, y, w, h)
@@ -307,25 +353,19 @@ export class GhostSystem extends ZSystem {
         this.renderSingleTileSource(tile, absX, absY)
       }
     } else {
-      // Single tile or simple selection
       const tex = this.textures.get(sel.tilesetId)
       if (!tex) return
 
-      // Use grid-based calculation or pixel overrides
-      // If we are sub-sampling (selOffsetX/Y > 0 or multi-tile), we calculate per chunk
       const sW = this.tileSize
       const sH = this.tileSize
       let sX = (sel.x + selOffsetX) * this.tileSize
       let sY = (sel.y + selOffsetY) * this.tileSize
 
       if (!sel.isAutotile && sel.pixelX !== undefined && sel.pixelY !== undefined) {
-        // If we have pixel coordinates, they represent the TOP-LEFT of the WHOLE selection.
-        // We add the offset in pixels to get the sub-tile source.
         sX = sel.pixelX + selOffsetX * this.tileSize
         sY = sel.pixelY + selOffsetY * this.tileSize
       }
 
-      // CRITICAL: We render exactly ONE tile size piece here to avoid duplicate drawing
       this.renderSourceTile(sel.tilesetId, sX, sY, sW, sH, absX, absY)
     }
   }
@@ -342,8 +382,7 @@ export class GhostSystem extends ZSystem {
     const absX = mapX * this.tileSize
     const absY = mapY * this.tileSize
 
-    const mapManager = this.services.get(MapManager)
-    const currentMap = mapManager?.currentMap
+    const currentMap = this.mapManager.currentMap
     if (!currentMap) return
 
     const isA1 = sel.tilesetId === 'A1'
@@ -437,12 +476,11 @@ export class GhostSystem extends ZSystem {
       )
       const idleCol = SpriteUtils.getIdleFrameIndex(divW)
 
-      // If we don't have explicit pixel overrides, use detected frame size
       if (sW === this.tileSize && sH === this.tileSize) {
         finalSW = frameW
         finalSH = frameH
         finalSX = idleCol * frameW
-        finalSY = 0 // Default row
+        finalSY = 0
       }
     }
 
@@ -486,13 +524,11 @@ export class GhostSystem extends ZSystem {
   }
 
   private renderExistingEvents(): void {
-    const map = this.map.currentMap
+    const map = this.mapManager.currentMap
     if (!map || !map.events) return
 
     for (const event of map.events) {
       if (event.name === 'PlayerStart') continue
-
-      // If we are dragging this event, it's already rendered at the ghost position
       if (event.id === this.draggingEventId) continue
 
       const x = event.x * this.tileSize
@@ -504,14 +540,10 @@ export class GhostSystem extends ZSystem {
         .stroke({ width: 2, color: 0x000000, alpha: 0.6 })
       this.container.addChild(g)
 
-      // Render character graphic in placeholder if available
       const activePage = event.pages[0]
       if (activePage?.graphic) {
-        // Ensure texture is available in cache
         const assetPath = activePage.graphic.assetId
         if (!this.textures.get(assetPath)) {
-          // We can't await here easily in a sync render loop, but we can trigger a load
-          // and set dirty=true when done.
           this.textures.load(assetPath).then(() => {
             this.dirty = true
           })
@@ -526,7 +558,7 @@ export class GhostSystem extends ZSystem {
         if (sprite) {
           sprite.x = x + this.tileSize / 2
           sprite.y = y + this.tileSize
-          sprite.alpha = 0.3 // Very ghostly in placeholders
+          sprite.alpha = 0.3
           this.container.addChild(sprite)
         }
       }
@@ -543,41 +575,5 @@ export class GhostSystem extends ZSystem {
       .rect(x - 2, y - 2, this.tileSize + 4, this.tileSize + 4)
       .stroke({ width: 1, color: 0x000000, alpha: 0.6 })
     this.container.addChild(g)
-  }
-
-  public onUpdate(): void {
-    // In EDIT mode, we always want to reflect map changes (like event dragging) immediately
-    if (this.updateMode !== SystemMode.EDIT && !this.dirty) return
-    this.container.removeChildren()
-
-    // Always visible in EDIT mode for placeholders, otherwise follow active/selection state
-    this.container.visible =
-      this.updateMode === SystemMode.EDIT || this.active || this.selectedEventPos !== null
-
-    this.container.x = 0
-    this.container.y = 0
-
-    // Only render the active tool ghost if active
-    if (this.active) {
-      if (this.isShape && this.shapeStart && this.shapeEnd) {
-        this.renderShape()
-      } else {
-        this.renderSingleGhost()
-      }
-    }
-
-    // Always render existing event placeholders in Edit mode
-    if (this.updateMode === SystemMode.EDIT) {
-      this.renderExistingEvents()
-    }
-
-    if (this.selectedEventPos) {
-      this.renderSelectedEventHighlight()
-    }
-    if (this.selectionBox) {
-      this.renderSelectionBox()
-    }
-
-    this.dirty = false
   }
 }

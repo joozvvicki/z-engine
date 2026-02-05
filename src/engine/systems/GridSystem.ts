@@ -1,45 +1,36 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import { Container, FederatedPointerEvent, Graphics } from '@engine/utils/pixi'
-import { ZSystem, SystemMode } from '@engine/core/ZSystem'
-import { ServiceLocator } from '@engine/core/ServiceLocator'
 
-export class GridSystem extends ZSystem {
+/**
+ * Renders a visual grid overlay for the editor.
+ * Refactored for Manual Dependency Injection.
+ */
+export class GridSystem {
   public container: Container
   private gridGraphics: Graphics
+  private wrapper: Container
   private tileSize: number
 
   private width: number = 0
   private height: number = 0
   private dirty: boolean = false
 
-  constructor(_stage: Container, services: ServiceLocator, tileSize: number) {
-    super(services)
-    this.updateMode = SystemMode.EDIT
+  constructor(stage: Container, tileSize: number) {
+    this.wrapper = stage
     this.tileSize = tileSize
 
-    this.container = null!
-    this.gridGraphics = null!
-  }
-
-  public onBoot(): void {
     this.container = new Container()
     this.container.label = 'GridSystem'
     this.container.zIndex = 100
-    // No longer adding to wrapper here, scene will mount it
+    this.container.eventMode = 'none' // Grid shouldn't block events
+
+    // Add directly to the scene layer provided
+    this.wrapper.addChild(this.container)
 
     this.gridGraphics = new Graphics()
     this.container.addChild(this.gridGraphics)
   }
 
-  public onSetup(): void {
-    // Setup logic if needed
-  }
-
-  public onPreUpdate(_delta: number): void {
-    // PreUpdate logic if needed
-  }
-
-  public onUpdate(_delta: number): void {
+  public onUpdate(): void {
     if (!this.dirty) return
 
     const g = this.gridGraphics
@@ -56,10 +47,6 @@ export class GridSystem extends ZSystem {
     }
 
     this.dirty = false
-  }
-
-  public onPostUpdate(_delta: number): void {
-    // PostUpdate logic if needed
   }
 
   public onDestroy(): void {

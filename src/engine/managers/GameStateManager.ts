@@ -1,9 +1,8 @@
-import { ServiceLocator } from '@engine/core/ServiceLocator'
-import { ZManager } from '@engine/core/ZManager'
 import ZLogger from '@engine/utils/ZLogger'
 import { ZEngineSignal, ZActor } from '@engine/types'
 import { Game_Party } from '@engine/objects/Game_Party'
 import { Game_Actors } from '@engine/objects/Game_Actors'
+import { ZEventBus } from '@engine/core'
 
 /**
  * Interface representing the state of a saved game.
@@ -19,7 +18,9 @@ export interface GameSaveData {
 /**
  * Manages the global game state, including switches, variables, and the party.
  */
-export class GameStateManager extends ZManager {
+export class GameStateManager {
+  private bus: ZEventBus
+
   // Runtime State (Switches, Variables, Self Switches)
   private switches: Map<number, boolean> = new Map()
   private variables: Map<number, number> = new Map()
@@ -28,8 +29,8 @@ export class GameStateManager extends ZManager {
   private _party: Game_Party = new Game_Party()
   private _actors: Game_Actors = new Game_Actors()
 
-  constructor(services: ServiceLocator) {
-    super(services)
+  constructor(bus: ZEventBus) {
+    this.bus = bus
     this.initDefaultData()
   }
 

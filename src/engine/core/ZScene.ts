@@ -1,39 +1,17 @@
-import { Container, Application } from '@engine/utils/pixi'
-import { ServiceLocator } from '@engine/core/ServiceLocator'
-import { ZEventBus } from '@engine/core/ZEventBus'
-import { InputManager } from '@engine/managers/InputManager'
+import { Container } from '@engine/utils/pixi'
+import { IEngineContext } from '@engine/types'
 
 /**
  * ZScene is the base class for all game states (Title, Map, Battle, etc.)
  */
 export abstract class ZScene {
   public container: Container
-  protected services: ServiceLocator
 
-  constructor(services: ServiceLocator) {
-    this.services = services
+  protected engine: IEngineContext
+
+  constructor(engine: IEngineContext) {
+    this.engine = engine
     this.container = new Container()
-  }
-
-  protected get bus(): ZEventBus {
-    return this.services.require(ZEventBus)
-  }
-
-  protected get input(): InputManager {
-    return this.services.require(InputManager)
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  protected get engine(): any {
-    return this.services.get('ZEngine')
-  }
-
-  protected get app(): Application {
-    return this.engine.app
-  }
-
-  protected get mode(): 'edit' | 'play' {
-    return this.engine.mode
   }
 
   /**

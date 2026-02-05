@@ -1,15 +1,26 @@
 import { Container } from '@engine/utils/pixi'
 import { ZEngineSignal, ZInputAction } from '@engine/types'
-import { ZSystem, SystemMode } from '@engine/core/ZSystem'
-import { ServiceLocator } from '@engine/core/ServiceLocator'
+import { InputManager } from '@engine/managers/InputManager'
+import { ZEventBus } from '@engine/core/ZEventBus'
 import { EventSystem } from '@engine/systems/EventSystem'
 import { TextureManager } from '@engine/managers/TextureManager'
 import { Window_Message } from '@engine/ui/Window_Message'
 import { Window_Choice } from '@engine/ui/Window_Choice'
 
-export class MessageSystem extends ZSystem {
+/**
+ * Manages the dialogue and choice window UI.
+ * Refactored for Manual Dependency Injection.
+ */
+export class MessageSystem {
+  // Dependencies
+  private inputManager: InputManager
+  private eventBus: ZEventBus
+  private textureManager: TextureManager
+  private eventSystem: EventSystem
+
   public container: Container
 
+  // UI Components
   private windowMessage: Window_Message | null = null
   private windowChoice: Window_Choice | null = null
 
@@ -25,39 +36,53 @@ export class MessageSystem extends ZSystem {
   private boxWidth: number = 600
   private boxHeight: number = 140
 
-  constructor(services: ServiceLocator) {
-    super(services)
-    this.updateMode = SystemMode.PLAY
+  constructor(
+    inputManager: InputManager,
+    eventBus: ZEventBus,
+    textureManager: TextureManager,
+    eventSystem: EventSystem
+  ) {
+    this.inputManager = inputManager
+    this.eventBus = eventBus
+    this.textureManager = textureManager
+    this.eventSystem = eventSystem
+
     this.container = new Container()
     this.container.visible = false
     this.container.zIndex = 100000
+
+    this.setupListeners()
   }
 
-  public async onBoot(): Promise<void> {
-    const textureManager = this.services.require(TextureManager)
-
-    // Load Window Skin
+  /**
+   * Async initialization: Loads assets and builds UI windows.
+   */
+  public async init(): Promise<void> {
     const skinPath = 'img/system/window.png'
-    await textureManager.load(skinPath)
-    const skin = textureManager.get(skinPath)
 
-    // Init Windows
+    // Ensure skin is loaded
+    await this.textureManager.load(skinPath)
+    const skin = this.textureManager.get(skinPath)
+
     if (skin) {
+      // Message Window
       this.windowMessage = new Window_Message(0, 0, this.boxWidth, this.boxHeight)
       this.windowMessage.windowSkin = skin
       this.container.addChild(this.windowMessage)
 
-      // Choice window setup (variable height, defaults for now)
+      // Choice Window
       this.windowChoice = new Window_Choice(0, 0, 240, 0) // Height variable
       this.windowChoice.windowSkin = skin
       this.windowChoice.visible = false
       this.container.addChild(this.windowChoice)
     }
+  }
 
-    this.bus.on(ZEngineSignal.ShowMessage, ({ text }) => {
+  private setupListeners(): void {
+    this.eventBus.on(ZEngineSignal.ShowMessage, ({ text }) => {
       this.show(text)
     })
-    this.bus.on(ZEngineSignal.ShowChoices, ({ choices }) => {
+    this.eventBus.on(ZEngineSignal.ShowChoices, ({ choices }) => {
       this.showChoices(choices)
     })
   }
@@ -85,8 +110,8 @@ export class MessageSystem extends ZSystem {
       } else {
         // Check for input to close message
         if (
-          this.input.isActionDown(ZInputAction.OK) ||
-          this.input.isActionDown(ZInputAction.CANCEL)
+          this.inputManager.isActionDown(ZInputAction.OK) ||
+          this.inputManager.isActionDown(ZInputAction.CANCEL)
         ) {
           this.close()
         }
@@ -98,11 +123,11 @@ export class MessageSystem extends ZSystem {
     if (!this.windowChoice) return
 
     let changed = false
-    if (this.input.isActionJustPressed(ZInputAction.DOWN)) {
+    if (this.inputManager.isActionJustPressed(ZInputAction.DOWN)) {
       this.selectedChoiceIndex = (this.selectedChoiceIndex + 1) % this.choices.length
       changed = true
     }
-    if (this.input.isActionJustPressed(ZInputAction.UP)) {
+    if (this.inputManager.isActionJustPressed(ZInputAction.UP)) {
       this.selectedChoiceIndex =
         (this.selectedChoiceIndex - 1 + this.choices.length) % this.choices.length
       changed = true
@@ -112,10 +137,10 @@ export class MessageSystem extends ZSystem {
       this.windowChoice.select(this.selectedChoiceIndex)
     }
 
-    if (this.input.isActionJustPressed(ZInputAction.OK)) {
+    if (this.inputManager.isActionJustPressed(ZInputAction.OK)) {
       const selectedIndex = this.selectedChoiceIndex
       this.closeChoices()
-      this.bus.emit(ZEngineSignal.ChoiceSelected, { index: selectedIndex })
+      this.eventBus.emit(ZEngineSignal.ChoiceSelected, { index: selectedIndex })
     }
   }
 
@@ -133,7 +158,7 @@ export class MessageSystem extends ZSystem {
     this.choices = choices
     this.selectedChoiceIndex = 0
     this.isChoiceVisible = true
-    this.isVisible = true // Ensure message is also visible if choices appear
+    this.isVisible = true
 
     // Ensure message is open
     if (this.windowMessage && !this.windowMessage.isOpen()) {
@@ -171,12 +196,9 @@ export class MessageSystem extends ZSystem {
     if (this.windowMessage) this.windowMessage.close()
     if (this.windowChoice) this.windowChoice.close()
 
-    const inputManager = this.input
-    if (inputManager) {
-      inputManager.clearAction(ZInputAction.OK)
-      inputManager.clearAction(ZInputAction.CANCEL)
-      inputManager.clearKey('Enter')
-    }
+    this.inputManager.clearAction(ZInputAction.OK)
+    this.inputManager.clearAction(ZInputAction.CANCEL)
+    this.inputManager.clearKey('Enter')
   }
 
   private finalizeClose(): void {
@@ -186,12 +208,10 @@ export class MessageSystem extends ZSystem {
 
     this.container.visible = false
 
-    this.bus.emit(ZEngineSignal.MessageClosed, {})
+    this.eventBus.emit(ZEngineSignal.MessageClosed, {})
 
-    const eventSystem = this.services.get(EventSystem)
-    if (eventSystem) {
-      eventSystem.finishMessage()
-    }
+    // Notify logic system that message is done
+    this.eventSystem.finishMessage()
   }
 
   public resize(width: number, height: number): void {

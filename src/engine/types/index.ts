@@ -1,3 +1,23 @@
+import { Application } from '@engine/utils/pixi.js'
+import { ZEventBus } from '@engine/core'
+import {
+  GameStateManager,
+  InputManager,
+  MapManager,
+  SceneManager,
+  TextureManager,
+  TilesetManager
+} from '@engine/managers'
+import { AudioManager } from '@engine/managers/AudioManager'
+import {
+  EntityRenderSystem,
+  GhostSystem,
+  GridSystem,
+  PlayerSystem,
+  RenderSystem,
+  TransitionSystem
+} from '@engine/systems'
+
 export interface ZDatabaseEntry {
   id: number
   name: string
@@ -111,7 +131,6 @@ export interface TileSelection {
   pattern?: (TileSelection | null)[][]
   structure?: Partial<Record<ZLayer, (TileSelection[] | null)[][]>>
   isMultiLayer?: boolean
-  // Optional pixel-based overrides for custom sized events/objects
   pixelX?: number
   pixelY?: number
   pixelW?: number
@@ -352,6 +371,27 @@ export enum ZCommandCode {
 
 export type ZCommandResult = 'continue' | 'wait' | 'stop'
 
+export interface IEngineContext {
+  app: Application
+  systemData: ZSystemData | null
+  textures: TextureManager
+  tilesets: TilesetManager
+  renderer: RenderSystem
+  player: PlayerSystem
+  entities: EntityRenderSystem
+  grid: GridSystem
+  ghost: GhostSystem
+  scenes: SceneManager
+  audio: AudioManager
+  input: InputManager
+  gameState: GameStateManager
+  eventBus: ZEventBus
+  map: MapManager
+  dataProvider: ZDataProvider | null
+  transitions: TransitionSystem
+  config: { mode: 'play' | 'edit' }
+}
+
 export interface ZEventInterpreter {
   list: ZEventCommand[]
   index: number
@@ -363,12 +403,7 @@ export interface ZEventInterpreter {
 }
 
 export interface ZCommandProcessor {
-  (
-    params: unknown[],
-    interpreter: ZEventInterpreter,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    services: any // ServiceLocator passed from EventSystem
-  ): ZCommandResult
+  (params: unknown[], interpreter: ZEventInterpreter, services: IEngineContext): ZCommandResult
 }
 
 export interface ZTileDelta {

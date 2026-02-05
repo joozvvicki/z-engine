@@ -1,6 +1,4 @@
 export * from './ZScene'
-export * from './EngineBootstrapper'
-export * from './ServiceLocator'
 export * from './SystemManager'
 export * from './ZEngine'
 export * from './ZEventBus'
