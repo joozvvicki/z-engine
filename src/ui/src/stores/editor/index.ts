@@ -38,6 +38,7 @@ export const useEditorStore = defineStore('editor', () => {
   const activeMapID = useLocalStorage<number | null>('Z_ActiveMapID', 1)
   const activeLayer = useLocalStorage<ZLayer>('ZLayer', ZLayer.ground)
   const currentTool = useLocalStorage<ZTool>('ZTool', ZTool.brush)
+  const mapAlignment = useLocalStorage<'top-left' | 'center'>('Z_MapAlignment', 'center')
 
   // Aktualna selekcja (pędzel)
   const selection = useLocalStorage<TileSelection>('Z_Location', {
@@ -372,6 +373,7 @@ export const useEditorStore = defineStore('editor', () => {
     systemScreenZoom,
     systemStartingParty,
     systemSounds,
-    isProjectLoaded
+    isProjectLoaded,
+    mapAlignment
   }
 })

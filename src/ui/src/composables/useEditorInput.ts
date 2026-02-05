@@ -35,7 +35,8 @@ export const useEditorInput = (
     updatePan,
     endPan,
     resetViewport,
-    updateTransform
+    updateTransform,
+    center
   } = useViewport()
 
   const {
@@ -208,23 +209,31 @@ export const useEditorInput = (
 
   // --- Viewport Persistence Logic ---
 
-  // 1. Load state when switching maps
+  // 1. Load state when switching maps OR when store changes externally (e.g. via UI)
   watch(
-    () => store.activeMapID,
-    (newId) => {
-      if (newId === null) return
-      const saved = store.mapViewportStates[newId]
-      if (saved) {
+    () => (store.activeMapID !== null ? store.mapViewportStates[store.activeMapID] : null),
+    (saved, oldSaved) => {
+      if (!saved) return
+
+      // Only update local refs if they differ from store (to avoid infinite loops)
+      if (saved.scale !== scale.value) {
         scale.value = saved.scale
-        pan.value = { ...saved.pan }
-      } else {
-        scale.value = 1
-        pan.value = { x: 0, y: 0 }
       }
-      // Apply to DOM on next tick to ensure canvasContainer is ready
-      nextTick(() => updateTransform(canvasContainer.value))
+      if (saved.pan.x !== pan.value.x || saved.pan.y !== pan.value.y) {
+        pan.value = { ...saved.pan }
+      }
+
+      // Apply to DOM on next tick if just starting or scale/pan changed
+      if (
+        !oldSaved ||
+        saved.scale !== oldSaved.scale ||
+        saved.pan.x !== oldSaved.pan.x ||
+        saved.pan.y !== oldSaved.pan.y
+      ) {
+        nextTick(() => updateTransform(canvasContainer.value))
+      }
     },
-    { immediate: true }
+    { immediate: true, deep: true }
   )
 
   // 1.5. Force transform update when container mounts/re-mounts
@@ -232,21 +241,55 @@ export const useEditorInput = (
     () => canvasContainer.value,
     (el) => {
       if (el) {
-        updateTransform(el)
+        // If we have a saved state, use it. Otherwise, apply default alignment.
+        if (store.activeMapID !== null && store.mapViewportStates[store.activeMapID]) {
+          updateTransform(el)
+        } else {
+          resetViewport(el, store.mapAlignment)
+        }
       }
     }
   )
 
-  // 2. Save state when it changes
+  // 1.7. Watch mapAlignment and force re-centering if enabled
+  watch(
+    () => store.mapAlignment,
+    (align) => {
+      // We only force a reset if we DON'T have a saved state OR if we want to force re-center
+      // For now, let's just apply it to the current view if it's the default 1:1 view
+      if (canvasContainer.value && scale.value === 1) {
+        resetViewport(canvasContainer.value, align)
+      }
+    }
+  )
+
+  // 1.8. Maintain centering during zoom if alignment is 'center'
+  watch(scale, () => {
+    if (store.mapAlignment === 'center' && canvasContainer.value) {
+      // Use nextTick to ensure transform is applied before re-centering
+      nextTick(() => center(canvasContainer.value))
+    }
+  })
+
+  // 2. Save state when it changes locally
   watch(
     [scale, () => pan.value.x, () => pan.value.y],
-    () => {
+    ([newScale, newPanX, newPanY]) => {
       if (store.activeMapID === null) return
-      // Don't save if values are default and we don't have a record yet?
-      // Actually, simple overwrite is fine.
-      store.mapViewportStates[store.activeMapID] = {
-        scale: scale.value,
-        pan: { ...pan.value }
+
+      const currentStoreState = store.mapViewportStates[store.activeMapID]
+
+      // Only update store if local state changed compared to store
+      if (
+        !currentStoreState ||
+        currentStoreState.scale !== newScale ||
+        currentStoreState.pan.x !== newPanX ||
+        currentStoreState.pan.y !== newPanY
+      ) {
+        store.mapViewportStates[store.activeMapID] = {
+          scale: newScale,
+          pan: { x: newPanX, y: newPanY }
+        }
       }
     },
     { deep: true }
