@@ -10,7 +10,7 @@ import {
   type ZSignalData
 } from '@engine/types'
 import { ZSystem, SystemMode } from '@engine/core/ZSystem'
-import { PhysicsSystem } from '@engine/systems/PhysicsSystem'
+import type { IPhysicsSystem, IObstacleProvider } from '@engine/interfaces/IPhysicsSystem'
 import { ServiceLocator } from '@engine/core/ServiceLocator'
 
 import { CommandRegistry } from './event-commands'
@@ -29,8 +29,8 @@ export interface ZEventRuntimeState extends ZMoveable {
  * Manages the execution of event command lists (interpreters).
  * Now refactored to use a decoupled CommandRegistry and handle Event Movement Logic.
  */
-export class EventSystem extends ZSystem {
-  private physicsSystem: PhysicsSystem
+export class EventSystem extends ZSystem implements IObstacleProvider {
+  private physicsSystem: IPhysicsSystem
   private movementProcessor: MovementProcessor
 
   private playerPos: { x: number; y: number } = { x: 0, y: 0 }
@@ -50,7 +50,7 @@ export class EventSystem extends ZSystem {
     super(services)
     this.updateMode = SystemMode.PLAY
 
-    this.physicsSystem = undefined as unknown as PhysicsSystem
+    this.physicsSystem = undefined as unknown as IPhysicsSystem
     this.movementProcessor = undefined as unknown as MovementProcessor
   }
 
@@ -58,7 +58,8 @@ export class EventSystem extends ZSystem {
    * Initializes systems and event listeners.
    */
   public onBoot(): void {
-    this.physicsSystem = this.services.require(PhysicsSystem)
+    this.physicsSystem = this.services.get('PhysicsSystem') as unknown as IPhysicsSystem
+    this.physicsSystem.registerProvider(this)
     this.movementProcessor = new MovementProcessor(this.physicsSystem)
 
     this.bus.on(ZEngineSignal.EventTriggered, ({ event }) => {
@@ -257,8 +258,10 @@ export class EventSystem extends ZSystem {
         const baseSpeed = Math.pow(2, state.moveSpeed - 4) * (tileSize / 32)
         const speed = baseSpeed * (delta / 16.66) // delta normalized to ~1 frame
 
-        const targetRealX = state.targetX * tileSize
-        const targetRealY = state.targetY * tileSize
+        const tx = state.targetX ?? state.x
+        const ty = state.targetY ?? state.y
+        const targetRealX = tx * tileSize
+        const targetRealY = ty * tileSize
 
         let arrived = false
 
@@ -279,8 +282,8 @@ export class EventSystem extends ZSystem {
 
         if (arrived) {
           state.isMoving = false
-          state.x = state.targetX
-          state.y = state.targetY
+          state.x = tx
+          state.y = ty
 
           // Sync back to ZEvent source of truth
           const event = this.map.currentMap?.events.find((e) => e.id === state.id)
@@ -295,16 +298,31 @@ export class EventSystem extends ZSystem {
 
   /**
    * Queries if a tile is occupied by an event (stationary or moving target).
+  /**
+   * Queries if a tile is occupied by an event (stationary or moving target).
    * Used by PhysicsSystem.
    */
-  public isOccupied(x: number, y: number, excludeEventId?: string): boolean {
+  public isOccupied(
+    x: number,
+    y: number,
+    options?: { isThrough?: boolean; excludeId?: string }
+  ): boolean {
     for (const state of this.eventStates.values()) {
-      if (state.id === excludeEventId) continue
-      if (state.isThrough) continue
+      if (options?.excludeId && state.id === options.excludeId) continue
+      if (state.isThrough) continue // Event itself is through
+      // if options.isThrough is true, the caller ignores obstacles, but PhysicsSystem usually handles that check before calling providers?
+      // Actually PhysicsSystem says: "if (!options?.isThrough) check providers"
+      // So here we just report if WE are an obstacle.
 
       if (state.x === x && state.y === y) return true
       // Also check target if moving (claimed)
-      if (state.isMoving && state.targetX === x && state.targetY === y) return true
+      if (state.isMoving) {
+        const tx = state.targetX ?? state.x
+        const ty = state.targetY ?? state.y
+        if (tx === x && ty === y) {
+          return true
+        }
+      }
     }
     return false
   }
@@ -452,8 +470,10 @@ export class EventSystem extends ZSystem {
       const tileSize = this.map.currentMap?.tileWidth || 48
       state.realX = state.targetX * tileSize
       state.realY = state.targetY * tileSize
-      state.x = state.targetX
-      state.y = state.targetY
+      const tx = state.targetX ?? state.x
+      const ty = state.targetY ?? state.y
+      state.x = tx
+      state.y = ty
       state.isMoving = false
 
       // Sync ZEvent

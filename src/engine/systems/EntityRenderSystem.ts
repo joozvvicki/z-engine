@@ -64,7 +64,13 @@ export class EntityRenderSystem extends ZSystem {
     for (const event of map.events) {
       if (event.name === 'PlayerStart') continue
 
-      const activePage = this.eventSystem.getActivePage(event)
+      const eventSystem = this.eventSystem || this.services.get(EventSystem)
+      if (!eventSystem) {
+        console.error('EntityRenderSystem: EventSystem not found during loadEvents')
+        return
+      }
+
+      const activePage = eventSystem.getActivePage(event)
       const char = new CharacterSprite(event.id, this.textures, this.tileSize)
       char.setGridPosition(event.x, event.y)
 
@@ -193,8 +199,8 @@ export class EntityRenderSystem extends ZSystem {
         char.realY = state.realY
         char.isMoving = state.isMoving
         char.direction = state.direction
-        char.opacity = state.opacity
-        char.transparent = state.transparent
+        char.opacity = state.opacity ?? 255
+        char.transparent = state.transparent ?? false
       }
 
       char.update(delta)

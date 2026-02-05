@@ -1,13 +1,19 @@
 import { ZLayer } from '@engine/types'
 import { ZSystem, SystemMode } from '@engine/core/ZSystem'
 import { ServiceLocator } from '@engine/core/ServiceLocator'
-import type { PlayerSystem } from './PlayerSystem'
-import type { EventSystem } from './EventSystem'
 
-export class PhysicsSystem extends ZSystem {
+import type { IPhysicsSystem, IObstacleProvider } from '@engine/interfaces/IPhysicsSystem'
+
+export class PhysicsSystem extends ZSystem implements IPhysicsSystem {
+  private obstacleProviders: IObstacleProvider[] = []
+
   constructor(services: ServiceLocator) {
     super(services)
     this.updateMode = SystemMode.PLAY
+  }
+
+  public registerProvider(provider: IObstacleProvider): void {
+    this.obstacleProviders.push(provider)
   }
 
   public onBoot(): void {
@@ -30,24 +36,24 @@ export class PhysicsSystem extends ZSystem {
       return false
     }
 
-    // Check Events (Collision Priority)
-    // We delegate ALL event collision checks to EventSystem to ensure a single source of truth (Runtime State).
+    // Check Obstacle Providers (Events, Player, etc.)
     if (!options?.isThrough) {
-      const eventSystem = this.services.get('EventSystem') as unknown as EventSystem
-      // Note: We don't exclude 'self' here because we don't know our own ID.
-      // However, isOccupied checks coordinate 'x,y'.
-      // If we are at (0,0) and check (0,1), we won't collide with ourselves.
-      if (eventSystem && eventSystem.isOccupied(x, y)) {
-        return false
-      }
-    }
+      for (const provider of this.obstacleProviders) {
+        // We pass context if needed, but for now simple check
+        // Note: skipPlayer option implies we might need to filter providers?
+        // Or providers handle it?
+        // Let's pass 'skipPlayer' as a generic exclude tag?
+        // Ideally PhysicsSystem shouldn't know about 'skipPlayer' concept if fully decoupled?
+        // But SetMoveRoute might assume it.
+        // Let's assume providers return false if they shouldn't trigger.
 
-    // Check Player
-    if (!options?.skipPlayer && !options?.isThrough) {
-      const player = this.services.get('PlayerSystem') as unknown as PlayerSystem
-      if (player && player.x === x && player.y === y) return false
-      // Also check player target position if they are moving
-      if (player && player.isMoving && player.targetX === x && player.targetY === y) return false
+        // Actually, PlayerSystem IS an obstacle provider.
+        // If options.skipPlayer is true, we want to skip that specific provider?
+        // Or we pass options to the provider?
+
+        // Let's assume we pass options.
+        if (provider.isOccupied(x, y, options)) return false
+      }
     }
 
     const strictLayers = [ZLayer.decoration, ZLayer.walls]

@@ -1,14 +1,13 @@
 import { ZEngineSignal, type ZMoveCommand, ZInputAction } from '@engine/types'
+import { type IObstacleProvider } from '@engine/interfaces/IPhysicsSystem'
 import ZLogger from '@engine/utils/ZLogger'
 import { ZSystem, SystemMode } from '@engine/core/ZSystem'
 import { ServiceLocator } from '@engine/core/ServiceLocator'
-import { PhysicsSystem } from '@engine/systems/PhysicsSystem'
-import { SceneManager } from '@engine/managers/SceneManager'
-import { TransitionSystem } from '@engine/systems/TransitionSystem'
+import type { IPhysicsSystem } from '@engine/interfaces/IPhysicsSystem'
 import { MovementProcessor, type ZMoveable } from '@engine/core/MovementProcessor'
 
-export class PlayerSystem extends ZSystem implements ZMoveable {
-  private physicsSystem: PhysicsSystem
+export class PlayerSystem extends ZSystem implements ZMoveable, IObstacleProvider {
+  private physicsSystem: IPhysicsSystem
   private movementProcessor: MovementProcessor
   private tileSize: number
 
@@ -46,14 +45,15 @@ export class PlayerSystem extends ZSystem implements ZMoveable {
     super(services)
     this.updateMode = SystemMode.PLAY
     this.tileSize = tileSize
-    this.physicsSystem = undefined as unknown as PhysicsSystem
+    this.physicsSystem = undefined as unknown as IPhysicsSystem
     this.movementProcessor = undefined as unknown as MovementProcessor
   }
 
   public onBoot(): void {
     if (this.isBooted) return
     this.isBooted = true
-    this.physicsSystem = this.services.require(PhysicsSystem)
+    this.physicsSystem = this.services.get('PhysicsSystem') as unknown as IPhysicsSystem
+    this.physicsSystem.registerProvider(this)
     this.movementProcessor = new MovementProcessor(this.physicsSystem)
 
     const startEvent = this.map.currentMap?.events.find((e) => e.name === 'PlayerStart')
@@ -84,6 +84,12 @@ export class PlayerSystem extends ZSystem implements ZMoveable {
     })
     this.bus.on(ZEngineSignal.MenuClosed, () => {
       console.log('[PlayerSystem] MenuClosed received -> Unblocking input')
+      this.isInputBlocked = false
+    })
+    this.bus.on(ZEngineSignal.SceneTransitionStarted, () => {
+      this.isInputBlocked = true
+    })
+    this.bus.on(ZEngineSignal.SceneTransitionFinished, () => {
       this.isInputBlocked = false
     })
 
@@ -133,16 +139,7 @@ export class PlayerSystem extends ZSystem implements ZMoveable {
   }
 
   private updateInput(): void {
-    const sceneManager = this.services.require(SceneManager)
-    const transitionSystem = this.services.require(TransitionSystem)
-
-    if (
-      this.isMoving ||
-      this.isInputBlocked ||
-      this.moveRouteIndex >= 0 ||
-      sceneManager.isTransitioning ||
-      transitionSystem.isTransitioning
-    ) {
+    if (this.isMoving || this.isInputBlocked || this.moveRouteIndex >= 0) {
       return
     }
 
@@ -259,5 +256,22 @@ export class PlayerSystem extends ZSystem implements ZMoveable {
     this.realX = this.x * this.tileSize
     this.realY = this.y * this.tileSize
     this.isMoving = false
+  }
+
+  public isOccupied(
+    x: number,
+    y: number,
+    options?: { isThrough?: boolean; skipPlayer?: boolean; excludeId?: string }
+  ): boolean {
+    if (options?.skipPlayer) return false
+    if (options?.excludeId === this.id) return false
+    // If player is through-mode (noclip), they don't block?
+    // Usually Player blocking is physical.
+    // If Player 'isThrough' property is true (set via SetMoveRoute), then they don't block.
+    if (this.isThrough) return false
+
+    if (this.x === x && this.y === y) return true
+    if (this.isMoving && this.targetX === x && this.targetY === y) return true
+    return false
   }
 }

@@ -48,6 +48,7 @@ export class EngineBootstrapper {
     services.register(GridSystem, new GridSystem(stage, services, tileSize))
     const physicsSystem = new PhysicsSystem(services)
     services.register(PhysicsSystem, physicsSystem)
+    services.register('PhysicsSystem', physicsSystem)
 
     const playerSystem = new PlayerSystem(services, tileSize)
     services.register(PlayerSystem, playerSystem)

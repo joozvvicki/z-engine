@@ -1,6 +1,6 @@
 import { ZMoveCode, type ZMoveCommand } from '@engine/types'
 import ZLogger from '@engine/utils/ZLogger'
-import { PhysicsSystem } from '@engine/systems/PhysicsSystem'
+import type { IPhysicsSystem } from '@engine/interfaces/IPhysicsSystem'
 
 export interface ZMoveable {
   id: string
@@ -9,33 +9,36 @@ export interface ZMoveable {
   direction: 'down' | 'left' | 'right' | 'up'
   isMoving: boolean
   moveSpeed: number
-  moveFrequency: number // 1-5 (RPG Maker style)
+  moveFrequency: number
   moveRoute: ZMoveCommand[]
   moveRouteIndex: number
   moveRouteRepeat: boolean
   moveRouteSkip: boolean
   moveType: 'fixed' | 'random' | 'approach' | 'custom'
   isThrough: boolean
-  waitTimer: number // in frames
+  waitTimer: number
 
-  // State flags
-  walkAnim: boolean
-  stepAnim: boolean
-  directionFix: boolean
-  transparent: boolean
-  opacity: number
+  startX?: number
+  startY?: number
+  targetX?: number
+  targetY?: number
+  realX?: number
+  realY?: number
 
-  // Target for interpolation
-  targetX: number
-  targetY: number
+  walkAnim?: boolean
+  stepAnim?: boolean
+  directionFix?: boolean
+  opacity?: number
+  transparent?: boolean
 }
 
 export class MovementProcessor {
-  private physicsSystem: PhysicsSystem
+  private physics: IPhysicsSystem
 
-  constructor(physicsSystem: PhysicsSystem) {
-    this.physicsSystem = physicsSystem
+  constructor(physics: IPhysicsSystem) {
+    this.physics = physics
   }
+
   public processNextCommand(
     moveable: ZMoveable,
     playerPos?: { x: number; y: number },
@@ -214,7 +217,7 @@ export class MovementProcessor {
         else if (moveable.direction === 'left') sdx = 1
         else sdx = -1
         // For Step Backward, we don't turn! So we use a special flag or just manual check
-        const canPass = this.physicsSystem.checkPassage(
+        const canPass = this.physics.checkPassage(
           moveable.x,
           moveable.y,
           moveable.x + sdx,
@@ -397,7 +400,7 @@ export class MovementProcessor {
       else if (dy > 0) nextDir = 'down'
     }
 
-    const canPass = this.physicsSystem.checkPassage(
+    const canPass = this.physics.checkPassage(
       moveable.x,
       moveable.y,
       moveable.x + dx,
