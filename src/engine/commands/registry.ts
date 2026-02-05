@@ -13,6 +13,8 @@ import { commandSetEventGraphic } from './visuals/SetEventGraphic'
 import {
   commandPlayBGM,
   commandFadeOutBGM,
+  commandPlayBGS,
+  commandFadeOutBGS,
   commandPlaySE,
   commandStopSE
 } from './audio/AudioCommands'
@@ -41,6 +43,8 @@ export const CommandRegistry: Record<number, ZCommandProcessor> = {
 
   [ZCommandCode.PlayBGM]: commandPlayBGM,
   [ZCommandCode.FadeOutBGM]: commandFadeOutBGM,
+  [ZCommandCode.PlayBGS]: commandPlayBGS,
+  [ZCommandCode.FadeOutBGS]: commandFadeOutBGS,
   [ZCommandCode.PlaySE]: commandPlaySE,
   [ZCommandCode.StopSE]: commandStopSE
 }

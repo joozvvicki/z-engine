@@ -251,7 +251,7 @@ export class CharacterSprite implements ZMoveable {
   private updateAnimation(delta: number): void {
     const shouldAnimate = (this.isMoving && this.walkAnim) || this.stepAnim
 
-    if (shouldAnimate && !this.isInteracting) {
+    if (shouldAnimate) {
       this._animationTimer += delta
       const threshold = Math.max(60, 450 - (this.moveSpeed || 4) * 60)
 

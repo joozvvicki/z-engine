@@ -24,6 +24,13 @@ export const commandShowMessage: ZCommandProcessor = (
   engine.input.clearAction(ZInputAction.CANCEL)
 
   // Tag interpreter for update loop
+  const nextCmd = interpreter.list[interpreter.index]
+  const isNextChoices = nextCmd && nextCmd.code === 102 // ZCommandCode.ShowChoices
+
+  if (isNextChoices) {
+    return 'continue'
+  }
+
   const it = interpreter as unknown as Record<string, unknown>
   it.isWaitingForMessage = true
 

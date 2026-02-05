@@ -85,6 +85,9 @@ export class MessageSystem {
     this.eventBus.on(ZEngineSignal.ShowChoices, ({ choices }) => {
       this.showChoices(choices)
     })
+    this.eventBus.on(ZEngineSignal.MessageCloseDirective, () => {
+      this.close()
+    })
   }
 
   public onUpdate(): void {
@@ -110,10 +113,10 @@ export class MessageSystem {
       } else {
         // Check for input to close message
         if (
-          this.inputManager.isActionDown(ZInputAction.OK) ||
-          this.inputManager.isActionDown(ZInputAction.CANCEL)
+          this.inputManager.isActionJustPressed(ZInputAction.OK) ||
+          this.inputManager.isActionJustPressed(ZInputAction.CANCEL)
         ) {
-          this.close()
+          this.eventSystem.requestMessageAdvance()
         }
       }
     }
@@ -139,7 +142,13 @@ export class MessageSystem {
 
     if (this.inputManager.isActionJustPressed(ZInputAction.OK)) {
       const selectedIndex = this.selectedChoiceIndex
-      this.closeChoices()
+
+      // Close ONLY choice window, keep message window for now
+      this.isChoiceVisible = false
+      if (this.windowChoice) this.windowChoice.close()
+
+      this.eventSystem.submitChoice(selectedIndex)
+
       this.eventBus.emit(ZEngineSignal.ChoiceSelected, { index: selectedIndex })
     }
   }
@@ -173,22 +182,15 @@ export class MessageSystem {
       const navHeight = choices.length * 36 + 36
       this.windowChoice.resize(240, navHeight)
 
-      // Position
+      // Position: Anchor bottom of choice window to top of message box
+      // With pivot.y = height / 2, y = -height / 2 touches the top.
       this.windowChoice.x = this.boxWidth - 240
-      this.windowChoice.y = -navHeight
+      this.windowChoice.y = -navHeight / 2
 
       this.windowChoice.open()
     }
 
     this.container.visible = true
-  }
-
-  private closeChoices(): void {
-    this.isChoiceVisible = false
-    if (this.windowChoice) {
-      this.windowChoice.close()
-    }
-    this.close()
   }
 
   private close(): void {

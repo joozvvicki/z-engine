@@ -182,6 +182,10 @@ export class EventSystem implements IObstacleProvider {
     this.interpreterSystem.finishMessage()
   }
 
+  public requestMessageAdvance(): void {
+    this.interpreterSystem.requestMessageAdvance()
+  }
+
   public submitChoice(index: number): void {
     this.interpreterSystem.submitChoice(index)
   }

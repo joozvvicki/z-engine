@@ -12,10 +12,11 @@ import { InterpreterUtils } from '../InterpreterUtils'
  */
 export const commandShowChoices: ZCommandProcessor = (
   params: unknown[],
-  _interpreter: ZEventInterpreter,
+  interpreter: ZEventInterpreter,
   engine: IEngineContext
 ): ZCommandResult => {
   const choices = params[0] as string[]
+  interpreter.isWaitingForMessage = true
   engine.eventBus.emit(ZEngineSignal.ShowChoices, { choices })
   return 'wait'
 }

@@ -105,6 +105,24 @@ const variableOps = [
   { label: 'Mod (%)', value: 5 }
 ]
 
+// Show Choices
+const choiceTexts = ref<string[]>(['Yes', 'No'])
+
+// Conditional Branch
+const branchType = ref(0) // 0: Switch, 1: Variable
+const branchSwitchId = ref('1')
+const branchSwitchValue = ref(1)
+const branchVariableId = ref('1')
+const branchVariableValue = ref(0)
+
+// Set Event Graphic
+const graphicAssetId = ref('')
+const graphicGroup = ref<'character' | 'tile'>('character')
+const graphicX = ref(0)
+const graphicY = ref(0)
+const graphicW = ref(1)
+const graphicH = ref(1)
+
 const directions = [
   { label: 'Down', value: 2, icon: IconArrowDown },
   { label: 'Left', value: 4, icon: IconArrowLeft },
@@ -236,19 +254,55 @@ watch(
           moveRouteThrough.value = Boolean(params[4] ?? false)
         } else if (
           props.initialCommand.code === ZCommandCode.PlayBGM ||
+          props.initialCommand.code === ZCommandCode.PlayBGS ||
           props.initialCommand.code === ZCommandCode.PlaySE
         ) {
           const config = params[0] as { name: string; volume: number; pitch: number }
           audioFile.value = config.name
           audioVolume.value = config.volume
           audioPitch.value = config.pitch
-        } else if (props.initialCommand.code === ZCommandCode.FadeOutBGM) {
+        } else if (
+          props.initialCommand.code === ZCommandCode.FadeOutBGM ||
+          props.initialCommand.code === ZCommandCode.FadeOutBGS
+        ) {
           audioDuration.value = Number(params[0] || 1)
+        } else if (props.initialCommand.code === ZCommandCode.ShowChoices) {
+          choiceTexts.value = JSON.parse(JSON.stringify(params[0] || ['Yes', 'No']))
+        } else if (props.initialCommand.code === ZCommandCode.ConditionalBranch) {
+          branchType.value = Number(params[0] || 0)
+          if (branchType.value === 0) {
+            branchSwitchId.value = String(params[1] || '1')
+            branchSwitchValue.value = params[2] === 1 ? 1 : 0
+          } else {
+            branchVariableId.value = String(params[1] || '1')
+            branchVariableValue.value = Number(params[2] || 0)
+          }
+        } else if (props.initialCommand.code === ZCommandCode.SetEventGraphic) {
+          const g = params[0] as {
+            assetId?: string
+            group?: 'character' | 'tile'
+            x?: number
+            y?: number
+          }
+          graphicAssetId.value = g?.assetId || ''
+          graphicGroup.value = g?.group || 'character'
+          graphicX.value = g?.x || 0
+          graphicY.value = g?.y || 0
         }
       } else {
         commandSelectorStep.value = 'grid'
         selectedCommandType.value = null
         messageText.value = ''
+        choiceTexts.value = ['Yes', 'No']
+        branchType.value = 0
+        branchSwitchId.value = '1'
+        branchSwitchValue.value = 1
+        branchVariableId.value = '1'
+        branchVariableValue.value = 0
+        graphicAssetId.value = ''
+        graphicGroup.value = 'character'
+        graphicX.value = 0
+        graphicY.value = 0
         waitFrames.value = 60
         selfSwitchCh.value = 'A'
         switchState.value = 1
@@ -322,6 +376,8 @@ const commandCategories = [
     commands: [
       { code: ZCommandCode.PlayBGM, label: 'Play BGM', icon: IconMusic },
       { code: ZCommandCode.FadeOutBGM, label: 'Fadeout BGM', icon: IconVolume },
+      { code: ZCommandCode.PlayBGS, label: 'Play BGS', icon: IconVolume },
+      { code: ZCommandCode.FadeOutBGS, label: 'Fadeout BGS', icon: IconVolume },
       { code: ZCommandCode.PlaySE, label: 'Play SE', icon: IconVolume },
       { code: ZCommandCode.StopSE, label: 'Stop SE', icon: IconVolume }
     ]
@@ -386,13 +442,36 @@ const handleSave = (): void => {
       ]
     } else if (
       selectedCommandType.value === ZCommandCode.PlayBGM ||
+      selectedCommandType.value === ZCommandCode.PlayBGS ||
       selectedCommandType.value === ZCommandCode.PlaySE
     ) {
       finalParams = [{ name: audioFile.value, volume: audioVolume.value, pitch: audioPitch.value }]
-    } else if (selectedCommandType.value === ZCommandCode.FadeOutBGM) {
+    } else if (
+      selectedCommandType.value === ZCommandCode.FadeOutBGM ||
+      selectedCommandType.value === ZCommandCode.FadeOutBGS
+    ) {
       finalParams = [audioDuration.value]
     } else if (selectedCommandType.value === ZCommandCode.StopSE) {
       finalParams = []
+    } else if (selectedCommandType.value === ZCommandCode.ShowChoices) {
+      finalParams = [[...choiceTexts.value]]
+    } else if (selectedCommandType.value === ZCommandCode.ConditionalBranch) {
+      if (branchType.value === 0) {
+        finalParams = [0, branchSwitchId.value, branchSwitchValue.value]
+      } else {
+        finalParams = [1, branchVariableId.value, branchVariableValue.value]
+      }
+    } else if (selectedCommandType.value === ZCommandCode.SetEventGraphic) {
+      finalParams = [
+        {
+          assetId: graphicAssetId.value,
+          group: graphicGroup.value,
+          x: graphicX.value,
+          y: graphicY.value,
+          w: graphicW.value,
+          h: graphicH.value
+        }
+      ]
     }
 
     emit('save', {
@@ -1072,8 +1151,202 @@ const handleSave = (): void => {
             </div>
           </div>
 
+          <!-- Show Choices -->
+          <div v-else-if="selectedCommandType === ZCommandCode.ShowChoices" class="space-y-4">
+            <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1">Choices</label>
+            <div class="space-y-2">
+              <div v-for="(_, idx) in choiceTexts" :key="idx" class="flex items-center gap-2 group">
+                <div class="w-6 text-[10px] text-slate-300 font-black text-center">
+                  {{ idx + 1 }}
+                </div>
+                <input
+                  v-model="choiceTexts[idx]"
+                  type="text"
+                  class="flex-1 bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 text-xs font-bold focus:bg-white focus:border-slate-900 outline-none transition-all"
+                  placeholder="Choice text..."
+                />
+                <button
+                  v-if="choiceTexts.length > 1"
+                  class="p-2 text-slate-300 hover:text-red-500 transition-colors"
+                  @click="choiceTexts.splice(idx, 1)"
+                >
+                  <IconTrash size="14" />
+                </button>
+              </div>
+              <button
+                v-if="choiceTexts.length < 6"
+                class="w-full py-2 border border-dashed border-slate-200 rounded-lg text-[10px] font-black uppercase text-slate-400 hover:border-slate-400 hover:text-slate-600 transition-all"
+                @click="choiceTexts.push('New Choice')"
+              >
+                Add Choice
+              </button>
+            </div>
+          </div>
+
+          <!-- Conditional Branch -->
+          <div v-else-if="selectedCommandType === ZCommandCode.ConditionalBranch" class="space-y-4">
+            <div class="flex rounded-lg overflow-hidden border border-slate-100">
+              <button
+                v-for="bt in [
+                  { val: 0, label: 'Switch' },
+                  { val: 1, label: 'Variable' }
+                ]"
+                :key="bt.val"
+                class="flex-1 py-2 text-[10px] font-black uppercase transition-all"
+                :class="
+                  branchType === bt.val
+                    ? 'bg-slate-900 text-white'
+                    : 'bg-slate-50 text-slate-400 hover:bg-slate-100'
+                "
+                @click="branchType = bt.val"
+              >
+                {{ bt.label }}
+              </button>
+            </div>
+
+            <!-- Switch Condition -->
+            <div v-if="branchType === 0" class="space-y-4">
+              <div class="space-y-2">
+                <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1"
+                  >System Switch</label
+                >
+                <select
+                  v-model="branchSwitchId"
+                  class="w-full bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 text-xs font-bold focus:bg-white focus:border-slate-900 outline-none transition-all"
+                >
+                  <option
+                    v-for="(sw, idx) in store.systemSwitches"
+                    :key="idx"
+                    :value="String(idx + 1)"
+                  >
+                    #{{ String(idx + 1).padStart(3, '0') }}: {{ sw || '(None)' }}
+                  </option>
+                </select>
+              </div>
+              <div class="space-y-2">
+                <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1"
+                  >Required State</label
+                >
+                <div class="flex gap-2">
+                  <button
+                    v-for="s in [
+                      { val: 1, label: 'ON' },
+                      { val: 0, label: 'OFF' }
+                    ]"
+                    :key="s.val"
+                    class="flex-1 py-2 rounded-lg text-[10px] font-black border transition-all"
+                    :class="
+                      branchSwitchValue === s.val
+                        ? 'bg-slate-900 border-slate-900 text-white'
+                        : 'bg-slate-50 border-slate-100 text-slate-400 hover:border-slate-300'
+                    "
+                    @click="branchSwitchValue = s.val"
+                  >
+                    {{ s.label }}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Variable Condition -->
+            <div v-else-if="branchType === 1" class="space-y-4">
+              <div class="space-y-2">
+                <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1"
+                  >System Variable</label
+                >
+                <select
+                  v-model="branchVariableId"
+                  class="w-full bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 text-xs font-bold focus:bg-white focus:border-slate-900 outline-none transition-all"
+                >
+                  <option
+                    v-for="(v, idx) in store.systemVariables"
+                    :key="idx"
+                    :value="String(idx + 1)"
+                  >
+                    #{{ String(idx + 1).padStart(3, '0') }}: {{ v || '(None)' }}
+                  </option>
+                </select>
+              </div>
+              <div class="space-y-2">
+                <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1"
+                  >Required Value (=)</label
+                >
+                <input
+                  v-model.number="branchVariableValue"
+                  type="number"
+                  class="w-full bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 text-xs font-bold focus:bg-white focus:border-slate-900 outline-none transition-all"
+                />
+              </div>
+            </div>
+          </div>
+
+          <!-- Set Event Graphic -->
+          <div v-else-if="selectedCommandType === ZCommandCode.SetEventGraphic" class="space-y-4">
+            <div class="space-y-2">
+              <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1"
+                >Asset ID</label
+              >
+              <input
+                v-model="graphicAssetId"
+                type="text"
+                class="w-full bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 text-xs font-bold focus:bg-white focus:border-slate-900 outline-none transition-all"
+                placeholder="character1.png"
+              />
+            </div>
+            <div class="flex gap-4">
+              <div class="flex-1 space-y-2">
+                <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1"
+                  >Type</label
+                >
+                <select
+                  v-model="graphicGroup"
+                  class="w-full bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 text-xs font-bold focus:bg-white focus:border-slate-900 outline-none transition-all"
+                >
+                  <option value="character">Character</option>
+                  <option value="tile">Tile</option>
+                </select>
+              </div>
+              <div v-if="graphicGroup === 'character'" class="flex-1 space-y-2">
+                <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1"
+                  >Frame/Index</label
+                >
+                <div class="grid grid-cols-2 gap-2">
+                  <input
+                    v-model.number="graphicX"
+                    type="number"
+                    title="Column"
+                    class="bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 text-xs font-bold focus:bg-white focus:border-slate-900 outline-none transition-all"
+                  />
+                  <input
+                    v-model.number="graphicY"
+                    type="number"
+                    title="Row"
+                    class="bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 text-xs font-bold focus:bg-white focus:border-slate-900 outline-none transition-all"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div
-            v-else
+            v-else-if="
+              selectedCommandType !== ZCommandCode.ShowMessage &&
+              selectedCommandType !== ZCommandCode.Wait &&
+              selectedCommandType !== ZCommandCode.ControlSelfSwitch &&
+              selectedCommandType !== ZCommandCode.ControlSwitch &&
+              selectedCommandType !== ZCommandCode.ControlVariable &&
+              selectedCommandType !== ZCommandCode.SetEventDirection &&
+              selectedCommandType !== ZCommandCode.TransferPlayer &&
+              selectedCommandType !== ZCommandCode.SetMoveRoute &&
+              selectedCommandType !== ZCommandCode.PlayBGM &&
+              selectedCommandType !== ZCommandCode.PlayBGS &&
+              selectedCommandType !== ZCommandCode.PlaySE &&
+              selectedCommandType !== ZCommandCode.FadeOutBGM &&
+              selectedCommandType !== ZCommandCode.FadeOutBGS &&
+              selectedCommandType !== ZCommandCode.ShowChoices &&
+              selectedCommandType !== ZCommandCode.ConditionalBranch &&
+              selectedCommandType !== ZCommandCode.SetEventGraphic
+            "
             class="py-10 text-center text-slate-400 text-xs italic bg-slate-50 rounded-xl border border-dashed border-slate-200"
           >
             Parameter fields for this command are being improved.

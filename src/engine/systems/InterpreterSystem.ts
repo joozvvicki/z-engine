@@ -3,6 +3,7 @@ import {
   type ZEventCommand,
   type ZCommandResult,
   type ZEventPage,
+  ZCommandCode,
   ZEngineSignal,
   IEngineContext
 } from '@engine/types'
@@ -124,8 +125,17 @@ export class InterpreterSystem {
   public submitChoice(index: number): void {
     if (this.activeInterpreter) {
       this.activeInterpreter.pendingChoice = index
+      this.activeInterpreter.isWaitingForMessage = false
+      // Immediate execution to see what's next
+      this.executeInterpreterLoop(this.activeInterpreter, false)
+
+      // Close window if we're not waiting for another message
+      if (!this.activeInterpreter || !this.activeInterpreter.isWaitingForMessage) {
+        this.bus.emit(ZEngineSignal.MessageCloseDirective, {})
+      }
+    } else {
+      this.bus.emit(ZEngineSignal.MessageCloseDirective, {})
     }
-    this.resumeProcessing()
   }
 
   public onMoveRouteFinished(eventId: string): void {
@@ -135,6 +145,25 @@ export class InterpreterSystem {
       // We can let the next update loop handle it, or force execution.
       // Force execution feels snappier.
       this.executeInterpreterLoop(this.activeInterpreter, false)
+    }
+  }
+
+  public requestMessageAdvance(): void {
+    if (!this.activeInterpreter) {
+      this.bus.emit(ZEngineSignal.MessageCloseDirective, {})
+      return
+    }
+
+    const nextCmd = this.activeInterpreter.list[this.activeInterpreter.index]
+    const isNextMessage =
+      nextCmd &&
+      (nextCmd.code === ZCommandCode.ShowMessage || nextCmd.code === ZCommandCode.ShowChoices)
+
+    if (isNextMessage) {
+      this.activeInterpreter.isWaitingForMessage = false
+      this.executeInterpreterLoop(this.activeInterpreter, false)
+    } else {
+      this.bus.emit(ZEngineSignal.MessageCloseDirective, {})
     }
   }
 

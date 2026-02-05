@@ -511,6 +511,7 @@ export enum ZEngineSignal {
   ShowChoices = 'ui:show-choices',
   ChoiceSelected = 'ui:choice-selected',
   MessageClosed = 'ui:message-closed',
+  MessageCloseDirective = 'ui:message-close-directive',
   GameStateChanged = 'state:changed',
   EventInternalStateChanged = 'event:internal-state',
   EventExecutionStarted = 'event:execution-started',
@@ -540,6 +541,7 @@ export interface ZSignalData {
   [ZEngineSignal.ShowChoices]: { choices: string[] }
   [ZEngineSignal.ChoiceSelected]: { index: number }
   [ZEngineSignal.MessageClosed]: Record<string, never>
+  [ZEngineSignal.MessageCloseDirective]: Record<string, never>
   [ZEngineSignal.GameStateChanged]: {
     type: 'switch' | 'variable' | 'load' | 'new'
     id?: number

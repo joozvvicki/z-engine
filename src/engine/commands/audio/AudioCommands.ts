@@ -37,6 +37,32 @@ export const commandFadeOutBGM: ZCommandProcessor = (
 }
 
 /**
+ * Command 245: Play BGS
+ */
+export const commandPlayBGS: ZCommandProcessor = (
+  params: unknown[],
+  _interpreter: ZEventInterpreter,
+  engine: IEngineContext
+): ZCommandResult => {
+  const config = params[0] as ZAudioConfig
+  engine.audio.playBgs(config)
+  return 'continue'
+}
+
+/**
+ * Command 246: Fadeout BGS
+ */
+export const commandFadeOutBGS: ZCommandProcessor = (
+  params: unknown[],
+  _interpreter: ZEventInterpreter,
+  engine: IEngineContext
+): ZCommandResult => {
+  const duration = (params[0] as number) || 1
+  engine.audio.fadeOutBgs(duration)
+  return 'continue'
+}
+
+/**
  * Command 250: Play SE
  */
 export const commandPlaySE: ZCommandProcessor = (
