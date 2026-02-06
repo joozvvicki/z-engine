@@ -116,7 +116,7 @@ onMounted(async () => {
 
 <template>
   <div
-    class="w-full h-full overflow-hidden relative outline-none bg-[#e5e5e5]"
+    class="w-full h-full overflow-hidden relative outline-none bg-transparent"
     tabindex="0"
     @wheel.prevent="onWheel"
     @contextmenu.prevent="onContextMenu"

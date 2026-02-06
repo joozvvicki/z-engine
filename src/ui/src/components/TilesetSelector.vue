@@ -4,7 +4,6 @@ import { useEditorStore } from '@ui/stores/editor'
 import { useTilesetAtlas } from '@ui/composables/useTilesetAtlas'
 import { useTilesetSelection } from '@ui/composables/useTilesetSelection'
 import {
-  IconSettings,
   IconX,
   IconStar,
   IconCircle,
@@ -12,7 +11,9 @@ import {
   IconArrowDown,
   IconArrowLeft,
   IconArrowRight,
-  IconPointer
+  IconPointer,
+  IconGridDots,
+  IconEdit
 } from '@tabler/icons-vue'
 import TileSettingsModal from './modal/TileSettingsModal.vue'
 
@@ -144,15 +145,11 @@ const TABS = computed(() => {
 })
 
 const tabRefs = ref<HTMLElement[]>([])
-const highlightStyle = ref({
-  left: '0px',
-  width: '0px'
-})
+const highlightStyle = ref({ left: '0px', width: '0px' })
 
 const updateHighlight = (): void => {
   const activeIndex = TABS.value.indexOf(store.activeTab)
   const el = tabRefs.value[activeIndex]
-
   if (el) {
     highlightStyle.value = {
       left: `${el.offsetLeft}px`,
@@ -170,242 +167,229 @@ watch(
 )
 
 const configTools = [
-  { id: 'select', icon: IconPointer, label: 'Select (1)', color: 'text-blue-500' },
-  { id: 'solid', icon: IconX, label: 'Solid (2)', color: 'text-red-500' },
-  { id: 'star', icon: IconStar, label: 'Star (3)', color: 'text-yellow-500' },
-  { id: 'passable', icon: IconCircle, label: 'Passable (4)', color: 'text-green-500' }
+  {
+    id: 'select',
+    icon: IconPointer,
+    label: 'Properties (1)',
+    color: 'text-blue-500',
+    bg: 'bg-blue-50'
+  },
+  { id: 'solid', icon: IconX, label: 'Solid (2)', color: 'text-red-500', bg: 'bg-red-50' },
+  {
+    id: 'star',
+    icon: IconStar,
+    label: 'High Priority (3)',
+    color: 'text-amber-500',
+    bg: 'bg-amber-50'
+  },
+  {
+    id: 'passable',
+    icon: IconCircle,
+    label: 'Passable (4)',
+    color: 'text-emerald-500',
+    bg: 'bg-emerald-50'
+  }
 ]
 </script>
 
 <template>
-  <div
-    :class="[
-      'flex relative flex-col h-full select-none overflow-hidden bg-white',
-      store.isTestMode && 'pointer-events-none opacity-50'
-    ]"
-  >
-    <!-- Top Bar: Workspace controls -->
-    <div class="px-4 pt-5 pb-3 border-b border-black/3 flex items-center justify-between">
-      <h2 class="text-[10px] font-black uppercase tracking-[0.2em] text-black/10">Tileset</h2>
+  <div class="flex relative flex-col h-full select-none overflow-hidden bg-white">
+    <div
+      class="px-4 py-3 border-b border-slate-200 flex items-center justify-between shrink-0 bg-white z-20"
+    >
+      <div class="flex items-center gap-2 text-slate-400">
+        <IconGridDots :size="16" />
+        <h2 class="text-xs font-black uppercase tracking-widest">Tileset</h2>
+      </div>
 
       <button
-        title="Toggle Edit Mode"
-        :class="[
-          'p-1.5 rounded-lg transition-all cursor-pointer border',
+        title="Toggle Collision Editor"
+        class="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all border"
+        :class="
           isEditMode
-            ? 'bg-black text-white border-black shadow-lg shadow-black/20'
-            : 'hover:bg-black/5 text-gray-300 hover:text-black border-transparent'
-        ]"
+            ? 'bg-slate-900 text-white border-slate-900 shadow-md'
+            : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300 hover:text-slate-900'
+        "
         @click="isEditMode = !isEditMode"
       >
-        <IconSettings :size="18" stroke-width="2.5" />
+        <IconEdit :size="14" />
+        <span>{{ isEditMode ? 'Done' : 'Edit' }}</span>
       </button>
     </div>
 
-    <!-- Edit Mode Toolbar -->
-    <Transition name="fade">
-      <div v-if="isEditMode" class="p-2 border-b border-black/5 bg-white flex gap-1 shadow-sm z-10">
+    <div
+      class="overflow-hidden transition-all duration-300 ease-in-out border-b border-slate-100 bg-slate-50/50"
+      :class="isEditMode ? 'max-h-16 opacity-100' : 'max-h-0 opacity-0'"
+    >
+      <div class="p-2 flex gap-2 justify-center">
         <button
           v-for="tool in configTools"
           :key="tool.id"
-          :class="[
-            'flex-1 flex flex-col items-center gap-1 py-2 px-1 rounded-xl transition-all cursor-pointer group',
+          class="flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all text-[10px] font-bold uppercase tracking-wider border"
+          :class="
             activeConfigTool === tool.id
-              ? 'bg-black text-white shadow-md'
-              : 'hover:bg-black/5 text-black/40'
-          ]"
-          :title="tool.label"
+              ? 'bg-white border-slate-200 shadow-sm text-slate-900 ring-1 ring-slate-200'
+              : 'border-transparent text-slate-400 hover:bg-white hover:text-slate-600'
+          "
           @click="activeConfigTool = tool.id as any"
         >
           <component
             :is="tool.icon"
-            :size="16"
+            :size="14"
             stroke-width="3"
-            :class="activeConfigTool === tool.id ? 'text-white' : tool.color"
+            :class="activeConfigTool === tool.id ? tool.color : 'text-slate-400'"
           />
-          <span class="text-[8px] font-black uppercase tracking-tighter">{{ tool.id }}</span>
+          {{ tool.label.split(' ')[0] }}
         </button>
       </div>
-    </Transition>
+    </div>
 
-    <div class="flex-1 overflow-auto relative scrollbar-thin bg-[#fafbfc]">
-      <div v-if="isProcessing" class="absolute inset-0 flex items-center justify-center">
-        <span class="text-black/10 text-xs font-black animate-pulse uppercase tracking-[0.2em]"
-          >GENERATING ATLAS...</span
+    <div class="flex-1 overflow-auto relative custom-scrollbar bg-slate-100/50">
+      <div
+        v-if="isProcessing"
+        class="absolute inset-0 flex flex-col items-center justify-center z-20 bg-white/80 backdrop-blur-sm"
+      >
+        <div
+          class="w-6 h-6 border-2 border-slate-200 border-t-blue-500 rounded-full animate-spin mb-2"
+        ></div>
+        <span class="text-xs font-bold text-slate-400 uppercase tracking-widest"
+          >Processing Atlas...</span
         >
       </div>
 
       <div
         v-else
-        class="relative w-max border border-black/5 cursor-pointer bg-white shadow-2xl"
+        class="relative w-max m-4 bg-white shadow-xl shadow-slate-200/50 ring-1 ring-slate-200"
         @mousedown="onContainerMouseDown"
         @mousemove="onContainerMouseMove"
       >
+        <div class="absolute inset-0 checkerboard opacity-50 pointer-events-none"></div>
+
         <img
           :src="processedImageUrl"
-          class="block pixelated pointer-events-none"
-          :class="{ 'opacity-80': isEditMode }"
+          class="block pixelated relative z-0 transition-opacity duration-300"
+          :class="isEditMode ? 'opacity-60' : 'opacity-100'"
           draggable="false"
         />
 
-        <div class="absolute inset-0 pointer-events-none opacity-5 grid-48"></div>
+        <div class="absolute inset-0 pointer-events-none grid-48 z-10 opacity-10"></div>
 
-        <!-- Selection Rectangle (Only in Select Mode) -->
         <div
           v-if="!isEditMode && selectionStyle"
           :style="selectionStyle"
-          class="absolute border-4 border-black z-10 shadow-[0_0_20px_rgba(0,0,0,0.2)] transition-all duration-75"
+          class="absolute border-[3px] border-blue-500 z-20 shadow-[0_0_15px_rgba(59,130,246,0.5)] pointer-events-none transition-all duration-75"
         ></div>
 
-        <!-- Edit Mode Overlays -->
         <template v-if="isEditMode">
           <template v-if="store.activeTab === 'A'">
-            <template v-for="map in iconMapping" :key="`${map.uiX}_${map.uiY}`">
-              <template v-if="store.getTileConfig(map.url, map.ox, map.oy)">
-                <div
+            <div v-for="map in iconMapping" :key="`${map.uiX}_${map.uiY}`">
+              <div
+                v-if="store.getTileConfig(map.url, map.ox, map.oy)"
+                class="absolute z-20 pointer-events-none flex items-center justify-center"
+                :style="{
+                  left: `${map.uiX * 48}px`,
+                  top: `${map.uiY * 48}px`,
+                  width: '48px',
+                  height: '48px'
+                }"
+              >
+                <IconX
                   v-if="store.getTileConfig(map.url, map.ox, map.oy)?.isSolid"
-                  class="absolute flex items-center justify-center pointer-events-none"
-                  :style="{
-                    left: `${map.uiX * 48}px`,
-                    top: `${map.uiY * 48}px`,
-                    width: '48px',
-                    height: '48px'
-                  }"
-                >
-                  <IconX class="text-red-500 w-8 h-8 drop-shadow-md stroke-thick" />
-                </div>
-                <div
+                  class="text-red-500 w-8 h-8 drop-shadow-md stroke-[3]"
+                />
+                <IconStar
                   v-if="store.getTileConfig(map.url, map.ox, map.oy)?.isHighPriority"
-                  class="absolute flex items-center justify-center pointer-events-none"
-                  :style="{
-                    left: `${map.uiX * 48}px`,
-                    top: `${map.uiY * 48}px`,
-                    width: '48px',
-                    height: '48px'
-                  }"
-                >
-                  <IconStar class="text-yellow-400 w-8 h-8 drop-shadow-md fill-current" />
-                </div>
+                  class="text-amber-400 w-8 h-8 drop-shadow-md fill-current"
+                />
 
-                <!-- Directional Indicators -->
-                <div
-                  class="absolute inset-0 pointer-events-none"
-                  :style="{
-                    left: `${map.uiX * 48}px`,
-                    top: `${map.uiY * 48}px`,
-                    width: '48px',
-                    height: '48px'
-                  }"
-                >
-                  <IconArrowUp
-                    v-if="(store.getTileConfig(map.url, map.ox, map.oy)?.dirBlock ?? 0) & 1"
-                    class="absolute top-1 left-1/2 -translate-x-1/2 text-red-500 w-3 h-3"
-                  />
-                  <IconArrowRight
-                    v-if="(store.getTileConfig(map.url, map.ox, map.oy)?.dirBlock ?? 0) & 2"
-                    class="absolute right-1 top-1/2 -translate-y-1/2 text-red-500 w-3 h-3"
-                  />
-                  <IconArrowDown
-                    v-if="(store.getTileConfig(map.url, map.ox, map.oy)?.dirBlock ?? 0) & 4"
-                    class="absolute bottom-1 left-1/2 -translate-x-1/2 text-red-500 w-3 h-3"
-                  />
-                  <IconArrowLeft
-                    v-if="(store.getTileConfig(map.url, map.ox, map.oy)?.dirBlock ?? 0) & 8"
-                    class="absolute left-1 top-1/2 -translate-y-1/2 text-red-500 w-3 h-3"
-                  />
-                </div>
-              </template>
-            </template>
+                <IconArrowUp
+                  v-if="(store.getTileConfig(map.url, map.ox, map.oy)?.dirBlock ?? 0) & 1"
+                  class="absolute top-0 left-1/2 -translate-x-1/2 text-red-600 w-4 h-4 drop-shadow-sm"
+                />
+                <IconArrowRight
+                  v-if="(store.getTileConfig(map.url, map.ox, map.oy)?.dirBlock ?? 0) & 2"
+                  class="absolute right-0 top-1/2 -translate-y-1/2 text-red-600 w-4 h-4 drop-shadow-sm"
+                />
+                <IconArrowDown
+                  v-if="(store.getTileConfig(map.url, map.ox, map.oy)?.dirBlock ?? 0) & 4"
+                  class="absolute bottom-0 left-1/2 -translate-x-1/2 text-red-600 w-4 h-4 drop-shadow-sm"
+                />
+                <IconArrowLeft
+                  v-if="(store.getTileConfig(map.url, map.ox, map.oy)?.dirBlock ?? 0) & 8"
+                  class="absolute left-0 top-1/2 -translate-y-1/2 text-red-600 w-4 h-4 drop-shadow-sm"
+                />
+              </div>
+            </div>
           </template>
 
           <template v-else>
             <template v-if="store.tilesets.find((t) => t.id === store.activeTab)">
-              <template
+              <div
                 v-for="(config, key) in store.getTileConfigMap(
                   store.tilesets.find((t) => t.id === store.activeTab)!.url
                 ) || {}"
                 :key="key"
               >
-                <template
+                <div
                   v-if="
                     parseInt(key.split('_')[0]) * 48 < atlasWidth &&
                     parseInt(key.split('_')[1]) * 48 < atlasHeight
                   "
+                  class="absolute z-20 pointer-events-none flex items-center justify-center"
+                  :style="{
+                    left: `${parseInt(key.split('_')[0]) * 48}px`,
+                    top: `${parseInt(key.split('_')[1]) * 48}px`,
+                    width: '48px',
+                    height: '48px'
+                  }"
                 >
-                  <div
+                  <IconX
                     v-if="config.isSolid"
-                    class="absolute flex items-center justify-center pointer-events-none"
-                    :style="{
-                      left: `${parseInt(key.split('_')[0]) * 48}px`,
-                      top: `${parseInt(key.split('_')[1]) * 48}px`,
-                      width: '48px',
-                      height: '48px'
-                    }"
-                  >
-                    <IconX class="text-red-500 w-8 h-8 drop-shadow-md stroke-thick" />
-                  </div>
-                  <div
+                    class="text-red-500 w-8 h-8 drop-shadow-md stroke-[3]"
+                  />
+                  <IconStar
                     v-if="config.isHighPriority"
-                    class="absolute flex items-center justify-center pointer-events-none"
-                    :style="{
-                      left: `${parseInt(key.split('_')[0]) * 48}px`,
-                      top: `${parseInt(key.split('_')[1]) * 48}px`,
-                      width: '48px',
-                      height: '48px'
-                    }"
-                  >
-                    <IconStar class="text-yellow-400 w-8 h-8 drop-shadow-md fill-current" />
-                  </div>
+                    class="text-amber-400 w-8 h-8 drop-shadow-md fill-current"
+                  />
 
-                  <!-- Directional Indicators -->
-                  <div
-                    class="absolute pointer-events-none"
-                    :style="{
-                      left: `${parseInt(key.split('_')[0]) * 48}px`,
-                      top: `${parseInt(key.split('_')[1]) * 48}px`,
-                      width: '48px',
-                      height: '48px'
-                    }"
-                  >
-                    <IconArrowUp
-                      v-if="(config.dirBlock ?? 0) & 1"
-                      class="absolute top-1 left-1/2 -translate-x-1/2 text-red-500 w-3 h-3"
-                    />
-                    <IconArrowRight
-                      v-if="(config.dirBlock ?? 0) & 2"
-                      class="absolute right-1 top-1/2 -translate-y-1/2 text-red-500 w-3 h-3"
-                    />
-                    <IconArrowDown
-                      v-if="(config.dirBlock ?? 0) & 4"
-                      class="absolute bottom-1 left-1/2 -translate-x-1/2 text-red-500 w-3 h-3"
-                    />
-                    <IconArrowLeft
-                      v-if="(config.dirBlock ?? 0) & 8"
-                      class="absolute left-1 top-1/2 -translate-y-1/2 text-red-500 w-3 h-3"
-                    />
-                  </div>
-                </template>
-              </template>
+                  <IconArrowUp
+                    v-if="(config.dirBlock ?? 0) & 1"
+                    class="absolute top-0 left-1/2 -translate-x-1/2 text-red-600 w-4 h-4 drop-shadow-sm"
+                  />
+                  <IconArrowRight
+                    v-if="(config.dirBlock ?? 0) & 2"
+                    class="absolute right-0 top-1/2 -translate-y-1/2 text-red-600 w-4 h-4 drop-shadow-sm"
+                  />
+                  <IconArrowDown
+                    v-if="(config.dirBlock ?? 0) & 4"
+                    class="absolute bottom-0 left-1/2 -translate-x-1/2 text-red-600 w-4 h-4 drop-shadow-sm"
+                  />
+                  <IconArrowLeft
+                    v-if="(config.dirBlock ?? 0) & 8"
+                    class="absolute left-0 top-1/2 -translate-y-1/2 text-red-600 w-4 h-4 drop-shadow-sm"
+                  />
+                </div>
+              </div>
             </template>
           </template>
         </template>
       </div>
     </div>
 
-    <div class="p-4 bg-white border-t border-black/5">
-      <div class="relative flex gap-1 bg-black/3 p-1 rounded-2xl overflow-hidden">
+    <div class="p-3 bg-white border-t border-slate-200 z-20">
+      <div class="relative flex bg-slate-100 p-1 rounded-xl">
         <div
-          class="absolute top-1 bottom-1 bg-white rounded-xl shadow-sm transition-all duration-300 ease-out z-0"
+          class="absolute top-1 bottom-1 bg-white rounded-lg shadow-sm border border-slate-100 transition-all duration-300 ease-out z-0"
           :style="highlightStyle"
         ></div>
         <button
           v-for="tab in TABS"
           :key="tab"
           ref="tabRefs"
-          :class="[
-            'relative flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl cursor-pointer z-10 transition-colors duration-200',
-            store.activeTab === tab ? 'text-black' : 'text-black/30 hover:text-black/50'
-          ]"
+          class="relative flex-1 py-1.5 text-[10px] font-bold uppercase tracking-widest rounded-lg cursor-pointer z-10 transition-colors duration-200 text-center"
+          :class="
+            store.activeTab === tab ? 'text-slate-900' : 'text-slate-400 hover:text-slate-600'
+          "
           @click="store.activeTab = tab"
         >
           {{ tab }}
@@ -413,7 +397,6 @@ const configTools = [
       </div>
     </div>
 
-    <!-- Modals -->
     <TileSettingsModal
       v-if="showTileSettings && editingTile"
       :tileset-url="editingTile.url"
@@ -426,40 +409,45 @@ const configTools = [
 </template>
 
 <style scoped>
-.fade-enter-active,
-.fade-leave-active {
-  transition: all 0.2s ease;
-}
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-  transform: translateY(-10px);
+.pixelated {
+  image-rendering: pixelated;
 }
 
-.pixelated {
-  image-rendering: -moz-crisp-edges;
-  image-rendering: -webkit-optimize-contrast;
-  image-rendering: pixelated;
-  image-rendering: optimize-speed;
-}
+/* Custom Grid using gradients */
 .grid-48 {
   background-image:
-    linear-gradient(to right, #000 1px, transparent 1px),
-    linear-gradient(to bottom, #000 1px, transparent 1px);
+    linear-gradient(to right, rgba(0, 0, 0, 0.1) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0, 0, 0, 0.1) 1px, transparent 1px);
   background-size: 48px 48px;
 }
-.scrollbar-thin::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+
+/* Checkerboard for transparency */
+.checkerboard {
+  background-image:
+    linear-gradient(45deg, #f1f5f9 25%, transparent 25%),
+    linear-gradient(-45deg, #f1f5f9 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #f1f5f9 75%),
+    linear-gradient(-45deg, transparent 75%, #f1f5f9 75%);
+  background-size: 20px 20px;
+  background-position:
+    0 0,
+    0 10px,
+    10px -10px,
+    -10px 0px;
 }
-.scrollbar-thin::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.05);
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
   border-radius: 10px;
 }
-.scrollbar-thin::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.1);
-}
-.stroke-thick {
-  stroke-width: 4px;
+.custom-scrollbar:hover::-webkit-scrollbar-thumb {
+  background: #94a3b8;
 }
 </style>

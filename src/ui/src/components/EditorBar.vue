@@ -234,87 +234,91 @@ onMounted(() => {
   })
 })
 </script>
-
 <template>
-  <div class="flex items-center gap-4 pointer-events-auto">
-    <!-- Tools -->
-    <div
-      class="relative flex gap-1 bg-white/80 backdrop-blur-2xl p-1.5 rounded-2xl border border-black/5"
-    >
+  <div class="flex items-center gap-1 pointer-events-auto h-9">
+    <div class="relative flex gap-1 bg-transparent p-0">
       <div
-        class="absolute top-1.5 bottom-1.5 bg-black rounded-xl transition-all duration-300 ease-out z-0"
+        class="absolute top-0 bottom-0 bg-slate-900 rounded-lg transition-all duration-300 ease-[cubic-bezier(0.2,0,0,1)] z-0"
         :style="toolHighlightStyle"
       ></div>
+
       <button
         v-for="tool in tools"
         :key="tool.tooltip"
         ref="toolRefs"
-        class="group relative p-2 rounded-xl transition-all duration-200 cursor-pointer z-10 text-black disabled:opacity-30 disabled:cursor-not-allowed"
-        :class="store.currentTool === tool.tool ? 'text-white' : 'hover:bg-black/5'"
+        class="group relative w-9 h-9 flex items-center justify-center rounded-lg transition-all duration-200 cursor-pointer z-10 disabled:opacity-30 disabled:cursor-not-allowed"
+        :class="
+          store.currentTool === tool.tool
+            ? 'text-white'
+            : 'text-slate-500 hover:text-slate-900 hover:bg-slate-900/5'
+        "
         :disabled="store.isTestMode"
         @click="store.setTool(tool.tool)"
       >
-        <component :is="tool.icon" :size="18" stroke-width="2.5" />
+        <component :is="tool.icon" :size="18" stroke-width="2" />
 
-        <!-- Tooltip -->
         <div
-          class="absolute bottom-full mb-3 left-1/2 -translate-x-1/2 px-3 py-1.5 bg-black text-white text-[10px] font-black uppercase tracking-widest rounded-lg opacity-0 group-hover:opacity-100 transition-all pointer-events-none whitespace-nowrap shadow-xl"
+          class="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 px-2 py-1 bg-slate-900 text-white text-[10px] font-bold uppercase tracking-widest rounded opacity-0 group-hover:opacity-100 transition-all pointer-events-none whitespace-nowrap shadow-xl z-50"
         >
           {{ tool.tooltip.split(' ')[0] }}
+          <div
+            class="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-slate-900 rotate-45"
+          ></div>
         </div>
       </button>
     </div>
 
-    <!-- Actions (Undo/Redo) -->
-    <div
-      v-if="store.undoCount > 0 || store.redoCount > 0"
-      class="flex gap-1 bg-white/80 backdrop-blur-2xl p-1.5 rounded-2xl border border-black/5"
-    >
+    <div class="w-px h-5 bg-slate-200 mx-2"></div>
+
+    <div class="flex gap-1">
       <button
         v-for="action in actions"
         :key="action.name"
-        class="relative p-2 rounded-xl transition-all duration-200 cursor-pointer group disabled:opacity-30 disabled:cursor-not-allowed text-black hover:bg-black/5"
+        class="relative w-9 h-9 flex items-center justify-center rounded-lg transition-all duration-200 cursor-pointer group disabled:opacity-30 disabled:cursor-not-allowed text-slate-500 hover:text-slate-900 hover:bg-slate-900/5"
         :disabled="store.isTestMode"
         @click="action.action"
       >
-        <component :is="action.icon" :size="18" stroke-width="2.5" />
+        <component :is="action.icon" :size="18" stroke-width="2" />
+
         <div
-          v-if="['Undo', 'Redo'].includes(action.name)"
-          class="text-white text-[8px] font-black absolute -top-1 -right-1 flex items-center justify-center ring-2 ring-white"
+          v-if="
+            (action.name === 'Undo' && store.undoCount > 0) ||
+            (action.name === 'Redo' && store.redoCount > 0)
+          "
+          class="absolute top-0.5 right-0.5 w-3 h-3 bg-slate-900 text-white text-[7px] font-bold flex items-center justify-center rounded-full ring-1 ring-white"
         >
-          <span
-            v-if="action.name === 'Undo' && store.undoCount > 0"
-            class="w-4 h-4 bg-black rounded-full flex items-center justify-center"
-            >{{ store.undoCount }}</span
-          >
-          <span
-            v-if="action.name === 'Redo' && store.redoCount > 0"
-            class="w-4 h-4 bg-black rounded-full flex items-center justify-center"
-            >{{ store.redoCount }}</span
-          >
+          {{ action.name === 'Undo' ? store.undoCount : store.redoCount }}
         </div>
       </button>
     </div>
 
-    <!-- Play/Build -->
-    <div class="flex gap-1 bg-white/80 backdrop-blur-2xl p-1.5 rounded-2xl border border-black/5">
+    <div class="w-px h-5 bg-slate-200 mx-2"></div>
+
+    <div class="flex gap-1">
       <button
-        class="relative p-2 rounded-xl transition-all duration-200 cursor-pointer group text-blue-600 hover:bg-black/5"
+        class="relative w-9 h-9 flex items-center justify-center rounded-lg transition-all duration-200 cursor-pointer group text-blue-600 hover:bg-blue-50"
+        title="Build Game"
         @click="buildGame"
       >
-        <IconPackage :size="18" stroke-width="2.5" />
+        <IconPackage :size="18" stroke-width="2" />
       </button>
 
       <button
-        class="relative p-2 rounded-xl transition-all duration-200 cursor-pointer group"
-        :class="store.isTestMode ? 'text-red-500' : 'text-green-600 hover:bg-black/5'"
+        class="relative w-9 h-9 flex items-center justify-center rounded-lg transition-all duration-200 cursor-pointer group"
+        :class="
+          store.isTestMode
+            ? 'text-white bg-red-500 shadow-md shadow-red-500/30'
+            : 'text-emerald-600 hover:bg-emerald-50'
+        "
+        title="Playtest"
         @click="togglePlay"
       >
-        <IconPlayerStop v-if="store.isTestMode" :size="18" stroke-width="2.5" />
-        <IconPlayerPlay v-else :size="18" stroke-width="2.5" />
+        <IconPlayerStop v-if="store.isTestMode" :size="18" stroke-width="2" class="fill-current" />
+        <IconPlayerPlay v-else :size="18" stroke-width="2" class="fill-current" />
       </button>
     </div>
   </div>
+
   <BuildGameModal ref="buildModal" />
   <PlaytestModal ref="playtestModal" />
 </template>

@@ -649,7 +649,7 @@ const handleSave = (): void => {
                 </div>
               </div>
 
-              <div class="space-y-2" v-if="messageStyle === 1">
+              <div v-if="messageStyle === 1" class="space-y-2">
                 <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1"
                   >Target</label
                 >
@@ -1263,7 +1263,7 @@ const handleSave = (): void => {
                 </div>
               </div>
 
-              <div class="space-y-2" v-if="messageStyle === 1">
+              <div v-if="messageStyle === 1" class="space-y-2">
                 <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1"
                   >Target</label
                 >

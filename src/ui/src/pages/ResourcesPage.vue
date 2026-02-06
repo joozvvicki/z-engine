@@ -1,13 +1,27 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useEditorStore } from '@ui/stores/editor'
-import { IconSearch, IconPlus } from '@tabler/icons-vue'
+import {
+  IconSearch,
+  IconPlus,
+  IconFolder,
+  IconMusic,
+  IconPhoto,
+  IconUsers,
+  IconLayoutGrid,
+  IconMoodSmile,
+  IconBolt,
+  IconSparkles,
+  IconRefresh,
+  IconDatabase
+} from '@tabler/icons-vue'
 import { ProjectService } from '../services/ProjectService'
 import ResourceGrid from '../components/ResourceGrid.vue'
 import ResourcePreviewModal from '../components/modal/ResourcePreviewModal.vue'
 
 const route = useRoute()
+const router = useRouter()
 const store = useEditorStore()
 
 type ResourceType =
@@ -19,14 +33,14 @@ type ResourceType =
   | 'music'
   | 'sounds'
 
-const categories: Record<ResourceType, { folder: string; label: string }> = {
-  tilesets: { folder: 'img/tilesets', label: 'Tilesets' },
-  characters: { folder: 'img/characters', label: 'Characters' },
-  faces: { folder: 'img/faces', label: 'Faces' },
-  backgrounds: { folder: 'img/backgrounds', label: 'Backgrounds' },
-  animations: { folder: 'img/animations', label: 'Animations' },
-  music: { folder: 'audio/bgm', label: 'Music' },
-  sounds: { folder: 'audio/se', label: 'Sounds' }
+const categories: Record<ResourceType, { folder: string; label: string; icon: any }> = {
+  tilesets: { folder: 'img/tilesets', label: 'Tilesets', icon: IconLayoutGrid },
+  characters: { folder: 'img/characters', label: 'Characters', icon: IconUsers },
+  faces: { folder: 'img/faces', label: 'Faces', icon: IconMoodSmile },
+  backgrounds: { folder: 'img/backgrounds', label: 'Backgrounds', icon: IconPhoto },
+  animations: { folder: 'img/animations', label: 'Animations', icon: IconSparkles },
+  music: { folder: 'audio/bgm', label: 'Music (BGM)', icon: IconMusic },
+  sounds: { folder: 'audio/se', label: 'Sounds (SE)', icon: IconBolt }
 }
 
 const currentTab = computed((): ResourceType => {
@@ -34,10 +48,13 @@ const currentTab = computed((): ResourceType => {
   return categories[path] ? path : 'tilesets'
 })
 
+const navigateTo = (key: string) => {
+  router.push(`/resources/${key}`)
+}
+
 const files = ref<string[]>([])
 const searchQuery = ref('')
 const isLoading = ref(true)
-
 const selectedFile = ref<string | null>(null)
 
 const filteredFiles = computed(() => {
@@ -68,14 +85,11 @@ const getAssetUrl = (folder: string): string => {
 const handleImport = async (): Promise<void> => {
   const config = categories[currentTab.value]
   const success = await ProjectService.importAssets(config.folder)
-  if (success) {
-    loadFiles()
-  }
+  if (success) loadFiles()
 }
 
 const handleDelete = async (file: string): Promise<void> => {
-  if (!window.confirm(`Are you sure you want to delete ${file}? This cannot be undone.`)) return
-
+  if (!window.confirm(`Are you sure you want to delete ${file}?`)) return
   const config = categories[currentTab.value]
   const success = await ProjectService.deleteAsset(config.folder, file)
   if (success) {
@@ -100,112 +114,216 @@ watch(
   }
 )
 
-onMounted((): void => {
+onMounted(() => {
   if (store.isProjectLoaded) loadFiles()
 })
 </script>
 
 <template>
-  <div class="flex flex-col w-full h-full bg-white">
-    <!-- Header -->
-    <header
-      class="flex items-center justify-between px-8 py-6 border-b border-gray-100 bg-white shadow-sm z-30"
-    >
-      <div class="flex items-center gap-6">
-        <div>
-          <h1 class="text-2xl font-bold text-gray-900 tracking-tight">
-            {{ categories[currentTab].label }}
-          </h1>
-          <p class="text-[11px] font-bold uppercase tracking-widest text-slate-400 mt-1">
-            {{ files.length }} items available
-          </p>
-        </div>
-
-        <!-- Search Bar -->
-        <div class="relative w-64 ml-4">
-          <IconSearch class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300" size="16" />
-          <input
-            v-model="searchQuery"
-            type="text"
-            placeholder="Search assets..."
-            class="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-100 rounded-xl text-sm focus:bg-white focus:border-slate-300 outline-none transition-all"
-          />
-        </div>
+  <div class="flex w-full h-full bg-white text-slate-900 font-sans overflow-hidden">
+    <aside class="w-64 bg-slate-50/80 flex flex-col shrink-0 z-10 border-r border-slate-200">
+      <div class="px-5 pt-6 pb-4">
+        <h2 class="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-1 px-2">
+          Project Assets
+        </h2>
+        <p class="text-xs text-slate-500 font-medium px-2 opacity-60">Manage your game files</p>
       </div>
 
-      <button
-        class="flex items-center gap-2 px-5 py-2.5 bg-slate-900 hover:bg-black text-white rounded-xl text-xs font-bold transition-all shadow-lg shadow-slate-900/10 active:scale-95"
-        @click="handleImport"
-      >
-        <IconPlus size="18" />
-        Import Asset
-      </button>
-    </header>
+      <div class="flex-1 overflow-y-auto px-3 pb-4 custom-scrollbar">
+        <nav class="space-y-0.5">
+          <button
+            v-for="(config, key) in categories"
+            :key="key"
+            class="w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-bold transition-all group border border-transparent"
+            :class="
+              currentTab === key
+                ? 'bg-white text-blue-600 shadow-sm border-slate-200'
+                : 'text-slate-500 hover:bg-slate-200/50 hover:text-slate-900'
+            "
+            @click="navigateTo(key)"
+          >
+            <div class="flex items-center gap-3">
+              <component
+                :is="config.icon"
+                :size="16"
+                :stroke-width="currentTab === key ? 2.5 : 2"
+                class="transition-colors"
+                :class="
+                  currentTab === key ? 'text-blue-600' : 'text-slate-400 group-hover:text-slate-600'
+                "
+              />
+              {{ config.label }}
+            </div>
 
-    <!-- Main Content -->
-    <main class="flex-1 overflow-hidden relative">
-      <div
-        v-if="isLoading"
-        class="absolute inset-0 flex items-center justify-center bg-white/80 z-20 transition-opacity"
+            <div
+              v-if="currentTab === key"
+              class="w-1.5 h-1.5 rounded-full bg-blue-500 shadow-sm shadow-blue-500/50"
+            ></div>
+          </button>
+        </nav>
+      </div>
+
+      <div class="p-4 mt-auto border-t border-slate-200/60 bg-slate-100/50">
+        <div class="bg-white rounded-xl p-3 border border-slate-200 shadow-sm">
+          <div class="flex items-center gap-2 mb-2">
+            <div class="p-1.5 bg-slate-100 rounded-md">
+              <IconDatabase :size="14" class="text-slate-500" />
+            </div>
+            <span class="text-[10px] font-bold text-slate-900 uppercase tracking-wide"
+              >Storage</span
+            >
+          </div>
+          <div class="w-full h-1.5 bg-slate-100 rounded-full mb-1.5 overflow-hidden">
+            <div class="h-full bg-slate-900 w-[35%] rounded-full"></div>
+          </div>
+          <div class="flex justify-between text-[9px] font-mono text-slate-400">
+            <span>Used: 124 MB</span>
+            <span>35%</span>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <div class="flex-1 flex flex-col min-w-0 bg-white relative">
+      <header
+        class="h-16 px-6 flex items-center justify-between shrink-0 sticky top-0 z-20 bg-white/80 backdrop-blur-md border-b border-slate-100"
       >
-        <div class="flex flex-col items-center">
+        <div class="flex items-center gap-3">
           <div
-            class="w-10 h-10 border-4 border-slate-900/10 border-t-slate-900 rounded-full animate-spin mb-4"
-          ></div>
-          <p class="text-xs font-bold text-slate-400 uppercase tracking-widest animate-pulse">
-            Loading assets...
-          </p>
+            class="h-9 w-9 bg-slate-50 border border-slate-100 rounded-lg flex items-center justify-center text-blue-600 shadow-sm"
+          >
+            <component :is="categories[currentTab].icon" :size="18" stroke-width="2" />
+          </div>
+          <div>
+            <h1 class="text-base font-bold text-slate-900 leading-tight">
+              {{ categories[currentTab].label }}
+            </h1>
+            <div class="flex items-center gap-1.5 text-[10px] font-medium text-slate-400">
+              <span>/assets/{{ categories[currentTab].folder.split('/')[1] }}</span>
+              <span class="w-1 h-1 rounded-full bg-slate-300"></span>
+              <span>{{ files.length }} files</span>
+            </div>
+          </div>
         </div>
-      </div>
 
-      <div
-        v-if="!store.isProjectLoaded && !isLoading"
-        class="absolute inset-0 flex items-center justify-center bg-slate-50/50"
-      >
+        <div class="flex items-center gap-3">
+          <div class="relative group">
+            <IconSearch
+              class="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors"
+              size="14"
+            />
+            <input
+              v-model="searchQuery"
+              type="text"
+              placeholder="Search..."
+              class="pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 focus:bg-white focus:border-blue-300 focus:ring-2 focus:ring-blue-50 rounded-lg text-xs font-medium w-40 focus:w-56 transition-all outline-none placeholder:text-slate-400"
+            />
+          </div>
+
+          <div class="h-6 w-px bg-slate-200 mx-1"></div>
+
+          <button
+            class="p-1.5 text-slate-400 hover:text-slate-900 hover:bg-slate-50 border border-transparent hover:border-slate-200 rounded-lg transition-all active:scale-95"
+            title="Refresh"
+            @click="loadFiles"
+          >
+            <IconRefresh size="18" />
+          </button>
+
+          <button
+            class="flex items-center gap-2 px-3 py-1.5 bg-slate-900 hover:bg-black text-white rounded-lg text-xs font-bold transition-all shadow-md shadow-slate-900/10 active:scale-95"
+            @click="handleImport"
+          >
+            <IconPlus size="14" />
+            <span>Import</span>
+          </button>
+        </div>
+      </header>
+
+      <main class="flex-1 overflow-hidden relative px-6">
         <div
-          class="flex flex-col items-center text-center p-12 bg-white rounded-[40px] shadow-2xl shadow-slate-200/50 border border-slate-100 max-w-sm"
+          v-if="isLoading"
+          class="absolute inset-0 flex items-center justify-center bg-white/80 z-20 backdrop-blur-sm"
+        >
+          <div class="flex flex-col items-center">
+            <div
+              class="w-8 h-8 border-2 border-slate-100 border-t-blue-600 rounded-full animate-spin mb-3"
+            ></div>
+            <span class="text-xs font-bold text-slate-400">Loading resources...</span>
+          </div>
+        </div>
+
+        <div
+          v-else-if="files.length === 0"
+          class="h-full p-8 flex flex-col items-center justify-center"
         >
           <div
-            class="w-20 h-20 bg-slate-900 text-white rounded-3xl flex items-center justify-center mb-8 shadow-xl shadow-slate-900/20"
+            class="group w-full max-w-md aspect-video rounded-3xl border-2 border-dashed border-slate-200 bg-slate-50/50 hover:bg-blue-50/50 hover:border-blue-300 transition-all duration-300 flex flex-col items-center justify-center text-center p-8 cursor-pointer relative overflow-hidden"
+            @click="handleImport"
           >
-            <IconPlus size="32" />
-          </div>
-          <h2 class="text-xl font-black text-slate-900 uppercase tracking-tight mb-2">
-            No Project Ready
-          </h2>
-          <p class="text-sm text-slate-400 font-medium leading-relaxed">
-            Please open or create a project from the dashboard to manage your game assets.
-          </p>
-        </div>
-      </div>
+            <div
+              class="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
+              style="
+                background-image: radial-gradient(#3b82f6 1px, transparent 1px);
+                background-size: 20px 20px;
+                opacity: 0.1;
+              "
+            ></div>
 
-      <div v-else class="h-full flex flex-col px-8 bg-slate-50/10">
+            <div class="relative mb-6">
+              <div
+                class="w-20 h-20 bg-white rounded-2xl shadow-sm border border-slate-100 flex items-center justify-center relative z-10 group-hover:scale-110 group-hover:-translate-y-2 transition-all duration-300 ease-out"
+              >
+                <IconFolderOpen
+                  size="40"
+                  class="text-slate-300 group-hover:text-blue-500 transition-colors duration-300"
+                  stroke-width="1.5"
+                />
+              </div>
+
+              <div
+                class="absolute -right-3 -top-3 bg-white p-1.5 rounded-lg border border-slate-100 shadow-sm z-20 group-hover:rotate-12 transition-transform duration-500 delay-75"
+              >
+                <IconPlus size="14" class="text-blue-500" stroke-width="3" />
+              </div>
+              <div
+                class="absolute -left-2 -bottom-1 bg-white p-1.5 rounded-lg border border-slate-100 shadow-sm z-20 group-hover:-rotate-12 transition-transform duration-500 delay-100"
+              >
+                <component :is="categories[currentTab].icon" size="14" class="text-slate-400" />
+              </div>
+            </div>
+
+            <h3
+              class="text-base font-black text-slate-700 mb-2 group-hover:text-blue-700 transition-colors"
+            >
+              It's a bit empty here
+            </h3>
+            <p
+              class="text-xs text-slate-400 font-medium max-w-[240px] leading-relaxed mb-6 group-hover:text-slate-500 transition-colors"
+            >
+              Start by importing your {{ categories[currentTab].label.toLowerCase() }} files to
+              populate this folder.
+            </p>
+
+            <button
+              class="px-5 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl text-xs font-bold shadow-sm group-hover:bg-blue-600 group-hover:text-white group-hover:border-blue-600 group-hover:shadow-lg group-hover:shadow-blue-500/20 transition-all active:scale-95"
+            >
+              Import Assets
+            </button>
+          </div>
+        </div>
+
         <ResourceGrid
-          class="flex-1"
+          v-else
+          class="h-full py-6"
           :files="filteredFiles"
           :base-path="getAssetUrl(categories[currentTab].folder)"
           :selected-file="selectedFile || undefined"
           @select="selectedFile = $event"
         />
-      </div>
-    </main>
+      </main>
+    </div>
 
-    <!-- Footer / Stats -->
-    <footer
-      class="px-8 py-3 bg-gray-50 border-t border-gray-100 flex items-center justify-between text-[10px] font-bold text-gray-400 uppercase tracking-widest"
-    >
-      <div class="flex gap-6">
-        <span>Project: {{ ProjectService.currentPath?.split('/').pop() }}</span>
-      </div>
-      <div class="flex items-center gap-2">
-        <div
-          class="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"
-        ></div>
-        Connected
-      </div>
-    </footer>
-
-    <!-- Preview Modal -->
     <ResourcePreviewModal
       v-if="selectedFile"
       :file="selectedFile"
@@ -220,22 +338,17 @@ onMounted((): void => {
 </template>
 
 <style scoped>
-/* Smooth scroll for the grid */
-.overflow-y-auto {
-  scrollbar-width: thin;
-  scrollbar-color: #e5e7eb transparent;
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
 }
-
-.overflow-y-auto::-webkit-scrollbar {
-  width: 6px;
-}
-
-.overflow-y-auto::-webkit-scrollbar-track {
+.custom-scrollbar::-webkit-scrollbar-track {
   background: transparent;
 }
-
-.overflow-y-auto::-webkit-scrollbar-thumb {
-  background-color: #e5e7eb;
-  border-radius: 20px;
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 10px;
+}
+.custom-scrollbar:hover::-webkit-scrollbar-thumb {
+  background: #94a3b8;
 }
 </style>

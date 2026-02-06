@@ -11,7 +11,8 @@ import {
   IconLayersIntersect,
   IconChevronUp,
   IconFocus2,
-  IconAlignLeft
+  IconAlignLeft,
+  IconCheck
 } from '@tabler/icons-vue'
 
 const store = useEditorStore()
@@ -26,47 +27,51 @@ const currentZoom = computed(() => {
   return state ? Math.round(state.scale * 100) : 100
 })
 
-// Cursor coordinates from store
+// Cursor coordinates
 const coords = computed(() => ({ x: store.cursorX, y: store.cursorY }))
 
-// MenuRefs for click outside logic
+// Refs
 const mapMenuRef = ref<HTMLElement | null>(null)
 const layerMenuRef = ref<HTMLElement | null>(null)
 const zoomMenuRef = ref<HTMLElement | null>(null)
 
-// Map Jump Logic
+// Toggles
 const isMapMenuOpen = ref(false)
-const toggleMapMenu = (): void => {
-  isMapMenuOpen.value = !isMapMenuOpen.value
-  isLayerMenuOpen.value = false
-}
-const selectMap = (id: number): void => {
-  store.activeMapID = id
-  isMapMenuOpen.value = false
-}
-
-// Layer Switch Logic
 const isLayerMenuOpen = ref(false)
-const layers = Object.values(ZLayer)
-const toggleLayerMenu = (): void => {
-  isLayerMenuOpen.value = !isLayerMenuOpen.value
+const isZoomMenuOpen = ref(false)
+
+const closeAllMenus = () => {
   isMapMenuOpen.value = false
+  isLayerMenuOpen.value = false
   isZoomMenuOpen.value = false
 }
-const selectLayer = (layer: ZLayer): void => {
-  store.activeLayer = layer
-  isLayerMenuOpen.value = false
+
+const toggleMapMenu = () => {
+  const wasOpen = isMapMenuOpen.value
+  closeAllMenus()
+  isMapMenuOpen.value = !wasOpen
+}
+const toggleLayerMenu = () => {
+  const wasOpen = isLayerMenuOpen.value
+  closeAllMenus()
+  isLayerMenuOpen.value = !wasOpen
+}
+const toggleZoomMenu = () => {
+  const wasOpen = isZoomMenuOpen.value
+  closeAllMenus()
+  isZoomMenuOpen.value = !wasOpen
 }
 
-// Zoom Menu Logic
-const isZoomMenuOpen = ref(false)
-const zoomOptions = [0.25, 0.5, 0.75, 1, 1.5, 2, 3, 4]
-const toggleZoomMenu = (): void => {
-  isZoomMenuOpen.value = !isZoomMenuOpen.value
-  isMapMenuOpen.value = false
-  isLayerMenuOpen.value = false
+// Actions
+const selectMap = (id: number) => {
+  store.activeMapID = id
+  closeAllMenus()
 }
-const selectZoom = (z: number): void => {
+const selectLayer = (layer: ZLayer) => {
+  store.activeLayer = layer
+  closeAllMenus()
+}
+const selectZoom = (z: number) => {
   if (store.activeMapID !== null) {
     const currentState = store.mapViewportStates[store.activeMapID]
     store.mapViewportStates[store.activeMapID] = {
@@ -74,247 +79,201 @@ const selectZoom = (z: number): void => {
       pan: currentState?.pan || { x: 0, y: 0 }
     }
   }
-  isZoomMenuOpen.value = false
+  closeAllMenus()
 }
-
-const toggleMapAlignment = (): void => {
+const toggleMapAlignment = () => {
   store.mapAlignment = store.mapAlignment === 'center' ? 'top-left' : 'center'
 }
 
-const handleClickOutside = (e: MouseEvent): void => {
+// Click Outside
+const handleClickOutside = (e: MouseEvent) => {
   const target = e.target as Node
-  if (mapMenuRef.value && !mapMenuRef.value.contains(target)) {
-    isMapMenuOpen.value = false
-  }
-  if (layerMenuRef.value && !layerMenuRef.value.contains(target)) {
-    isLayerMenuOpen.value = false
-  }
-  if (zoomMenuRef.value && !zoomMenuRef.value.contains(target)) {
-    isZoomMenuOpen.value = false
-  }
+  if (mapMenuRef.value && !mapMenuRef.value.contains(target)) isMapMenuOpen.value = false
+  if (layerMenuRef.value && !layerMenuRef.value.contains(target)) isLayerMenuOpen.value = false
+  if (zoomMenuRef.value && !zoomMenuRef.value.contains(target)) isZoomMenuOpen.value = false
 }
 
 onMounted(() => document.addEventListener('mousedown', handleClickOutside))
 onUnmounted(() => document.removeEventListener('mousedown', handleClickOutside))
+
+// Options
+const layers = Object.values(ZLayer)
+const zoomOptions = [0.25, 0.5, 0.75, 1, 1.5, 2, 3, 4]
 </script>
 
 <template>
   <div
-    class="h-8 bg-white border-t border-black/5 px-4 flex items-center justify-between text-[10px] font-bold tracking-tight text-black/40 z-50 relative"
+    class="h-9 bg-white border-t border-slate-200 px-4 flex items-center justify-between text-[10px] font-bold tracking-tight text-slate-500 z-50 relative select-none"
   >
-    <div class="flex items-center gap-6 h-full">
-      <!-- Coordinates -->
-      <div class="flex items-center gap-2 group cursor-default">
-        <IconCrosshair :size="12" class="text-black/20 group-hover:text-black transition-colors" />
-        <span class="font-mono text-black/60">{{ coords.x }}, {{ coords.y }}</span>
+    <div class="flex items-center gap-2 h-full">
+      <div class="flex items-center gap-2 px-2 h-full border-r border-slate-100 min-w-[80px]">
+        <IconCrosshair :size="14" class="text-slate-300" />
+        <span class="font-mono text-slate-700">{{ coords.x }}, {{ coords.y }}</span>
       </div>
 
-      <!-- Map Info (Quick Jump) -->
       <div ref="mapMenuRef" class="relative h-full flex items-center">
         <button
-          class="flex items-center gap-2 group cursor-pointer h-full px-2 -mx-2 hover:bg-black/3 transition-colors"
+          class="flex items-center gap-2 h-full px-3 hover:bg-slate-50 rounded transition-colors group text-slate-600 hover:text-slate-900"
+          :class="{ 'bg-slate-50 text-slate-900': isMapMenuOpen }"
           @click="toggleMapMenu"
         >
           <IconMapPin
-            :size="12"
-            :class="[isMapMenuOpen ? 'text-black' : 'text-black/20 group-hover:text-black']"
-            class="transition-colors"
+            :size="14"
+            class="text-slate-400 group-hover:text-blue-500 transition-colors"
           />
-          <span
-            :class="[isMapMenuOpen ? 'text-black' : 'text-black/60']"
-            class="flex items-center gap-1"
-          >
-            {{ currentMapName }}
-            <span class="opacity-30">#{{ currentMapId }}</span>
-            <IconChevronUp
-              :size="10"
-              class="transition-transform duration-200"
-              :class="{ 'rotate-180': isMapMenuOpen }"
-            />
-          </span>
+          <div class="flex flex-col items-start leading-none gap-0.5">
+            <span>{{ currentMapName }}</span>
+            <span class="text-[8px] text-slate-400 font-mono">ID:{{ currentMapId }}</span>
+          </div>
+          <IconChevronUp
+            :size="10"
+            class="ml-1 text-slate-300 transition-transform duration-200"
+            :class="{ 'rotate-180': isMapMenuOpen }"
+          />
         </button>
 
-        <!-- Quick Jump Menu -->
         <Transition name="slide-up">
-          <div
-            v-if="isMapMenuOpen"
-            class="absolute bottom-full left-0 mb-2 w-48 bg-white border border-black/5 rounded-xl shadow-2xl py-2 overflow-hidden flex flex-col"
-          >
-            <div
-              class="px-3 py-1.5 text-[8px] font-black uppercase tracking-widest text-black/20 border-b border-black/5 mb-1"
-            >
-              Quick Jump
-            </div>
-            <div class="max-h-48 overflow-y-auto">
+          <div v-if="isMapMenuOpen" class="menu-popup w-56">
+            <div class="menu-header">Quick Jump</div>
+            <div class="max-h-64 overflow-y-auto custom-scrollbar p-1">
               <button
                 v-for="map in store.maps"
                 :key="map.id"
-                class="w-full text-left px-3 py-2 hover:bg-black/5 flex items-center justify-between group transition-colors cursor-pointer"
-                :class="{ 'bg-black/2': store.activeMapID === map.id }"
+                class="menu-item"
+                :class="{ active: store.activeMapID === map.id }"
                 @click="selectMap(map.id)"
               >
-                <span
-                  class="text-[10px] font-bold truncate transition-colors"
-                  :class="[
-                    store.activeMapID === map.id
-                      ? 'text-black'
-                      : 'text-black/60 group-hover:text-black'
-                  ]"
-                >
-                  {{ map.name }}
-                </span>
-                <span class="text-[8px] opacity-20 font-mono tracking-tighter">#{{ map.id }}</span>
+                <span class="truncate flex-1">{{ map.name }}</span>
+                <span class="font-mono text-slate-300 text-[9px]">#{{ map.id }}</span>
+                <IconCheck
+                  v-if="store.activeMapID === map.id"
+                  :size="12"
+                  class="text-blue-500 ml-2"
+                />
               </button>
             </div>
           </div>
         </Transition>
       </div>
 
-      <!-- Active Layer Indicator (Layer Switcher) -->
+      <div class="w-px h-4 bg-slate-200 mx-1"></div>
+
       <div ref="layerMenuRef" class="relative h-full flex items-center">
         <button
-          class="flex items-center gap-2 group cursor-pointer h-full px-2 -mx-2 hover:bg-black/3 transition-colors"
+          class="flex items-center gap-2 h-full px-3 hover:bg-slate-50 rounded transition-colors group text-slate-600 hover:text-slate-900"
+          :class="{ 'bg-slate-50 text-slate-900': isLayerMenuOpen }"
           @click="toggleLayerMenu"
         >
           <IconLayersIntersect
-            :size="12"
-            :class="[isLayerMenuOpen ? 'text-black' : 'text-black/20 group-hover:text-black']"
-            class="transition-colors"
+            :size="14"
+            class="text-slate-400 group-hover:text-blue-500 transition-colors"
           />
-          <span
-            :class="[isLayerMenuOpen ? 'text-black' : 'text-black/60']"
-            class="flex items-center gap-1 uppercase tracking-tighter"
-          >
-            {{ activeLayerName }}
-            <IconChevronUp
-              :size="10"
-              class="transition-transform duration-200"
-              :class="{ 'rotate-180': isLayerMenuOpen }"
-            />
-          </span>
+          <span class="uppercase tracking-widest">{{ activeLayerName }}</span>
+          <IconChevronUp
+            :size="10"
+            class="ml-1 text-slate-300 transition-transform duration-200"
+            :class="{ 'rotate-180': isLayerMenuOpen }"
+          />
         </button>
 
-        <!-- Layer Selection Menu -->
         <Transition name="slide-up">
-          <div
-            v-if="isLayerMenuOpen"
-            class="absolute bottom-full left-0 mb-2 w-40 bg-white border border-black/5 rounded-xl shadow-2xl py-2 overflow-hidden flex flex-col"
-          >
-            <div
-              class="px-3 py-1.5 text-[8px] font-black uppercase tracking-widest text-black/20 border-b border-black/5 mb-1"
-            >
-              Select Layer
-            </div>
-            <div class="max-h-48 overflow-y-auto">
+          <div v-if="isLayerMenuOpen" class="menu-popup w-40">
+            <div class="menu-header">Active Layer</div>
+            <div class="p-1">
               <button
                 v-for="layer in layers"
                 :key="layer"
-                class="w-full text-left px-3 py-2 hover:bg-black/5 flex items-center justify-between group transition-colors cursor-pointer"
-                :class="{ 'bg-black/2': store.activeLayer === layer }"
+                class="menu-item capitalize"
+                :class="{ active: store.activeLayer === layer }"
                 @click="selectLayer(layer)"
               >
-                <span
-                  class="text-[10px] font-bold truncate uppercase tracking-tighter transition-colors"
-                  :class="[
-                    store.activeLayer === layer
-                      ? 'text-black'
-                      : 'text-black/60 group-hover:text-black'
-                  ]"
-                >
-                  {{ layer }}
-                </span>
+                {{ layer }}
+                <IconCheck
+                  v-if="store.activeLayer === layer"
+                  :size="12"
+                  class="text-blue-500 ml-auto"
+                />
               </button>
             </div>
           </div>
         </Transition>
       </div>
 
-      <!-- Zoom Dropdown -->
-      <div ref="zoomMenuRef" class="relative h-full flex items-center border-l border-black/5 pl-6">
+      <div ref="zoomMenuRef" class="relative h-full flex items-center">
         <button
-          class="flex items-center gap-2 group cursor-pointer h-full px-2 -mx-2 hover:bg-black/3 transition-colors"
+          class="flex items-center gap-2 h-full px-3 hover:bg-slate-50 rounded transition-colors group text-slate-600 hover:text-slate-900"
+          :class="{ 'bg-slate-50 text-slate-900': isZoomMenuOpen }"
           @click="toggleZoomMenu"
         >
           <IconMaximize
-            :size="12"
-            :class="[isZoomMenuOpen ? 'text-black' : 'text-black/20 group-hover:text-black']"
-            class="transition-colors"
+            :size="14"
+            class="text-slate-400 group-hover:text-blue-500 transition-colors"
           />
-          <span
-            :class="[isZoomMenuOpen ? 'text-black' : 'text-black/60']"
-            class="flex items-center gap-1 font-mono"
-          >
-            {{ currentZoom }}%
-            <IconChevronUp
-              :size="10"
-              class="transition-transform duration-200"
-              :class="{ 'rotate-180': isZoomMenuOpen }"
-            />
-          </span>
+          <span class="font-mono">{{ currentZoom }}%</span>
         </button>
 
-        <!-- Zoom Selection Menu -->
         <Transition name="slide-up">
-          <div
-            v-if="isZoomMenuOpen"
-            class="absolute bottom-full left-0 mb-2 w-32 bg-white border border-black/5 rounded-xl shadow-2xl py-2 overflow-hidden flex flex-col"
-          >
-            <div
-              class="px-3 py-1.5 text-[8px] font-black uppercase tracking-widest text-black/20 border-b border-black/5 mb-1"
-            >
-              Zoom Level
-            </div>
-            <div class="max-h-48 overflow-y-auto">
+          <div v-if="isZoomMenuOpen" class="menu-popup w-32 left-0">
+            <div class="menu-header">Zoom Level</div>
+            <div class="p-1">
               <button
                 v-for="z in zoomOptions"
                 :key="z"
-                class="w-full text-left px-3 py-2 hover:bg-black/5 flex items-center justify-between group transition-colors cursor-pointer"
-                :class="{ 'bg-black/2': currentZoom === Math.round(z * 100) }"
+                class="menu-item font-mono"
+                :class="{ active: currentZoom === Math.round(z * 100) }"
                 @click="selectZoom(z)"
               >
-                <span
-                  class="text-[10px] font-bold font-mono transition-colors"
-                  :class="[
-                    currentZoom === Math.round(z * 100)
-                      ? 'text-black'
-                      : 'text-black/60 group-hover:text-black'
-                  ]"
-                >
-                  {{ Math.round(z * 100) }}%
-                </span>
+                {{ Math.round(z * 100) }}%
+                <IconCheck
+                  v-if="currentZoom === Math.round(z * 100)"
+                  :size="12"
+                  class="text-blue-500 ml-auto"
+                />
               </button>
             </div>
           </div>
         </Transition>
       </div>
 
-      <!-- Alignment Toggle -->
-      <div class="flex items-center gap-2 group cursor-default border-l border-black/5 pl-6">
-        <button
-          class="flex items-center gap-2 group cursor-pointer h-full px-2 -mx-2 hover:bg-black/3 transition-colors"
-          title="Map Alignment"
-          @click="toggleMapAlignment"
-        >
-          <component
-            :is="store.mapAlignment === 'center' ? IconFocus2 : IconAlignLeft"
-            :size="12"
-            class="text-black/60 group-hover:text-black transition-colors"
-          />
-          <span class="text-black/60 uppercase tracking-tighter">{{ store.mapAlignment }}</span>
-        </button>
-      </div>
+      <button
+        class="flex items-center gap-2 h-full px-3 hover:bg-slate-50 rounded transition-colors group text-slate-400 hover:text-slate-900 ml-2"
+        title="Toggle Map Alignment (Center / Top-Left)"
+        @click="toggleMapAlignment"
+      >
+        <component :is="store.mapAlignment === 'center' ? IconFocus2 : IconAlignLeft" :size="14" />
+      </button>
     </div>
 
-    <div class="flex items-center gap-2 max-w-[40%] group cursor-default">
-      <IconFolder :size="12" class="text-black/20 group-hover:text-black transition-colors" />
-      <span class="truncate opacity-60 font-mono group-hover:opacity-100 transition-opacity">{{
-        projectPath
-      }}</span>
+    <div class="flex items-center gap-4 max-w-[40%]">
+      <div class="flex items-center gap-2 text-slate-400 group cursor-default" title="Project Path">
+        <IconFolder :size="14" class="group-hover:text-slate-600 transition-colors" />
+        <span class="truncate font-mono text-[9px] direction-rtl">{{ projectPath }}</span>
+      </div>
     </div>
   </div>
 </template>
 
 <style scoped>
+@import 'tailwindcss';
+
+.menu-popup {
+  @apply absolute bottom-full mb-2 bg-white border border-slate-200 rounded-xl shadow-2xl overflow-hidden flex flex-col z-50;
+  /* Ensure it doesn't get cut off */
+  left: 0;
+}
+
+.menu-header {
+  @apply px-3 py-2 text-[9px] font-black uppercase tracking-widest text-slate-400 border-b border-slate-100 bg-slate-50/50;
+}
+
+.menu-item {
+  @apply w-full text-left px-3 py-1.5 flex items-center text-[10px] font-bold text-slate-500 hover:bg-slate-50 hover:text-slate-900 rounded-lg transition-colors cursor-pointer;
+}
+
+.menu-item.active {
+  @apply text-blue-600 bg-blue-50;
+}
+
 .slide-up-enter-active,
 .slide-up-leave-active {
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
@@ -322,6 +281,14 @@ onUnmounted(() => document.removeEventListener('mousedown', handleClickOutside))
 .slide-up-enter-from,
 .slide-up-leave-to {
   opacity: 0;
-  transform: translateY(10px);
+  transform: translateY(8px) scale(0.98);
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 10px;
 }
 </style>

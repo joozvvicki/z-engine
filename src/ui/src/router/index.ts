@@ -80,9 +80,24 @@ const router = createRouter({
           component: () => import('@ui/components/database/EnemiesTab.vue')
         },
         {
-          path: 'system',
-          name: 'database-system',
-          component: () => import('@ui/components/database/SystemTab.vue')
+          path: 'common-events',
+          name: 'database-common-events',
+          component: () => import('@ui/components/database/CommonEventsTab.vue')
+        },
+        {
+          path: 'terms',
+          name: 'database-terms',
+          component: () => import('@ui/components/database/TermsTab.vue')
+        },
+        {
+          path: 'animations',
+          name: 'database-animations',
+          component: () => import('@ui/components/database/AnimationsTab.vue')
+        },
+        {
+          path: 'states',
+          name: 'database-states',
+          component: () => import('@ui/components/database/StatesTab.vue')
         }
       ]
     },
@@ -127,6 +142,31 @@ const router = createRouter({
           component: () => import('@ui/pages/ResourcesPage.vue')
         }
       ]
+    },
+    {
+      path: '/plugins',
+      name: 'plugins',
+      component: () => import('@ui/pages/PluginsPage.vue')
+    },
+    {
+      path: '/scripting',
+      name: 'scripting',
+      component: () => import('@ui/pages/ScriptingPage.vue')
+    },
+    {
+      path: '/assets-store',
+      name: 'assets-store',
+      component: () => import('@ui/pages/AssetsStorePage.vue')
+    },
+    {
+      path: '/addons',
+      name: 'addons',
+      component: () => import('@ui/pages/AddonPage.vue')
+    },
+    {
+      path: '/nodes',
+      name: 'nodes',
+      component: () => import('@ui/pages/NodesPage.vue')
     },
     {
       path: '/settings',

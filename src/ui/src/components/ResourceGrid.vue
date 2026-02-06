@@ -31,105 +31,113 @@ const handleImageError = (e: Event): void => {
   img.style.display = 'none'
   const parent = img.parentElement
   if (parent) {
-    parent.classList.add('bg-slate-100')
-    const placeholder = document.createElement('div')
-    placeholder.className = 'flex flex-col items-center justify-center text-slate-300'
-    placeholder.innerHTML =
-      '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="tabler-icon tabler-icon-photo"><path d="M15 8h.01"></path><path d="M3 6a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v12a3 3 0 0 1 -3 3h-12a3 3 0 0 1 -3 -3v-12z"></path><path d="M3 16l5 -5c.928 -.893 2.072 -.893 3 0l5 5"></path><path d="M14 14l1 -1c.928 -.893 2.072 -.893 3 0l3 3"></path></svg>'
-    parent.appendChild(placeholder)
+    parent.classList.add('bg-slate-100', 'flex', 'items-center', 'justify-center')
+    parent.innerHTML = '<span class="text-xs text-slate-400 font-bold">Error</span>'
   }
 }
 </script>
 
 <template>
-  <div class="overflow-y-auto scrollbar-thin h-full">
+  <div class="overflow-y-auto custom-scrollbar h-full pr-2">
     <div
-      v-if="files.length > 0"
-      class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10 gap-4 py-8"
+      class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7 2xl:grid-cols-8 gap-4 pb-10"
     >
       <div
         v-for="file in files"
         :key="file"
-        class="group cursor-pointer flex flex-col items-center bg-white rounded-2xl border border-slate-100 transition-all p-3 hover:shadow-xl hover:shadow-slate-200/50 hover:-translate-y-1"
+        class="group cursor-pointer flex flex-col bg-white rounded-xl border transition-all duration-200 relative overflow-hidden"
         :class="[
           selectedFile === file
-            ? 'border-slate-900 ring-2 ring-slate-900/5 bg-slate-50'
-            : 'border-slate-100'
+            ? 'border-blue-500 ring-2 ring-blue-500/20 shadow-lg z-10'
+            : 'border-slate-200 hover:border-blue-300 hover:shadow-md hover:-translate-y-1'
         ]"
         @click="emit('select', file)"
       >
         <div
-          class="aspect-square w-full flex items-center justify-center bg-slate-50 rounded-xl overflow-hidden border border-slate-50 mb-3 group-hover:bg-white transition-colors relative"
+          class="aspect-square w-full bg-slate-50 border-b border-slate-100 overflow-hidden relative checkerboard"
         >
-          <!-- Image Preview -->
           <img
             v-if="isImage(file)"
             :src="getUrl(file)"
-            class="max-w-full max-h-full object-contain pixelated"
+            class="w-full h-full object-contain p-2 transition-transform duration-500 group-hover:scale-110 pixelated"
+            loading="lazy"
             :alt="file"
             @error="handleImageError"
           />
 
-          <!-- Audio Icon -->
           <div
             v-else-if="isAudio(file)"
-            class="flex flex-col items-center gap-2 text-slate-300 group-hover:text-slate-900 transition-colors"
+            class="w-full h-full flex flex-col items-center justify-center bg-linear-to-br from-slate-50 to-slate-100"
           >
-            <component
-              :is="basePath.includes('bgm') ? IconMusic : IconVolume"
-              size="32"
-              stroke-width="1.5"
-            />
-            <div class="w-8 h-1 bg-slate-100 rounded-full overflow-hidden">
+            <div
+              class="w-12 h-12 rounded-full bg-white shadow-sm flex items-center justify-center text-slate-400 group-hover:text-blue-500 group-hover:scale-110 transition-all mb-2"
+            >
+              <component
+                :is="basePath.includes('bgm') ? IconMusic : IconVolume"
+                size="24"
+                stroke-width="2"
+              />
+            </div>
+
+            <div class="flex items-end gap-0.5 h-4">
               <div
-                class="h-full bg-slate-900 w-0 group-hover:w-full transition-all duration-1000"
+                class="w-1 bg-slate-300 rounded-full animate-wave"
+                style="animation-delay: 0ms"
+              ></div>
+              <div
+                class="w-1 bg-slate-300 rounded-full animate-wave"
+                style="animation-delay: 100ms"
+              ></div>
+              <div
+                class="w-1 bg-slate-300 rounded-full animate-wave"
+                style="animation-delay: 200ms"
+              ></div>
+              <div
+                class="w-1 bg-slate-300 rounded-full animate-wave"
+                style="animation-delay: 150ms"
+              ></div>
+              <div
+                class="w-1 bg-slate-300 rounded-full animate-wave"
+                style="animation-delay: 50ms"
               ></div>
             </div>
           </div>
 
-          <!-- Generic File Icon -->
-          <IconFile v-else size="32" class="text-slate-200" stroke-width="1.5" />
+          <div v-else class="w-full h-full flex items-center justify-center">
+            <IconFile size="32" class="text-slate-300" stroke-width="1.5" />
+          </div>
 
-          <!-- Overlay Action -->
           <div
-            class="absolute inset-0 bg-slate-900/0 group-hover:bg-slate-900/5 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100"
+            class="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
           >
             <div
-              class="w-8 h-8 rounded-full bg-white shadow-lg flex items-center justify-center text-slate-900 scale-75 group-hover:scale-100 transition-transform"
+              class="bg-white/90 backdrop-blur rounded-full p-2 shadow-sm transform scale-50 group-hover:scale-100 transition-transform"
             >
-              <IconPhoto v-if="isImage(file)" size="14" />
-              <IconPlayerPlay v-else-if="isAudio(file)" size="14" />
+              <IconPlayerPlay v-if="isAudio(file)" size="16" class="text-slate-900 ml-0.5" />
+              <IconPhoto v-else size="16" class="text-slate-900" />
             </div>
           </div>
         </div>
-        <span
-          class="text-[10px] font-bold text-slate-500 uppercase tracking-tight truncate w-full text-center px-1 group-hover:text-slate-900 transition-colors"
-          :title="file"
-        >
-          {{ file.split('.')[0] }}
-        </span>
-        <span class="text-[9px] font-medium text-slate-300 uppercase tracking-widest mt-0.5">
-          {{ file.split('.').pop() }}
-        </span>
-      </div>
-    </div>
 
-    <!-- Empty State -->
-    <div
-      v-if="files.length === 0"
-      class="h-full flex flex-col items-center justify-center py-20 text-slate-300"
-    >
-      <div
-        class="w-24 h-24 bg-white/50 rounded-[32px] flex items-center justify-center mb-8 border border-dashed border-slate-200 shadow-sm"
-      >
-        <IconFile size="40" stroke-width="1" class="opacity-40 text-slate-400" />
+        <div class="p-3">
+          <div class="flex items-start justify-between gap-2">
+            <span
+              class="text-xs font-bold text-slate-700 truncate w-full group-hover:text-blue-600 transition-colors"
+              :title="file"
+            >
+              {{ file.split('.')[0] }}
+            </span>
+          </div>
+          <div class="flex items-center justify-between mt-1">
+            <span
+              class="text-[9px] font-bold text-slate-400 uppercase tracking-wider bg-slate-100 px-1.5 py-0.5 rounded"
+            >
+              {{ file.split('.').pop() }}
+            </span>
+            <span class="text-[9px] text-slate-300 font-mono"> -- KB </span>
+          </div>
+        </div>
       </div>
-      <h3 class="text-base font-black text-slate-900 uppercase tracking-tight mb-2">
-        No Assets Found
-      </h3>
-      <p class="text-xs text-slate-400 font-medium text-center max-w-[200px] leading-relaxed">
-        This folder is empty. Click "Import Asset" above to get started.
-      </p>
     </div>
   </div>
 </template>
@@ -137,5 +145,52 @@ const handleImageError = (e: Event): void => {
 <style scoped>
 .pixelated {
   image-rendering: pixelated;
+}
+
+/* Checkerboard pattern for transparent images */
+.checkerboard {
+  background-color: #f8fafc;
+  background-image:
+    linear-gradient(45deg, #e2e8f0 25%, transparent 25%),
+    linear-gradient(-45deg, #e2e8f0 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #e2e8f0 75%),
+    linear-gradient(-45deg, transparent 75%, #e2e8f0 75%);
+  background-size: 20px 20px;
+  background-position:
+    0 0,
+    0 10px,
+    10px -10px,
+    -10px 0px;
+}
+
+/* Custom Scrollbar */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 10px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+@keyframes wave {
+  0%,
+  100% {
+    height: 4px;
+  }
+  50% {
+    height: 12px;
+  }
+}
+.animate-wave {
+  animation: wave 1s ease-in-out infinite paused;
+}
+.group:hover .animate-wave {
+  animation-play-state: running;
 }
 </style>

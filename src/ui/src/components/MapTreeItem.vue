@@ -2,21 +2,18 @@
 import {
   IconChevronRight,
   IconChevronDown,
-  IconFolder,
+  IconFolderFilled,
   IconFolderOpen,
   IconMap,
-  IconDotsVertical
+  IconDots
 } from '@tabler/icons-vue'
 import type { ZMapInfo } from '@engine/types'
 import { computed, ref, nextTick, watch } from 'vue'
 import { useEditorStore } from '@ui/stores/editor'
 
-const props = defineProps<{
-  item: ZMapInfo
-  depth: number
-}>()
-
+const props = defineProps<{ item: ZMapInfo; depth: number }>()
 const store = useEditorStore()
+
 const isDragTarget = ref(false)
 const dropPosition = ref<'before' | 'after' | 'inside' | null>(null)
 let dragCounter = 0
@@ -24,80 +21,64 @@ const isRenaming = ref(false)
 const renamingName = ref('')
 const nameInput = ref<HTMLInputElement | null>(null)
 
-const children = computed(() => {
-  return store.mapInfos
-    .filter((m) => m.parentId === props.item.id)
-    .sort((a, b) => a.order - b.order)
-})
+const children = computed(() =>
+  store.mapInfos.filter((m) => m.parentId === props.item.id).sort((a, b) => a.order - b.order)
+)
+const mapData = computed(() => store.maps.find((m) => m.id === props.item.id))
 
-const mapData = computed(() => {
-  return store.maps.find((m) => m.id === props.item.id)
-})
-
-// function removed as it was unused and contained duplicate logic
-
-const handleClick = (): void => {
-  if (props.item.isFolder) {
-    store.toggleFolderExpanded(props.item.id)
-  } else {
-    if (!store.isTestMode) {
-      store.setActiveMap(props.item.id)
-    }
-  }
+const handleClick = () => {
+  if (props.item.isFolder) store.toggleFolderExpanded(props.item.id)
+  else if (!store.isTestMode) store.setActiveMap(props.item.id)
 }
 
 const emit = defineEmits(['contextmenu'])
-
-const onContextMenu = (e: MouseEvent): void => {
-  emit('contextmenu', { event: e, item: props.item })
-}
+const onContextMenu = (e: MouseEvent) => emit('contextmenu', { event: e, item: props.item })
 
 // --- Drag & Drop ---
-const onDragStart = (e: DragEvent): void => {
+const onDragStart = (e: DragEvent) => {
   if (store.isTestMode) return
   e.dataTransfer?.setData('application/json', JSON.stringify({ id: props.item.id }))
   e.dataTransfer!.effectAllowed = 'move'
 }
 
-const onDragOver = (e: DragEvent): void => {
+const onDragOver = (e: DragEvent) => {
   if (store.isTestMode) return
   e.preventDefault()
   e.dataTransfer!.dropEffect = 'move'
-
   const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
   const y = e.clientY - rect.top
-  const threshold = rect.height * 0.25
 
-  if (y < threshold) {
-    dropPosition.value = 'before'
-  } else if (y > rect.height - threshold) {
-    dropPosition.value = 'after'
-  } else if (props.item.isFolder) {
-    dropPosition.value = 'inside'
+  // Logic for refined drop zones
+  if (props.item.isFolder) {
+    // Folders have 3 zones: Top(25%), Middle(50%), Bottom(25%)
+    if (y < rect.height * 0.25) dropPosition.value = 'before'
+    else if (y > rect.height * 0.75) dropPosition.value = 'after'
+    else dropPosition.value = 'inside'
   } else {
-    // For maps, middle is also 'after' if we don't want nesting maps
+    // Maps only have before/after
     dropPosition.value = y < rect.height / 2 ? 'before' : 'after'
   }
 }
 
-const onDragEnter = (e: DragEvent): void => {
-  if (store.isTestMode) return
-  e.preventDefault()
-  dragCounter++
-  isDragTarget.value = true
+const onDragEnter = (e: DragEvent) => {
+  if (!store.isTestMode) {
+    e.preventDefault()
+    dragCounter++
+    isDragTarget.value = true
+  }
 }
-
-const onDragLeave = (e: DragEvent): void => {
-  if (store.isTestMode) return
-  e.preventDefault()
-  dragCounter--
-  if (dragCounter === 0) {
-    isDragTarget.value = false
-    dropPosition.value = null
+const onDragLeave = (e: DragEvent) => {
+  if (!store.isTestMode) {
+    e.preventDefault()
+    dragCounter--
+    if (dragCounter === 0) {
+      isDragTarget.value = false
+      dropPosition.value = null
+    }
   }
 }
 
-const onDrop = (e: DragEvent): void => {
+const onDrop = (e: DragEvent) => {
   if (store.isTestMode) return
   e.preventDefault()
   e.stopPropagation()
@@ -105,31 +86,21 @@ const onDrop = (e: DragEvent): void => {
   isDragTarget.value = false
   dropPosition.value = null
   dragCounter = 0
+
   const data = e.dataTransfer?.getData('application/json')
   if (data) {
     const { id } = JSON.parse(data)
     if (id === props.item.id) return
+    if (props.item.isFolder && store.isDescendant(props.item.id, id)) return
 
-    // Prevent moving a folder into its own descendant
-    if (
-      props.item.isFolder &&
-      typeof store.isDescendant === 'function' &&
-      store.isDescendant(props.item.id, id)
-    ) {
-      console.warn('Cannot move a folder into its own descendant')
-      return
-    }
-
-    if (pos === 'inside') {
-      store.moveEntry(id, props.item.id, undefined, 'inside')
-    } else if (pos === 'before' || pos === 'after') {
+    if (pos === 'inside') store.moveEntry(id, props.item.id, undefined, 'inside')
+    else if (pos === 'before' || pos === 'after')
       store.moveEntry(id, props.item.parentId, props.item.id, pos)
-    }
   }
 }
 
 // --- Renaming ---
-const startRenaming = (): void => {
+const startRenaming = () => {
   if (store.isTestMode) return
   renamingName.value = props.item.name
   isRenaming.value = true
@@ -139,79 +110,65 @@ const startRenaming = (): void => {
     nameInput.value?.select()
   })
 }
-
-const saveRename = (): void => {
+const saveRename = () => {
   if (!isRenaming.value) return
   const finalName = renamingName.value.trim()
-  if (finalName && finalName !== props.item.name) {
-    store.renameEntry(props.item.id, finalName)
-  }
+  if (finalName && finalName !== props.item.name) store.renameEntry(props.item.id, finalName)
   cancelRename()
 }
-
-const cancelRename = (): void => {
+const cancelRename = () => {
   isRenaming.value = false
-  if (store.renamingId === props.item.id) {
-    store.renamingId = null
-  }
+  if (store.renamingId === props.item.id) store.renamingId = null
 }
 
-// Listen for global renaming trigger
 watch(
   () => store.renamingId,
   (newId) => {
-    if (newId === props.item.id && !isRenaming.value) {
-      startRenaming()
-    } else if (newId !== props.item.id && isRenaming.value) {
-      saveRename()
-    }
+    if (newId === props.item.id && !isRenaming.value) startRenaming()
+    else if (newId !== props.item.id && isRenaming.value) saveRename()
   }
 )
-// --- Animation Hooks ---
-const beforeEnter = (el: Element): void => {
-  const htmlEl = el as HTMLElement
-  htmlEl.style.height = '0'
-  htmlEl.style.opacity = '0'
-}
 
-const enter = (el: Element): void => {
-  const htmlEl = el as HTMLElement
-  htmlEl.style.height = htmlEl.scrollHeight + 'px'
-  htmlEl.style.opacity = '1'
+// Animation hooks
+const beforeEnter = (el: Element) => {
+  ;(el as HTMLElement).style.height = '0'
+  ;(el as HTMLElement).style.opacity = '0'
 }
-
-const afterEnter = (el: Element): void => {
-  const htmlEl = el as HTMLElement
-  htmlEl.style.height = ''
+const enter = (el: Element) => {
+  ;(el as HTMLElement).style.height = (el as HTMLElement).scrollHeight + 'px'
+  ;(el as HTMLElement).style.opacity = '1'
 }
-
-const leave = (el: Element): void => {
-  const htmlEl = el as HTMLElement
-  htmlEl.style.height = htmlEl.scrollHeight + 'px'
-  // Force reflow
-  void htmlEl.offsetHeight
-  htmlEl.style.height = '0'
-  htmlEl.style.opacity = '0'
+const afterEnter = (el: Element) => {
+  ;(el as HTMLElement).style.height = ''
 }
-
-const afterLeave = (el: Element): void => {
-  const htmlEl = el as HTMLElement
-  htmlEl.style.height = ''
+const leave = (el: Element) => {
+  const h = el as HTMLElement
+  h.style.height = h.scrollHeight + 'px'
+  void h.offsetHeight
+  h.style.height = '0'
+  h.style.opacity = '0'
+}
+const afterLeave = (el: Element) => {
+  ;(el as HTMLElement).style.height = ''
 }
 </script>
 
 <template>
   <div class="flex flex-col">
     <div
+      class="relative flex items-center gap-1.5 px-2 py-1.5 rounded-lg transition-all duration-150 group select-none border-l-[3px]"
       :class="[
-        'flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all duration-200 group relative mb-1 select-none',
-        store.isTestMode ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer',
+        store.isTestMode ? 'opacity-50 cursor-not-allowed border-transparent' : 'cursor-pointer',
+        // ACTIVE STATE
         !item.isFolder && item.id === store.activeMapID
-          ? 'bg-black text-white shadow-[0_4px_12px_rgba(0,0,0,0.15)] scale-[1.02] z-10'
-          : !store.isTestMode && 'hover:bg-gray-100/50 text-gray-700 hover:text-black',
-        isDragTarget && dropPosition === 'inside' && 'bg-black/5 ring-2 ring-black/10'
+          ? 'bg-blue-50 text-blue-700 border-blue-500 font-medium'
+          : 'border-transparent hover:bg-slate-100 text-slate-600 hover:text-slate-900',
+        // DRAG TARGET (Inside Folder)
+        isDragTarget && dropPosition === 'inside'
+          ? 'bg-blue-50 ring-2 ring-blue-400 ring-inset'
+          : ''
       ]"
-      :style="{ paddingLeft: depth * 12 + 12 + 'px' }"
+      :style="{ marginLeft: depth * 16 + 'px' }"
       :draggable="!store.isTestMode"
       @click="handleClick"
       @contextmenu.prevent="onContextMenu"
@@ -221,81 +178,74 @@ const afterLeave = (el: Element): void => {
       @dragleave="onDragLeave"
       @drop="onDrop"
     >
-      <div class="flex items-center gap-2 flex-1 min-w-0">
-        <!-- Chevron for Folders -->
+      <div
+        v-if="isDragTarget && dropPosition === 'before'"
+        class="absolute -top-[2px] left-0 right-0 h-[2px] bg-blue-500 z-50 shadow-[0_0_4px_rgba(59,130,246,0.8)]"
+      >
+        <div class="absolute -left-1 -top-1 w-2 h-2 rounded-full bg-blue-500"></div>
+      </div>
+
+      <div class="flex items-center justify-center w-4 h-4 shrink-0 text-slate-400">
         <component
           :is="item.expanded ? IconChevronDown : IconChevronRight"
           v-if="item.isFolder"
-          :size="14"
-          class="shrink-0 text-gray-400"
+          size="12"
+          class="hover:text-slate-600"
+          @click.stop="store.toggleFolderExpanded(item.id)"
         />
-        <div v-else class="w-[14px] shrink-0"></div>
-
-        <!-- Icon -->
-        <component
-          :is="item.isFolder ? (item.expanded ? IconFolderOpen : IconFolder) : IconMap"
-          :size="16"
-          :class="[
-            'shrink-0',
-            item.isFolder
-              ? item.expanded
-                ? 'text-black'
-                : 'text-gray-400'
-              : item.id === store.activeMapID
-                ? 'text-white'
-                : 'text-gray-400'
-          ]"
-        />
-
-        <input
-          v-if="isRenaming"
-          ref="nameInput"
-          v-model="renamingName"
-          class="flex-1 bg-white text-black text-xs px-1 py-0.5 rounded border border-black/20 outline-none min-w-0"
-          @click.stop
-          @keydown.enter.stop="saveRename"
-          @keydown.esc.stop="cancelRename"
-          @blur="saveRename"
-        />
-        <span v-else class="text-xs truncate font-medium flex-1" @dblclick.stop="startRenaming">
-          {{ item.name }}
-        </span>
       </div>
 
-      <!-- Map Stats / Menu Trigger -->
-      <div
-        class="flex items-center gap-2 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+      <component
+        :is="item.isFolder ? (item.expanded ? IconFolderOpen : IconFolderFilled) : IconMap"
+        :size="16"
+        class="shrink-0 transition-colors"
+        :class="[
+          item.isFolder
+            ? 'text-amber-400'
+            : item.id === store.activeMapID
+              ? 'text-blue-500'
+              : 'text-slate-400 group-hover:text-slate-500'
+        ]"
+      />
+
+      <input
+        v-if="isRenaming"
+        ref="nameInput"
+        v-model="renamingName"
+        class="flex-1 bg-white border border-blue-400 rounded px-1.5 py-0 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-100 min-w-0"
+        @click.stop
+        @keydown.enter.stop="saveRename"
+        @keydown.esc.stop="cancelRename"
+        @blur="saveRename"
+      />
+      <span
+        v-else
+        class="text-xs truncate flex-1 leading-none pt-0.5"
+        @dblclick.stop="startRenaming"
       >
-        <template v-if="!item.isFolder && mapData">
-          <span
-            :class="[
-              'text-[0.6rem] font-mono',
-              item.id === store.activeMapID ? 'text-white/60' : 'text-gray-400'
-            ]"
-          >
-            {{ mapData.width }}x{{ mapData.height }}
-          </span>
-        </template>
+        {{ item.name }}
+      </span>
+
+      <div class="opacity-0 group-hover:opacity-100 flex items-center gap-1 transition-opacity">
+        <span v-if="!item.isFolder && mapData" class="text-[9px] font-mono text-slate-300 mr-1">
+          {{ mapData.width }}x{{ mapData.height }}
+        </span>
         <button
-          class="p-0.5 rounded hover:bg-black/10 transition-colors"
+          class="p-0.5 text-slate-400 hover:text-slate-700 rounded hover:bg-slate-200 transition-colors"
           @click.stop="onContextMenu"
         >
-          <IconDotsVertical :size="14" />
+          <IconDots :size="14" />
         </button>
       </div>
 
-      <!-- Drop Insertion Indicator (precise placement) -->
-      <div
-        v-if="isDragTarget && dropPosition === 'before'"
-        class="absolute -top-1 left-4 right-2 h-[3px] bg-black rounded-full z-20 pointer-events-none shadow-[0_0_8px_rgba(0,0,0,0.3)] animate-pulse"
-      ></div>
       <div
         v-if="isDragTarget && dropPosition === 'after'"
-        class="absolute -bottom-1 left-4 right-2 h-[3px] bg-black rounded-full z-20 pointer-events-none shadow-[0_0_8px_rgba(0,0,0,0.3)] animate-pulse"
-      ></div>
+        class="absolute -bottom-[2px] left-0 right-0 h-[2px] bg-blue-500 z-50 shadow-[0_0_4px_rgba(59,130,246,0.8)]"
+      >
+        <div class="absolute -left-1 -top-1 w-2 h-2 rounded-full bg-blue-500"></div>
+      </div>
     </div>
 
-    <!-- Recursive Children with Transition -->
     <Transition
       name="expand"
       @before-enter="beforeEnter"
@@ -318,15 +268,10 @@ const afterLeave = (el: Element): void => {
 </template>
 
 <style scoped>
-.group:hover .opacity-0 {
-  opacity: 1;
-}
-
-/* Expansion Transition */
 .expand-enter-active,
 .expand-leave-active {
   transition:
-    height 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+    height 0.2s cubic-bezier(0.25, 0.8, 0.5, 1),
     opacity 0.2s ease;
 }
 </style>
