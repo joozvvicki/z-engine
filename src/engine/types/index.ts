@@ -46,12 +46,17 @@ export interface ZWeapon extends ZDatabaseEntry {
   icon?: string
   price: number
   params: number[]
+  wtypeId?: number
+  description?: string
+  animationId?: number
 }
 
 export interface ZArmor extends ZDatabaseEntry {
   icon?: string
   price: number
   params: number[]
+  etypeId?: number // Equipment Type ID (Shield, Head, Body, etc)
+  description?: string
 }
 
 export interface ZEnemy extends ZDatabaseEntry {
@@ -384,6 +389,8 @@ export enum ZCommandCode {
   ShowMessage = 101,
   ShowChoices = 102,
   ConditionalBranch = 111,
+  Loop = 112,
+  BreakLoop = 113,
   ControlSwitch = 121,
   ControlVariable = 122,
   ControlSelfSwitch = 123,
@@ -403,7 +410,29 @@ export enum ZCommandCode {
   FadeOutBGS = 246,
   PlayME = 249,
   PlaySE = 250,
-  StopSE = 251
+  StopSE = 251,
+
+  // Message extension
+  ShowMakeText = 1011,
+  ShowScrollingText = 105,
+
+  // Game Flow
+  ControlTimer = 124,
+
+  // Map / Scene
+  GetLocationInfo = 202,
+  ScrollMap = 204,
+
+  // Character
+  ShowBalloonIcon = 215,
+  EraseEvent = 216,
+
+  // Screen/Picture
+  ShowPicture = 231,
+  MovePicture = 232,
+  RotatePicture = 233,
+  TintPicture = 234,
+  ErasePicture = 235
 }
 
 export type ZCommandResult = 'continue' | 'wait' | 'stop'

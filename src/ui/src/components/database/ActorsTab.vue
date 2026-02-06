@@ -146,7 +146,7 @@ watch(
         idleCol: SpriteUtils.getIdleFrameIndex(divW),
         isLoaded: true
       }
-    } catch (e) {
+    } catch {
       previewMetadata.value.isLoaded = false
     }
   },
@@ -166,7 +166,7 @@ const characterPreviewStyle = computed(() => {
     backgroundImage: `url('${getCharacterUrl(actor.character)}')`,
     backgroundPosition: `-${srcX}px -${srcY}px`,
     transform: 'scale(1.5)',
-    imageRendering: 'pixelated'
+    imageRendering: 'pixelated' as const
   }
 })
 
@@ -311,7 +311,7 @@ const getFaceStyle = (actor: any): CSSProperties => {
                 <div
                   class="w-40 h-24 bg-slate-100 rounded-2xl border border-slate-200 overflow-hidden shadow-sm relative checkerboard flex items-center justify-center"
                 >
-                  <div v-if="selectedActor.character" :style="characterPreviewStyle"></div>
+                  <div v-if="selectedActor?.character" :style="characterPreviewStyle"></div>
                   <IconUser v-else :size="32" class="text-slate-300" />
 
                   <div
