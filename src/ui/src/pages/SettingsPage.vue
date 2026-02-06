@@ -583,6 +583,8 @@ onMounted(() => {
 </template>
 
 <style scoped>
+@reference "@ui/assets/css/tailwind.css";
+
 .input-base {
   @apply w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-bold text-slate-900 outline-none focus:bg-white focus:border-blue-400 transition-all;
 }
