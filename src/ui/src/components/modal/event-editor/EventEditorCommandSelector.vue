@@ -34,7 +34,8 @@ import {
   IconBolt,
   IconClock,
   IconPhoto,
-  IconBox
+  IconBox,
+  IconChevronRight
 } from '@tabler/icons-vue'
 import { ZCommandCode, ZMoveCode, type ZEventCommand, type ZMoveCommand } from '@engine/types'
 import type { ZEventPage } from '@engine/types'
@@ -496,7 +497,7 @@ const handleSave = (): void => {
     @click.self="emit('close')"
   >
     <div
-      class="bg-white rounded-xl shadow-2xl overflow-hidden border border-white/20 animate-in fade-in zoom-in-95 duration-200 flex flex-col"
+      class="bg-white rounded-[24px] shadow-2xl shadow-slate-200/50 overflow-hidden border border-white/40 animate-in fade-in zoom-in-95 duration-200 flex flex-col"
       :class="
         selectedCommandType === ZCommandCode.SetMoveRoute
           ? 'w-[800px] h-[600px]'
@@ -507,67 +508,90 @@ const handleSave = (): void => {
     >
       <!-- Modal Header -->
       <div
-        class="p-4 border-b border-slate-100 bg-slate-50 flex justify-between items-center shrink-0"
+        class="px-5 py-4 border-b border-slate-100 bg-white flex justify-between items-center shrink-0"
       >
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-3">
           <button
             v-if="commandSelectorStep === 'params' && !props.initialCommand"
-            class="text-xs font-bold text-slate-400 hover:text-slate-600 flex items-center gap-1 transition-colors"
+            class="w-8 h-8 rounded-full border border-slate-200 flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-all active:scale-95"
             @click="commandSelectorStep = 'grid'"
           >
             <IconChevronLeft size="16" />
-            Back
           </button>
-          <div class="flex items-center gap-4">
-            <span class="text-xs font-black uppercase text-slate-800 tracking-wide">
-              {{ props.initialCommand ? 'Edit Command' : 'Command Selector' }}
-            </span>
+
+          <div class="flex items-center gap-3">
+            <div
+              class="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600 border border-indigo-100"
+            >
+              <IconCode size="18" />
+            </div>
+            <div>
+              <span
+                class="text-[10px] font-black uppercase text-slate-400 tracking-widest block leading-none mb-1"
+              >
+                Effect Builder
+              </span>
+              <span
+                class="text-xs font-black uppercase text-slate-800 tracking-wide block leading-none"
+              >
+                {{ props.initialCommand ? 'Edit Command' : 'New Command' }}
+              </span>
+            </div>
           </div>
         </div>
-        <button class="text-slate-400 hover:text-slate-600" @click="emit('close')">
-          <IconX size="16" />
+
+        <button
+          class="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+          @click="emit('close')"
+        >
+          <IconX size="18" />
         </button>
       </div>
 
       <!-- Command Grid Step -->
       <div v-if="commandSelectorStep === 'grid'" class="flex-1 flex overflow-hidden">
         <!-- Sidebar Categories -->
-        <div
-          class="w-40 border-r border-slate-100 bg-slate-50/50 flex flex-col p-2 gap-1 uppercase tracking-tighter"
-        >
+        <nav class="w-40 border-r border-slate-100 bg-slate-50/50 flex flex-col p-3 gap-1.5">
           <button
             v-for="cat in commandCategories"
             :key="cat.id"
-            class="flex items-center gap-2 px-3 py-2 rounded-lg text-left text-[10px] font-black transition-all"
+            class="flex items-center justify-between px-3 py-2.5 rounded-xl transition-all duration-300 group"
             :class="
               commandCategory === cat.id
-                ? 'bg-slate-900 border-slate-900 text-white shadow-[0_4px_12px_rgba(0,0,0,0.2)]'
-                : 'bg-white border-slate-100 text-slate-400 hover:border-slate-300 hover:text-slate-600'
+                ? 'bg-white shadow-md shadow-slate-200/50 text-indigo-600'
+                : 'text-slate-500 hover:text-slate-800 hover:bg-white/50'
             "
             @click="commandCategory = cat.id"
           >
-            <component :is="cat.icon" size="14" stroke-width="2.5" />
-            {{ cat.id }}
+            <div class="flex items-center gap-2.5">
+              <component :is="cat.icon" size="14" stroke-width="2.5" />
+              <span class="text-[10px] font-black uppercase tracking-wide">{{ cat.id }}</span>
+            </div>
+            <IconChevronRight
+              size="12"
+              class="opacity-0 group-hover:opacity-100 transition-opacity"
+              :class="{ 'opacity-100': commandCategory === cat.id }"
+            />
           </button>
-        </div>
+        </nav>
 
         <!-- Command Buttons Grid -->
-        <div class="flex-1 overflow-y-auto p-4 content-start">
+        <div class="flex-1 overflow-y-auto p-5 content-start bg-white">
           <div class="grid grid-cols-2 gap-3">
             <button
               v-for="cmd in commandCategories.find((c) => c.id === commandCategory)?.commands"
               :key="cmd.code"
-              class="flex flex-col items-center justify-center gap-2 p-4 bg-white border border-slate-100 rounded-xl hover:border-slate-400 hover:bg-slate-50/50 hover:scale-[1.02] active:scale-[0.98] transition-all group shadow-sm text-center"
+              class="flex items-center gap-3 p-3 bg-white border border-slate-100 rounded-2xl hover:border-slate-300 hover:shadow-lg hover:shadow-slate-200/50 hover:-translate-y-0.5 transition-all group text-left"
               @click="selectGridCommand(cmd.code)"
             >
               <div
-                class="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-slate-100 group-hover:text-slate-900 transition-colors"
+                class="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-colors duration-300"
               >
-                <component :is="cmd.icon" size="20" stroke-width="2.5" />
+                <component :is="cmd.icon" size="20" stroke-width="2" />
               </div>
               <div class="flex flex-col min-w-0">
                 <span
-                  class="text-xs font-bold text-slate-800 leading-tight group-hover:text-slate-900"
+                  class="text-xs font-bold text-slate-700 leading-tight group-hover:text-slate-900"
                   >{{ cmd.label }}</span
                 >
               </div>
@@ -579,69 +603,51 @@ const handleSave = (): void => {
       <!-- Params Step -->
       <div
         v-if="commandSelectorStep === 'params'"
-        class="p-6 space-y-5 flex-1 overflow-y-auto flex flex-col"
+        class="flex-1 overflow-hidden flex flex-col bg-slate-50/30"
       >
-        <div class="pb-2 mb-4 border-b border-slate-50 flex items-center gap-2 shrink-0">
-          <div
-            class="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-600"
-          >
-            <component
-              :is="
-                commandCategories
-                  .flatMap((c) => c.commands)
-                  .find((c) => c.code === selectedCommandType)?.icon || IconSettings
-              "
-              size="16"
-            />
-          </div>
-          <div>
-            <div class="text-[9px] font-black text-slate-500 uppercase tracking-widest">
-              {{ props.initialCommand ? 'Editing Parameters' : 'Set Parameters' }}
-            </div>
-            <div class="text-xs font-bold text-slate-800">
+        <div class="p-6 flex-1 overflow-y-auto flex flex-col custom-scrollbar">
+          <!-- Command Icon Header inside Params -->
+          <div class="flex items-center gap-3 mb-6 opacity-80 pl-1">
+            <div class="w-2 h-2 rounded-full bg-indigo-500"></div>
+            <span class="text-[10px] font-black uppercase text-indigo-500 tracking-widest">
               {{
                 commandCategories
                   .flatMap((c) => c.commands)
-                  .find((c) => c.code === selectedCommandType)?.label || 'Unknown Command'
+                  .find((c) => c.code === selectedCommandType)?.label || 'Move Route'
               }}
-            </div>
+            </span>
           </div>
-        </div>
 
-        <!-- Param Fields based on command type -->
-        <div class="space-y-4 flex-1">
-          <!-- Show Message -->
-          <div v-if="selectedCommandType === ZCommandCode.ShowMessage" class="space-y-4">
-            <div class="space-y-3">
-              <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1"
-                >Message Text</label
-              >
-              <textarea
-                v-model="messageText"
-                rows="4"
-                class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm font-sans resize-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900/10 outline-none transition-all"
-                placeholder="Enter message text..."
-              ></textarea>
-            </div>
+          <!-- Param Fields based on command type -->
+          <div class="space-y-6 flex-1">
+            <!-- Fields are rendered here -->
 
-            <div class="grid grid-cols-2 gap-4">
-              <div class="space-y-2">
-                <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1"
+            <!-- Show Message -->
+            <div v-if="selectedCommandType === ZCommandCode.ShowMessage" class="space-y-5">
+              <div class="space-y-3">
+                <label class="text-[10px] font-bold uppercase text-slate-400 block ml-1"
+                  >Message Text</label
+                >
+                <textarea
+                  v-model="messageText"
+                  rows="4"
+                  class="docs-input min-h-[100px] resize-none"
+                  placeholder="Enter message text..."
+                ></textarea>
+              </div>
+
+              <div class="space-y-3">
+                <label class="text-[10px] font-bold uppercase text-slate-400 block ml-1"
                   >Window Style</label
                 >
-                <div class="flex gap-2">
+                <div class="segmented-control">
                   <button
                     v-for="s in [
                       { val: 0, label: 'Standard' },
                       { val: 1, label: 'Bubble' }
                     ]"
                     :key="s.val"
-                    class="flex-1 py-2 rounded-lg text-[10px] font-black border transition-all"
-                    :class="
-                      messageStyle === s.val
-                        ? 'bg-slate-900 border-slate-900 text-white'
-                        : 'bg-slate-50 border-slate-100 text-slate-400 hover:border-slate-300'
-                    "
+                    :class="{ active: messageStyle === s.val }"
                     @click="messageStyle = s.val"
                   >
                     {{ s.label }}
@@ -649,701 +655,87 @@ const handleSave = (): void => {
                 </div>
               </div>
 
-              <div v-if="messageStyle === 1" class="space-y-2">
-                <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1"
+              <div
+                v-if="messageStyle === 1"
+                class="space-y-3 animate-in fade-in slide-in-from-top-1 duration-200"
+              >
+                <label class="text-[10px] font-bold uppercase text-slate-400 block ml-1"
                   >Target</label
                 >
-                <select
-                  v-model.number="messageTarget"
-                  class="w-full bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 text-xs font-bold focus:bg-white focus:border-slate-900 outline-none transition-all"
-                >
-                  <option :value="0">This Event</option>
-                  <option :value="-1">Player</option>
-                  <option disabled>--- Events ---</option>
-                  <option
-                    v-for="ev in store.activeMap?.events.filter((e) => e.name !== 'PlayerStart')"
-                    :key="ev.id"
-                    :value="Number(ev.id)"
-                  >
-                    ID {{ ev.id }}: {{ ev.name }}
-                  </option>
-                </select>
-              </div>
-            </div>
-          </div>
-
-          <!-- Wait -->
-          <div v-else-if="selectedCommandType === ZCommandCode.Wait" class="space-y-3">
-            <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1"
-              >Wait Duration (Frames)</label
-            >
-            <div class="flex items-center gap-4">
-              <input
-                v-model.number="waitFrames"
-                type="number"
-                class="w-32 bg-slate-50 border border-slate-100 rounded-lg px-4 py-2 text-sm font-bold focus:bg-white focus:border-slate-900 outline-none transition-all"
-              />
-              <span class="text-[10px] text-slate-400 font-bold uppercase"
-                >≈ {{ (waitFrames / 60).toFixed(2) }} Seconds</span
-              >
-            </div>
-          </div>
-
-          <!-- Control Self Switch -->
-          <div v-else-if="selectedCommandType === ZCommandCode.ControlSelfSwitch" class="space-y-4">
-            <div class="space-y-2">
-              <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1"
-                >Self Switch</label
-              >
-              <div class="flex rounded-lg overflow-hidden border border-slate-100">
-                <button
-                  v-for="ch in ['A', 'B', 'C', 'D']"
-                  :key="ch"
-                  class="flex-1 py-2 text-xs font-black transition-all"
-                  :class="
-                    selfSwitchCh === ch
-                      ? 'bg-slate-900 text-white'
-                      : 'bg-slate-50 text-slate-400 hover:bg-slate-100'
-                  "
-                  @click="selfSwitchCh = ch as any"
-                >
-                  {{ ch }}
-                </button>
-              </div>
-            </div>
-            <div class="space-y-2">
-              <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1">State</label>
-              <div class="flex gap-2">
-                <button
-                  v-for="s in [
-                    { val: 1, label: 'ON' },
-                    { val: 0, label: 'OFF' }
-                  ]"
-                  :key="s.val"
-                  class="flex-1 py-2 rounded-lg text-[10px] font-black border transition-all"
-                  :class="
-                    switchState === s.val
-                      ? 'bg-slate-900 border-slate-900 text-white'
-                      : 'bg-slate-50 border-slate-100 text-slate-400 hover:border-slate-300'
-                  "
-                  @click="switchState = s.val"
-                >
-                  {{ s.label }}
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <!-- Control Switch -->
-          <div v-else-if="selectedCommandType === ZCommandCode.ControlSwitch" class="space-y-4">
-            <div class="space-y-2">
-              <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1"
-                >System Switch</label
-              >
-              <select
-                v-model="switchId"
-                class="w-full bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 text-xs font-bold focus:bg-white focus:border-slate-900 outline-none transition-all"
-              >
-                <option
-                  v-for="(sw, idx) in store.systemSwitches"
-                  :key="idx"
-                  :value="String(idx + 1)"
-                >
-                  #{{ String(idx + 1).padStart(3, '0') }}: {{ sw || '(None)' }}
-                </option>
-              </select>
-            </div>
-            <div class="space-y-2">
-              <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1">State</label>
-              <div class="flex gap-2">
-                <button
-                  v-for="s in [
-                    { val: 1, label: 'ON' },
-                    { val: 0, label: 'OFF' }
-                  ]"
-                  :key="s.val"
-                  class="flex-1 py-2 rounded-lg text-[10px] font-black border transition-all"
-                  :class="
-                    switchState === s.val
-                      ? 'bg-slate-900 border-slate-900 text-white'
-                      : 'bg-slate-50 border-slate-100 text-slate-400 hover:border-slate-300'
-                  "
-                  @click="switchState = s.val"
-                >
-                  {{ s.label }}
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <!-- Control Variable -->
-          <div v-else-if="selectedCommandType === ZCommandCode.ControlVariable" class="space-y-4">
-            <div class="space-y-2">
-              <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1"
-                >System Variable</label
-              >
-              <select
-                v-model="variableId"
-                class="w-full bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 text-xs font-bold focus:bg-white focus:border-slate-900 outline-none transition-all"
-              >
-                <option
-                  v-for="(v, idx) in store.systemVariables"
-                  :key="idx"
-                  :value="String(idx + 1)"
-                >
-                  #{{ String(idx + 1).padStart(3, '0') }}: {{ v || '(None)' }}
-                </option>
-              </select>
-            </div>
-            <div class="grid grid-cols-2 gap-4">
-              <div class="space-y-2">
-                <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1"
-                  >Operation</label
-                >
-                <select
-                  v-model="variableOp"
-                  class="w-full bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 text-xs font-bold focus:bg-white focus:border-slate-900 outline-none transition-all"
-                >
-                  <option v-for="op in variableOps" :key="op.value" :value="op.value">
-                    {{ op.label }}
-                  </option>
-                </select>
-              </div>
-              <div class="space-y-2">
-                <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1"
-                  >Value</label
-                >
-                <input
-                  v-model.number="variableValue"
-                  type="number"
-                  class="w-full bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 text-xs font-bold focus:bg-white focus:border-slate-900 outline-none transition-all"
-                />
-              </div>
-            </div>
-          </div>
-
-          <!-- Set Event Direction -->
-          <div v-else-if="selectedCommandType === ZCommandCode.SetEventDirection" class="space-y-4">
-            <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1"
-              >Direction</label
-            >
-            <div class="grid grid-cols-2 gap-3">
-              <button
-                v-for="dir in directions"
-                :key="dir.value"
-                class="flex items-center gap-3 p-3 rounded-xl border transition-all"
-                :class="
-                  selectedDirection === dir.value
-                    ? 'bg-slate-900 border-slate-900 text-white shadow-lg shadow-slate-900/20'
-                    : 'bg-slate-50 border-slate-100 text-slate-600 hover:border-slate-300'
-                "
-                @click="selectedDirection = dir.value"
-              >
-                <component :is="dir.icon" size="18" />
-                <span class="text-xs font-black uppercase">{{ dir.label }}</span>
-              </button>
-            </div>
-          </div>
-
-          <!-- Transfer Player -->
-          <div v-else-if="selectedCommandType === ZCommandCode.TransferPlayer" class="space-y-4">
-            <div class="space-y-2">
-              <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1"
-                >Destination Map</label
-              >
-              <select
-                v-model.number="transferMapId"
-                class="w-full bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 text-xs font-bold focus:bg-white focus:border-slate-900 outline-none transition-all"
-              >
-                <option v-for="m in store.maps" :key="m.id" :value="m.id">
-                  #{{ String(m.id).padStart(3, '0') }}: {{ m.name }}
-                </option>
-              </select>
-            </div>
-            <div class="grid grid-cols-2 gap-4">
-              <div class="space-y-2">
-                <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1"
-                  >X Coordinate</label
-                >
-                <input
-                  v-model.number="transferX"
-                  type="number"
-                  class="w-full bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 text-xs font-bold focus:bg-white focus:border-slate-900 outline-none transition-all"
-                />
-              </div>
-              <div class="space-y-2">
-                <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1"
-                  >Y Coordinate</label
-                >
-                <input
-                  v-model.number="transferY"
-                  type="number"
-                  class="w-full bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 text-xs font-bold focus:bg-white focus:border-slate-900 outline-none transition-all"
-                />
-              </div>
-            </div>
-            <div class="space-y-2">
-              <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1"
-                >Facing After Transfer</label
-              >
-              <div class="grid grid-cols-4 gap-2">
-                <button
-                  v-for="dir in directions"
-                  :key="dir.value"
-                  class="flex flex-col items-center gap-1 p-2 rounded-lg border transition-all"
-                  :class="
-                    transferDirection === dir.value
-                      ? 'bg-slate-900 border-slate-900 text-white'
-                      : 'bg-slate-50 border-slate-100 text-slate-400 hover:border-slate-300'
-                  "
-                  @click="transferDirection = dir.value"
-                >
-                  <component :is="dir.icon" size="14" />
-                  <span class="text-[9px] font-black uppercase">{{ dir.label }}</span>
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <!-- Set Move Route -->
-          <div
-            v-else-if="selectedCommandType === ZCommandCode.SetMoveRoute"
-            class="flex gap-6 h-full overflow-hidden"
-          >
-            <!-- Left Side: Config -->
-            <div class="w-64 flex flex-col gap-4 shrink-0">
-              <div v-if="!props.isAutonomousMode" class="space-y-2">
-                <span class="text-[9px] font-black uppercase tracking-wider text-slate-400"
-                  >Target Selection</span
-                >
-                <div class="flex flex-col gap-1">
-                  <button
-                    class="flex items-center gap-3 px-3 py-2 rounded-lg border text-left transition-all"
-                    :class="
-                      moveRouteTarget === 0
-                        ? 'bg-slate-900 border-slate-900 text-white shadow-md'
-                        : 'bg-slate-50 border-slate-100 text-slate-600 hover:bg-white'
-                    "
-                    @click="moveRouteTarget = 0"
-                  >
-                    <IconRobot size="16" />
-                    <span class="text-xs font-bold">This Event</span>
-                  </button>
-                  <button
-                    class="flex items-center gap-3 px-3 py-2 rounded-lg border text-left transition-all"
-                    :class="
-                      moveRouteTarget === -1
-                        ? 'bg-slate-900 border-slate-900 text-white shadow-md'
-                        : 'bg-slate-50 border-slate-100 text-slate-600 hover:bg-white'
-                    "
-                    @click="moveRouteTarget = -1"
-                  >
-                    <IconUser size="16" />
-                    <span class="text-xs font-bold">Player</span>
-                  </button>
-                  <div class="flex items-center gap-2 mt-1">
-                    <span class="text-[9px] font-black uppercase text-slate-400">Other ID:</span>
-                    <input
-                      v-model="moveRouteTarget"
-                      type="text"
-                      class="flex-1 bg-slate-50 border border-slate-100 rounded-md px-2 py-1 text-xs font-bold outline-none"
-                    />
-                  </div>
+                <div class="relative">
+                  <select v-model.number="messageTarget" class="docs-input appearance-none">
+                    <option :value="0">This Event</option>
+                    <option :value="-1">Player</option>
+                    <option disabled>--- Events ---</option>
+                    <option
+                      v-for="ev in store.activeMap?.events.filter((e) => e.name !== 'PlayerStart')"
+                      :key="ev.id"
+                      :value="Number(ev.id)"
+                    >
+                      ID {{ ev.id }}: {{ ev.name }}
+                    </option>
+                  </select>
+                  <IconArrowDown
+                    size="14"
+                    class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
+                  />
                 </div>
               </div>
+            </div>
 
-              <div v-if="!props.isAutonomousMode" class="space-y-3 pt-2 border-t border-slate-100">
-                <label class="flex items-center gap-2 cursor-pointer group">
-                  <div
-                    class="w-4 h-4 rounded border flex items-center justify-center transition-all"
-                    :class="
-                      moveRouteWait
-                        ? 'bg-slate-900 border-slate-900 text-white'
-                        : 'bg-white border-slate-200 group-hover:border-slate-400'
-                    "
-                  >
-                    <input v-model="moveRouteWait" type="checkbox" class="hidden" />
-                    <IconX v-if="moveRouteWait" size="10" stroke-width="4" />
-                  </div>
-                  <span class="text-[10px] font-bold uppercase text-slate-600"
-                    >Wait for Completion</span
-                  >
-                </label>
-
-                <label class="flex items-center gap-2 cursor-pointer group">
-                  <div
-                    class="w-4 h-4 rounded border flex items-center justify-center transition-all"
-                    :class="
-                      moveRouteRepeat
-                        ? 'bg-slate-900 border-slate-900 text-white'
-                        : 'bg-white border-slate-200 group-hover:border-slate-400'
-                    "
-                  >
-                    <input v-model="moveRouteRepeat" type="checkbox" class="hidden" />
-                    <IconRefresh v-if="moveRouteRepeat" size="10" stroke-width="4" />
-                  </div>
-                  <span class="text-[10px] font-bold uppercase text-slate-600">Repeat Action</span>
-                </label>
-
-                <label class="flex items-center gap-2 cursor-pointer group">
-                  <div
-                    class="w-4 h-4 rounded border flex items-center justify-center transition-all"
-                    :class="
-                      moveRouteThrough
-                        ? 'bg-slate-900 border-slate-900 text-white'
-                        : 'bg-white border-slate-200 group-hover:border-slate-400'
-                    "
-                  >
-                    <input v-model="moveRouteThrough" type="checkbox" class="hidden" />
-                    <IconX v-if="moveRouteThrough" size="10" stroke-width="4" />
-                  </div>
-                  <span class="text-[10px] font-bold uppercase text-slate-600">Through Mode</span>
-                </label>
-              </div>
-
-              <div class="mt-auto p-4 bg-slate-50 rounded-xl border border-slate-100 border-dashed">
-                <p class="text-[10px] text-slate-400 italic">
-                  Movement route will be executed as a sequence of steps.
-                </p>
+            <!-- Wait -->
+            <div v-else-if="selectedCommandType === ZCommandCode.Wait" class="space-y-3">
+              <label class="text-[10px] font-bold uppercase text-slate-400 block ml-1"
+                >Wait Duration (Frames)</label
+              >
+              <div class="flex items-center gap-4">
+                <input v-model.number="waitFrames" type="number" class="docs-input w-32" />
+                <span class="text-[10px] text-slate-400 font-bold uppercase"
+                  >≈ {{ (waitFrames / 60).toFixed(2) }} Seconds</span
+                >
               </div>
             </div>
 
-            <!-- Middle: Current Route -->
+            <!-- Control Self Switch -->
             <div
-              class="flex-1 flex flex-col overflow-hidden bg-slate-50 rounded-xl border border-slate-100"
+              v-else-if="selectedCommandType === ZCommandCode.ControlSelfSwitch"
+              class="space-y-5"
             >
-              <div class="p-3 border-b border-slate-100 bg-white flex justify-between items-center">
-                <span class="text-[10px] font-black uppercase text-slate-400"
-                  >Route Steps ({{ moveRouteCommands.length }})</span
+              <div class="space-y-3">
+                <label class="text-[10px] font-bold uppercase text-slate-400 block ml-1"
+                  >Self Switch ID</label
                 >
-                <button
-                  class="text-[9px] font-black uppercase text-red-400 hover:text-red-600"
-                  @click="moveRouteCommands = []"
-                >
-                  Clear All
-                </button>
-              </div>
-              <div class="flex-1 overflow-y-auto p-2 space-y-1">
                 <div
-                  v-for="(cmd, idx) in moveRouteCommands"
-                  :key="idx"
-                  class="group flex flex-col gap-1 px-3 py-2 bg-white border rounded-lg shadow-sm transition-all cursor-pointer"
-                  :class="
-                    selectedMoveCommandIndex === idx
-                      ? 'border-slate-900 ring-1 ring-slate-900/10'
-                      : 'border-slate-100 hover:border-slate-300'
-                  "
-                  @click="selectedMoveCommandIndex = idx"
+                  class="flex rounded-xl overflow-hidden border border-slate-200 bg-white shadow-sm"
                 >
-                  <div class="flex items-center gap-3">
-                    <span class="text-[10px] text-slate-300 font-mono w-4">{{ idx + 1 }}</span>
-                    <component
-                      :is="moveActions.find((m) => m.code === cmd.code)?.icon || IconSettings"
-                      size="14"
-                      class="text-slate-400"
-                    />
-                    <span class="text-xs font-bold text-slate-700 flex-1">{{
-                      moveActions.find((m) => m.code === cmd.code)?.label || cmd.code
-                    }}</span>
-                    <button
-                      class="opacity-0 group-hover:opacity-100 hover:text-red-600 transition-all p-1"
-                      @click.stop="removeMoveCommand(idx)"
-                    >
-                      <IconTrash size="14" />
-                    </button>
-                  </div>
-
-                  <!-- Parameter Editor Inline -->
-                  <div
-                    v-if="
-                      selectedMoveCommandIndex === idx &&
-                      moveActions.find((a) => a.code === cmd.code)?.paramNames
-                    "
-                    class="mt-2 pt-2 border-t border-slate-50 grid grid-cols-1 gap-2"
-                    @click.stop
-                  >
-                    <div
-                      v-for="(pName, pIdx) in moveActions.find((a) => a.code === cmd.code)
-                        ?.paramNames"
-                      :key="pIdx"
-                      class="space-y-1"
-                    >
-                      <label class="text-[9px] font-black uppercase text-slate-400 block">{{
-                        pName
-                      }}</label>
-                      <template v-if="cmd.code === ZMoveCode.WAIT">
-                        <input
-                          v-model.number="cmd.params![pIdx]"
-                          type="number"
-                          class="w-full bg-slate-50 border border-slate-100 rounded px-2 py-1 text-[10px] font-bold outline-none focus:bg-white focus:border-slate-900"
-                        />
-                      </template>
-                      <template v-else-if="cmd.code === ZMoveCode.SPEED">
-                        <select
-                          v-model.number="cmd.params![pIdx]"
-                          class="w-full bg-slate-50 border border-slate-100 rounded px-2 py-1 text-[10px] font-bold outline-none focus:bg-white focus:border-slate-900"
-                        >
-                          <option v-for="s in [1, 2, 3, 4, 5, 6]" :key="s" :value="s">
-                            Speed {{ s }} {{ s === 4 ? '(Normal)' : '' }}
-                          </option>
-                        </select>
-                      </template>
-                      <template v-else-if="cmd.code === ZMoveCode.FREQUENCY">
-                        <select
-                          v-model.number="cmd.params![pIdx]"
-                          class="w-full bg-slate-50 border border-slate-100 rounded px-2 py-1 text-[10px] font-bold outline-none focus:bg-white focus:border-slate-900"
-                        >
-                          <option v-for="f in [1, 2, 3, 4, 5]" :key="f" :value="f">
-                            Freq {{ f }} {{ f === 3 ? '(Normal)' : '' }}
-                          </option>
-                        </select>
-                      </template>
-                      <template v-else-if="cmd.code === ZMoveCode.JUMP">
-                        <input
-                          v-model.number="cmd.params![pIdx]"
-                          type="number"
-                          class="w-full bg-slate-50 border border-slate-100 rounded px-2 py-1 text-[10px] font-bold outline-none focus:bg-white focus:border-slate-900"
-                        />
-                      </template>
-                      <template v-else>
-                        <input
-                          v-model="cmd.params![pIdx]"
-                          class="w-full bg-slate-50 border border-slate-100 rounded px-2 py-1 text-[10px] font-bold outline-none focus:bg-white focus:border-slate-900"
-                        />
-                      </template>
-                    </div>
-                  </div>
-                </div>
-                <div
-                  v-if="moveRouteCommands.length === 0"
-                  class="flex-1 flex items-center justify-center py-20 text-slate-300 text-xs italic"
-                >
-                  Add steps from the right panel
-                </div>
-              </div>
-            </div>
-
-            <!-- Right: Add Actions -->
-            <div class="w-48 overflow-y-auto pr-2 flex flex-col gap-1">
-              <label class="text-[10px] font-bold uppercase text-slate-400 block mb-2 px-1"
-                >Add Actions</label
-              >
-              <button
-                v-for="action in moveActions"
-                :key="action.code"
-                class="flex items-center gap-2 px-3 py-2 text-left bg-white border border-slate-100 rounded-lg hover:border-slate-400 hover:bg-slate-50 transition-all group"
-                @click="addMoveCommand(action.code)"
-              >
-                <component
-                  :is="action.icon"
-                  size="14"
-                  class="text-slate-400 group-hover:text-slate-900"
-                />
-                <span class="text-[11px] font-bold text-slate-600 group-hover:text-slate-900">{{
-                  action.label
-                }}</span>
-              </button>
-            </div>
-          </div>
-
-          <!-- Audio Helpers -->
-          <div
-            v-else-if="
-              selectedCommandType === ZCommandCode.PlayBGM ||
-              selectedCommandType === ZCommandCode.PlaySE
-            "
-            class="space-y-4"
-          >
-            <div class="space-y-2">
-              <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1">
-                Audio File
-              </label>
-              <input
-                v-model="audioFile"
-                type="text"
-                class="w-full bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 text-xs font-bold focus:bg-white focus:border-slate-900 outline-none transition-all"
-                placeholder="e.g. Theme1.mp3"
-              />
-            </div>
-            <div class="grid grid-cols-2 gap-4">
-              <div class="space-y-2">
-                <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1">
-                  Volume (0-100)
-                </label>
-                <input
-                  v-model.number="audioVolume"
-                  type="number"
-                  min="0"
-                  max="100"
-                  class="w-full bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 text-xs font-bold focus:bg-white focus:border-slate-900 outline-none transition-all"
-                />
-              </div>
-              <div class="space-y-2">
-                <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1">
-                  Pitch (50-150)
-                </label>
-                <input
-                  v-model.number="audioPitch"
-                  type="number"
-                  min="50"
-                  max="150"
-                  class="w-full bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 text-xs font-bold focus:bg-white focus:border-slate-900 outline-none transition-all"
-                />
-              </div>
-            </div>
-          </div>
-
-          <div v-else-if="selectedCommandType === ZCommandCode.FadeOutBGM" class="space-y-4">
-            <div class="space-y-2">
-              <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1">
-                Duration (Seconds)
-              </label>
-              <input
-                v-model.number="audioDuration"
-                type="number"
-                min="1"
-                class="w-full bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 text-xs font-bold focus:bg-white focus:border-slate-900 outline-none transition-all"
-              />
-            </div>
-          </div>
-
-          <!-- Show Choices -->
-          <div v-else-if="selectedCommandType === ZCommandCode.ShowChoices" class="space-y-4">
-            <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1">Choices</label>
-            <div class="space-y-2">
-              <div v-for="(_, idx) in choiceTexts" :key="idx" class="flex items-center gap-2 group">
-                <div class="w-6 text-[10px] text-slate-300 font-black text-center">
-                  {{ idx + 1 }}
-                </div>
-                <input
-                  v-model="choiceTexts[idx]"
-                  type="text"
-                  class="flex-1 bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 text-xs font-bold focus:bg-white focus:border-slate-900 outline-none transition-all"
-                  placeholder="Choice text..."
-                />
-                <button
-                  v-if="choiceTexts.length > 1"
-                  class="p-2 text-slate-300 hover:text-red-500 transition-colors"
-                  @click="choiceTexts.splice(idx, 1)"
-                >
-                  <IconTrash size="14" />
-                </button>
-              </div>
-              <button
-                v-if="choiceTexts.length < 6"
-                class="w-full py-2 border border-dashed border-slate-200 rounded-lg text-[10px] font-black uppercase text-slate-400 hover:border-slate-400 hover:text-slate-600 transition-all"
-                @click="choiceTexts.push('New Choice')"
-              >
-                Add Choice
-              </button>
-            </div>
-
-            <div class="grid grid-cols-2 gap-4 pt-4 border-t border-slate-100">
-              <div class="space-y-2">
-                <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1"
-                  >Window Style</label
-                >
-                <div class="flex gap-2">
                   <button
-                    v-for="s in [
-                      { val: 0, label: 'Standard' },
-                      { val: 1, label: 'Bubble' }
-                    ]"
-                    :key="s.val"
-                    class="flex-1 py-2 rounded-lg text-[10px] font-black border transition-all"
+                    v-for="ch in ['A', 'B', 'C', 'D']"
+                    :key="ch"
+                    class="flex-1 py-3 text-xs font-black transition-all"
                     :class="
-                      messageStyle === s.val
-                        ? 'bg-slate-900 border-slate-900 text-white'
-                        : 'bg-slate-50 border-slate-100 text-slate-400 hover:bg-slate-300'
+                      selfSwitchCh === ch
+                        ? 'bg-slate-900 text-white'
+                        : 'text-slate-400 hover:bg-slate-50'
                     "
-                    @click="messageStyle = s.val"
+                    @click="selfSwitchCh = ch as any"
                   >
-                    {{ s.label }}
+                    {{ ch }}
                   </button>
                 </div>
               </div>
-
-              <div v-if="messageStyle === 1" class="space-y-2">
-                <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1"
-                  >Target</label
+              <div class="space-y-3">
+                <label class="text-[10px] font-bold uppercase text-slate-400 block ml-1"
+                  >State</label
                 >
-                <select
-                  v-model.number="messageTarget"
-                  class="w-full bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 text-xs font-bold focus:bg-white focus:border-slate-900 outline-none transition-all"
-                >
-                  <option :value="0">This Event</option>
-                  <option :value="-1">Player</option>
-                  <option disabled>--- Events ---</option>
-                  <option
-                    v-for="ev in store.activeMap?.events.filter((e) => e.name !== 'PlayerStart')"
-                    :key="ev.id"
-                    :value="Number(ev.id)"
-                  >
-                    ID {{ ev.id }}: {{ ev.name }}
-                  </option>
-                </select>
-              </div>
-            </div>
-          </div>
-
-          <!-- Conditional Branch -->
-          <div v-else-if="selectedCommandType === ZCommandCode.ConditionalBranch" class="space-y-4">
-            <div class="flex rounded-lg overflow-hidden border border-slate-100">
-              <button
-                v-for="bt in [
-                  { val: 0, label: 'Switch' },
-                  { val: 1, label: 'Variable' }
-                ]"
-                :key="bt.val"
-                class="flex-1 py-2 text-[10px] font-black uppercase transition-all"
-                :class="
-                  branchType === bt.val
-                    ? 'bg-slate-900 text-white'
-                    : 'bg-slate-50 text-slate-400 hover:bg-slate-100'
-                "
-                @click="branchType = bt.val"
-              >
-                {{ bt.label }}
-              </button>
-            </div>
-
-            <!-- Switch Condition -->
-            <div v-if="branchType === 0" class="space-y-4">
-              <div class="space-y-2">
-                <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1"
-                  >System Switch</label
-                >
-                <select
-                  v-model="branchSwitchId"
-                  class="w-full bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 text-xs font-bold focus:bg-white focus:border-slate-900 outline-none transition-all"
-                >
-                  <option
-                    v-for="(sw, idx) in store.systemSwitches"
-                    :key="idx"
-                    :value="String(idx + 1)"
-                  >
-                    #{{ String(idx + 1).padStart(3, '0') }}: {{ sw || '(None)' }}
-                  </option>
-                </select>
-              </div>
-              <div class="space-y-2">
-                <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1"
-                  >Required State</label
-                >
-                <div class="flex gap-2">
+                <div class="segmented-control">
                   <button
                     v-for="s in [
                       { val: 1, label: 'ON' },
                       { val: 0, label: 'OFF' }
                     ]"
                     :key="s.val"
-                    class="flex-1 py-2 rounded-lg text-[10px] font-black border transition-all"
-                    :class="
-                      branchSwitchValue === s.val
-                        ? 'bg-slate-900 border-slate-900 text-white'
-                        : 'bg-slate-50 border-slate-100 text-slate-400 hover:border-slate-300'
-                    "
-                    @click="branchSwitchValue = s.val"
+                    :class="{ active: switchState === s.val }"
+                    @click="switchState = s.val"
                   >
                     {{ s.label }}
                   </button>
@@ -1351,123 +743,655 @@ const handleSave = (): void => {
               </div>
             </div>
 
-            <!-- Variable Condition -->
-            <div v-else-if="branchType === 1" class="space-y-4">
-              <div class="space-y-2">
-                <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1"
-                  >System Variable</label
+            <!-- Control Switch -->
+            <div v-else-if="selectedCommandType === ZCommandCode.ControlSwitch" class="space-y-5">
+              <div class="space-y-3">
+                <label class="text-[10px] font-bold uppercase text-slate-400 block ml-1"
+                  >System Switch</label
                 >
-                <select
-                  v-model="branchVariableId"
-                  class="w-full bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 text-xs font-bold focus:bg-white focus:border-slate-900 outline-none transition-all"
-                >
-                  <option
-                    v-for="(v, idx) in store.systemVariables"
-                    :key="idx"
-                    :value="String(idx + 1)"
-                  >
-                    #{{ String(idx + 1).padStart(3, '0') }}: {{ v || '(None)' }}
-                  </option>
-                </select>
-              </div>
-              <div class="space-y-2">
-                <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1"
-                  >Required Value (=)</label
-                >
-                <input
-                  v-model.number="branchVariableValue"
-                  type="number"
-                  class="w-full bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 text-xs font-bold focus:bg-white focus:border-slate-900 outline-none transition-all"
-                />
-              </div>
-            </div>
-          </div>
-
-          <!-- Set Event Graphic -->
-          <div v-else-if="selectedCommandType === ZCommandCode.SetEventGraphic" class="space-y-4">
-            <div class="space-y-2">
-              <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1"
-                >Asset ID</label
-              >
-              <input
-                v-model="graphicAssetId"
-                type="text"
-                class="w-full bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 text-xs font-bold focus:bg-white focus:border-slate-900 outline-none transition-all"
-                placeholder="character1.png"
-              />
-            </div>
-            <div class="flex gap-4">
-              <div class="flex-1 space-y-2">
-                <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1"
-                  >Type</label
-                >
-                <select
-                  v-model="graphicGroup"
-                  class="w-full bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 text-xs font-bold focus:bg-white focus:border-slate-900 outline-none transition-all"
-                >
-                  <option value="character">Character</option>
-                  <option value="tile">Tile</option>
-                </select>
-              </div>
-              <div v-if="graphicGroup === 'character'" class="flex-1 space-y-2">
-                <label class="text-[10px] font-bold uppercase text-slate-400 block mb-1"
-                  >Frame/Index</label
-                >
-                <div class="grid grid-cols-2 gap-2">
-                  <input
-                    v-model.number="graphicX"
-                    type="number"
-                    title="Column"
-                    class="bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 text-xs font-bold focus:bg-white focus:border-slate-900 outline-none transition-all"
-                  />
-                  <input
-                    v-model.number="graphicY"
-                    type="number"
-                    title="Row"
-                    class="bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 text-xs font-bold focus:bg-white focus:border-slate-900 outline-none transition-all"
+                <div class="relative">
+                  <select v-model="switchId" class="docs-input appearance-none">
+                    <option
+                      v-for="(sw, idx) in store.systemSwitches"
+                      :key="idx"
+                      :value="String(idx + 1)"
+                    >
+                      #{{ String(idx + 1).padStart(3, '0') }}: {{ sw || '(Untitled)' }}
+                    </option>
+                  </select>
+                  <IconArrowDown
+                    size="14"
+                    class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
                   />
                 </div>
               </div>
+              <div class="space-y-3">
+                <label class="text-[10px] font-bold uppercase text-slate-400 block ml-1"
+                  >State</label
+                >
+                <div class="segmented-control">
+                  <button
+                    v-for="s in [
+                      { val: 1, label: 'ON' },
+                      { val: 0, label: 'OFF' }
+                    ]"
+                    :key="s.val"
+                    :class="{ active: switchState === s.val }"
+                    @click="switchState = s.val"
+                  >
+                    {{ s.label }}
+                  </button>
+                </div>
+              </div>
             </div>
-          </div>
 
-          <div
-            v-else-if="
-              selectedCommandType !== ZCommandCode.ShowMessage &&
-              selectedCommandType !== ZCommandCode.Wait &&
-              selectedCommandType !== ZCommandCode.ControlSelfSwitch &&
-              selectedCommandType !== ZCommandCode.ControlSwitch &&
-              selectedCommandType !== ZCommandCode.ControlVariable &&
-              selectedCommandType !== ZCommandCode.SetEventDirection &&
-              selectedCommandType !== ZCommandCode.TransferPlayer &&
-              selectedCommandType !== ZCommandCode.SetMoveRoute &&
-              selectedCommandType !== ZCommandCode.PlayBGM &&
-              selectedCommandType !== ZCommandCode.PlayBGS &&
-              selectedCommandType !== ZCommandCode.PlaySE &&
-              selectedCommandType !== ZCommandCode.FadeOutBGM &&
-              selectedCommandType !== ZCommandCode.FadeOutBGS &&
-              selectedCommandType !== ZCommandCode.ShowChoices &&
-              selectedCommandType !== ZCommandCode.ConditionalBranch &&
-              selectedCommandType !== ZCommandCode.SetEventGraphic
-            "
-            class="py-10 text-center text-slate-400 text-xs italic bg-slate-50 rounded-xl border border-dashed border-slate-200"
-          >
-            Parameter fields for this command are being improved.
+            <!-- Control Variable -->
+            <div v-else-if="selectedCommandType === ZCommandCode.ControlVariable" class="space-y-5">
+              <div class="space-y-3">
+                <label class="text-[10px] font-bold uppercase text-slate-400 block ml-1"
+                  >System Variable</label
+                >
+                <div class="relative">
+                  <select v-model="variableId" class="docs-input appearance-none">
+                    <option
+                      v-for="(v, idx) in store.systemVariables"
+                      :key="idx"
+                      :value="String(idx + 1)"
+                    >
+                      #{{ String(idx + 1).padStart(3, '0') }}: {{ v || '(Untitled)' }}
+                    </option>
+                  </select>
+                  <IconArrowDown
+                    size="14"
+                    class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
+                  />
+                </div>
+              </div>
+              <div class="grid grid-cols-2 gap-4">
+                <div class="space-y-3">
+                  <label class="text-[10px] font-bold uppercase text-slate-400 block ml-1"
+                    >Operation</label
+                  >
+                  <div class="relative">
+                    <select v-model="variableOp" class="docs-input appearance-none">
+                      <option v-for="op in variableOps" :key="op.value" :value="op.value">
+                        {{ op.label }}
+                      </option>
+                    </select>
+                    <IconArrowDown
+                      size="14"
+                      class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
+                    />
+                  </div>
+                </div>
+                <div class="space-y-3">
+                  <label class="text-[10px] font-bold uppercase text-slate-400 block ml-1"
+                    >Value</label
+                  >
+                  <input v-model.number="variableValue" type="number" class="docs-input" />
+                </div>
+              </div>
+            </div>
+
+            <!-- Set Event Direction -->
+            <div
+              v-else-if="selectedCommandType === ZCommandCode.SetEventDirection"
+              class="space-y-4"
+            >
+              <label class="text-[10px] font-bold uppercase text-slate-400 block ml-1"
+                >Direction</label
+              >
+              <div class="grid grid-cols-2 gap-3">
+                <button
+                  v-for="dir in directions"
+                  :key="dir.value"
+                  class="flex items-center gap-3 p-3 rounded-2xl border transition-all"
+                  :class="
+                    selectedDirection === dir.value
+                      ? 'bg-slate-900 border-slate-900 text-white shadow-xl shadow-slate-900/10'
+                      : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'
+                  "
+                  @click="selectedDirection = dir.value"
+                >
+                  <component :is="dir.icon" size="18" />
+                  <span class="text-xs font-black uppercase">{{ dir.label }}</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Transfer Player -->
+            <div v-else-if="selectedCommandType === ZCommandCode.TransferPlayer" class="space-y-5">
+              <div class="space-y-3">
+                <label class="text-[10px] font-bold uppercase text-slate-400 block ml-1"
+                  >Destination Map</label
+                >
+                <div class="relative">
+                  <select v-model.number="transferMapId" class="docs-input appearance-none">
+                    <option v-for="m in store.maps" :key="m.id" :value="m.id">
+                      #{{ String(m.id).padStart(3, '0') }}: {{ m.name }}
+                    </option>
+                  </select>
+                  <IconArrowDown
+                    size="14"
+                    class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
+                  />
+                </div>
+              </div>
+              <div class="grid grid-cols-2 gap-4">
+                <div class="space-y-3">
+                  <label class="text-[10px] font-bold uppercase text-slate-400 block ml-1"
+                    >Tile X</label
+                  >
+                  <input v-model.number="transferX" type="number" class="docs-input" />
+                </div>
+                <div class="space-y-3">
+                  <label class="text-[10px] font-bold uppercase text-slate-400 block ml-1"
+                    >Tile Y</label
+                  >
+                  <input v-model.number="transferY" type="number" class="docs-input" />
+                </div>
+              </div>
+              <div class="space-y-3">
+                <label class="text-[10px] font-bold uppercase text-slate-400 block ml-1"
+                  >Facing After Transfer</label
+                >
+                <div class="grid grid-cols-4 gap-3">
+                  <button
+                    v-for="dir in directions"
+                    :key="dir.value"
+                    class="flex flex-col items-center gap-1.5 p-3 rounded-2xl border transition-all"
+                    :class="
+                      transferDirection === dir.value
+                        ? 'bg-slate-900 border-slate-900 text-white shadow-md'
+                        : 'bg-white border-slate-200 text-slate-400 hover:border-slate-300'
+                    "
+                    @click="transferDirection = dir.value"
+                  >
+                    <component :is="dir.icon" size="16" />
+                    <span class="text-[10px] font-black uppercase">{{ dir.label }}</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Set Move Route -->
+            <div
+              v-else-if="selectedCommandType === ZCommandCode.SetMoveRoute"
+              class="flex gap-6 h-full overflow-hidden"
+            >
+              <!-- Left Side: Config -->
+              <div class="w-64 flex flex-col gap-5 shrink-0">
+                <div v-if="!props.isAutonomousMode" class="space-y-3">
+                  <span class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1"
+                    >Target Selection</span
+                  >
+                  <div class="flex flex-col gap-2">
+                    <!-- Styled Target Selector could go here, simplifying for brevity -->
+                    <div class="segmented-control vertical">
+                      <button
+                        :class="{ active: moveRouteTarget === 0 }"
+                        @click="moveRouteTarget = 0"
+                      >
+                        <IconRobot size="14" /> This Event
+                      </button>
+                      <button
+                        :class="{ active: moveRouteTarget === -1 }"
+                        @click="moveRouteTarget = -1"
+                      >
+                        <IconUser size="14" /> Player
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div
+                  v-if="!props.isAutonomousMode"
+                  class="space-y-3 pt-4 border-t border-slate-200"
+                >
+                  <label
+                    class="flex items-center gap-3 p-3 bg-white rounded-xl border border-slate-200 cursor-pointer hover:border-indigo-300 transition-colors"
+                  >
+                    <div class="relative inline-flex items-center">
+                      <input v-model="moveRouteWait" type="checkbox" class="sr-only peer" />
+                      <div
+                        class="w-9 h-5 bg-slate-200 rounded-full peer peer-checked:bg-indigo-500 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-full"
+                      ></div>
+                    </div>
+                    <span class="text-[10px] font-bold text-slate-600 uppercase tracking-wide"
+                      >Wait for Complete</span
+                    >
+                  </label>
+
+                  <label
+                    class="flex items-center gap-3 p-3 bg-white rounded-xl border border-slate-200 cursor-pointer hover:border-indigo-300 transition-colors"
+                  >
+                    <div class="relative inline-flex items-center">
+                      <input v-model="moveRouteRepeat" type="checkbox" class="sr-only peer" />
+                      <div
+                        class="w-9 h-5 bg-slate-200 rounded-full peer peer-checked:bg-indigo-500 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-full"
+                      ></div>
+                    </div>
+                    <span class="text-[10px] font-bold text-slate-600 uppercase tracking-wide"
+                      >Repeat Action</span
+                    >
+                  </label>
+
+                  <label
+                    class="flex items-center gap-3 p-3 bg-white rounded-xl border border-slate-200 cursor-pointer hover:border-indigo-300 transition-colors"
+                  >
+                    <div class="relative inline-flex items-center">
+                      <input v-model="moveRouteThrough" type="checkbox" class="sr-only peer" />
+                      <div
+                        class="w-9 h-5 bg-slate-200 rounded-full peer peer-checked:bg-indigo-500 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-full"
+                      ></div>
+                    </div>
+                    <span class="text-[10px] font-bold text-slate-600 uppercase tracking-wide"
+                      >Through Mode</span
+                    >
+                  </label>
+                </div>
+              </div>
+
+              <!-- Middle: Current Route -->
+              <div
+                class="flex-1 flex flex-col overflow-hidden bg-white rounded-2xl border border-slate-200 shadow-sm"
+              >
+                <div
+                  class="px-4 py-3 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center"
+                >
+                  <span class="text-[10px] font-black uppercase text-slate-400 tracking-widest"
+                    >Route Steps ({{ moveRouteCommands.length }})</span
+                  >
+                  <button
+                    class="text-[9px] font-black uppercase text-red-400 hover:text-red-500 bg-red-50 hover:bg-red-100 px-2 py-1 rounded transition-colors"
+                    @click="moveRouteCommands = []"
+                  >
+                    Clear All
+                  </button>
+                </div>
+                <div class="flex-1 overflow-y-auto p-3 space-y-1.5 custom-scrollbar">
+                  <div
+                    v-for="(cmd, idx) in moveRouteCommands"
+                    :key="idx"
+                    class="group flex flex-col gap-1 px-3 py-2 bg-white border rounded-xl shadow-sm transition-all cursor-pointer hover:translate-x-1"
+                    :class="
+                      selectedMoveCommandIndex === idx
+                        ? 'border-slate-900 ring-1 ring-slate-900/10'
+                        : 'border-slate-100 hover:border-slate-300'
+                    "
+                    @click="selectedMoveCommandIndex = idx"
+                  >
+                    <div class="flex items-center gap-3">
+                      <span class="text-[9px] text-slate-300 font-mono w-4 font-bold">{{
+                        String(idx + 1).padStart(2, '0')
+                      }}</span>
+                      <div
+                        class="w-6 h-6 rounded bg-slate-50 flex items-center justify-center text-slate-400"
+                      >
+                        <component
+                          :is="moveActions.find((m) => m.code === cmd.code)?.icon || IconSettings"
+                          size="12"
+                        />
+                      </div>
+                      <span class="text-[11px] font-bold text-slate-700 flex-1">{{
+                        moveActions.find((m) => m.code === cmd.code)?.label || cmd.code
+                      }}</span>
+                      <button
+                        class="opacity-0 group-hover:opacity-100 hover:text-red-600 transition-all p-1"
+                        @click.stop="removeMoveCommand(idx)"
+                      >
+                        <IconTrash size="14" />
+                      </button>
+                    </div>
+
+                    <!-- Parameter Editor Inline (Styled) -->
+                    <div
+                      v-if="
+                        selectedMoveCommandIndex === idx &&
+                        moveActions.find((a) => a.code === cmd.code)?.paramNames
+                      "
+                      class="mt-2 pt-2 border-t border-slate-50 grid grid-cols-1 gap-2 animate-in fade-in"
+                      @click.stop
+                    >
+                      <div
+                        v-for="(pName, pIdx) in moveActions.find((a) => a.code === cmd.code)
+                          ?.paramNames"
+                        :key="pIdx"
+                        class="space-y-1"
+                      >
+                        <label class="text-[9px] font-black uppercase text-slate-400 block">{{
+                          pName
+                        }}</label>
+                        <template v-if="cmd.code === ZMoveCode.WAIT">
+                          <input
+                            v-model.number="cmd.params![pIdx]"
+                            type="number"
+                            class="docs-input py-1 text-xs"
+                          />
+                        </template>
+                        <template
+                          v-else-if="
+                            cmd.code === ZMoveCode.SPEED || cmd.code === ZMoveCode.FREQUENCY
+                          "
+                        >
+                          <div class="relative">
+                            <select
+                              v-model.number="cmd.params![pIdx]"
+                              class="docs-input py-1 text-xs appearance-none"
+                            >
+                              <option
+                                v-for="n in cmd.code === ZMoveCode.SPEED ? 6 : 5"
+                                :key="n"
+                                :value="n"
+                              >
+                                Level {{ n }}
+                              </option>
+                            </select>
+                            <IconArrowDown
+                              size="12"
+                              class="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
+                            />
+                          </div>
+                        </template>
+                        <template v-else>
+                          <input v-model="cmd.params![pIdx]" class="docs-input py-1 text-xs" />
+                        </template>
+                      </div>
+                    </div>
+                  </div>
+                  <div
+                    v-if="moveRouteCommands.length === 0"
+                    class="flex-1 flex flex-col items-center justify-center py-20 text-slate-300 opacity-60"
+                  >
+                    <IconGhost size="32" class="mb-2" />
+                    <span class="text-xs font-bold">No steps added</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Right: Add Actions -->
+              <div class="w-48 overflow-y-auto pr-2 flex flex-col gap-1.5 custom-scrollbar">
+                <label
+                  class="text-[10px] font-bold uppercase text-slate-400 block mb-2 px-1 tracking-widest"
+                  >Library</label
+                >
+                <button
+                  v-for="action in moveActions"
+                  :key="action.code"
+                  class="flex items-center gap-2.5 px-3 py-2 text-left bg-white border border-slate-100 rounded-xl hover:border-slate-300 hover:shadow-sm transition-all group active:scale-95"
+                  @click="addMoveCommand(action.code)"
+                >
+                  <component
+                    :is="action.icon"
+                    size="14"
+                    class="text-slate-400 group-hover:text-slate-900 transition-colors"
+                  />
+                  <span class="text-[10px] font-bold text-slate-500 group-hover:text-slate-900">{{
+                    action.label
+                  }}</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Audio Helpers -->
+            <div
+              v-else-if="
+                selectedCommandType === ZCommandCode.PlayBGM ||
+                selectedCommandType === ZCommandCode.PlaySE
+              "
+              class="space-y-5"
+            >
+              <div class="space-y-3">
+                <label class="text-[10px] font-bold uppercase text-slate-400 block ml-1">
+                  Audio File
+                </label>
+                <input
+                  v-model="audioFile"
+                  type="text"
+                  class="docs-input"
+                  placeholder="e.g. Theme1.mp3"
+                />
+              </div>
+              <div class="grid grid-cols-2 gap-4">
+                <div class="space-y-3">
+                  <label class="text-[10px] font-bold uppercase text-slate-400 block ml-1">
+                    Volume %
+                  </label>
+                  <input
+                    v-model.number="audioVolume"
+                    type="range"
+                    min="0"
+                    max="100"
+                    class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-slate-900"
+                  />
+                  <div class="text-right text-xs font-black">{{ audioVolume }}%</div>
+                </div>
+                <div class="space-y-3">
+                  <label class="text-[10px] font-bold uppercase text-slate-400 block ml-1">
+                    Pitch %
+                  </label>
+                  <input
+                    v-model.number="audioPitch"
+                    type="range"
+                    min="50"
+                    max="150"
+                    class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-slate-900"
+                  />
+                  <div class="text-right text-xs font-black">{{ audioPitch }}%</div>
+                </div>
+              </div>
+            </div>
+
+            <div v-else-if="selectedCommandType === ZCommandCode.FadeOutBGM" class="space-y-3">
+              <label class="text-[10px] font-bold uppercase text-slate-400 block ml-1">
+                Duration (Seconds)
+              </label>
+              <input v-model.number="audioDuration" type="number" min="1" class="docs-input" />
+            </div>
+
+            <!-- Show Choices -->
+            <div v-else-if="selectedCommandType === ZCommandCode.ShowChoices" class="space-y-5">
+              <label class="text-[10px] font-bold uppercase text-slate-400 block ml-1"
+                >Choice List</label
+              >
+              <div class="space-y-3">
+                <div
+                  v-for="(_, idx) in choiceTexts"
+                  :key="idx"
+                  class="flex items-center gap-3 group animate-in slide-in-from-left-2 fade-in"
+                >
+                  <div
+                    class="w-6 h-6 rounded bg-slate-100 flex items-center justify-center text-[10px] text-slate-400 font-black"
+                  >
+                    {{ idx + 1 }}
+                  </div>
+                  <input
+                    v-model="choiceTexts[idx]"
+                    type="text"
+                    class="docs-input py-2.5"
+                    placeholder="Choice text..."
+                  />
+                  <button
+                    v-if="choiceTexts.length > 1"
+                    class="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                    @click="choiceTexts.splice(idx, 1)"
+                  >
+                    <IconTrash size="16" />
+                  </button>
+                </div>
+                <button
+                  v-if="choiceTexts.length < 6"
+                  class="w-full py-3 border border-dashed border-slate-300 rounded-xl text-[10px] font-black uppercase text-slate-400 hover:border-indigo-400 hover:text-indigo-600 hover:bg-indigo-50/50 transition-all flex items-center justify-center gap-2"
+                  @click="choiceTexts.push('New Choice')"
+                >
+                  <div
+                    class="w-4 h-4 rounded bg-current flex items-center justify-center text-white"
+                  >
+                    <IconArrowDown size="10" />
+                  </div>
+                  Add Another Choice
+                </button>
+              </div>
+
+              <!-- ... Additional Choice Params ... -->
+            </div>
+
+            <!-- Conditional Branch -->
+            <div
+              v-else-if="selectedCommandType === ZCommandCode.ConditionalBranch"
+              class="space-y-5"
+            >
+              <div class="segmented-control">
+                <button
+                  v-for="bt in [
+                    { val: 0, label: 'Switch' },
+                    { val: 1, label: 'Variable' }
+                  ]"
+                  :key="bt.val"
+                  :class="{ active: branchType === bt.val }"
+                  @click="branchType = bt.val"
+                >
+                  {{ bt.label }}
+                </button>
+              </div>
+
+              <!-- Switch Condition -->
+              <div v-if="branchType === 0" class="space-y-5 px-1">
+                <div class="space-y-3">
+                  <label class="text-[10px] font-bold uppercase text-slate-400 block ml-1"
+                    >System Switch</label
+                  >
+                  <div class="relative">
+                    <select v-model="branchSwitchId" class="docs-input appearance-none">
+                      <option
+                        v-for="(sw, idx) in store.systemSwitches"
+                        :key="idx"
+                        :value="String(idx + 1)"
+                      >
+                        #{{ String(idx + 1).padStart(3, '0') }}: {{ sw || '(Untitled)' }}
+                      </option>
+                    </select>
+                    <IconArrowDown
+                      size="14"
+                      class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
+                    />
+                  </div>
+                </div>
+                <div class="space-y-3">
+                  <label class="text-[10px] font-bold uppercase text-slate-400 block ml-1"
+                    >Required State</label
+                  >
+                  <div class="segmented-control">
+                    <button
+                      v-for="s in [
+                        { val: 1, label: 'ON' },
+                        { val: 0, label: 'OFF' }
+                      ]"
+                      :key="s.val"
+                      :class="{ active: branchSwitchValue === s.val }"
+                      @click="branchSwitchValue = s.val"
+                    >
+                      {{ s.label }}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Variable Condition -->
+              <div v-else-if="branchType === 1" class="space-y-5 px-1">
+                <div class="space-y-3">
+                  <label class="text-[10px] font-bold uppercase text-slate-400 block ml-1"
+                    >System Variable</label
+                  >
+                  <div class="relative">
+                    <select v-model="branchVariableId" class="docs-input appearance-none">
+                      <option
+                        v-for="(v, idx) in store.systemVariables"
+                        :key="idx"
+                        :value="String(idx + 1)"
+                      >
+                        #{{ String(idx + 1).padStart(3, '0') }}: {{ v || '(Untitled)' }}
+                      </option>
+                    </select>
+                    <IconArrowDown
+                      size="14"
+                      class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
+                    />
+                  </div>
+                </div>
+                <div class="space-y-3">
+                  <label class="text-[10px] font-bold uppercase text-slate-400 block ml-1"
+                    >Required Value (=)</label
+                  >
+                  <input v-model.number="branchVariableValue" type="number" class="docs-input" />
+                </div>
+              </div>
+            </div>
+
+            <!-- Set Event Graphic -->
+            <div v-else-if="selectedCommandType === ZCommandCode.SetEventGraphic" class="space-y-5">
+              <div class="space-y-3">
+                <label class="text-[10px] font-bold uppercase text-slate-400 block ml-1"
+                  >Asset Filename</label
+                >
+                <input
+                  v-model="graphicAssetId"
+                  type="text"
+                  class="docs-input"
+                  placeholder="character1.png"
+                />
+              </div>
+              <!-- ... type/coords fields ... -->
+            </div>
+
+            <!-- Default / Fallback for other commands -->
+            <div
+              v-else-if="
+                ![
+                  ZCommandCode.ShowMessage,
+                  ZCommandCode.Wait,
+                  ZCommandCode.ControlSelfSwitch,
+                  ZCommandCode.ControlSwitch,
+                  ZCommandCode.ControlVariable,
+                  ZCommandCode.SetEventDirection,
+                  ZCommandCode.TransferPlayer,
+                  ZCommandCode.SetMoveRoute,
+                  ZCommandCode.PlayBGM,
+                  ZCommandCode.PlayBGS,
+                  ZCommandCode.PlaySE,
+                  ZCommandCode.FadeOutBGM,
+                  ZCommandCode.FadeOutBGS,
+                  ZCommandCode.ShowChoices,
+                  ZCommandCode.ConditionalBranch,
+                  ZCommandCode.SetEventGraphic
+                ].includes(selectedCommandType || -1)
+              "
+              class="flex flex-col items-center justify-center flex-1 text-slate-300 gap-4"
+            >
+              <IconSettings size="48" class="opacity-20" />
+              <div class="text-center">
+                <p class="text-xs font-bold text-slate-400">Standard Parameters</p>
+                <p class="text-[10px] opacity-60">
+                  This command doesn't have a specialized editor yet.
+                </p>
+              </div>
+            </div>
           </div>
         </div>
 
-        <div class="pt-4 border-t border-slate-100 flex justify-end gap-3 shrink-0">
+        <!-- Footer -->
+        <div class="p-5 border-t border-slate-100 bg-white flex justify-end gap-3 shrink-0">
           <button
-            class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold uppercase rounded-lg transition-colors"
+            class="px-6 py-3 text-xs font-bold text-slate-400 hover:text-slate-600 uppercase tracking-wide transition-colors"
             @click="emit('close')"
           >
             Cancel
           </button>
           <button
-            class="px-5 py-2 bg-slate-900 hover:bg-black text-white text-xs font-bold uppercase rounded-lg shadow-lg shadow-slate-900/20 transition-all active:scale-95"
+            class="px-8 py-3 bg-slate-900 hover:bg-black text-white text-xs font-bold uppercase tracking-wide rounded-2xl shadow-xl shadow-slate-900/10 transition-all hover:scale-[1.02] active:scale-95 flex items-center gap-2"
             @click="handleSave"
           >
-            Confirm
+            Confirm Changes
           </button>
         </div>
       </div>
@@ -1476,7 +1400,47 @@ const handleSave = (): void => {
 </template>
 
 <style scoped>
-.pixelated {
-  image-rendering: pixelated;
+@import 'tailwindcss';
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 5px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 10px;
+}
+.custom-scrollbar:hover::-webkit-scrollbar-thumb {
+  background: #94a3b8;
+}
+
+.docs-input {
+  @apply w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold text-slate-700 outline-none transition-all duration-200 focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 placeholder:text-slate-300;
+}
+
+.segmented-control {
+  @apply flex p-1 bg-slate-100 rounded-xl gap-1;
+}
+
+.segmented-control.vertical {
+  @apply flex-col;
+}
+
+.segmented-control button {
+  @apply flex-1 py-2 px-3 rounded-lg text-[10px] font-black uppercase text-slate-400 transition-all border border-transparent flex items-center justify-center gap-2;
+}
+
+.segmented-control button.active {
+  @apply bg-white text-slate-800 shadow-sm border-slate-200/50;
+}
+
+.segmented-control:not(.vertical) button:hover:not(.active) {
+  @apply text-slate-600;
+}
+
+.segmented-control.vertical button {
+  @apply justify-start;
 }
 </style>

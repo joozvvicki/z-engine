@@ -12,7 +12,6 @@ import {
   IconEye,
   IconVolume,
   IconSettings,
-  IconSquare,
   IconDisc
 } from '@tabler/icons-vue'
 import type { ZAudioConfig } from '@engine/types'
@@ -171,141 +170,134 @@ const handleSave = (): void => {
 
 <template>
   <Teleport to="body">
-    <div
-      v-if="isOpen"
-      class="fixed inset-0 z-100 flex items-center justify-center bg-black/40 backdrop-blur-md p-4 transition-all duration-300"
-    >
+    <Transition name="modal-fade">
       <div
-        class="w-full max-w-4xl bg-white rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.3)] overflow-hidden flex flex-col max-h-[85vh] border border-black/5 animate-in fade-in zoom-in duration-300"
+        v-if="isOpen"
+        class="fixed inset-0 z-100 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4"
       >
-        <!-- Header -->
         <div
-          class="flex items-center justify-between p-5 border-b border-black/5 bg-gray-50/50 shrink-0"
+          class="w-full max-w-5xl bg-white rounded-[24px] shadow-2xl shadow-slate-200/50 overflow-hidden flex flex-col max-h-[90vh] border border-slate-200/60 transition-all duration-500"
         >
-          <div class="flex items-center gap-3">
-            <div class="p-2 bg-black text-white rounded-lg shadow-lg shadow-black/10">
-              <IconMapPlus size="20" />
-            </div>
-            <div>
-              <h2 class="font-black uppercase tracking-[0.15em] text-xs text-black">
-                {{ editMode ? 'Właściwości Mapy' : 'Konfiguracja Nowej Mapy' }}
-              </h2>
-              <p class="text-[9px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">
-                ID: {{ mapId || 'NEW' }}
-              </p>
-            </div>
-          </div>
-          <button
-            class="p-2 hover:bg-black/5 rounded-full text-gray-400 hover:text-black transition-all cursor-pointer"
-            @click="emit('close')"
+          <header
+            class="flex items-center justify-between px-8 py-6 border-b border-slate-100 shrink-0"
           >
-            <IconX size="18" />
-          </button>
-        </div>
-
-        <div class="flex flex-1 min-h-0">
-          <!-- Sidebar Tabs -->
-          <aside
-            class="w-[200px] border-r border-black/5 bg-gray-50/30 flex flex-col p-3 gap-1 shrink-0"
-          >
-            <button
-              v-for="tab in tabs"
-              :key="tab.id"
-              class="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-left group"
-              :class="
-                activeTab === tab.id
-                  ? 'bg-black text-white shadow-lg shadow-black/10 translate-x-1'
-                  : 'text-gray-400 hover:text-black hover:bg-black/5'
-              "
-              @click="activeTab = tab.id"
-            >
+            <div class="flex items-center gap-4">
               <div
-                class="w-1.5 h-1.5 rounded-full transition-all"
+                class="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-indigo-200 -rotate-2"
+              >
+                <IconMapPlus size="24" />
+              </div>
+              <div>
+                <h2 class="text-lg font-bold text-slate-800 tracking-tight">
+                  {{ editMode ? 'Właściwości Mapy' : 'Nowa Mapa' }}
+                </h2>
+                <div class="flex items-center gap-2">
+                  <span
+                    class="px-2 py-0.5 bg-slate-100 rounded text-[10px] font-bold text-slate-500 uppercase tracking-wider"
+                  >
+                    ID: {{ mapId || 'Nowy obiekt' }}
+                  </span>
+                </div>
+              </div>
+            </div>
+            <button
+              class="p-2 hover:bg-slate-100 rounded-full text-slate-400 transition-colors"
+              @click="emit('close')"
+            >
+              <IconX size="20" />
+            </button>
+          </header>
+
+          <div class="flex flex-1 min-h-0">
+            <nav
+              class="w-[240px] border-r border-slate-50 bg-slate-50/30 flex flex-col p-4 gap-1.5 shrink-0"
+            >
+              <button
+                v-for="tab in tabs"
+                :key="tab.id"
+                class="flex items-center justify-between px-4 py-3 rounded-xl transition-all duration-300 group"
                 :class="
                   activeTab === tab.id
-                    ? 'bg-white scale-125'
-                    : 'bg-transparent group-hover:bg-gray-300'
+                    ? 'bg-white shadow-md shadow-slate-200/50 text-indigo-600'
+                    : 'text-slate-500 hover:text-slate-800 hover:bg-white/50'
                 "
-              ></div>
-              <span class="text-[10px] font-black uppercase tracking-widest truncate">{{
-                tab.label
-              }}</span>
-            </button>
-          </aside>
+                @click="activeTab = tab.id"
+              >
+                <span class="text-sm font-semibold tracking-tight">{{ tab.label }}</span>
+                <IconChevronRight
+                  size="14"
+                  class="opacity-0 group-hover:opacity-100 transition-opacity"
+                  :class="{ 'opacity-100': activeTab === tab.id }"
+                />
+              </button>
+            </nav>
 
-          <!-- Content Area -->
-          <main class="flex-1 overflow-y-auto custom-scrollbar bg-white p-8">
-            <Transition name="fade-slide-up" mode="out-in">
-              <!-- General Tab -->
-              <div v-if="activeTab === 'general'" class="space-y-8 max-w-lg">
-                <div class="space-y-6">
-                  <div class="grid grid-cols-1 gap-6">
-                    <div class="space-y-2">
+            <main class="flex-1 overflow-y-auto custom-scrollbar bg-white p-10">
+              <Transition name="page-fade" mode="out-in">
+                <div v-if="activeTab === 'general'" class="space-y-10 animate-slide-in">
+                  <section class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div class="space-y-3">
                       <label
-                        class="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2"
+                        class="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2"
                       >
-                        <IconTextCaption size="12" /> Nazwa Edytora
+                        <IconTextCaption size="14" class="text-indigo-500" /> Nazwa Edytora
                       </label>
                       <input
                         v-model="form.name"
                         type="text"
-                        class="w-full bg-white border border-black/10 rounded-xl px-4 py-3 text-xs font-medium focus:border-black focus:ring-4 focus:ring-black/5 outline-none transition-all placeholder:text-gray-300"
+                        class="docs-input"
                         placeholder="np. Karczma 'Pod Smokiem'..."
                       />
                     </div>
-                    <div class="space-y-2">
+                    <div class="space-y-3">
                       <label
-                        class="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2"
+                        class="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2"
                       >
-                        <IconEye size="12" /> Nazwa Wyświetlana
+                        <IconEye size="14" class="text-indigo-500" /> Nazwa Wyświetlana
                       </label>
                       <input
                         v-model="form.displayName"
                         type="text"
-                        class="w-full bg-white border border-black/10 rounded-xl px-4 py-3 text-xs font-medium focus:border-black focus:ring-4 focus:ring-black/5 outline-none transition-all placeholder:text-gray-300"
+                        class="docs-input"
                         placeholder="np. Złocista Karczma"
                       />
                     </div>
-                  </div>
+                  </section>
 
-                  <div class="grid grid-cols-2 gap-6">
-                    <div class="space-y-2">
+                  <section class="grid grid-cols-2 gap-8">
+                    <div class="space-y-3">
                       <label
-                        class="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2"
+                        class="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2"
                       >
-                        <IconDimensions size="12" /> Szerokość
+                        <IconDimensions size="14" class="text-indigo-500" /> Szerokość (Tiles)
                       </label>
-                      <input
-                        v-model.number="form.width"
-                        type="number"
-                        class="w-full bg-white border border-black/10 rounded-xl px-4 py-3 text-xs font-medium focus:border-black outline-none transition-all"
-                      />
+                      <input v-model.number="form.width" type="number" class="docs-input" />
                     </div>
-                    <div class="space-y-2">
+                    <div class="space-y-3">
                       <label
-                        class="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2"
+                        class="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2"
                       >
-                        <IconDimensions size="12" /> Wysokość
+                        <IconDimensions size="14" class="text-indigo-500" /> Wysokość (Tiles)
                       </label>
-                      <input
-                        v-model.number="form.height"
-                        type="number"
-                        class="w-full bg-white border border-black/10 rounded-xl px-4 py-3 text-xs font-medium focus:border-black outline-none transition-all"
-                      />
+                      <input v-model.number="form.height" type="number" class="docs-input" />
                     </div>
-                  </div>
+                  </section>
 
                   <div
-                    class="flex items-center gap-4 p-4 bg-gray-50 rounded-xl border border-black/5"
+                    class="p-6 bg-indigo-50/30 rounded-2xl border border-indigo-100/50 flex items-center justify-between"
                   >
-                    <IconSettings size="18" class="text-gray-400" />
-                    <div class="flex-1">
-                      <p class="text-[10px] font-black uppercase tracking-tight">
-                        Opcje renderowania
-                      </p>
-                      <p class="text-[9px] text-gray-400 font-medium">
-                        Ustawienia specyficzne dla wyświetlania mapy.
-                      </p>
+                    <div class="flex items-center gap-4">
+                      <div
+                        class="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center text-indigo-600"
+                      >
+                        <IconSettings size="20" />
+                      </div>
+                      <div>
+                        <p class="text-sm font-bold text-indigo-900">Autoshadowing</p>
+                        <p class="text-xs text-indigo-600/60 font-medium">
+                          Automatyczne generowanie cieni ścian.
+                        </p>
+                      </div>
                     </div>
                     <label class="relative inline-flex items-center cursor-pointer">
                       <input
@@ -314,40 +306,42 @@ const handleSave = (): void => {
                         class="sr-only peer"
                       />
                       <div
-                        class="w-10 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-black"
+                        class="w-11 h-6 bg-slate-200 rounded-full peer peer-checked:bg-indigo-600 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full shadow-inner"
                       ></div>
-                      <span class="ml-3 text-[10px] font-bold text-gray-600 uppercase"
-                        >Wyłącz Autoshadow</span
-                      >
                     </label>
                   </div>
                 </div>
-              </div>
 
-              <!-- Tilesets Tab -->
-              <div v-else-if="activeTab === 'tilesets'" class="space-y-6">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div
+                  v-else-if="activeTab === 'tilesets'"
+                  class="grid grid-cols-1 md:grid-cols-2 gap-6 animate-slide-in"
+                >
                   <div
                     v-for="slot in TILESET_SLOTS"
                     :key="slot"
-                    class="group bg-gray-50 rounded-2xl p-4 border border-black/5 hover:border-black/10 transition-all"
+                    class="p-4 bg-slate-50 border border-slate-200/60 rounded-2xl hover:bg-white hover:shadow-xl hover:shadow-slate-200/40 transition-all group"
                   >
-                    <div class="flex items-center justify-between mb-2">
-                      <label class="text-[9px] font-black text-black uppercase tracking-tighter">{{
-                        slot
-                      }}</label>
-                      <span
-                        v-if="form.tilesetConfig[slot]"
-                        class="text-[8px] font-bold text-green-500 uppercase"
-                        >Active</span
+                    <div class="flex items-center justify-between mb-3">
+                      <span class="text-[10px] font-black text-indigo-500 uppercase tracking-widest"
+                        >Slot {{ slot }}</span
                       >
                     </div>
-                    <div class="flex gap-3 items-center">
+                    <div class="flex gap-4 items-center">
+                      <div
+                        class="w-14 h-14 rounded-xl border border-slate-200 bg-white shadow-inner flex items-center justify-center overflow-hidden shrink-0"
+                      >
+                        <img
+                          v-if="form.tilesetConfig[slot]"
+                          :src="ProjectService.resolveAssetUrl(form.tilesetConfig[slot])"
+                          class="w-full h-full object-cover pixelated"
+                        />
+                        <IconDisc v-else size="20" class="text-slate-200" />
+                      </div>
                       <select
                         v-model="form.tilesetConfig[slot]"
-                        class="flex-1 bg-white border border-black/5 rounded-xl px-3 py-2.5 text-[11px] font-medium text-gray-600 outline-none focus:border-black transition-all appearance-none cursor-pointer"
+                        class="flex-1 bg-transparent border-none text-sm font-semibold text-slate-700 outline-none cursor-pointer"
                       >
-                        <option value="">(Brak / Domyślny)</option>
+                        <option value="">Brak / Domyślny</option>
                         <option
                           v-for="file in store.tilesetFileList"
                           :key="file.relativePath"
@@ -356,284 +350,157 @@ const handleSave = (): void => {
                           {{ file.name }}
                         </option>
                       </select>
+                    </div>
+                  </div>
+                </div>
+
+                <div v-else-if="activeTab === 'music'" class="space-y-12 animate-slide-in max-w-xl">
+                  <div v-for="type in ['bgm', 'bgs']" :key="type" class="space-y-6">
+                    <div class="flex items-center gap-3">
                       <div
-                        class="w-12 h-12 rounded-xl border border-black/5 overflow-hidden bg-white shrink-0 shadow-sm flex items-center justify-center relative group-hover:scale-110 transition-transform cursor-zoom-in"
+                        class="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-600"
                       >
-                        <img
-                          v-if="form.tilesetConfig[slot]"
-                          :src="ProjectService.resolveAssetUrl(form.tilesetConfig[slot])"
-                          class="w-full h-full object-cover pixelated"
-                        />
-                        <IconDisc v-else size="18" class="text-gray-100" />
+                        <component :is="type === 'bgm' ? IconMusic : IconVolume" size="18" />
                       </div>
+                      <h3 class="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                        {{ type.toUpperCase() }} — Audio tła
+                      </h3>
                     </div>
-                  </div>
-                </div>
-              </div>
 
-              <!-- Background Tab -->
-              <div v-else-if="activeTab === 'background'" class="space-y-8 max-w-lg">
-                <div class="space-y-6">
-                  <div class="space-y-2">
-                    <label
-                      class="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2"
-                    >
-                      <IconSquare size="12" /> Grafika Parallax (Tło)
-                    </label>
-                    <div class="flex gap-4">
-                      <select
-                        v-model="form.parallax.name"
-                        class="flex-1 bg-white border border-black/10 rounded-xl px-4 py-3 text-xs font-medium focus:border-black outline-none"
-                      >
-                        <option value="">(Brak tła)</option>
+                    <div class="bg-slate-50 border border-slate-100 rounded-3xl p-8 space-y-8">
+                      <select v-model="form[type].name" class="docs-input bg-white">
+                        <option value="">Wyciszony</option>
                         <option
-                          v-for="file in parallaxFiles"
+                          v-for="file in type === 'bgm' ? bgmFiles : bgsFiles"
                           :key="file"
-                          :value="'img/parallaxes/' + file"
+                          :value="`audio/${type}/${file}`"
                         >
                           {{ file }}
                         </option>
                       </select>
-                      <button
-                        class="px-6 py-3 bg-black text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-gray-800 transition-all"
-                      >
-                        Wybierz...
-                      </button>
-                    </div>
-                  </div>
 
-                  <div class="grid grid-cols-2 gap-8">
-                    <div class="space-y-4">
-                      <p
-                        class="text-[10px] font-black text-black uppercase tracking-wider border-b border-black/5 pb-2"
-                      >
-                        Przewijanie Poziome
-                      </p>
-                      <div class="flex items-center gap-3">
-                        <input
-                          v-model="form.parallax.loopX"
-                          type="checkbox"
-                          class="w-4 h-4 rounded border-black/10 text-black focus:ring-black"
-                        />
-                        <span class="text-[10px] font-bold text-gray-600 uppercase"
-                          >Zapętlaj (X)</span
-                        >
-                      </div>
-                      <div v-if="form.parallax.loopX" class="space-y-2">
-                        <span class="text-[9px] font-black text-gray-300 uppercase"
-                          >Szybkość X</span
-                        >
-                        <input
-                          v-model.number="form.parallax.scrollX"
-                          type="number"
-                          class="w-full bg-gray-50 border border-black/5 rounded-lg px-3 py-2 text-xs"
-                        />
-                      </div>
-                    </div>
-                    <div class="space-y-4">
-                      <p
-                        class="text-[10px] font-black text-black uppercase tracking-wider border-b border-black/5 pb-2"
-                      >
-                        Przewijanie Pionowe
-                      </p>
-                      <div class="flex items-center gap-3">
-                        <input
-                          v-model="form.parallax.loopY"
-                          type="checkbox"
-                          class="w-4 h-4 rounded border-black/10 text-black focus:ring-black"
-                        />
-                        <span class="text-[10px] font-bold text-gray-600 uppercase"
-                          >Zapętlaj (Y)</span
-                        >
-                      </div>
-                      <div v-if="form.parallax.loopY" class="space-y-2">
-                        <span class="text-[9px] font-black text-gray-300 uppercase"
-                          >Szybkość Y</span
-                        >
-                        <input
-                          v-model.number="form.parallax.scrollY"
-                          type="number"
-                          class="w-full bg-gray-50 border border-black/5 rounded-lg px-3 py-2 text-xs"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Music Tab -->
-              <div v-else-if="activeTab === 'music'" class="space-y-12 max-w-lg">
-                <!-- BGM -->
-                <div class="space-y-4">
-                  <div class="flex items-center gap-2 mb-2">
-                    <IconMusic size="16" />
-                    <h3 class="text-[10px] font-black uppercase tracking-widest">
-                      Background Music (BGM)
-                    </h3>
-                  </div>
-                  <div class="bg-gray-50 rounded-2xl p-6 border border-black/3 space-y-4">
-                    <div class="flex gap-4">
-                      <select
-                        v-model="form.bgm.name"
-                        class="flex-1 bg-white border border-black/10 rounded-xl px-4 py-3 text-xs"
-                      >
-                        <option value="">(Brak muzyki)</option>
-                        <option v-for="file in bgmFiles" :key="file" :value="'audio/bgm/' + file">
-                          {{ file }}
-                        </option>
-                      </select>
-                      <button
-                        class="p-3 bg-black text-white rounded-xl hover:scale-105 transition-transform"
-                      >
-                        <IconVolume size="18" />
-                      </button>
-                    </div>
-                    <div class="grid grid-cols-2 gap-6">
-                      <div class="space-y-2">
-                        <label
-                          class="text-[9px] font-black text-gray-300 uppercase flex justify-between"
-                          >Głośność <span>{{ form.bgm.volume }}%</span></label
-                        >
-                        <input
-                          v-model.number="form.bgm.volume"
-                          type="range"
-                          min="0"
-                          max="100"
-                          class="w-full accent-black"
-                        />
-                      </div>
-                      <div class="space-y-2">
-                        <label
-                          class="text-[9px] font-black text-gray-300 uppercase flex justify-between"
-                          >Tempo <span>{{ form.bgm.pitch }}%</span></label
-                        >
-                        <input
-                          v-model.number="form.bgm.pitch"
-                          type="range"
-                          min="50"
-                          max="150"
-                          class="w-full accent-black"
-                        />
+                      <div class="grid grid-cols-1 gap-8">
+                        <div class="space-y-4">
+                          <div class="flex justify-between items-center">
+                            <span
+                              class="text-[10px] font-bold text-slate-400 uppercase tracking-widest"
+                              >Głośność</span
+                            >
+                            <span class="text-sm font-bold text-slate-700"
+                              >{{ form[type].volume }}%</span
+                            >
+                          </div>
+                          <input
+                            v-model.number="form[type].volume"
+                            type="range"
+                            class="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                          />
+                        </div>
                       </div>
                     </div>
                   </div>
                 </div>
 
-                <!-- BGS -->
-                <div class="space-y-4">
-                  <div class="flex items-center gap-2 mb-2">
-                    <IconVolume size="16" />
-                    <h3 class="text-[10px] font-black uppercase tracking-widest">
-                      Background Sound (BGS)
-                    </h3>
-                  </div>
-                  <div class="bg-gray-50 rounded-2xl p-6 border border-black/3 space-y-4">
-                    <div class="flex gap-4">
-                      <select
-                        v-model="form.bgs.name"
-                        class="flex-1 bg-white border border-black/10 rounded-xl px-4 py-3 text-xs"
-                      >
-                        <option value="">(Brak dźwięku tła)</option>
-                        <option v-for="file in bgsFiles" :key="file" :value="'audio/bgs/' + file">
-                          {{ file }}
-                        </option>
-                      </select>
-                      <button
-                        class="p-3 bg-black text-white rounded-xl hover:scale-105 transition-transform"
-                      >
-                        <IconVolume size="18" />
-                      </button>
-                    </div>
+                <div v-else-if="activeTab === 'notes'" class="h-full animate-slide-in">
+                  <div class="h-full flex flex-col gap-4">
+                    <label
+                      class="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2"
+                    >
+                      <IconNote size="14" class="text-indigo-500" /> Metadane Mapy
+                    </label>
+                    <textarea
+                      v-model="form.note"
+                      class="docs-input flex-1 min-h-[300px] py-6 resize-none leading-relaxed"
+                      placeholder="Wpisz tagi, skrypty lub notatki..."
+                    ></textarea>
                   </div>
                 </div>
-              </div>
+              </Transition>
+            </main>
+          </div>
 
-              <!-- Notes Tab -->
-              <div v-else-if="activeTab === 'notes'" class="h-full flex flex-col">
-                <div class="space-y-2 flex-1 flex flex-col min-h-[300px]">
-                  <label
-                    class="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2"
-                  >
-                    <IconNote size="12" /> Notatki Projektowe (Metadata)
-                  </label>
-                  <textarea
-                    v-model="form.note"
-                    class="flex-1 w-full bg-gray-50 border border-black/5 rounded-2xl p-6 text-[11px] font-medium leading-relaxed focus:bg-white focus:border-black outline-none transition-all resize-none placeholder:text-gray-300"
-                    placeholder="Wpisz metadane mapy lub notatki dla skryptów..."
-                  ></textarea>
-                  <p class="text-[9px] text-gray-300 font-bold uppercase mt-2">
-                    Działa jak pole 'Note' w RPG Makerze.
-                  </p>
-                </div>
-              </div>
-            </Transition>
-          </main>
-        </div>
-
-        <!-- Footer Actions -->
-        <div class="p-6 bg-gray-50 border-t border-black/5 flex gap-4 shrink-0">
-          <button
-            class="flex-1 px-8 py-3.5 text-[10px] font-black text-gray-400 hover:text-black hover:bg-black/5 rounded-xl transition-all uppercase tracking-[0.2em] cursor-pointer"
-            @click="emit('close')"
+          <footer
+            class="p-8 bg-slate-50/50 border-t border-slate-100 flex items-center justify-end gap-4 shrink-0"
           >
-            Anuluj
-          </button>
-          <button
-            class="flex-2 px-8 py-3.5 text-[10px] font-black bg-black hover:bg-gray-800 text-white rounded-xl transition-all shadow-xl shadow-black/10 uppercase tracking-[0.2em] cursor-pointer active:scale-95 translate-z-0"
-            @click="handleSave"
-          >
-            {{ editMode ? 'Zapisz Właściwości' : 'Utwórz Nową Mapę' }}
-          </button>
+            <button
+              class="px-6 py-3 text-sm font-bold text-slate-400 hover:text-slate-600 transition-colors uppercase tracking-widest"
+              @click="emit('close')"
+            >
+              Anuluj
+            </button>
+            <button
+              class="px-10 py-4 bg-indigo-600 text-white rounded-2xl text-sm font-bold shadow-xl shadow-indigo-100 hover:bg-indigo-700 hover:scale-[1.02] active:scale-95 transition-all uppercase tracking-widest"
+              @click="handleSave"
+            >
+              {{ editMode ? 'Zapisz zmiany' : 'Stwórz mapę' }}
+            </button>
+          </footer>
         </div>
       </div>
-    </div>
+    </Transition>
   </Teleport>
 </template>
 
 <style scoped>
+@import 'tailwindcss';
+
+.docs-input {
+  @apply w-full bg-slate-50/50 border border-slate-200 rounded-2xl px-5 py-4 text-sm font-semibold text-slate-700 outline-none transition-all duration-300 focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/5 placeholder:text-slate-300;
+}
+
 .pixelated {
   image-rendering: pixelated;
 }
+
+/* Scrollbar Customization */
 .custom-scrollbar::-webkit-scrollbar {
-  width: 6px;
+  width: 4px;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.05);
-  border-radius: 3px;
-}
-.custom-scrollbar:hover::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.1);
+  background: #e2e8f0;
+  border-radius: 10px;
 }
 
-/* Animations */
-.fade-slide-up-enter-active,
-.fade-slide-up-leave-active {
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+/* Transitions */
+.modal-fade-enter-active,
+.modal-fade-leave-active {
+  transition:
+    opacity 0.4s ease,
+    transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.modal-fade-enter-from,
+.modal-fade-leave-to {
+  opacity: 0;
+  transform: scale(0.98);
 }
 
-.fade-slide-up-enter-from {
+.page-fade-enter-active {
+  transition: all 0.3s ease-out;
+}
+.page-fade-leave-active {
+  transition: all 0.2s ease-in;
+}
+.page-fade-enter-from {
   opacity: 0;
   transform: translateY(10px);
 }
-
-.fade-slide-up-leave-to {
+.page-fade-leave-to {
   opacity: 0;
   transform: translateY(-10px);
 }
 
-@keyframes animate-in {
+.animate-slide-in {
+  animation: slideIn 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes slideIn {
   from {
     opacity: 0;
-    transform: scale(0.95);
+    transform: translateX(20px);
   }
   to {
     opacity: 1;
-    transform: scale(1);
+    transform: translateX(0);
   }
 }
-
-.animate-in {
-  animation: animate-in 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-}
 </style>
-```

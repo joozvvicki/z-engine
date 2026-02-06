@@ -2,8 +2,6 @@
 import { ref, computed } from 'vue'
 import {
   IconSearch,
-  IconFilter,
-  IconStar,
   IconStarFilled,
   IconDownload,
   IconShoppingCart,
@@ -11,8 +9,6 @@ import {
   IconMusic,
   IconBrush,
   IconCube,
-  IconUser,
-  IconHeart,
   IconBolt
 } from '@tabler/icons-vue'
 
@@ -131,7 +127,7 @@ const filteredAssets = computed(() => {
 })
 
 // --- ACTIONS ---
-const getPriceLabel = (price: number) => (price === 0 ? 'Free' : `$${price}`)
+const getPriceLabel = (price: number): string => (price === 0 ? 'Free' : `$${price}`)
 </script>
 
 <template>
@@ -220,13 +216,13 @@ const getPriceLabel = (price: number) => (price === 0 ? 'Free' : `$${price}`)
             <button
               v-for="tab in ['popular', 'new', 'free']"
               :key="tab"
-              @click="activeTab = tab as any"
               class="px-4 py-1.5 rounded-lg text-xs font-bold capitalize transition-all"
               :class="
                 activeTab === tab
                   ? 'bg-slate-900 text-white shadow-md'
                   : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'
               "
+              @click="activeTab = tab as any"
             >
               {{ tab }}
             </button>
@@ -240,7 +236,7 @@ const getPriceLabel = (price: number) => (price === 0 ? 'Free' : `$${price}`)
           class="relative w-full min-h-64 h-80 rounded-3xl overflow-hidden shadow-2xl shadow-indigo-500/20 group cursor-pointer"
         >
           <div
-            class="absolute inset-0 bg-liner-to-r from-violet-600 via-indigo-600 to-blue-500 transition-transform duration-700 group-hover:scale-105"
+            class="absolute inset-0 bg-linear-to-r from-violet-600 via-indigo-600 to-blue-500 transition-transform duration-700 group-hover:scale-105"
           ></div>
 
           <div class="absolute -right-20 -top-20 w-80 h-80 bg-white/10 rounded-full blur-3xl"></div>
@@ -284,7 +280,7 @@ const getPriceLabel = (price: number) => (price === 0 ? 'Free' : `$${price}`)
               :key="asset.id"
               class="bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-xl hover:shadow-blue-500/5 hover:-translate-y-1 transition-all duration-300 group flex flex-col overflow-hidden"
             >
-              <div class="relative h-40 w-full bg-gradient-to-br" :class="asset.imageColor">
+              <div class="relative h-40 w-full bg-linear-to-br" :class="asset.imageColor">
                 <div class="absolute inset-0 flex items-center justify-center text-white/90">
                   <IconCube v-if="asset.category === '3d'" :size="48" class="drop-shadow-lg" />
                   <IconBrush

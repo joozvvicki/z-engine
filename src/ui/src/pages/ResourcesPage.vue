@@ -5,7 +5,7 @@ import { useEditorStore } from '@ui/stores/editor'
 import {
   IconSearch,
   IconPlus,
-  IconFolder,
+  IconFolderOpen,
   IconMusic,
   IconPhoto,
   IconUsers,
@@ -33,6 +33,7 @@ type ResourceType =
   | 'music'
   | 'sounds'
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const categories: Record<ResourceType, { folder: string; label: string; icon: any }> = {
   tilesets: { folder: 'img/tilesets', label: 'Tilesets', icon: IconLayoutGrid },
   characters: { folder: 'img/characters', label: 'Characters', icon: IconUsers },
@@ -48,7 +49,7 @@ const currentTab = computed((): ResourceType => {
   return categories[path] ? path : 'tilesets'
 })
 
-const navigateTo = (key: string) => {
+const navigateTo = (key: string): void => {
   router.push(`/resources/${key}`)
 }
 

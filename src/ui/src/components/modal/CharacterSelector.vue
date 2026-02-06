@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { IconCheck, IconLoader2 } from '@tabler/icons-vue'
+import { IconCheck, IconLoader2, IconSettings, IconPhoto } from '@tabler/icons-vue'
 import { ProjectService } from '../../services/ProjectService'
 
 const props = defineProps<{
   initialTilesetId?: string | null
-  initialX?: number // Tile index X
-  initialY?: number // Tile index Y
+  initialX?: number
+  initialY?: number
   initialPixelW?: number
   initialPixelH?: number
 }>()
@@ -29,14 +29,10 @@ const loadProjectCharacters = async (): Promise<void> => {
       url: ProjectService.resolveAssetUrl(`img/characters/${filename}`)
     }))
 
-    // Update selected file after loading list
     if (props.initialTilesetId) {
-      // Normalize: it might be a full path "img/characters/Hero.png" or just "Hero.png"
       const targetName = props.initialTilesetId.split('/').pop()
       const found = files.value.find((f) => f.name === targetName)
-      if (found) {
-        selectedFile.value = found
-      }
+      if (found) selectedFile.value = found
     } else if (files.value.length > 0) {
       selectedFile.value = files.value[0]
     }
@@ -52,7 +48,6 @@ onMounted(() => {
 })
 
 const selectedFile = ref<{ name: string; url: string }>({ name: 'None', url: '' })
-
 const texWidth = ref(0)
 const texHeight = ref(0)
 
@@ -71,25 +66,21 @@ const selectBlock = (tx: number, ty: number): void => {
 }
 
 const confirm = (): void => {
-  // We return both index-based (legacy/compat) and pixel-based values
   emit('select', {
     tilesetId: `img/characters/${selectedFile.value.name}`,
     x: selectedX.value,
     y: selectedY.value,
     w: 1,
     h: 1,
-    // New pixel props
     pixelX: selectedX.value * frameWidth.value,
     pixelY: selectedY.value * frameHeight.value,
     pixelW: frameWidth.value,
     pixelH: frameHeight.value,
-    // Division info for "Smart" detection fallback
     divW: Math.round(texWidth.value / frameWidth.value) || 1,
     divH: Math.round(texHeight.value / frameHeight.value) || 1
   })
 }
 
-// Dynamic styles for grid
 const gridStyle = computed(() => ({
   backgroundSize: `${frameWidth.value}px ${frameHeight.value}px`
 }))
@@ -104,80 +95,103 @@ const selectionStyle = computed(() => ({
 
 <template>
   <div
-    class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/80 backdrop-blur-sm p-8"
+    class="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-md p-4 md:p-12"
     @click.self="emit('close')"
   >
     <div
-      class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl h-[75vh] flex overflow-hidden border border-white/20 animate-in fade-in zoom-in-95 duration-200"
+      class="bg-white rounded-[2.5rem] shadow-[0_40px_80px_-15px_rgba(0,0,0,0.2)] w-full max-w-6xl h-[85vh] flex overflow-hidden border border-slate-200 animate-in fade-in zoom-in-95 duration-300"
     >
-      <!-- Sidebar: File List & Settings -->
-      <div class="w-72 bg-slate-50 border-r border-slate-200 flex flex-col">
-        <div class="p-4 border-b border-slate-200 bg-white space-y-4">
-          <h3 class="text-xs font-bold uppercase tracking-widest text-slate-500">
-            Character Sheet
-          </h3>
+      <aside class="w-80 bg-slate-50 border-r border-slate-200 flex flex-col shrink-0">
+        <div className="p-6 bg-white border-b border-slate-200 space-y-6">
+          <div className="flex items-center gap-3">
+            <div
+              className="w-10 h-10 rounded-2xl bg-indigo-600 flex items-center justify-center text-white shadow-lg shadow-indigo-100"
+            >
+              <IconPhoto size="20" />
+            </div>
+            <div>
+              <h3 className="text-sm font-black text-slate-900 uppercase tracking-tighter">
+                Asset Picker
+              </h3>
+              <p className="text-[10px] font-bold text-slate-400 uppercase">Characters & Sprites</p>
+            </div>
+          </div>
 
-          <div class="space-y-2">
-            <label class="text-[10px] font-bold uppercase text-slate-400">Frame Size</label>
-            <div class="grid grid-cols-2 gap-2">
-              <div>
-                <label class="text-[9px] text-slate-400 block mb-0.5">Width</label>
+          <div className="space-y-4">
+            <div
+              className="flex items-center gap-2 text-xs font-black text-slate-400 uppercase tracking-widest"
+            >
+              <IconSettings size="14" /> Frame Configuration
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <span className="text-[10px] font-bold text-slate-500 ml-1">Width (px)</span>
                 <input
                   v-model.number="frameWidth"
                   type="number"
-                  min="1"
-                  class="w-full border border-slate-200 rounded px-2 py-1 text-xs font-mono"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm font-mono focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
                 />
               </div>
-              <div>
-                <label class="text-[9px] text-slate-400 block mb-0.5">Height</label>
+              <div className="space-y-1">
+                <span className="text-[10px] font-bold text-slate-500 ml-1">Height (px)</span>
                 <input
                   v-model.number="frameHeight"
                   type="number"
-                  min="1"
-                  class="w-full border border-slate-200 rounded px-2 py-1 text-xs font-mono"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm font-mono focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition-all"
                 />
               </div>
             </div>
           </div>
         </div>
 
-        <div class="flex-1 overflow-y-auto p-2 space-y-1 relative">
-          <div v-if="isLoadingFiles" class="absolute inset-0 flex items-center justify-center">
-            <IconLoader2 class="w-6 h-6 animate-spin text-slate-300" />
+        <div class="flex-1 overflow-y-auto p-4 space-y-1 relative no-scrollbar">
+          <div
+            v-if="isLoadingFiles"
+            class="absolute inset-0 flex items-center justify-center bg-slate-50/50"
+          >
+            <IconLoader2 class="w-6 h-6 animate-spin text-indigo-500" />
           </div>
+
           <button
             v-for="file in files"
             :key="file.name"
-            class="w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-colors border border-transparent truncate"
+            class="w-full text-left px-4 py-3 rounded-2xl text-sm font-bold transition-all border border-transparent flex items-center gap-3 group"
             :class="
               selectedFile.name === file.name
-                ? 'bg-slate-900 text-white border-slate-900 shadow-sm'
-                : 'text-slate-600 hover:bg-slate-100'
+                ? 'bg-white text-indigo-600 border-slate-200 shadow-sm'
+                : 'text-slate-500 hover:bg-white hover:border-slate-100 hover:text-slate-700'
             "
             @click="selectedFile = file"
           >
-            {{ file.name }}
+            <div
+              :class="[
+                'w-2 h-2 rounded-full transition-all',
+                selectedFile.name === file.name
+                  ? 'bg-indigo-500 scale-125'
+                  : 'bg-slate-300 group-hover:bg-slate-400'
+              ]"
+            />
+            <span className="truncate">{{ file.name }}</span>
           </button>
         </div>
-      </div>
+      </aside>
 
-      <!-- Main: Preview & Grid -->
       <div class="flex-1 bg-slate-100 flex flex-col relative overflow-hidden">
-        <div class="flex-1 overflow-auto p-12 flex min-h-0">
-          <div class="relative bg-white shadow-2xl border border-slate-300 select-none m-auto">
-            <!-- Image -->
+        <div class="flex-1 overflow-auto p-8 md:p-20 flex min-h-0 custom-scrollbar">
+          <div
+            class="relative m-auto shadow-[0_32px_64px_-16px_rgba(0,0,0,0.15)] rounded-sm overflow-hidden bg-white border border-slate-300"
+          >
+            <div className="absolute inset-0 checkerboard opacity-[0.05]" />
+
             <img
-              ref="imageEl"
               :src="selectedFile.url"
-              class="block pixelated pointer-events-none"
+              class="relative block pixelated pointer-events-none"
               draggable="false"
               @load="onImageLoad"
             />
 
-            <!-- Grid Overlay -->
             <div
-              class="absolute inset-0 grid-overlay cursor-pointer"
+              class="absolute inset-0 grid-overlay cursor-crosshair"
               :style="gridStyle"
               @click="
                 (e) => {
@@ -188,39 +202,58 @@ const selectionStyle = computed(() => ({
                 }
               "
             >
-              <!-- Selection Highlight -->
               <div
-                class="absolute border-2 border-slate-900 shadow-[0_0_0_2px_rgba(15,23,42,0.2)] pointer-events-none transition-all duration-75 start-frame-marker"
+                class="absolute border-2 border-indigo-500 shadow-[0_0_20px_rgba(79,70,229,0.3),inset_0_0_0_1px_rgba(255,255,255,0.4)] pointer-events-none transition-all duration-150 rounded-sm"
                 :style="selectionStyle"
-              ></div>
+              >
+                <div
+                  className="absolute -top-6 left-0 bg-indigo-600 text-[8px] text-white px-2 py-0.5 rounded-full font-black uppercase whitespace-nowrap"
+                >
+                  Selected Frame
+                </div>
+              </div>
             </div>
           </div>
         </div>
 
-        <!-- Footer -->
-        <div
-          class="absolute bottom-0 left-0 right-0 bg-white border-t border-slate-200 p-4 flex justify-between items-center shadow-lg"
+        <footer
+          class="bg-white border-t border-slate-200 p-6 flex flex-col md:flex-row justify-between items-center gap-4 z-10 shadow-[0_-10px_30px_rgba(0,0,0,0.02)]"
         >
-          <div class="text-xs text-slate-500 font-mono">
-            {{ selectedFile.name }} [{{ selectedX }}, {{ selectedY }}] ({{ frameWidth }}x{{
-              frameHeight
-            }})
+          <div className="flex items-center gap-4">
+            <div className="flex flex-col">
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest"
+                >Active Selection</span
+              >
+              <div className="flex items-center gap-2 mt-1">
+                <span
+                  className="px-3 py-1 bg-slate-100 rounded-lg text-xs font-mono font-bold text-slate-700"
+                >
+                  {{ selectedX }} : {{ selectedY }}
+                </span>
+                <span
+                  className="px-3 py-1 bg-indigo-50 rounded-lg text-xs font-mono font-bold text-indigo-600"
+                >
+                  {{ frameWidth }}x{{ frameHeight }}px
+                </span>
+              </div>
+            </div>
           </div>
-          <div class="flex gap-3">
+
+          <div class="flex gap-3 w-full md:w-auto">
             <button
-              class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold uppercase rounded-lg transition-colors"
+              class="flex-1 md:flex-none px-8 py-3 text-slate-500 font-bold hover:bg-slate-50 rounded-2xl transition-all"
               @click="emit('close')"
             >
               Cancel
             </button>
             <button
-              class="px-6 py-2 bg-slate-900 hover:bg-black text-white text-xs font-bold uppercase rounded-lg flex items-center gap-2 shadow-lg shadow-slate-900/20 active:scale-95 transition-all"
+              class="flex-1 md:flex-none px-8 py-3 bg-slate-900 hover:bg-black text-white font-black rounded-2xl flex items-center justify-center gap-3 shadow-xl transition-all active:scale-95 shadow-slate-200"
               @click="confirm"
             >
-              <IconCheck size="16" /> Select Character
+              <IconCheck size="18" /> Use Character
             </button>
           </div>
-        </div>
+        </footer>
       </div>
     </div>
   </div>
@@ -231,15 +264,42 @@ const selectionStyle = computed(() => ({
   image-rendering: pixelated;
 }
 
+.checkerboard {
+  background-image: conic-gradient(#000 90deg, #fff 90deg 180deg, #000 180deg 270deg, #fff 270deg);
+  background-size: 20px 20px;
+}
+
 .grid-overlay {
   background-image:
-    linear-gradient(to right, rgba(0, 0, 0, 0.1) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(0, 0, 0, 0.1) 1px, transparent 1px);
+    linear-gradient(to right, rgba(0, 0, 0, 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0, 0, 0, 0.05) 1px, transparent 1px);
 }
 
 .grid-overlay:hover {
   background-image:
-    linear-gradient(to right, rgba(0, 0, 0, 0.2) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(0, 0, 0, 0.2) 1px, transparent 1px);
+    linear-gradient(to right, rgba(79, 70, 229, 0.1) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(79, 70, 229, 0.1) 1px, transparent 1px);
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #e2e8f0;
+  border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #cbd5e1;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }
 </style>

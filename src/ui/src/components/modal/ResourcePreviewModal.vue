@@ -47,18 +47,18 @@ const togglePlay = (): void => {
   isPlaying.value ? audio.value.pause() : audio.value.play()
 }
 
-const onTimeUpdate = () => {
+const onTimeUpdate = (): void => {
   if (audio.value) currentTime.value = audio.value.currentTime
 }
-const onLoadedMetadata = () => {
+const onLoadedMetadata = (): void => {
   if (audio.value) duration.value = audio.value.duration
 }
-const onEnded = () => {
+const onEnded = (): void => {
   isPlaying.value = false
   currentTime.value = 0
 }
 
-const seek = (e: Event) => {
+const seek = (e: Event): void => {
   const target = e.target as HTMLInputElement
   if (audio.value) {
     audio.value.currentTime = parseFloat(target.value)
@@ -116,7 +116,7 @@ onUnmounted(() => window.removeEventListener('keydown', handleKeydown))
 <template>
   <Teleport to="body">
     <div
-      class="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/90 backdrop-blur-xl animate-fade-in"
+      class="fixed inset-0 z-9999 flex items-center justify-center bg-slate-950/90 backdrop-blur-xl animate-fade-in"
       @click.self="emit('close')"
     >
       <div
@@ -178,10 +178,10 @@ onUnmounted(() => window.removeEventListener('keydown', handleKeydown))
 
           <div v-else-if="isAudio" class="w-[500px] bg-slate-900 p-10 flex flex-col items-center">
             <div
-              class="w-48 h-48 rounded-3xl bg-gradient-to-br from-slate-800 to-slate-900 shadow-inner border border-white/5 flex items-center justify-center mb-10 relative group overflow-hidden"
+              class="w-48 h-48 rounded-3xl bg-linear-to-br from-slate-800 to-slate-900 shadow-inner border border-white/5 flex items-center justify-center mb-10 relative group overflow-hidden"
             >
               <div
-                class="absolute inset-0 bg-gradient-to-t from-blue-500/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"
+                class="absolute inset-0 bg-linear-to-t from-blue-500/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"
               ></div>
               <component
                 :is="baseUrl.includes('bgm') ? IconMusic : IconVolume"

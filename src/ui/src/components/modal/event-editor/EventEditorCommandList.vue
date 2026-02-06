@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { IconGhost, IconTrash } from '@tabler/icons-vue'
+import { IconGhost, IconTrash, IconMenu2, IconPlus } from '@tabler/icons-vue'
 import { ZCommandCode } from '@engine/types'
-import type { ZEventPage, ZEventGraphic, ZEventCommand } from '@engine/types'
+import type { ZEventPage, ZEventCommand } from '@engine/types'
 
 const props = defineProps<{
   page: ZEventPage
@@ -13,259 +13,275 @@ const props = defineProps<{
 const selectedCommandIndex = defineModel<number | null>('selectedCommandIndex')
 
 const emit = defineEmits(['open-editor', 'delete-command'])
+
+const getCommandColor = (code: number): string => {
+  // Flow Control (Purple)
+  if (
+    [
+      ZCommandCode.ConditionalBranch,
+      ZCommandCode.Else,
+      ZCommandCode.EndBranch,
+      ZCommandCode.Loop,
+      ZCommandCode.BreakLoop
+    ].includes(code)
+  ) {
+    return 'border-purple-400 bg-purple-50 text-purple-900 shadow-purple-100'
+  }
+
+  // Choices (Orange)
+  if ([ZCommandCode.ShowChoices, ZCommandCode.When, ZCommandCode.EndChoices].includes(code)) {
+    return 'border-orange-400 bg-orange-50 text-orange-900 shadow-orange-100'
+  }
+
+  // Game Data / Logic (Rose)
+  if (
+    [
+      ZCommandCode.ControlSwitch,
+      ZCommandCode.ControlVariable,
+      ZCommandCode.ControlSelfSwitch,
+      ZCommandCode.ControlTimer
+    ].includes(code)
+  ) {
+    return 'border-rose-400 bg-rose-50 text-rose-900 shadow-rose-100'
+  }
+
+  // Movement & Map (Emerald)
+  if (
+    [
+      ZCommandCode.TransferPlayer,
+      ZCommandCode.SetMoveRoute,
+      ZCommandCode.GetLocationInfo,
+      ZCommandCode.ScrollMap
+    ].includes(code)
+  ) {
+    return 'border-emerald-400 bg-emerald-50 text-emerald-900 shadow-emerald-100'
+  }
+
+  // Messages (Sky)
+  if (
+    [ZCommandCode.ShowMessage, ZCommandCode.ShowMakeText, ZCommandCode.ShowScrollingText].includes(
+      code
+    )
+  ) {
+    return 'border-sky-400 bg-sky-50 text-sky-900 shadow-sky-100'
+  }
+
+  // Audio & Visuals (Amber/Yellow)
+  if (
+    [
+      ZCommandCode.ShowAnimation,
+      ZCommandCode.ShowBalloonIcon,
+      ZCommandCode.EraseEvent,
+      ZCommandCode.ShowPicture,
+      ZCommandCode.MovePicture,
+      ZCommandCode.RotatePicture,
+      ZCommandCode.TintPicture,
+      ZCommandCode.ErasePicture,
+      ZCommandCode.PlayBGM,
+      ZCommandCode.PlayBGS,
+      ZCommandCode.PlayME,
+      ZCommandCode.PlaySE
+    ].includes(code)
+  ) {
+    return 'border-amber-400 bg-amber-50 text-amber-900 shadow-amber-100'
+  }
+
+  // Default (Slate)
+  return 'border-slate-300 bg-white text-slate-700 shadow-slate-100'
+}
 </script>
 
 <template>
-  <div class="flex-1 bg-white flex flex-col relative overflow-hidden min-h-0">
+  <div class="flex-1 bg-slate-50/50 flex flex-col relative overflow-hidden min-h-0">
+    <!-- Header -->
     <div
-      class="px-6 py-3 border-b border-slate-100 flex justify-between items-center bg-white sticky top-0 z-10"
+      class="px-6 py-4 border-b border-slate-200 flex justify-between items-center bg-white/80 backdrop-blur-sm sticky top-0 z-10"
     >
-      <div class="flex items-center gap-2">
+      <div class="flex items-center gap-3">
+        <h3 class="text-xs font-black uppercase tracking-widest text-slate-400">
+          Exectuion Content
+        </h3>
         <span
           v-if="props.page.trigger === 3 || props.page.trigger === 4"
-          class="w-2 h-2 rounded-full bg-slate-900 animate-pulse"
-        ></span>
-        <span class="text-xs font-bold uppercase tracking-wider text-slate-500"
-          >Event Commands</span
+          class="flex items-center gap-1.5 px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded text-[9px] font-bold uppercase tracking-wider border border-indigo-100"
         >
+          <span class="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse"></span>
+          Auto
+        </span>
       </div>
-      <span class="text-[10px] font-bold bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full"
+      <span
+        class="text-[9px] font-bold bg-slate-100 text-slate-500 px-2 py-1 rounded-lg border border-slate-200"
         >Page {{ props.activePageIndex + 1 }}</span
       >
     </div>
 
-    <div class="flex-1 overflow-y-auto p-0 scrollbar-thin">
+    <!-- Content List -->
+    <div class="flex-1 overflow-y-auto p-4 custom-scrollbar">
       <!-- Empty State -->
       <div
         v-if="props.page.list.length === 0"
-        class="flex flex-col items-center justify-center py-20 text-slate-300 select-none"
+        class="flex flex-col items-center justify-center py-20 text-slate-300 select-none border-2 border-dashed border-slate-200 rounded-3xl m-4"
+        @dblclick="emit('open-editor', 0, true)"
       >
-        <IconGhost size="48" class="mb-2 opacity-50" />
-        <p class="text-xs font-medium">No commands yet</p>
-        <p class="text-[10px]">Double click to insert</p>
+        <div class="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center mb-3">
+          <IconGhost size="32" class="opacity-50" />
+        </div>
+        <p class="text-xs font-bold text-slate-400">No commands yet</p>
+        <p class="text-[10px] font-medium opacity-60 mt-1">Double click to insert</p>
       </div>
 
-      <div class="flex flex-col font-mono text-sm pb-10">
+      <div class="flex flex-col gap-1.5 pb-10">
         <template v-for="(item, idx) in props.presentationList" :key="idx">
-          <!-- Command -->
+          <!-- Command Card -->
           <div
             v-if="item.type === 'command'"
             :data-index="item.index"
-            class="group flex items-center gap-3 px-4 py-2 cursor-pointer border-b border-white transition-colors select-none"
-            :class="
-              selectedCommandIndex === item.index
-                ? 'bg-slate-100 border-slate-200'
-                : 'hover:bg-slate-50 hover:border-slate-100'
-            "
-            :style="{ paddingLeft: `${item.indent * 20 + 16}px` }"
-            @click="emit('open-editor', item.index)"
+            class="group relative flex items-center gap-3 py-2 pr-2 pl-3 rounded-lg border-l-[3px] shadow-sm transition-all duration-200 cursor-pointer select-none hover:translate-x-1"
+            :class="[
+              getCommandColor(item.command!.code),
+              selectedCommandIndex === item.index ? 'ring-2 ring-indigo-500 ring-offset-2 z-10' : ''
+            ]"
+            :style="{ marginLeft: `${item.indent * 24}px` }"
+            @click="selectedCommandIndex = item.index"
+            @dblclick="emit('open-editor', item.index)"
           >
-            <span class="text-slate-300 text-[10px] w-6 text-right select-none shrink-0">{{
-              String(item.index + 1).padStart(3, '0')
-            }}</span>
-            <!-- Command Display Logic -->
-            <div class="flex items-center gap-2 flex-1">
-              <span
-                class="w-1.5 h-1.5 rounded-full shrink-0"
-                :class="{
-                  'bg-sky-400': item.command!.code === ZCommandCode.ShowMessage,
-                  'bg-purple-400':
-                    item.command!.code === ZCommandCode.ConditionalBranch ||
-                    item.command!.code === ZCommandCode.Else ||
-                    item.command!.code === ZCommandCode.EndBranch,
-                  'bg-orange-400':
-                    item.command!.code === ZCommandCode.ShowChoices ||
-                    item.command!.code === ZCommandCode.When ||
-                    item.command!.code === ZCommandCode.EndChoices,
-                  'bg-rose-400':
-                    item.command!.code === ZCommandCode.ControlSwitch ||
-                    item.command!.code === ZCommandCode.ControlVariable ||
-                    item.command!.code === ZCommandCode.ControlSelfSwitch,
-                  'bg-emerald-400':
-                    item.command!.code === ZCommandCode.TransferPlayer ||
-                    item.command!.code === ZCommandCode.SetMoveRoute,
-                  'bg-yellow-400': item.command!.code === ZCommandCode.ShowAnimation,
-                  'bg-slate-500':
-                    item.command!.code === ZCommandCode.Wait ||
-                    item.command!.code === ZCommandCode.SetEventDirection ||
-                    item.command!.code === ZCommandCode.SetEventGraphic,
-                  'bg-slate-300': !Object.values(ZCommandCode).includes(item.command!.code)
-                }"
-              ></span>
+            <!-- Line Number -->
+            <span class="text-[9px] font-mono opacity-40 w-5 text-right shrink-0 select-none">
+              {{ String(item.index + 1).padStart(3, '0') }}
+            </span>
 
+            <!-- Command Icon/Handle -->
+            <div
+              class="opacity-0 group-hover:opacity-100 transition-opacity text-current/50 cursor-grab active:cursor-grabbing"
+            >
+              <IconMenu2 size="14" />
+            </div>
+
+            <!-- Content -->
+            <div class="flex-1 font-mono text-[11px] font-bold leading-relaxed truncate">
               <!-- Transfer Player -->
-              <span
-                v-if="item.command!.code === ZCommandCode.TransferPlayer"
-                class="text-slate-700 font-medium font-sans"
-                >Transfer Player (Map {{ item.command!.parameters[0] }},
-                {{ item.command!.parameters[1] }}, {{ item.command!.parameters[2] }})</span
-              >
+              <template v-if="item.command!.code === ZCommandCode.TransferPlayer">
+                Transfer Player
+                <span class="opacity-60 font-normal"
+                  >(Map {{ item.command!.parameters[0] }}, {{ item.command!.parameters[1] }},
+                  {{ item.command!.parameters[2] }})</span
+                >
+              </template>
+
               <!-- Show Message -->
-              <span
-                v-else-if="item.command!.code === ZCommandCode.ShowMessage"
-                class="text-slate-700 font-medium font-sans"
-                >Show Message: "{{ item.command!.parameters[0] }}"</span
-              >
+              <template v-else-if="item.command!.code === ZCommandCode.ShowMessage">
+                Show Message: <span class="opacity-80">"{{ item.command!.parameters[0] }}"</span>
+              </template>
+
               <!-- Switch -->
-              <span
-                v-else-if="item.command!.code === ZCommandCode.ControlSwitch"
-                class="text-slate-700 font-medium font-sans"
-              >
-                Switch #{{ item.command!.parameters[0] }} =
-                {{
+              <template v-else-if="item.command!.code === ZCommandCode.ControlSwitch">
+                Switch <span class="opacity-80">#{{ item.command!.parameters[0] }}</span> =
+                <span class="font-black bg-white/50 px-1 rounded">{{
                   item.command!.parameters[1] === 0
                     ? 'OFF'
                     : item.command!.parameters[1] === 1
                       ? 'ON'
                       : 'TOGGLE'
-                }}
-              </span>
+                }}</span>
+              </template>
+
               <!-- Variable -->
-              <span
-                v-else-if="item.command!.code === ZCommandCode.ControlVariable"
-                class="text-slate-700 font-medium font-sans"
-              >
-                Var #{{ item.command!.parameters[0] }}
+              <template v-else-if="item.command!.code === ZCommandCode.ControlVariable">
+                Var <span class="opacity-80">#{{ item.command!.parameters[0] }}</span>
                 {{
                   ['Set', 'Add', 'Sub', 'Mul', 'Div', 'Mod'][item.command!.parameters[1] as number]
                 }}
-                {{ item.command!.parameters[2] }}
-              </span>
+                <span class="font-black bg-white/50 px-1 rounded">{{
+                  item.command!.parameters[2]
+                }}</span>
+              </template>
+
               <!-- Conditional -->
-              <span
-                v-else-if="item.command!.code === ZCommandCode.ConditionalBranch"
-                class="text-purple-700 font-bold font-sans"
-              >
+              <template v-else-if="item.command!.code === ZCommandCode.ConditionalBranch">
                 If
                 {{
                   item.command!.parameters[0] === 0
                     ? `Switch #${item.command!.parameters[1]} is ${item.command!.parameters[2] ? 'ON' : 'OFF'}`
                     : `Var #${item.command!.parameters[1]} == ${item.command!.parameters[2]}`
                 }}
-              </span>
-              <!-- Else -->
-              <span
-                v-else-if="item.command!.code === ZCommandCode.Else"
-                class="text-purple-700 font-bold font-sans"
-              >
-                Else
-              </span>
-              <!-- End -->
-              <span
-                v-else-if="item.command!.code === ZCommandCode.EndBranch"
-                class="text-purple-700 font-bold font-sans"
-              >
-                End Branch
-              </span>
+              </template>
 
-              <!-- Show Choices -->
-              <span
-                v-else-if="item.command!.code === ZCommandCode.ShowChoices"
-                class="text-orange-700 font-bold font-sans"
+              <!-- Branches -->
+              <template v-else-if="item.command!.code === ZCommandCode.Else">Else</template>
+              <template v-else-if="item.command!.code === ZCommandCode.EndBranch"
+                >End Branch</template
               >
-                Show Choices: {{ (item.command!.parameters[0] as string[]).join(', ') }}
-              </span>
-              <!-- When -->
-              <span
-                v-else-if="item.command!.code === ZCommandCode.When"
-                class="text-orange-700 font-bold font-sans"
+
+              <!-- Choices -->
+              <template v-else-if="item.command!.code === ZCommandCode.ShowChoices">
+                Show Choices:
+                <span class="opacity-80">{{
+                  (item.command!.parameters[0] as string[]).join(', ')
+                }}</span>
+              </template>
+              <template v-else-if="item.command!.code === ZCommandCode.When">
+                When
+                <span class="font-black bg-white/50 px-1 rounded"
+                  >"{{
+                    props.getChoiceName(item.index, item.command!.parameters[0] as number)
+                  }}"</span
+                >
+              </template>
+              <template v-else-if="item.command!.code === ZCommandCode.EndChoices"
+                >End Choices</template
               >
-                When "{{ props.getChoiceName(item.index, item.command!.parameters[0] as number) }}"
-              </span>
-              <!-- End Choices -->
-              <span
-                v-else-if="item.command!.code === ZCommandCode.EndChoices"
-                class="text-orange-700 font-bold font-sans"
-              >
-                End Choices
-              </span>
 
               <!-- Self Switch -->
-              <span
-                v-else-if="item.command!.code === ZCommandCode.ControlSelfSwitch"
-                class="text-rose-700 font-medium font-sans"
-              >
-                Self Switch {{ item.command!.parameters[0] }} =
-                {{ item.command!.parameters[1] ? 'ON' : 'OFF' }}
-              </span>
-
-              <!-- Animation -->
-              <span
-                v-else-if="item.command!.code === ZCommandCode.ShowAnimation"
-                class="text-yellow-700 font-medium font-sans"
-              >
-                Show Animation #{{ item.command!.parameters[0] }}
-              </span>
+              <template v-else-if="item.command!.code === ZCommandCode.ControlSelfSwitch">
+                Self Switch <span class="font-black">{{ item.command!.parameters[0] }}</span> =
+                <span class="font-black bg-white/50 px-1 rounded">{{
+                  item.command!.parameters[1] ? 'ON' : 'OFF'
+                }}</span>
+              </template>
 
               <!-- Wait -->
-              <span
-                v-else-if="item.command!.code === ZCommandCode.Wait"
-                class="text-slate-600 font-medium font-sans"
-              >
-                Wait: {{ item.command!.parameters[0] }} frames
-              </span>
-              <!-- Set Direction -->
-              <span
-                v-else-if="item.command!.code === ZCommandCode.SetEventDirection"
-                class="text-slate-600 font-medium font-sans"
-              >
-                Set Direction: {{ item.command!.parameters[0] }}
-              </span>
-              <!-- Set Graphic -->
-              <span
-                v-else-if="item.command!.code === ZCommandCode.SetEventGraphic"
-                class="text-slate-600 font-medium font-sans"
-              >
-                Change Graphic:
-                {{
-                  (item.command!.parameters[0] as ZEventGraphic)?.assetId?.split('/').pop() ||
-                  'None'
-                }}
-              </span>
-              <!-- Move Route -->
-              <span
-                v-else-if="item.command!.code === ZCommandCode.SetMoveRoute"
-                class="text-emerald-700 font-medium font-sans"
-              >
-                Set Move Route ({{ (item.command!.parameters[1] as unknown[])?.length || 0 }}
-                cmds)
-              </span>
+              <template v-else-if="item.command!.code === ZCommandCode.Wait">
+                Wait: <span class="font-black">{{ item.command!.parameters[0] }}</span> frames
+              </template>
 
-              <span v-else class="text-slate-400 font-medium font-sans italic"
-                >Unknown Command ({{ item.command!.code }})</span
-              >
-              <IconTrash
-                v-if="
-                  item.command!.code !== ZCommandCode.Else &&
-                  item.command!.code !== ZCommandCode.EndBranch &&
-                  item.command!.code !== ZCommandCode.When &&
-                  item.command!.code !== ZCommandCode.EndChoices
-                "
-                size="14"
-                class="ml-auto text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
-                @click.stop="emit('delete-command', item.index)"
-              />
+              <!-- Generic Fallback -->
+              <template v-else>
+                {{ ZCommandCode[item.command!.code] || `Unknown (${item.command!.code})` }}
+                <span v-if="item.command!.parameters.length" class="opacity-50 text-[10px] ml-1">
+                  [{{ item.command!.parameters.join(', ') }}]
+                </span>
+              </template>
             </div>
+
+            <!-- Delete Button -->
+            <button
+              v-if="
+                ![
+                  ZCommandCode.Else,
+                  ZCommandCode.EndBranch,
+                  ZCommandCode.When,
+                  ZCommandCode.EndChoices
+                ].includes(item.command!.code)
+              "
+              class="opacity-0 group-hover:opacity-100 transition-all p-1.5 rounded-md hover:bg-white/50 hover:text-red-500 hover:shadow-sm"
+              @click.stop="emit('delete-command', item.index)"
+            >
+              <IconTrash size="14" />
+            </button>
           </div>
 
           <!-- Add Placeholder -->
           <div
             v-else
-            class="group flex items-center gap-3 px-4 py-1.5 hover:bg-slate-50 cursor-pointer transition-colors"
-            :style="{ paddingLeft: `${item.indent * 20 + 16}px` }"
+            class="group flex items-center justify-center py-2 rounded-lg border-2 border-dashed border-slate-200 hover:border-indigo-300 hover:bg-indigo-50/30 cursor-pointer transition-all duration-200"
+            :style="{ marginLeft: `${item.indent * 24}px` }"
             @click="emit('open-editor', item.index, true)"
           >
-            <span class="text-slate-300 text-[10px] w-6 text-right select-none opacity-0 shrink-0"
-              >@</span
-            >
             <div
-              class="flex items-center gap-2 text-slate-300 group-hover:text-slate-500 transition-colors"
+              class="flex items-center gap-2 text-slate-300 group-hover:text-indigo-500 transition-colors"
             >
-              <span class="font-mono text-xs opacity-50">&lt;&gt;</span>
-              <span
-                class="text-[10px] uppercase tracking-widest font-bold opacity-0 group-hover:opacity-100"
-                >Add Command</span
-              >
+              <IconPlus size="14" stroke-width="3" />
+              <span class="text-[10px] font-bold uppercase tracking-widest">Add Command</span>
             </div>
           </div>
         </template>
@@ -273,3 +289,21 @@ const emit = defineEmits(['open-editor', 'delete-command'])
     </div>
   </div>
 </template>
+
+<style scoped>
+@import 'tailwindcss';
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 5px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 10px;
+}
+.custom-scrollbar:hover::-webkit-scrollbar-thumb {
+  background: #94a3b8;
+}
+</style>

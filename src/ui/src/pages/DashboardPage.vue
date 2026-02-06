@@ -9,7 +9,6 @@ import {
   IconPlus,
   IconPlayerPlay,
   IconMap,
-  IconDatabase,
   IconArrowRight,
   IconClock,
   IconTrash,
@@ -19,7 +18,9 @@ import {
   IconSettings,
   IconLayoutDashboard,
   IconBolt,
-  IconChartBar
+  IconChartBar,
+  IconSword,
+  IconShield
 } from '@tabler/icons-vue'
 import dashboardArt from '@ui/assets/dashboard_welcome_art.png'
 
@@ -34,7 +35,7 @@ onMounted(() => {
   recentProjects.value = ProjectService.getHistory()
 })
 
-const openProject = async (path?: string) => {
+const openProject = async (path?: string): Promise<void> => {
   if (path) {
     localStorage.setItem('Z_LastProjectPath', path)
     await store.loadProject(false)
@@ -42,20 +43,18 @@ const openProject = async (path?: string) => {
     await store.loadProject(true)
   }
   if (ProjectService.isLoaded()) {
-    // Force refresh of recent projects list
     recentProjects.value = ProjectService.getHistory()
   }
 }
 
-const removeHistory = (path: string) => {
+const removeHistory = (path: string): void => {
   ProjectService.removeFromHistory(path)
   recentProjects.value = ProjectService.getHistory()
 }
 
-const getProjectName = (path: string) => path.split('/').pop() || path
-const getRandomDate = () => ['2h ago', 'Yesterday', '2 days ago'][Math.floor(Math.random() * 3)]
+const getProjectName = (path: string): string => path.split('/').pop() || path
 
-// --- LIVE STATS FROM STORES ---
+// --- UPDATED LIVE STATS (6 CATEGORIES) ---
 const stats = computed(() => [
   {
     label: 'Heroes',
@@ -73,10 +72,24 @@ const stats = computed(() => [
   },
   {
     label: 'Items',
-    value: db.items.length + db.weapons.length + db.armors.length,
+    value: db.items.length,
     icon: IconPackage,
-    color: 'bg-amber-50 text-amber-600 border-amber-100',
+    color: 'bg-emerald-50 text-emerald-600 border-emerald-100',
     link: '/database/items'
+  },
+  {
+    label: 'Weapons',
+    value: db.weapons.length,
+    icon: IconSword,
+    color: 'bg-amber-50 text-amber-600 border-amber-100',
+    link: '/database/weapons'
+  },
+  {
+    label: 'Armors',
+    value: db.armors.length,
+    icon: IconShield,
+    color: 'bg-cyan-50 text-cyan-600 border-cyan-100',
+    link: '/database/armors'
   },
   {
     label: 'Enemies',
@@ -87,7 +100,6 @@ const stats = computed(() => [
   }
 ])
 
-// --- PARTY PREVIEW ---
 const startPartyFaces = computed(() => {
   return store.systemStartingParty
     .map((id) => {
@@ -136,8 +148,7 @@ const welcomeMessage = computed(() => {
             </div>
             <h1 class="text-4xl md:text-5xl font-black tracking-tight text-slate-900 mb-2">
               {{ welcomeMessage }},
-              <span
-                class="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600"
+              <span class="text-transparent bg-clip-text bg-linear-to-r from-blue-600 to-indigo-600"
                 >Creator.</span
               >
             </h1>
@@ -174,7 +185,7 @@ const welcomeMessage = computed(() => {
                 class="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105"
               />
               <div
-                class="absolute inset-0 bg-gradient-to-t from-slate-900/90 via-slate-900/20 to-transparent"
+                class="absolute inset-0 bg-linear-to-t from-slate-900/90 via-slate-900/20 to-transparent"
               ></div>
               <div class="absolute bottom-0 left-0 p-10 w-full">
                 <h2 class="text-3xl font-black text-white mb-2">Open Project</h2>
@@ -184,7 +195,7 @@ const welcomeMessage = computed(() => {
               </div>
             </div>
 
-            <div v-else class="grid grid-cols-2 md:grid-cols-4 gap-4 animate-fade-in">
+            <div v-else class="grid grid-cols-2 md:grid-cols-3 gap-4 animate-fade-in">
               <div
                 v-for="stat in stats"
                 :key="stat.label"
@@ -208,7 +219,7 @@ const welcomeMessage = computed(() => {
 
             <div
               v-if="isLoaded"
-              class="bg-white border border-slate-200 rounded-[2rem] p-8 shadow-sm flex flex-col md:flex-row gap-8 animate-fade-in delay-100"
+              class="bg-white border border-slate-200 rounded-4xl p-8 shadow-sm flex flex-col md:flex-row gap-8 animate-fade-in delay-100"
             >
               <div class="flex-1">
                 <div class="flex items-center gap-2 mb-4">
@@ -231,14 +242,14 @@ const welcomeMessage = computed(() => {
                         <div
                           class="absolute inset-0 pixelated"
                           :style="{
-                            backgroundImage: `url('${char.url}')`,
-                            backgroundPosition: `-${char.pos.x}px -${char.pos.y}px`
+                            backgroundImage: `url('${char?.url}')`,
+                            backgroundPosition: `-${char?.pos.x}px -${char?.pos.y}px`
                           }"
                         ></div>
                       </div>
                       <span
                         class="text-[10px] font-bold text-slate-500 group-hover:text-indigo-600 transition-colors"
-                        >{{ char.name }}</span
+                        >{{ char?.name }}</span
                       >
                     </div>
                   </template>
@@ -256,9 +267,7 @@ const welcomeMessage = computed(() => {
                   </div>
                 </div>
               </div>
-
               <div class="w-px bg-slate-100 hidden md:block"></div>
-
               <div class="w-64 shrink-0">
                 <div class="flex items-center gap-2 mb-4">
                   <IconChartBar :size="20" class="text-emerald-500" />
@@ -269,7 +278,7 @@ const welcomeMessage = computed(() => {
                 <div class="space-y-4">
                   <div>
                     <div class="flex justify-between text-[10px] font-bold text-slate-500 mb-1">
-                      <span>Switches Used</span>
+                      <span>Switches</span>
                       <span
                         >{{ store.systemSwitches.filter((s) => s).length }} /
                         {{ store.systemSwitches.length }}</span
@@ -286,7 +295,7 @@ const welcomeMessage = computed(() => {
                   </div>
                   <div>
                     <div class="flex justify-between text-[10px] font-bold text-slate-500 mb-1">
-                      <span>Variables Used</span>
+                      <span>Variables</span>
                       <span
                         >{{ store.systemVariables.filter((v) => v).length }} /
                         {{ store.systemVariables.length }}</span
@@ -325,14 +334,13 @@ const welcomeMessage = computed(() => {
 
           <div class="lg:col-span-4 space-y-8 animate-fade-in delay-200">
             <div
-              class="bg-white border border-slate-200 rounded-[2rem] p-6 shadow-sm flex flex-col h-[420px]"
+              class="bg-white border border-slate-200 rounded-4xl p-6 shadow-sm flex flex-col h-[420px]"
             >
               <div class="flex items-center justify-between mb-6">
                 <h3 class="font-bold text-slate-900 flex items-center gap-2 text-sm">
                   <IconClock :size="18" class="text-slate-400" /> Recent Activity
                 </h3>
               </div>
-
               <div
                 v-if="recentProjects.length > 0"
                 class="flex-1 overflow-y-auto custom-scrollbar space-y-2 pr-2"
@@ -372,19 +380,21 @@ const welcomeMessage = computed(() => {
             </div>
 
             <div
-              class="bg-gradient-to-br from-indigo-600 to-violet-700 rounded-[2rem] p-8 text-white relative overflow-hidden shadow-xl shadow-indigo-500/20 group"
+              class="bg-linear-to-br from-indigo-600 to-violet-700 rounded-4xl p-8 text-white relative overflow-hidden shadow-xl shadow-indigo-500/20 group"
             >
               <div
                 class="absolute -right-8 -top-8 h-32 w-32 bg-white/10 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-700"
               ></div>
               <div class="relative z-10">
                 <div class="flex items-center gap-2 mb-3 opacity-80">
-                  <IconBolt :size="16" />
-                  <span class="text-[10px] font-bold uppercase tracking-widest">Did you know?</span>
+                  <IconBolt :size="16" /><span
+                    class="text-[10px] font-bold uppercase tracking-widest"
+                    >Did you know?</span
+                  >
                 </div>
                 <p class="text-sm font-medium leading-relaxed mb-4">
                   You can drag and drop images directly into the Tileset Editor to automatically
-                  import them into your project.
+                  import them.
                 </p>
                 <div class="h-1 w-12 bg-white/30 rounded-full"></div>
               </div>
