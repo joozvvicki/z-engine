@@ -47,7 +47,8 @@ export const useDatabaseStore = defineStore('database', () => {
       faceY: 0,
       characterX: 0,
       characterY: 0,
-      baseParams: [0, 0, 0, 0, 0, 0, 0, 0]
+      baseParams: [0, 0, 0, 0, 0, 0, 0, 0],
+      traits: []
     })
     save('Actors.json', actors.value)
   }
@@ -66,7 +67,8 @@ export const useDatabaseStore = defineStore('database', () => {
       id: newId,
       name: `Class ${newId}`,
       description: '',
-      params: [500, 100, 10, 10, 10, 10, 10, 10]
+      params: [500, 100, 10, 10, 10, 10, 10, 10],
+      traits: []
     })
     save('Classes.json', classes.value)
   }

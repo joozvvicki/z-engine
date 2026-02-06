@@ -9,6 +9,7 @@ import {
   IconChartLine,
   IconBook
 } from '@tabler/icons-vue'
+import TraitsEditor from './common/TraitsEditor.vue'
 
 const db = useDatabaseStore()
 const selectedId = ref<number>(db.classes[0]?.id || 0)
@@ -274,6 +275,13 @@ const updateParam = (index: number, value: number) => {
                 Skill learning table (Level required, Skill) will be available in the next update.
               </p>
             </div>
+          </div>
+
+          <div class="space-y-4 pt-4 border-t border-gray-100">
+            <TraitsEditor
+              v-model="selectedClass.traits"
+              @update:model-value="db.save('Classes.json', db.classes)"
+            />
           </div>
         </div>
       </div>

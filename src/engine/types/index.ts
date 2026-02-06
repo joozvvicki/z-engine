@@ -26,9 +26,49 @@ export interface ZDatabaseEntry {
   note?: string
 }
 
+export enum ZTraitCode {
+  // Rates
+  ElementRate = 11,
+  DebuffRate = 12,
+  StateRate = 13,
+  StateResist = 14,
+  // Params
+  Param = 21,
+  XParam = 22,
+  SParam = 23,
+  // Attack
+  AttackElement = 31,
+  AttackState = 32,
+  AttackSpeed = 33,
+  AttackTimes = 34,
+  // Skills
+  AddSkillType = 41,
+  SealSkillType = 42,
+  AddSkill = 43,
+  SealSkill = 44,
+  // Equip
+  EquipWeapon = 51,
+  EquipArmor = 52,
+  LockEquip = 53,
+  SealEquip = 54,
+  SlotType = 55,
+  // Other
+  ActionTimes = 61,
+  SpecialFlag = 62,
+  CollapseEffect = 63,
+  PartyAbility = 64
+}
+
+export interface ZTrait {
+  code: ZTraitCode
+  dataId: number
+  value: number
+}
+
 export interface ZClass extends ZDatabaseEntry {
   nickname?: string
   params: number[] // [MHP, MMP, ATK, DEF, MAT, MDF, AGI, LUK]
+  traits: ZTrait[]
 }
 
 export interface ZSkill extends ZDatabaseEntry {
@@ -94,6 +134,7 @@ export interface ZActor extends ZDatabaseEntry {
   characterSrcW?: number
   characterSrcH?: number
   baseParams: number[] // Level-independent bonuses
+  traits: ZTrait[]
 }
 
 export interface ZAudioConfig {

@@ -14,6 +14,7 @@ import {
 import { ProjectService } from '../../services/ProjectService'
 import { SpriteUtils } from '@engine/utils/SpriteUtils'
 import CharacterSelector from '../modal/CharacterSelector.vue'
+import TraitsEditor from './common/TraitsEditor.vue'
 
 const db = useDatabaseStore()
 const selectedId = ref<number>(db.actors[0]?.id || 0)
@@ -473,20 +474,10 @@ const getFaceStyle = (actor: any): CSSProperties => {
             </div>
           </div>
 
-          <div
-            class="p-8 border-2 border-dashed border-slate-200 rounded-3xl bg-slate-50/50 flex flex-col items-center justify-center text-center opacity-70 hover:opacity-100 transition-opacity"
-          >
-            <div
-              class="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-sm mb-3"
-            >
-              <IconStar :size="24" class="text-slate-300" />
-            </div>
-            <h4 class="text-sm font-bold text-slate-900">Traits & Resistances</h4>
-            <p class="text-xs text-slate-500 mt-1 max-w-sm">
-              This module is under construction. Soon you will be able to configure elemental
-              affinities and state resistances here.
-            </p>
-          </div>
+          <TraitsEditor
+            v-model="selectedActor.traits"
+            @update:model-value="db.save('Actors.json', db.actors)"
+          />
         </div>
       </div>
     </div>
