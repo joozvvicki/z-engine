@@ -1,12 +1,10 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { useDatabaseStore } from '@ui/stores/database' // Zakładam, że dodasz te tablice do store
 import {
   IconFlame, // Elements
   IconSword, // Weapon Types
   IconShield, // Armor Types
   IconSparkles, // Skill Types
-  IconTags, // Header
   IconPlus,
   IconTrash,
   IconSearch
@@ -101,14 +99,14 @@ const currentList = computed(() => {
 })
 
 // --- ACTIONS ---
-const handleAdd = () => {
+const handleAdd = (): void => {
   const list = localData.value[activeCategory.value]
   const newId = list.length > 0 ? Math.max(...list.map((i) => i.id)) + 1 : 1
   list.push({ id: newId, name: '' })
   // W realnym scenariuszu: db.addElement('New Element')
 }
 
-const handleDelete = (id: number) => {
+const handleDelete = (id: number): void => {
   const list = localData.value[activeCategory.value]
   const idx = list.findIndex((i) => i.id === id)
   if (idx !== -1) list.splice(idx, 1)

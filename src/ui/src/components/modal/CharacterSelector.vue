@@ -95,7 +95,7 @@ const selectionStyle = computed(() => ({
 
 <template>
   <div
-    class="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-md p-4 md:p-12"
+    class="fixed inset-0 z-100 flex items-center justify-center bg-slate-900/40 backdrop-blur-md p-4 md:p-12"
     @click.self="emit('close')"
   >
     <div

@@ -5,7 +5,6 @@ import {
   IconPuzzle,
   IconSettings,
   IconDownload,
-  IconCheck,
   IconRefresh,
   IconTrash,
   IconBoxModel,
@@ -124,19 +123,19 @@ const filteredAddons = computed(() => {
 })
 
 // --- ACTIONS ---
-const togglePlugin = (addon: Addon) => {
+const togglePlugin = (addon: Addon): void => {
   if (addon.installed) {
     addon.enabled = !addon.enabled
   }
 }
 
-const installAddon = (addon: Addon) => {
+const installAddon = (addon: Addon): void => {
   // Symulacja instalacji
   addon.installed = true
   addon.enabled = true
 }
 
-const updateAddon = (addon: Addon) => {
+const updateAddon = (addon: Addon): void => {
   addon.hasUpdate = false
   addon.version = 'Latest'
 }
@@ -157,26 +156,26 @@ const updateAddon = (addon: Addon) => {
 
         <nav class="space-y-1">
           <button
-            @click="filter = 'all'"
             class="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-all group"
             :class="
               filter === 'all'
                 ? 'bg-indigo-50 text-indigo-700 font-bold'
                 : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
             "
+            @click="filter = 'all'"
           >
             <span>Discover</span>
             <span v-if="filter === 'all'" class="w-1.5 h-1.5 rounded-full bg-indigo-600"></span>
           </button>
 
           <button
-            @click="filter = 'installed'"
             class="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-all group"
             :class="
               filter === 'installed'
                 ? 'bg-indigo-50 text-indigo-700 font-bold'
                 : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
             "
+            @click="filter = 'installed'"
           >
             <span>Installed</span>
             <span
@@ -186,13 +185,13 @@ const updateAddon = (addon: Addon) => {
           </button>
 
           <button
-            @click="filter = 'updates'"
             class="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-medium transition-all group"
             :class="
               filter === 'updates'
                 ? 'bg-indigo-50 text-indigo-700 font-bold'
                 : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
             "
+            @click="filter = 'updates'"
           >
             <span>Updates</span>
             <span
@@ -205,7 +204,7 @@ const updateAddon = (addon: Addon) => {
 
       <div class="mt-auto p-6">
         <div
-          class="p-4 bg-gradient-to-br from-indigo-600 to-violet-600 rounded-2xl text-white shadow-lg shadow-indigo-500/30"
+          class="p-4 bg-linear-to-br from-indigo-600 to-violet-600 rounded-2xl text-white shadow-lg shadow-indigo-500/30"
         >
           <IconPuzzle :size="24" class="mb-2 opacity-80" />
           <h3 class="font-bold text-sm mb-1">Create Add-ons</h3>
@@ -251,7 +250,7 @@ const updateAddon = (addon: Addon) => {
       <div class="flex-1 overflow-y-auto custom-scrollbar p-8">
         <div
           v-if="filter === 'all' && !searchQuery"
-          class="mb-10 p-1 rounded-3xl bg-gradient-to-r from-pink-500 via-red-500 to-yellow-500"
+          class="mb-10 p-1 rounded-3xl bg-linear-to-r from-pink-500 via-red-500 to-yellow-500"
         >
           <div
             class="bg-white rounded-[20px] p-8 flex items-center justify-between relative overflow-hidden"
@@ -273,7 +272,7 @@ const updateAddon = (addon: Addon) => {
               </button>
             </div>
             <div
-              class="absolute right-0 top-0 bottom-0 w-1/3 bg-gradient-to-l from-orange-50 to-transparent"
+              class="absolute right-0 top-0 bottom-0 w-1/3 bg-linear-to-l from-orange-50 to-transparent"
             ></div>
             <IconWand
               :size="180"
@@ -333,8 +332,8 @@ const updateAddon = (addon: Addon) => {
             <div class="mt-auto flex items-center justify-between pt-4 border-t border-slate-50">
               <div v-if="addon.installed" class="flex items-center gap-3 w-full">
                 <div
-                  @click="togglePlugin(addon)"
                   class="flex items-center gap-2 cursor-pointer select-none"
+                  @click="togglePlugin(addon)"
                 >
                   <div
                     class="w-9 h-5 rounded-full relative transition-colors duration-200"
@@ -356,9 +355,9 @@ const updateAddon = (addon: Addon) => {
                 <div class="ml-auto flex gap-1">
                   <button
                     v-if="addon.hasUpdate"
-                    @click="updateAddon(addon)"
                     class="p-1.5 text-amber-500 hover:bg-amber-50 rounded-lg transition-colors"
                     title="Update"
+                    @click="updateAddon(addon)"
                   >
                     <IconDownload :size="16" />
                   </button>
@@ -373,8 +372,8 @@ const updateAddon = (addon: Addon) => {
 
               <div v-else class="w-full flex justify-end">
                 <button
-                  @click="installAddon(addon)"
                   class="flex items-center gap-2 px-4 py-1.5 bg-slate-50 text-slate-600 hover:bg-indigo-600 hover:text-white border border-slate-200 hover:border-transparent rounded-lg text-xs font-bold transition-all"
+                  @click="installAddon(addon)"
                 >
                   <IconDownload :size="14" />
                   <span>Install</span>

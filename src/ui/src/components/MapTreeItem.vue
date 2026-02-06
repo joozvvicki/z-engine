@@ -26,22 +26,22 @@ const children = computed(() =>
 )
 const mapData = computed(() => store.maps.find((m) => m.id === props.item.id))
 
-const handleClick = () => {
+const handleClick = (): void => {
   if (props.item.isFolder) store.toggleFolderExpanded(props.item.id)
   else if (!store.isTestMode) store.setActiveMap(props.item.id)
 }
 
 const emit = defineEmits(['contextmenu'])
-const onContextMenu = (e: MouseEvent) => emit('contextmenu', { event: e, item: props.item })
+const onContextMenu = (e: MouseEvent): void => emit('contextmenu', { event: e, item: props.item })
 
 // --- Drag & Drop ---
-const onDragStart = (e: DragEvent) => {
+const onDragStart = (e: DragEvent): void => {
   if (store.isTestMode) return
   e.dataTransfer?.setData('application/json', JSON.stringify({ id: props.item.id }))
   e.dataTransfer!.effectAllowed = 'move'
 }
 
-const onDragOver = (e: DragEvent) => {
+const onDragOver = (e: DragEvent): void => {
   if (store.isTestMode) return
   e.preventDefault()
   e.dataTransfer!.dropEffect = 'move'
@@ -60,14 +60,14 @@ const onDragOver = (e: DragEvent) => {
   }
 }
 
-const onDragEnter = (e: DragEvent) => {
+const onDragEnter = (e: DragEvent): void => {
   if (!store.isTestMode) {
     e.preventDefault()
     dragCounter++
     isDragTarget.value = true
   }
 }
-const onDragLeave = (e: DragEvent) => {
+const onDragLeave = (e: DragEvent): void => {
   if (!store.isTestMode) {
     e.preventDefault()
     dragCounter--
@@ -78,7 +78,7 @@ const onDragLeave = (e: DragEvent) => {
   }
 }
 
-const onDrop = (e: DragEvent) => {
+const onDrop = (e: DragEvent): void => {
   if (store.isTestMode) return
   e.preventDefault()
   e.stopPropagation()
@@ -100,7 +100,7 @@ const onDrop = (e: DragEvent) => {
 }
 
 // --- Renaming ---
-const startRenaming = () => {
+const startRenaming = (): void => {
   if (store.isTestMode) return
   renamingName.value = props.item.name
   isRenaming.value = true
@@ -110,13 +110,13 @@ const startRenaming = () => {
     nameInput.value?.select()
   })
 }
-const saveRename = () => {
+const saveRename = (): void => {
   if (!isRenaming.value) return
   const finalName = renamingName.value.trim()
   if (finalName && finalName !== props.item.name) store.renameEntry(props.item.id, finalName)
   cancelRename()
 }
-const cancelRename = () => {
+const cancelRename = (): void => {
   isRenaming.value = false
   if (store.renamingId === props.item.id) store.renamingId = null
 }
@@ -130,25 +130,25 @@ watch(
 )
 
 // Animation hooks
-const beforeEnter = (el: Element) => {
+const beforeEnter = (el: Element): void => {
   ;(el as HTMLElement).style.height = '0'
   ;(el as HTMLElement).style.opacity = '0'
 }
-const enter = (el: Element) => {
+const enter = (el: Element): void => {
   ;(el as HTMLElement).style.height = (el as HTMLElement).scrollHeight + 'px'
   ;(el as HTMLElement).style.opacity = '1'
 }
-const afterEnter = (el: Element) => {
+const afterEnter = (el: Element): void => {
   ;(el as HTMLElement).style.height = ''
 }
-const leave = (el: Element) => {
+const leave = (el: Element): void => {
   const h = el as HTMLElement
   h.style.height = h.scrollHeight + 'px'
   void h.offsetHeight
   h.style.height = '0'
   h.style.opacity = '0'
 }
-const afterLeave = (el: Element) => {
+const afterLeave = (el: Element): void => {
   ;(el as HTMLElement).style.height = ''
 }
 </script>

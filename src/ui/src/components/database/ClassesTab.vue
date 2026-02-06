@@ -280,7 +280,7 @@ const updateParam = (index: number, value: number) => {
     </div>
 
     <div v-else class="flex-1 flex flex-col items-center justify-center text-slate-300">
-      <div class="w-20 h-20 bg-slate-50 rounded-[2rem] flex items-center justify-center mb-4">
+      <div class="w-20 h-20 bg-slate-50 rounded-2xl flex items-center justify-center mb-4">
         <IconTypeface :size="40" class="opacity-50" />
       </div>
       <span class="text-sm font-bold text-slate-400">No Class Selected</span>

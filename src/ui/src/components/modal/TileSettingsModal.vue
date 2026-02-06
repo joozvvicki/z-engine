@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
 import { useEditorStore } from '@ui/stores/editor'
 import {
   IconDeviceFloppy,
@@ -88,7 +88,7 @@ initSettings()
 
 <template>
   <div
-    class="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-md p-4"
+    class="fixed inset-0 z-100 flex items-center justify-center bg-slate-900/40 backdrop-blur-md p-4"
     @click.self="emit('close')"
   >
     <div
@@ -120,7 +120,7 @@ initSettings()
         <div class="flex gap-8 items-center">
           <div class="relative">
             <div
-              class="w-[160px] h-[160px] rounded-[2rem] overflow-hidden border border-slate-200 bg-slate-50 relative shadow-inner flex items-center justify-center"
+              class="w-[160px] h-[160px] rounded-2xl overflow-hidden border border-slate-200 bg-slate-50 relative shadow-inner flex items-center justify-center"
             >
               <div class="absolute inset-0 checkerboard opacity-[0.03]" />
 
@@ -239,7 +239,6 @@ initSettings()
                   { bit: 8, icon: IconArrowLeft, pos: 'left-0 top-1/2 -translate-y-1/2' }
                 ]"
                 :key="dir.bit"
-                @click="toggleDir(dir.bit)"
                 :class="[
                   'absolute w-10 h-10 rounded-xl border-2 flex items-center justify-center transition-all active:scale-90',
                   isDirBlocked(dir.bit)
@@ -248,6 +247,7 @@ initSettings()
                   dir.pos
                 ]"
                 :style="{ [dir.pos.split(' ')[0]]: 0 }"
+                @click="toggleDir(dir.bit)"
               >
                 <component :is="dir.icon" size="18" stroke-width="3" />
               </button>

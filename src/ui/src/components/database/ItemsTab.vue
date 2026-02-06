@@ -28,13 +28,13 @@ const filteredItems = computed(() => {
 const selectedItem = computed(() => db.items.find((i) => i.id === selectedId.value))
 
 // --- ACTIONS ---
-const handleAdd = () => {
+const handleAdd = (): void => {
   db.addItem()
   const last = db.items[db.items.length - 1]
   if (last) selectedId.value = last.id
 }
 
-const handleDelete = () => {
+const handleDelete = (): void => {
   if (confirm('Are you sure you want to delete this item?')) {
     db.deleteItem(selectedId.value)
     if (db.items.length > 0) selectedId.value = db.items[0].id
@@ -136,7 +136,7 @@ const occasions = ['Always', 'Battle Screen', 'Menu Screen', 'Never']
           <div class="flex flex-col md:flex-row gap-8 mb-10">
             <div class="group relative shrink-0">
               <div
-                class="w-32 h-32 bg-slate-50 rounded-[2rem] border-2 border-slate-100 flex items-center justify-center shadow-sm relative overflow-hidden"
+                class="w-32 h-32 bg-slate-50 rounded-2xl border-2 border-slate-100 flex items-center justify-center shadow-sm relative overflow-hidden"
               >
                 <IconPackage :size="48" class="text-amber-400" stroke-width="1.5" />
 
@@ -236,7 +236,7 @@ const occasions = ['Always', 'Battle Screen', 'Menu Screen', 'Never']
                 <label class="flex items-center gap-3 cursor-pointer group">
                   <input
                     type="checkbox"
-                    class="w-4 h-4 rounded border-slate-300 text-amber-600 focus:ring-amber-500 rounded-md bg-white"
+                    class="w-4 h-4 border-slate-300 text-amber-600 focus:ring-amber-500 rounded-md bg-white"
                     checked
                   />
                   <span class="text-xs font-medium text-slate-600 group-hover:text-slate-900"
@@ -301,7 +301,7 @@ const occasions = ['Always', 'Battle Screen', 'Menu Screen', 'Never']
     </div>
 
     <div v-else class="flex-1 flex flex-col items-center justify-center text-slate-300">
-      <div class="w-20 h-20 bg-slate-50 rounded-[2rem] flex items-center justify-center mb-4">
+      <div class="w-20 h-20 bg-slate-50 rounded-2xl flex items-center justify-center mb-4">
         <IconPackage :size="40" class="opacity-50" />
       </div>
       <span class="text-sm font-bold text-slate-400">No Item Selected</span>

@@ -88,7 +88,7 @@ const isActive = (path: string, exact = false): boolean => {
 }
 
 // Inteligentna nawigacja
-const handleNavigation = (module: (typeof mainModules)[0]) => {
+const handleNavigation = (module: (typeof mainModules)[0]): void => {
   // Jeśli już jesteśmy w tym module (np. /resources/music),
   // kliknięcie w ikonę Resources nie powinno resetować widoku do Tilesets,
   // chyba że użytkownik tego oczekuje. Zazwyczaj w IDE - nic nie robi lub toggluje sidebar.
@@ -99,7 +99,7 @@ const handleNavigation = (module: (typeof mainModules)[0]) => {
   }
 }
 
-const navigateSimple = (path: string) => {
+const navigateSimple = (path: string): void => {
   router.push(path)
 }
 </script>
@@ -168,7 +168,7 @@ const navigateSimple = (path: string) => {
         class="mt-2 w-10 h-10 rounded-full bg-slate-50 border border-slate-200 p-0.5 cursor-pointer hover:ring-2 hover:ring-slate-100 transition-all"
       >
         <div
-          class="w-full h-full rounded-full bg-gradient-to-br from-slate-200 to-slate-300 flex items-center justify-center text-xs font-bold text-slate-600"
+          class="w-full h-full rounded-full bg-linear-to-br from-slate-200 to-slate-300 flex items-center justify-center text-xs font-bold text-slate-600"
         >
           JS
         </div>

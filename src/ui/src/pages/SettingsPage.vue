@@ -38,18 +38,18 @@ const menuItems = [
 ]
 
 // --- PARTY LOGIC ---
-const addPartyMember = () => {
+const addPartyMember = (): void => {
   if (db.actors.length > 0) store.systemStartingParty.push(db.actors[0].id)
 }
-const removePartyMember = (index: number) => {
+const removePartyMember = (index: number): void => {
   store.systemStartingParty.splice(index, 1)
 }
-const getActorFace = (actorId: number) => {
+const getActorFace = (actorId: number): string | null => {
   const actor = db.actors.find((a) => a.id === actorId)
   if (!actor?.face) return null
   return ProjectService.resolveAssetUrl(actor.face)
 }
-const getActorFacePos = (actorId: number) => {
+const getActorFacePos = (actorId: number): { x: number; y: number } => {
   const actor = db.actors.find((a) => a.id === actorId)
   return { x: actor?.faceSrcX || 0, y: actor?.faceSrcY || 0 }
 }
@@ -585,6 +585,7 @@ onMounted(() => {
 
 <style scoped>
 @import 'tailwindcss';
+
 .input-base {
   @apply w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-bold text-slate-900 outline-none focus:bg-white focus:border-blue-400 transition-all;
 }

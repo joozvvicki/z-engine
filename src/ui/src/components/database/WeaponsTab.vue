@@ -25,13 +25,13 @@ const filteredWeapons = computed(() => {
 const selectedWeapon = computed(() => db.weapons.find((w) => w.id === selectedId.value))
 
 // --- ACTIONS ---
-const handleAdd = () => {
+const handleAdd = (): void => {
   db.addWeapon()
   const last = db.weapons[db.weapons.length - 1]
   if (last) selectedId.value = last.id
 }
 
-const handleDelete = () => {
+const handleDelete = (): void => {
   if (confirm('Are you sure you want to delete this weapon?')) {
     db.deleteWeapon(selectedId.value)
     if (db.weapons.length > 0) selectedId.value = db.weapons[0].id
@@ -48,7 +48,7 @@ const weaponTypes = [
   { id: 5, name: 'Staff' }
 ]
 
-const updateParam = (index: number, value: number) => {
+const updateParam = (index: number, value: number): void => {
   if (selectedWeapon.value) {
     selectedWeapon.value.params[index] = value
     db.save('Weapons.json', db.weapons)
@@ -147,7 +147,7 @@ const updateParam = (index: number, value: number) => {
           <div class="flex flex-col md:flex-row gap-8 mb-10">
             <div class="group relative shrink-0">
               <div
-                class="w-32 h-32 bg-slate-50 rounded-[2rem] border-2 border-slate-100 flex items-center justify-center shadow-sm relative overflow-hidden"
+                class="w-32 h-32 bg-slate-50 rounded-2xl border-2 border-slate-100 flex items-center justify-center shadow-sm relative overflow-hidden"
               >
                 <IconSword :size="48" class="text-rose-300" stroke-width="1.5" />
 
@@ -293,7 +293,7 @@ const updateParam = (index: number, value: number) => {
     </div>
 
     <div v-else class="flex-1 flex flex-col items-center justify-center text-slate-300">
-      <div class="w-20 h-20 bg-slate-50 rounded-[2rem] flex items-center justify-center mb-4">
+      <div class="w-20 h-20 bg-slate-50 rounded-2xl flex items-center justify-center mb-4">
         <IconSword :size="40" class="opacity-50" />
       </div>
       <span class="text-sm font-bold text-slate-400">No Weapon Selected</span>

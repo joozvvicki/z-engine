@@ -10,7 +10,7 @@
     >
       <div
         v-if="isOpen"
-        class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-[100] p-4"
+        class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-100 p-4"
         @click.self="close"
       >
         <div
@@ -100,7 +100,7 @@
             <div v-else class="py-4">
               <div
                 :class="[
-                  'w-20 h-20 rounded-[2rem] mx-auto mb-8 flex items-center justify-center text-3xl shadow-2xl',
+                  'w-20 h-20 rounded-2xl mx-auto mb-8 flex items-center justify-center text-3xl shadow-2xl',
                   buildResult.success
                     ? 'bg-emerald-50 text-emerald-500 shadow-emerald-100'
                     : 'bg-rose-50 text-rose-500 shadow-rose-100'

@@ -49,7 +49,7 @@ const equipmentTypes = [
   { id: 4, name: 'Accessory' }
 ]
 
-const updateParam = (index: number, value: number) => {
+const updateParam = (index: number, value: number): void => {
   if (selectedArmor.value) {
     selectedArmor.value.params[index] = value
     db.save('Armors.json', db.armors)

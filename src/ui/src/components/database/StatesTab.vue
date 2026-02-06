@@ -1,10 +1,8 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { useDatabaseStore } from '@ui/stores/database'
 import {
   IconPlus,
   IconSearch,
-  IconTrash,
   IconBiohazard, // Ikona stanów
   IconSkull,
   IconHourglass,
@@ -12,7 +10,6 @@ import {
   IconActivity
 } from '@tabler/icons-vue'
 
-const db = useDatabaseStore()
 // Mockujemy dane stanów, bo pewnie ich jeszcze nie ma w store
 const mockStates = ref([
   { id: 1, name: 'Knockout', restriction: 'Cannot Move', color: '#000000', icon: 1 },
@@ -35,7 +32,7 @@ const filteredStates = computed(() => {
 
 const selectedState = computed(() => mockStates.value.find((s) => s.id === selectedId.value))
 
-const handleAdd = () => {
+const handleAdd = (): void => {
   const newId = mockStates.value.length + 1
   mockStates.value.push({
     id: newId,
@@ -47,11 +44,6 @@ const handleAdd = () => {
   selectedId.value = newId
 }
 
-const handleDelete = () => {
-  /* Logic similar to other tabs */
-}
-
-// Config
 const restrictions = ['None', 'Cannot Move', 'Attack Enemy', 'Attack Anyone', 'Attack Ally']
 </script>
 
@@ -125,7 +117,7 @@ const restrictions = ['None', 'Cannot Move', 'Attack Enemy', 'Attack Anyone', 'A
           <div class="flex flex-col md:flex-row gap-8 mb-10">
             <div class="group relative shrink-0">
               <div
-                class="w-32 h-32 bg-slate-50 rounded-[2rem] border-2 border-slate-100 flex items-center justify-center shadow-sm relative overflow-hidden"
+                class="w-32 h-32 bg-slate-50 rounded-2xl border-2 border-slate-100 flex items-center justify-center shadow-sm relative overflow-hidden"
               >
                 <IconSkull :size="48" class="text-fuchsia-300" stroke-width="1.5" />
                 <div

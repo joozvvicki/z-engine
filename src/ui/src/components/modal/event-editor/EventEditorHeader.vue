@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { IconDeviceFloppy, IconTrash, IconX, IconSettings } from '@tabler/icons-vue'
+import { IconDeviceFloppy, IconTrash, IconSettings } from '@tabler/icons-vue'
 
 const props = defineProps<{
   eventId?: string | null

@@ -3,12 +3,10 @@ import { ref, computed } from 'vue'
 import {
   IconPlus,
   IconSearch,
-  IconTrash,
   IconMovie,
   IconPlayerPlay,
   IconPlayerStop,
   IconPlayerTrackNext,
-  IconDeviceTv,
   IconClock
 } from '@tabler/icons-vue'
 
@@ -34,7 +32,7 @@ const filteredAnims = computed(() => {
 
 const selectedAnim = computed(() => mockAnims.value.find((a) => a.id === selectedId.value))
 
-const togglePlay = () => {
+const togglePlay = (): void => {
   isPlaying.value = !isPlaying.value
 }
 </script>

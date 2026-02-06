@@ -26,13 +26,13 @@ const filteredSkills = computed(() => {
 const selectedSkill = computed(() => db.skills.find((s) => s.id === selectedId.value))
 
 // --- ACTIONS ---
-const handleAdd = () => {
+const handleAdd = (): void => {
   db.addSkill()
   const last = db.skills[db.skills.length - 1]
   if (last) selectedId.value = last.id
 }
 
-const handleDelete = () => {
+const handleDelete = (): void => {
   if (confirm('Are you sure you want to delete this skill?')) {
     db.deleteSkill(selectedId.value)
     if (db.skills.length > 0) selectedId.value = db.skills[0].id
@@ -128,7 +128,7 @@ const occasions = ['Always', 'Battle Screen', 'Menu Screen', 'Never']
           <div class="flex flex-col md:flex-row gap-8 mb-10">
             <div class="group relative shrink-0">
               <div
-                class="w-32 h-32 bg-slate-50 rounded-[2rem] border-2 border-slate-100 flex items-center justify-center shadow-sm relative overflow-hidden"
+                class="w-32 h-32 bg-slate-50 rounded-2xl border-2 border-slate-100 flex items-center justify-center shadow-sm relative overflow-hidden"
               >
                 <IconSparkles :size="48" class="text-cyan-400" stroke-width="1.5" />
 
@@ -279,7 +279,7 @@ const occasions = ['Always', 'Battle Screen', 'Menu Screen', 'Never']
                   <label class="flex items-center gap-3 cursor-pointer group">
                     <input
                       type="checkbox"
-                      class="w-4 h-4 rounded border-slate-300 text-cyan-600 focus:ring-cyan-500 rounded-md bg-white"
+                      class="w-4 h-4 border-slate-300 text-cyan-600 focus:ring-cyan-500 -md bg-white"
                     />
                     <span class="text-xs font-medium text-slate-600 group-hover:text-slate-900"
                       >Hit Type: Certain Hit</span
@@ -288,7 +288,7 @@ const occasions = ['Always', 'Battle Screen', 'Menu Screen', 'Never']
                   <label class="flex items-center gap-3 cursor-pointer group">
                     <input
                       type="checkbox"
-                      class="w-4 h-4 rounded border-slate-300 text-cyan-600 focus:ring-cyan-500 rounded-md bg-white"
+                      class="w-4 h-4 border-slate-300 text-cyan-600 focus:ring-cyan-500 rounded-md bg-white"
                     />
                     <span class="text-xs font-medium text-slate-600 group-hover:text-slate-900"
                       >Cast Animation</span
@@ -329,7 +329,7 @@ const occasions = ['Always', 'Battle Screen', 'Menu Screen', 'Never']
     </div>
 
     <div v-else class="flex-1 flex flex-col items-center justify-center text-slate-300">
-      <div class="w-20 h-20 bg-slate-50 rounded-[2rem] flex items-center justify-center mb-4">
+      <div class="w-20 h-20 bg-slate-50 rounded-2xl flex items-center justify-center mb-4">
         <IconSparkles :size="40" class="opacity-50" />
       </div>
       <span class="text-sm font-bold text-slate-400">No Skill Selected</span>

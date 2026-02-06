@@ -91,11 +91,11 @@ const filteredPlugins = computed(() => {
 const selectedPlugin = computed(() => plugins.value.find((p) => p.id === selectedId.value))
 
 // --- ACTIONS ---
-const toggleStatus = (plugin: Plugin) => {
+const toggleStatus = (plugin: Plugin): void => {
   plugin.status = !plugin.status
 }
 
-const movePlugin = (direction: 'up' | 'down') => {
+const movePlugin = (direction: 'up' | 'down'): void => {
   if (!selectedId.value) return
   const index = plugins.value.findIndex((p) => p.id === selectedId.value)
   if (index === -1) return
@@ -111,7 +111,7 @@ const movePlugin = (direction: 'up' | 'down') => {
   }
 }
 
-const handleImport = () => {
+const handleImport = (): void => {
   // Mock import
   const newId = `new_plugin_${plugins.value.length}`
   plugins.value.push({
@@ -127,7 +127,7 @@ const handleImport = () => {
   selectedId.value = newId
 }
 
-const handleDelete = () => {
+const handleDelete = (): void => {
   if (confirm('Uninstall this plugin?')) {
     const idx = plugins.value.findIndex((p) => p.id === selectedId.value)
     if (idx !== -1) {
@@ -153,8 +153,8 @@ const handleDelete = () => {
           </div>
           <button
             class="p-1.5 rounded-lg bg-slate-200 hover:bg-teal-600 hover:text-white text-slate-500 transition-all shadow-sm"
-            @click="handleImport"
             title="Import JS File"
+            @click="handleImport"
           >
             <IconPlus :size="16" stroke-width="2.5" />
           </button>
@@ -288,8 +288,8 @@ const handleDelete = () => {
 
           <button
             class="p-3 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
-            @click="handleDelete"
             title="Uninstall"
+            @click="handleDelete"
           >
             <IconTrash :size="20" />
           </button>
@@ -377,7 +377,7 @@ const handleDelete = () => {
 
     <div v-else class="flex-1 flex flex-col items-center justify-center text-slate-300 bg-slate-50">
       <div
-        class="w-24 h-24 bg-white rounded-[2rem] border border-slate-200 shadow-sm flex items-center justify-center mb-6"
+        class="w-24 h-24 bg-white rounded-4xl border border-slate-200 shadow-sm flex items-center justify-center mb-6"
       >
         <IconPlug :size="48" class="text-slate-200" />
       </div>

@@ -1,16 +1,15 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { useDatabaseStore } from '@ui/stores/database' // Zakładam, że dodasz tam commonEvents
 import {
   IconPlus,
   IconSearch,
   IconTrash,
   IconBolt,
   IconSettings,
-  IconCode,
   IconToggleLeft,
   IconPlayerPlay,
-  IconMenu2
+  IconMenu2,
+  IconGhost
 } from '@tabler/icons-vue'
 
 // --- MOCK DATA (Dopóki nie ma w store) ---
@@ -45,6 +44,7 @@ const mockEvents = ref([
 
 const selectedId = ref<number>(1)
 const searchQuery = ref('')
+const selectedCommandIndex = ref<number | null>(null)
 
 // --- COMPUTED ---
 const filteredEvents = computed(() => {
@@ -58,7 +58,7 @@ const selectedEvent = computed(() => mockEvents.value.find((e) => e.id === selec
 const triggers = ['None (Call only)', 'Autorun', 'Parallel Process']
 
 // --- ACTIONS ---
-const handleAdd = () => {
+const handleAdd = (): void => {
   const newId = mockEvents.value.length > 0 ? Math.max(...mockEvents.value.map((e) => e.id)) + 1 : 1
   mockEvents.value.push({
     id: newId,
@@ -70,7 +70,7 @@ const handleAdd = () => {
   selectedId.value = newId
 }
 
-const handleDelete = () => {
+const handleDelete = (): void => {
   if (confirm('Delete this common event?')) {
     const idx = mockEvents.value.findIndex((e) => e.id === selectedId.value)
     if (idx !== -1) {
@@ -81,15 +81,29 @@ const handleDelete = () => {
 }
 
 // Helpers for visual styling of commands
-const getCommandColor = (code: number) => {
-  if (code === 111 || code === 412) return 'border-orange-400 bg-orange-50 text-orange-900' // Flow control
-  if (code === 101) return 'border-blue-400 bg-blue-50 text-blue-900' // Game Data
-  return 'border-slate-300 bg-white text-slate-700' // Default
+// UPDATED: Using semantically compliant colors matching EventEditorCommandList
+const getCommandColor = (code: number): string => {
+  // Logic / Flow Control (Purple) -> e.g. If, Loops
+  if ([111, 412].includes(code))
+    return 'border-purple-400 bg-purple-50 text-purple-900 shadow-purple-100'
+
+  // Game Data (Rose) -> e.g. Switches, Variables
+  if ([101].includes(code)) return 'border-rose-400 bg-rose-50 text-rose-900 shadow-rose-100'
+
+  // Audio/Visuals (Amber) -> e.g. Play SE, Show Picture
+  if ([201].includes(code)) return 'border-amber-400 bg-amber-50 text-amber-900 shadow-amber-100'
+
+  // Movement (Emerald)
+  // Messages (Sky)
+
+  // Default (Slate)
+  return 'border-slate-300 bg-white text-slate-700 shadow-slate-100'
 }
 </script>
 
 <template>
   <div class="flex h-full bg-white text-slate-900 font-sans">
+    <!-- Left Sidebar: Event List -->
     <div class="w-72 flex flex-col border-r border-slate-200 bg-slate-50/50">
       <div class="px-5 pt-6 pb-4">
         <div class="flex justify-between items-center mb-4">
@@ -174,7 +188,9 @@ const getCommandColor = (code: number) => {
       </div>
     </div>
 
+    <!-- Main Content -->
     <div v-if="selectedEvent" class="flex-1 flex flex-col h-full overflow-hidden bg-slate-50">
+      <!-- Header -->
       <div class="h-20 px-8 flex items-center gap-6 bg-white border-b border-slate-200 shrink-0">
         <div class="flex-1 space-y-1">
           <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest"
@@ -222,55 +238,101 @@ const getCommandColor = (code: number) => {
         </div>
       </div>
 
-      <div class="flex-1 overflow-hidden flex flex-col p-6">
+      <!-- Command List Area -->
+      <div class="flex-1 flex flex-col overflow-hidden bg-slate-50/50 relative">
+        <!-- List Header -->
         <div
-          class="flex-1 bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-col overflow-hidden"
+          class="px-6 py-4 border-b border-slate-200 flex justify-between items-center bg-white/80 backdrop-blur-sm sticky top-0 z-10 shrink-0"
         >
-          <div class="h-10 border-b border-slate-100 flex items-center px-4 gap-2 bg-slate-50/50">
-            <span
-              class="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1"
-            >
-              <IconCode :size="14" /> Execution Content
-            </span>
-            <div class="flex-1"></div>
+          <div class="flex items-center gap-3">
+            <h3 class="text-xs font-black uppercase tracking-widest text-slate-400">
+              Execution Content
+            </h3>
+            <!-- Run Test Button -->
             <button
-              class="text-xs font-bold text-indigo-600 hover:bg-indigo-50 px-2 py-1 rounded transition-colors flex items-center gap-1"
+              class="text-xs font-bold text-indigo-600 hover:bg-indigo-50 px-2 py-1 rounded transition-colors flex items-center gap-1 border border-transparent hover:border-indigo-100"
             >
               <IconPlayerPlay :size="12" /> Test
             </button>
           </div>
+        </div>
 
-          <div class="flex-1 overflow-y-auto p-2 space-y-1 custom-scrollbar bg-slate-50/30">
+        <!-- Scrollable List -->
+        <div class="flex-1 overflow-y-auto p-4 custom-scrollbar">
+          <!-- Empty State -->
+          <div
+            v-if="selectedEvent.list.length === 0"
+            class="flex flex-col items-center justify-center py-20 text-slate-300 select-none border-2 border-dashed border-slate-200 rounded-3xl m-4"
+          >
+            <div class="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center mb-3">
+              <IconGhost size="32" class="opacity-50" />
+            </div>
+            <p class="text-xs font-bold text-slate-400">No commands yet</p>
+            <p class="text-[10px] font-medium opacity-60 mt-1">Double click to insert (Mock)</p>
+          </div>
+
+          <div class="flex flex-col gap-1.5 pb-10">
             <div
               v-for="(cmd, idx) in selectedEvent.list"
               :key="idx"
-              class="flex items-center text-xs font-mono py-1.5 px-3 rounded border-l-4 shadow-sm hover:translate-x-1 transition-all cursor-pointer group"
-              :class="getCommandColor(cmd.code)"
-              :style="{ marginLeft: `${cmd.indent * 20}px` }"
+              class="group relative flex items-center gap-3 py-2 pr-2 pl-3 rounded-lg border-l-[3px] shadow-sm transition-all duration-200 cursor-pointer select-none hover:translate-x-1"
+              :class="[
+                getCommandColor(cmd.code),
+                selectedCommandIndex === idx ? 'ring-2 ring-indigo-500 ring-offset-2 z-10' : ''
+              ]"
+              :style="{ marginLeft: `${cmd.indent * 24}px` }"
+              @click="selectedCommandIndex = idx"
             >
-              <span class="opacity-30 mr-3 select-none">@</span>
-              <span class="font-bold flex-1">{{ cmd.text }}</span>
-              <div class="opacity-0 group-hover:opacity-100 flex gap-2">
-                <IconMenu2 :size="14" class="text-slate-400 cursor-grab" />
+              <!-- Line Number (Mock) -->
+              <span class="text-[9px] font-mono opacity-40 w-5 text-right shrink-0 select-none">
+                {{ String(idx + 1).padStart(3, '0') }}
+              </span>
+
+              <!-- Drag Handle -->
+              <div
+                class="opacity-0 group-hover:opacity-100 transition-opacity text-current/50 cursor-grab active:cursor-grabbing"
+              >
+                <IconMenu2 size="14" />
+              </div>
+
+              <!-- Content text -->
+              <div class="flex-1 font-sans text-[11px] font-bold leading-relaxed truncate">
+                {{ cmd.text }}
+              </div>
+
+              <!-- Hover Actions -->
+              <div class="opacity-0 group-hover:opacity-100 flex gap-1">
+                <button
+                  class="p-1.5 rounded-md hover:bg-white/50 hover:shadow-sm text-current/60 hover:text-red-500 transition-all"
+                >
+                  <IconTrash size="14" />
+                </button>
               </div>
             </div>
 
+            <!-- Add Button at bottom of list -->
             <div
-              class="flex items-center text-xs font-mono py-2 px-3 rounded border border-dashed border-slate-300 text-slate-400 hover:bg-slate-50 hover:border-indigo-300 hover:text-indigo-500 cursor-pointer transition-colors"
+              v-if="selectedEvent.list.length > 0"
+              class="group flex items-center justify-center py-2 rounded-lg border-2 border-dashed border-slate-200 hover:border-indigo-300 hover:bg-indigo-50/30 cursor-pointer transition-all duration-200 mt-2"
               :style="{
-                marginLeft: `${(selectedEvent.list.length > 0 ? selectedEvent.list[selectedEvent.list.length - 1].indent : 0) * 20}px`
+                marginLeft: `${(selectedEvent.list.length > 0 ? selectedEvent.list[selectedEvent.list.length - 1].indent : 0) * 24}px`
               }"
             >
-              <span class="mr-3 opacity-50">+</span>
-              <span>Double-click to add new command...</span>
+              <div
+                class="flex items-center gap-2 text-slate-300 group-hover:text-indigo-500 transition-colors"
+              >
+                <IconPlus size="14" stroke-width="3" />
+                <span class="text-[10px] font-bold uppercase tracking-widest">Add Command</span>
+              </div>
             </div>
           </div>
         </div>
       </div>
     </div>
 
+    <!-- Empty Selected State -->
     <div v-else class="flex-1 flex flex-col items-center justify-center text-slate-300">
-      <div class="w-20 h-20 bg-slate-50 rounded-[2rem] flex items-center justify-center mb-4">
+      <div class="w-20 h-20 bg-slate-50 rounded-2xl flex items-center justify-center mb-4">
         <IconBolt :size="40" class="opacity-50" />
       </div>
       <span class="text-sm font-bold text-slate-400">No Common Event Selected</span>

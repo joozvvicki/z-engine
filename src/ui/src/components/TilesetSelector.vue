@@ -295,7 +295,7 @@ const configTools = [
               >
                 <IconX
                   v-if="store.getTileConfig(map.url, map.ox, map.oy)?.isSolid"
-                  class="text-red-500 w-8 h-8 drop-shadow-md stroke-[3]"
+                  class="text-red-500 w-8 h-8 drop-shadow-md stroke-3"
                 />
                 <IconStar
                   v-if="store.getTileConfig(map.url, map.ox, map.oy)?.isHighPriority"
@@ -345,7 +345,7 @@ const configTools = [
                 >
                   <IconX
                     v-if="config.isSolid"
-                    class="text-red-500 w-8 h-8 drop-shadow-md stroke-[3]"
+                    class="text-red-500 w-8 h-8 drop-shadow-md stroke-3"
                   />
                   <IconStar
                     v-if="config.isHighPriority"

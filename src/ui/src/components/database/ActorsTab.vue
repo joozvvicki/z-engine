@@ -93,7 +93,7 @@ const onSelectCharacter = (selection: any): void => {
     selectedActor.value.characterSrcW = selection.pixelW
     selectedActor.value.characterSrcH = selection.pixelH
   } else {
-    selectedActor.value.face = `img/faces/${selection.tilesetId}`
+    selectedActor.value.face = `${selection.tilesetId}`
     selectedActor.value.faceX = selection.x || 0
     selectedActor.value.faceY = selection.y || 0
     selectedActor.value.faceSrcX = selection.pixelX

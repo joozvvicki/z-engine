@@ -115,7 +115,11 @@ const draggingNodeId = ref<string | null>(null)
 const dragNodeOffset = ref({ x: 0, y: 0 })
 
 // --- LOGIKA SVG ---
-const getSocketPosition = (nodeId: string, socketId: string, isInput: boolean) => {
+const getSocketPosition = (
+  nodeId: string,
+  socketId: string,
+  isInput: boolean
+): { x: number; y: number } => {
   const node = nodes.value.find((n) => n.id === nodeId)
   if (!node) return { x: 0, y: 0 }
 
@@ -135,7 +139,7 @@ const getSocketPosition = (nodeId: string, socketId: string, isInput: boolean) =
   }
 }
 
-const getPath = (conn: Connection) => {
+const getPath = (conn: Connection): string => {
   const start = getSocketPosition(conn.fromNode, conn.fromSocket, false)
   const end = getSocketPosition(conn.toNode, conn.toSocket, true)
   const dist = Math.abs(end.x - start.x)
@@ -144,7 +148,7 @@ const getPath = (conn: Connection) => {
 }
 
 // --- HANDLERS ---
-const handleWheel = (e: WheelEvent) => {
+const handleWheel = (e: WheelEvent): void => {
   if (e.ctrlKey) {
     e.preventDefault()
     const delta = e.deltaY > 0 ? 0.9 : 1.1
@@ -155,7 +159,7 @@ const handleWheel = (e: WheelEvent) => {
   }
 }
 
-const startPan = (e: MouseEvent) => {
+const startPan = (e: MouseEvent): void => {
   if (e.button === 1 || (e.button === 0 && e.altKey)) {
     isPanning.value = true
     dragStart.value = { x: e.clientX, y: e.clientY }
@@ -163,7 +167,7 @@ const startPan = (e: MouseEvent) => {
   }
 }
 
-const startDragNode = (e: MouseEvent, node: NodeData) => {
+const startDragNode = (e: MouseEvent, node: NodeData): void => {
   if (e.button !== 0 || e.altKey) return
   e.stopPropagation()
   draggingNodeId.value = node.id
@@ -173,7 +177,7 @@ const startDragNode = (e: MouseEvent, node: NodeData) => {
   }
 }
 
-const handleMouseMove = (e: MouseEvent) => {
+const handleMouseMove = (e: MouseEvent): void => {
   if (isPanning.value) {
     const dx = e.clientX - dragStart.value.x
     const dy = e.clientY - dragStart.value.y
@@ -190,13 +194,13 @@ const handleMouseMove = (e: MouseEvent) => {
   }
 }
 
-const handleMouseUp = () => {
+const handleMouseUp = (): void => {
   isPanning.value = false
   draggingNodeId.value = null
 }
 
 // --- KOLORYSTYKA WĘZŁÓW (LIGHT THEME) ---
-const getNodeBorderClass = (type: NodeType) => {
+const getNodeBorderClass = (type: NodeType): string => {
   switch (type) {
     case 'event':
       return 'border-t-purple-500'
@@ -211,7 +215,7 @@ const getNodeBorderClass = (type: NodeType) => {
   }
 }
 
-const getHeaderClass = (type: NodeType) => {
+const getHeaderClass = (type: NodeType): string => {
   switch (type) {
     case 'event':
       return 'bg-purple-50 text-purple-700'
@@ -226,7 +230,7 @@ const getHeaderClass = (type: NodeType) => {
   }
 }
 
-const getIconClass = (type: NodeType) => {
+const getIconClass = (type: NodeType): string => {
   switch (type) {
     case 'event':
       return 'text-purple-600'
@@ -385,7 +389,7 @@ const getIconClass = (type: NodeType) => {
               stroke-width="2"
               class="hover:stroke-indigo-500 transition-colors cursor-pointer"
             />
-            <circle r="3" fill="#4f46e5" v-for="conn in connections" :key="'dot-' + conn.id">
+            <circle v-for="conn in connections" :key="'dot-' + conn.id" r="3" fill="#4f46e5">
               <animateMotion dur="2s" repeatCount="indefinite" :path="getPath(conn)" />
             </circle>
           </g>
@@ -449,8 +453,8 @@ const getIconClass = (type: NodeType) => {
               <div v-if="node.values" class="bg-slate-50 p-2 rounded border border-slate-200">
                 <p class="text-[10px] text-slate-400 font-bold uppercase mb-1">Message Text</p>
                 <input
-                  type="text"
                   v-model="node.values.text"
+                  type="text"
                   class="w-full bg-white text-xs text-slate-800 outline-none border border-slate-200 rounded px-2 py-1 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/20 transition-all"
                 />
               </div>
@@ -482,8 +486,8 @@ const getIconClass = (type: NodeType) => {
           class="bg-white border border-slate-200 rounded-xl flex items-center p-1 shadow-lg shadow-slate-200/50"
         >
           <button
-            @click="scale = Math.max(0.5, scale - 0.1)"
             class="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-slate-800 transition-colors"
+            @click="scale = Math.max(0.5, scale - 0.1)"
           >
             <IconZoomOut :size="18" />
           </button>
@@ -491,8 +495,8 @@ const getIconClass = (type: NodeType) => {
             >{{ Math.round(scale * 100) }}%</span
           >
           <button
-            @click="scale = Math.min(2, scale + 0.1)"
             class="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-slate-800 transition-colors"
+            @click="scale = Math.min(2, scale + 0.1)"
           >
             <IconZoomIn :size="18" />
           </button>

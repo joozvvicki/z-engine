@@ -1400,8 +1400,6 @@ const handleSave = (): void => {
 </template>
 
 <style scoped>
-@import 'tailwindcss';
-
 .custom-scrollbar::-webkit-scrollbar {
   width: 5px;
 }

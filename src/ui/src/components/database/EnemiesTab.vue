@@ -25,13 +25,13 @@ const filteredEnemies = computed(() => {
 const selectedEnemy = computed(() => db.enemies.find((e) => e.id === selectedId.value))
 
 // --- ACTIONS ---
-const handleAdd = () => {
+const handleAdd = (): void => {
   db.addEnemy()
   const last = db.enemies[db.enemies.length - 1]
   if (last) selectedId.value = last.id
 }
 
-const handleDelete = () => {
+const handleDelete = (): void => {
   if (confirm('Are you sure you want to delete this enemy?')) {
     db.deleteEnemy(selectedId.value)
     if (db.enemies.length > 0) selectedId.value = db.enemies[0].id
@@ -136,7 +136,7 @@ const stats = [
           <div class="flex flex-col md:flex-row gap-8 mb-10">
             <div class="group relative shrink-0">
               <div
-                class="w-48 h-48 bg-slate-50 rounded-[2rem] border-2 border-slate-100 flex items-center justify-center shadow-sm relative overflow-hidden"
+                class="w-48 h-48 bg-slate-50 rounded-2xl border-2 border-slate-100 flex items-center justify-center shadow-sm relative overflow-hidden"
               >
                 <IconGhost :size="64" class="text-purple-300" stroke-width="1" />
 
@@ -253,7 +253,7 @@ const stats = [
     </div>
 
     <div v-else class="flex-1 flex flex-col items-center justify-center text-slate-300">
-      <div class="w-20 h-20 bg-slate-50 rounded-[2rem] flex items-center justify-center mb-4">
+      <div class="w-20 h-20 bg-slate-50 rounded-2xl flex items-center justify-center mb-4">
         <IconGhost :size="40" class="opacity-50" />
       </div>
       <span class="text-sm font-bold text-slate-400">No Enemy Selected</span>

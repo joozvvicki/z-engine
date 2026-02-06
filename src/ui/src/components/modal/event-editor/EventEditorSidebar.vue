@@ -6,7 +6,6 @@ import {
   IconRepeat,
   IconPlayerPlay,
   IconMouse,
-  IconCircle,
   IconCircleCheck,
   IconChevronDown
 } from '@tabler/icons-vue'

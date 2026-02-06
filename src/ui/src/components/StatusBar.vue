@@ -40,38 +40,38 @@ const isMapMenuOpen = ref(false)
 const isLayerMenuOpen = ref(false)
 const isZoomMenuOpen = ref(false)
 
-const closeAllMenus = () => {
+const closeAllMenus = (): void => {
   isMapMenuOpen.value = false
   isLayerMenuOpen.value = false
   isZoomMenuOpen.value = false
 }
 
-const toggleMapMenu = () => {
+const toggleMapMenu = (): void => {
   const wasOpen = isMapMenuOpen.value
   closeAllMenus()
   isMapMenuOpen.value = !wasOpen
 }
-const toggleLayerMenu = () => {
+const toggleLayerMenu = (): void => {
   const wasOpen = isLayerMenuOpen.value
   closeAllMenus()
   isLayerMenuOpen.value = !wasOpen
 }
-const toggleZoomMenu = () => {
+const toggleZoomMenu = (): void => {
   const wasOpen = isZoomMenuOpen.value
   closeAllMenus()
   isZoomMenuOpen.value = !wasOpen
 }
 
 // Actions
-const selectMap = (id: number) => {
+const selectMap = (id: number): void => {
   store.activeMapID = id
   closeAllMenus()
 }
-const selectLayer = (layer: ZLayer) => {
+const selectLayer = (layer: ZLayer): void => {
   store.activeLayer = layer
   closeAllMenus()
 }
-const selectZoom = (z: number) => {
+const selectZoom = (z: number): void => {
   if (store.activeMapID !== null) {
     const currentState = store.mapViewportStates[store.activeMapID]
     store.mapViewportStates[store.activeMapID] = {
@@ -81,12 +81,12 @@ const selectZoom = (z: number) => {
   }
   closeAllMenus()
 }
-const toggleMapAlignment = () => {
+const toggleMapAlignment = (): void => {
   store.mapAlignment = store.mapAlignment === 'center' ? 'top-left' : 'center'
 }
 
 // Click Outside
-const handleClickOutside = (e: MouseEvent) => {
+const handleClickOutside = (e: MouseEvent): void => {
   const target = e.target as Node
   if (mapMenuRef.value && !mapMenuRef.value.contains(target)) isMapMenuOpen.value = false
   if (layerMenuRef.value && !layerMenuRef.value.contains(target)) isLayerMenuOpen.value = false

@@ -78,7 +78,7 @@ onUnmounted(() => {
     <Transition name="playtest">
       <div
         v-if="isVisible"
-        class="fixed inset-0 z-[3000] flex flex-col bg-slate-950 transition-all duration-500 pointer-events-auto overflow-hidden"
+        class="fixed inset-0 z-3000 flex flex-col bg-slate-950 transition-all duration-500 pointer-events-auto overflow-hidden"
       >
         <div class="absolute inset-0 pointer-events-none overflow-hidden">
           <div
@@ -131,9 +131,9 @@ onUnmounted(() => {
               <div class="w-px h-4 bg-white/10 mx-1"></div>
 
               <button
+                v-tooltip="'Toggle Fullscreen'"
                 class="w-10 h-10 flex items-center justify-center text-white/40 hover:text-white hover:bg-white/5 rounded-xl transition-all"
                 @click="toggleFullscreen"
-                v-tooltip="'Toggle Fullscreen'"
               >
                 <component :is="isFullscreen ? IconMinimize : IconMaximize" :size="18" />
               </button>

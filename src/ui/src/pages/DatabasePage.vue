@@ -42,7 +42,7 @@ const currentTabLabel = computed(() => {
   return tabs.find((t) => t.id === currentTabId.value)?.label || 'Database'
 })
 
-const navigate = (path: string) => {
+const navigate = (path: string): void => {
   router.push(path)
 }
 </script>

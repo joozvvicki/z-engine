@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, nextTick, watch } from 'vue'
+import { ref, computed, nextTick } from 'vue'
 import {
   IconSearch,
   IconPlus,
@@ -141,14 +141,14 @@ const highlightedCode = computed(() => {
 })
 
 // --- ACTIONS ---
-const selectFile = (id: string) => {
+const selectFile = (id: string): void => {
   activeFileId.value = id
   nextTick(() => {
     resetScroll()
   })
 }
 
-const createNewFile = () => {
+const createNewFile = (): void => {
   const name = prompt('Filename:', 'Untitled.js')
   if (name) {
     const id = Date.now().toString()
@@ -162,7 +162,7 @@ const createNewFile = () => {
   }
 }
 
-const deleteFile = (id: string) => {
+const deleteFile = (id: string): void => {
   if (confirm('Delete this file?')) {
     const idx = files.value.findIndex((f) => f.id === id)
     files.value.splice(idx, 1)
@@ -171,7 +171,7 @@ const deleteFile = (id: string) => {
 }
 
 // --- EDITOR LOGIC ---
-const handleTab = (e: KeyboardEvent) => {
+const handleTab = (e: KeyboardEvent): void => {
   const el = e.target as HTMLTextAreaElement
   const start = el.selectionStart
   const end = el.selectionEnd
@@ -181,7 +181,7 @@ const handleTab = (e: KeyboardEvent) => {
 }
 
 // Synchronizacja Scrolla (Kluczowa dla techniki Overlay)
-const handleScroll = () => {
+const handleScroll = (): void => {
   if (textareaRef.value) {
     const scrollTop = textareaRef.value.scrollTop
     const scrollLeft = textareaRef.value.scrollLeft
@@ -196,12 +196,12 @@ const handleScroll = () => {
   }
 }
 
-const resetScroll = () => {
+const resetScroll = (): void => {
   if (textareaRef.value) textareaRef.value.scrollTop = 0
   handleScroll()
 }
 
-const updateCursor = (e: Event) => {
+const updateCursor = (e: Event): void => {
   const el = e.target as HTMLTextAreaElement
   if (!el) return
   const val = el.value.substring(0, el.selectionStart)
@@ -211,7 +211,7 @@ const updateCursor = (e: Event) => {
 }
 
 // Skrót Ctrl+S
-const handleKeydown = (e: KeyboardEvent) => {
+const handleKeydown = (e: KeyboardEvent): void => {
   if ((e.ctrlKey || e.metaKey) && e.key === 's') {
     e.preventDefault()
     if (activeFile.value) activeFile.value.isUnsaved = false
@@ -236,8 +236,8 @@ const handleKeydown = (e: KeyboardEvent) => {
             <span class="font-bold tracking-tight text-lg">CodeManager</span>
           </div>
           <button
-            @click="createNewFile"
             class="p-2 rounded-xl bg-slate-50 text-slate-500 hover:bg-indigo-50 hover:text-indigo-600 transition-colors"
+            @click="createNewFile"
           >
             <IconPlus :size="18" />
           </button>
@@ -292,8 +292,8 @@ const handleKeydown = (e: KeyboardEvent) => {
             class="w-2 h-2 rounded-full bg-amber-400 shadow-sm shrink-0"
           ></div>
           <button
-            @click.stop="deleteFile(file.id)"
             class="opacity-0 group-hover:opacity-100 p-1.5 text-slate-400 hover:text-red-500 transition-all absolute right-2 bg-white shadow-sm rounded-lg"
+            @click.stop="deleteFile(file.id)"
           >
             <IconTrash :size="14" />
           </button>
@@ -317,9 +317,9 @@ const handleKeydown = (e: KeyboardEvent) => {
         </div>
         <div v-else class="text-slate-400 font-medium">No file selected</div>
         <button
-          @click="activeFile && (activeFile.isUnsaved = false)"
           :disabled="!activeFile"
           class="flex items-center gap-2 px-5 py-2.5 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-black hover:shadow-lg hover:shadow-slate-900/20 active:scale-95 transition-all disabled:opacity-50"
+          @click="activeFile && (activeFile.isUnsaved = false)"
         >
           <IconDeviceFloppy :size="16" /> <span>Save</span>
         </button>

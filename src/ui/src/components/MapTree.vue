@@ -93,21 +93,21 @@ const handleExport = (): void => {
 }
 
 // Drag & Drop Root Handlers
-const onDragOverRoot = (e: DragEvent) => {
+const onDragOverRoot = (e: DragEvent): void => {
   e.preventDefault()
   e.dataTransfer!.dropEffect = 'move'
 }
-const onDragEnterRoot = (e: DragEvent) => {
+const onDragEnterRoot = (e: DragEvent): void => {
   e.preventDefault()
   dragCounter++
   isDragOverRoot.value = true
 }
-const onDragLeaveRoot = (e: DragEvent) => {
+const onDragLeaveRoot = (e: DragEvent): void => {
   e.preventDefault()
   dragCounter--
   if (dragCounter === 0) isDragOverRoot.value = false
 }
-const onDropOnRoot = (e: DragEvent) => {
+const onDropOnRoot = (e: DragEvent): void => {
   e.preventDefault()
   isDragOverRoot.value = false
   dragCounter = 0
