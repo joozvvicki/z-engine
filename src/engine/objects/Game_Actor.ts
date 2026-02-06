@@ -66,6 +66,14 @@ export class Game_Actor {
     this.recoverAll()
   }
 
+  public setHp(hp: number): void {
+    this._hp = Math.min(this.mhp, Math.max(0, hp))
+  }
+
+  public setMp(mp: number): void {
+    this._mp = Math.min(this.mmp, Math.max(0, mp))
+  }
+
   // Visual Assets
   public get characterName(): string {
     return this._data.character

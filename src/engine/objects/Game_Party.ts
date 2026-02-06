@@ -1,4 +1,6 @@
 import { Game_Actor } from './Game_Actor'
+import { Game_Actors } from './Game_Actors'
+import { GamePartySaveData } from '@engine/types'
 
 /**
  * Manages the player's party members and global state like Gold.
@@ -21,6 +23,14 @@ export class Game_Party {
     if (!this._actors.find((a) => a.id === actor.id)) {
       this._actors.push(actor)
     }
+  }
+
+  /**
+   * Removes all actors from the party.
+   */
+  public clear(): void {
+    this._actors = []
+    this._gold = 0
   }
 
   /**
@@ -47,10 +57,25 @@ export class Game_Party {
   /**
    * Serializes the party state for saving.
    */
-  public getSaveData(): Record<string, unknown> {
+  public getSaveData(): GamePartySaveData {
     return {
-      actors: this._actors.map((a) => ({ id: a.id, level: a.level, hp: a.hp, mp: a.mp })),
+      actors: this._actors.map((a) => a.id),
       gold: this._gold
     }
+  }
+
+  /**
+   * Restores the party state from saved data.
+   */
+  public loadSaveData(data: GamePartySaveData, actors: Game_Actors): void {
+    if (!data) return
+    this._gold = data.gold
+    this._actors = []
+    data.actors.forEach((id) => {
+      const actor = actors.get(id)
+      if (actor) {
+        this._actors.push(actor)
+      }
+    })
   }
 }

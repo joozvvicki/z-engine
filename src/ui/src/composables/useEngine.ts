@@ -55,6 +55,7 @@ export const useEngine = (
       return ProjectService.resolveAssetUrl(path)
     },
     getSystemData: async () => {
+      const db = useDatabaseStore()
       return {
         projectName: store.systemProjectName,
         version: '1.0.0',
@@ -67,8 +68,13 @@ export const useEngine = (
         screenHeight: store.systemScreenHeight,
         screenZoom: store.systemScreenZoom,
         startingParty: store.systemStartingParty,
-        sounds: store.systemSounds
+        sounds: store.systemSounds,
+        actors: db.actors // Database Actors
       }
+    },
+    getActors: async () => {
+      const db = useDatabaseStore()
+      return db.actors
     },
     saveGame: async (slotId, data) => {
       await ProjectService.saveGame(slotId, data)
@@ -115,7 +121,8 @@ export const useEngine = (
         switches: [],
         variables: [],
         startingParty: store.systemStartingParty,
-        sounds: store.systemSounds
+        sounds: store.systemSounds,
+        actors: db.actors
       })
 
       // Preload assets

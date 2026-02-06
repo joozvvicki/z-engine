@@ -1,5 +1,5 @@
 import ZLogger from '@engine/utils/ZLogger'
-import { ZEngineSignal, ZActor } from '@engine/types'
+import { ZEngineSignal } from '@engine/types'
 import { Game_Party } from '@engine/objects/Game_Party'
 import { Game_Actors } from '@engine/objects/Game_Actors'
 import { ZEventBus } from '@engine/core'
@@ -11,8 +11,8 @@ export interface GameSaveData {
   switches: Record<number, boolean>
   variables: Record<number, number>
   selfSwitches: Record<string, boolean>
-  party: unknown // Serialized Game_Party
-  actors: unknown[] // Serialized Game_Actors
+  party: import('@engine/types').GamePartySaveData
+  actors: import('@engine/types').GameActorSaveData[]
 }
 
 /**
@@ -31,7 +31,6 @@ export class GameStateManager {
 
   constructor(bus: ZEventBus) {
     this.bus = bus
-    this.initDefaultData()
   }
 
   public get party(): Game_Party {
@@ -42,27 +41,26 @@ export class GameStateManager {
   }
 
   /**
+   * Initializes the game state with database data.
+   */
+  public setup(systemData: import('@engine/types').ZSystemData): void {
+    this._actors.setup(systemData.actors || [])
+
+    // Initial party setup if we are starting a NEW game,
+    // but scenes usually call newGame() which will handle this.
+  }
+
+  /**
    * Initializes default data for a new game session.
    */
-  private initDefaultData(): void {
-    // Basic Hero initialization
-    const hero = this._actors.get(1, {
-      id: 1,
-      name: 'Hero',
-      nickname: 'Bravery',
-      classId: 1,
-      initialLevel: 1,
-      maxLevel: 99,
-      profile: 'A brave warrior.',
-      face: 'img/faces/Actor1.png',
-      faceX: 0,
-      faceY: 0,
-      character: 'img/characters/character.png',
-      characterX: 0,
-      characterY: 0,
-      baseParams: [450, 100, 12, 10, 8, 8, 10, 10]
-    } as ZActor)
-    if (hero) this._party.addActor(hero)
+  public initDefaultData(startingParty: number[] = []): void {
+    // Clear runtime party members but KEEP the instances and their database links
+    this._party.clear()
+
+    startingParty.forEach((actorId) => {
+      const actor = this._actors.get(actorId)
+      if (actor) this._party.addActor(actor)
+    })
   }
 
   // --- Switches ---
@@ -171,7 +169,9 @@ export class GameStateManager {
       })
     }
 
-    // TODO: Implement deep loading for Party/Actors
+    // Restore Actors & Party
+    this._actors.loadSaveData(data.actors)
+    this._party.loadSaveData(data.party, this._actors)
 
     this.bus.emit(ZEngineSignal.GameStateChanged, { type: 'load' })
     ZLogger.with('GameStateManager').info('Game Data Loaded')
@@ -180,13 +180,11 @@ export class GameStateManager {
   /**
    * Resets all data for a new game.
    */
-  public newGame(): void {
+  public newGame(startingParty: number[] = []): void {
     this.switches.clear()
     this.variables.clear()
     this.selfSwitches.clear()
-    this._party = new Game_Party()
-    this._actors = new Game_Actors()
-    this.initDefaultData()
+    this.initDefaultData(startingParty)
     this.bus.emit(ZEngineSignal.GameStateChanged, { type: 'new' })
   }
 }

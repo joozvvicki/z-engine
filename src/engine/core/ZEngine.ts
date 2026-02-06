@@ -1,7 +1,7 @@
 import { Application, Container } from '@engine/utils/pixi'
 import ZLogger from '@engine/utils/ZLogger'
 import { ZEventBus } from '@engine/core/ZEventBus'
-import { IEngineContext, ZDataProvider, ZSystemData } from '@engine/types'
+import { IEngineContext, ZDataProvider, ZSystemData, ZTool } from '@engine/types'
 
 // Managers
 import { SceneManager } from '@engine/managers/SceneManager'
@@ -194,6 +194,12 @@ export class ZEngine implements IEngineContext {
       this.save.registerSystems(this.player, this.map)
 
       // 4. Boot Logic
+      if (this.dataProvider) {
+        const systemData = await this.dataProvider.getSystemData()
+        this.systemData = systemData
+        this.gameState.setup(systemData)
+      }
+
       this.entities.onBoot() // Loads initial sprites
       this.events.onBoot() // Sets up listeners
       this.menus.onBoot() // Listen for MenuRequested
@@ -205,7 +211,7 @@ export class ZEngine implements IEngineContext {
       this.app.ticker.add((ticker) => this.tick(ticker.deltaMS))
 
       this.isBooted = true
-      ZLogger.log('Hello there 👋🏽 This game is using the best Engine in the world!')
+      ZLogger.log('Hello there 👋🏽 This game is powered by the best Engine in the world!')
     } catch (e) {
       ZLogger.error('Error during init:', e)
       this.errors?.show(e as Error)
@@ -262,7 +268,7 @@ export class ZEngine implements IEngineContext {
   /**
    * Propagates tool changes to editor-mode systems (like GhostSystem).
    */
-  public setTool(tool: import('@engine/types').ZTool): void {
+  public setTool(tool: ZTool): void {
     if (this.ghost) {
       this.ghost.setTool(tool)
     }
@@ -281,12 +287,13 @@ export class ZEngine implements IEngineContext {
     this.history.setDataProvider(provider)
     this.save.setDataProvider(provider)
 
-    ZLogger.info('Data Provider set')
+    ZLogger.info('DataProvider set')
   }
 
   public setSystemData(data: ZSystemData): void {
     this.systemData = data
-    ZLogger.info('System Data set')
+    this.gameState.setup(data)
+    ZLogger.info('SystemData set')
   }
 
   public resize(width: number, height: number): void {

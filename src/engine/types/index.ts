@@ -217,7 +217,7 @@ export interface ZSystemData {
   projectName: string
   version: string
   startingParty: number[]
-  sounds: {
+  sounds?: {
     cursor: ZAudioConfig
     ok: ZAudioConfig
     cancel: ZAudioConfig
@@ -227,6 +227,7 @@ export interface ZSystemData {
     titleBGM: ZAudioConfig
     battleBGM: ZAudioConfig
   }
+  actors: ZActor[]
 }
 
 export interface TileSelection {
@@ -597,6 +598,18 @@ export interface ZHistoryEntry {
   deltas: ZTileDelta[]
 }
 
+export interface GameActorSaveData {
+  id: number
+  level: number
+  hp: number
+  mp: number
+}
+
+export interface GamePartySaveData {
+  actors: number[] // Just IDs
+  gold: number
+}
+
 export interface GameSaveFile {
   header: {
     timestamp: number
@@ -614,8 +627,8 @@ export interface GameSaveFile {
     switches: Record<number, boolean>
     variables: Record<number, number>
     selfSwitches: Record<string, boolean>
-    party: any // Serialized Party
-    actors: any // Serialized Actors
+    party: GamePartySaveData
+    actors: GameActorSaveData[]
   }
 }
 
@@ -623,6 +636,7 @@ export interface ZDataProvider {
   getMap(id: number): Promise<ZMap | null>
   getTilesetConfigs(): Promise<Record<string, TilesetConfig>> // URL-indexed
   getSystemData(): Promise<ZSystemData>
+  getActors(): Promise<ZActor[]>
   getTilesetUrl(slotId: string): string // Resolver for slotId -> default URL
   setTileAt(
     x: number,

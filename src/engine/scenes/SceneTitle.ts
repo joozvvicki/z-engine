@@ -140,7 +140,13 @@ export class SceneTitle extends ZScene {
     }
 
     // Access System Data safely
-    const { startMapId = 1, startX = 0, startY = 0 } = this.engine.systemData || {}
+    const {
+      startMapId = 1,
+      startX = 0,
+      startY = 0,
+      startingParty = []
+    } = this.engine.systemData || {}
+    this.engine.gameState.newGame(startingParty)
 
     // Navigate using Engine Context
     this.engine.scenes.goto(SceneMap, {

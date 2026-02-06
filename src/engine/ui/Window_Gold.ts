@@ -22,6 +22,7 @@ export class Window_Gold extends Window_Base {
   public override refresh(): void {
     super.refresh()
     if (!this.contents) return
+    this.contents.removeChildren()
 
     const goldText = new Text({
       text: `${this._gold || 0} G`,
