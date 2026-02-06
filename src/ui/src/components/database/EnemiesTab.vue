@@ -10,6 +10,8 @@ import {
   IconTrophy,
   IconBox
 } from '@tabler/icons-vue'
+import EnemyDropItemsEditor from './common/EnemyDropItemsEditor.vue'
+import EnemyActionPatternsEditor from './common/EnemyActionPatternsEditor.vue'
 
 const db = useDatabaseStore()
 const selectedId = ref<number>(db.enemies[0]?.id || 0)
@@ -229,11 +231,23 @@ const stats = [
                 <IconBox :size="16" class="text-slate-400" />
                 <h3 class="text-sm font-bold text-slate-700">Drop Items</h3>
               </div>
-              <div
-                class="bg-slate-50 border-2 border-dashed border-slate-200 rounded-xl p-6 text-center"
-              >
-                <p class="text-[10px] font-bold text-slate-400 uppercase">No Drops Configured</p>
-              </div>
+              <EnemyDropItemsEditor
+                v-if="selectedEnemy.dropItems !== undefined"
+                v-model="selectedEnemy.dropItems"
+                @update:model-value="db.save('Enemies.json', db.enemies)"
+              />
+              <EnemyDropItemsEditor
+                v-else
+                :model-value="[]"
+                @update:model-value="
+                  (updated) => {
+                    if (selectedEnemy) {
+                      selectedEnemy.dropItems = updated
+                      db.save('Enemies.json', db.enemies)
+                    }
+                  }
+                "
+              />
             </div>
 
             <div class="space-y-4">
@@ -241,11 +255,23 @@ const stats = [
                 <IconGhost :size="16" class="text-slate-400" />
                 <h3 class="text-sm font-bold text-slate-700">Action Patterns</h3>
               </div>
-              <div
-                class="bg-slate-50 border-2 border-dashed border-slate-200 rounded-xl p-6 text-center"
-              >
-                <p class="text-[10px] font-bold text-slate-400 uppercase">Default Attack Only</p>
-              </div>
+              <EnemyActionPatternsEditor
+                v-if="selectedEnemy.actions !== undefined"
+                v-model="selectedEnemy.actions"
+                @update:model-value="db.save('Enemies.json', db.enemies)"
+              />
+              <EnemyActionPatternsEditor
+                v-else
+                :model-value="[]"
+                @update:model-value="
+                  (updated) => {
+                    if (selectedEnemy) {
+                      selectedEnemy.actions = updated
+                      db.save('Enemies.json', db.enemies)
+                    }
+                  }
+                "
+              />
             </div>
           </div>
         </div>

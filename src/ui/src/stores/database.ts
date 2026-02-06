@@ -172,6 +172,7 @@ export const useDatabaseStore = defineStore('database', () => {
     enemies.value.push({
       id: newId,
       name: `Enemy ${newId}`,
+      description: '',
       mhp: 10,
       mmp: 0,
       atk: 10,
@@ -181,7 +182,9 @@ export const useDatabaseStore = defineStore('database', () => {
       agi: 10,
       luk: 10,
       exp: 10,
-      gold: 10
+      gold: 10,
+      dropItems: [],
+      actions: []
     })
     save('Enemies.json', enemies.value)
   }

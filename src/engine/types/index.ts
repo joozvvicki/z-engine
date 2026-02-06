@@ -121,6 +121,20 @@ export interface ZArmor extends ZDatabaseEntry {
   description?: string
 }
 
+export interface ZEnemyDropItem {
+  itemId: number
+  kind: number // 1=Item, 2=Weapon, 3=Armor
+  denominator: number // Drop rate: 1/denominator (e.g., 1/2 = 50%, 1/10 = 10%)
+}
+
+export interface ZEnemyAction {
+  skillId: number
+  conditionType: number // 0=Always, 1=Turn, 2=HP%, 3=MP%, 4=State, 5=Party Level, 6=Switch
+  conditionParam1: number
+  conditionParam2: number
+  rating: number // Priority weight (higher = more likely)
+}
+
 export interface ZEnemy extends ZDatabaseEntry {
   mhp: number
   mmp: number
@@ -133,6 +147,8 @@ export interface ZEnemy extends ZDatabaseEntry {
   exp: number
   gold: number
   battlerName?: string
+  dropItems: ZEnemyDropItem[]
+  actions: ZEnemyAction[]
 }
 
 export interface ZActor extends ZDatabaseEntry {
