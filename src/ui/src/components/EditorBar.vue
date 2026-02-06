@@ -234,6 +234,7 @@ onMounted(() => {
   })
 })
 </script>
+
 <template>
   <div class="flex items-center gap-1 pointer-events-auto h-9">
     <div class="relative flex gap-1 bg-transparent p-0">
@@ -317,8 +318,8 @@ onMounted(() => {
         <IconPlayerPlay v-else :size="18" stroke-width="2" class="fill-current" />
       </button>
     </div>
-  </div>
 
-  <BuildGameModal ref="buildModal" />
-  <PlaytestModal ref="playtestModal" />
+    <BuildGameModal ref="buildModal" />
+    <PlaytestModal ref="playtestModal" />
+  </div>
 </template>

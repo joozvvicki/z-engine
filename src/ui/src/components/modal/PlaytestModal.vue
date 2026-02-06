@@ -131,7 +131,6 @@ onUnmounted(() => {
               <div class="w-px h-4 bg-white/10 mx-1"></div>
 
               <button
-                v-tooltip="'Toggle Fullscreen'"
                 class="w-10 h-10 flex items-center justify-center text-white/40 hover:text-white hover:bg-white/5 rounded-xl transition-all"
                 @click="toggleFullscreen"
               >

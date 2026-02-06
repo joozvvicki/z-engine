@@ -106,8 +106,8 @@
                     : 'bg-rose-50 text-rose-500 shadow-rose-100'
                 ]"
               >
-                <Check v-if="buildResult.success" />
-                <X v-else />
+                <IconCheck v-if="buildResult.success" />
+                <IconX v-else />
               </div>
 
               <h3 class="text-2xl font-black text-slate-900 mb-2 tracking-tight">
@@ -134,7 +134,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { ProjectService } from '../services/ProjectService'
-import { IconBox } from '@tabler/icons-vue'
+import { IconBox, IconCheck, IconX } from '@tabler/icons-vue'
 
 const isOpen = ref(false)
 const isBuilding = ref(false)
