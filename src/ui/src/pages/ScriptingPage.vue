@@ -1,5 +1,11 @@
 <script setup lang="ts">
-import { ref, computed, nextTick } from 'vue'
+import * as prettier from 'prettier/standalone'
+import * as parserBabel from 'prettier/plugins/babel'
+import * as parserEstree from 'prettier/plugins/estree'
+
+import { ref, computed, shallowRef } from 'vue'
+import { VueMonacoEditor } from '@guolao/vue-monaco-editor'
+import { GAME_DEFS as Z_ENGINE_TYPES } from '@ui/assets/index'
 import {
   IconSearch,
   IconPlus,
@@ -7,12 +13,10 @@ import {
   IconDeviceFloppy,
   IconTrash,
   IconCode,
-  IconMenu2,
-  IconCheck,
   IconBrandJavascript
 } from '@tabler/icons-vue'
 
-// --- DANE I TYPY ---
+// --- TYPY ---
 interface ScriptFile {
   id: string
   name: string
@@ -20,6 +24,7 @@ interface ScriptFile {
   isUnsaved: boolean
 }
 
+// --- DANE ---
 const files = ref<ScriptFile[]>([
   {
     id: 'core',
@@ -32,18 +37,14 @@ const files = ref<ScriptFile[]>([
  */
 
 (() => {
-    // --- Initialization ---
     console.log("System booting...");
-    
+
     const _init = Game_System.prototype.initialize;
     Game_System.prototype.initialize = function() {
         _init.call(this);
         this._version = "2.0.0";
+        // Monaco Editor wykryje tu błędy składniowe!
         const maxLevel = 99;
-        
-        if (this._version) {
-            return true;
-        }
     };
 })();`
   },
@@ -56,12 +57,6 @@ const files = ref<ScriptFile[]>([
         super.setup(troopId, canEscape, canLose);
         this._atbGauge = 0;
     }
-
-    update() {
-        if (!this.isBusy()) {
-            this.updateATB();
-        }
-    }
 }`
   }
 ])
@@ -69,11 +64,7 @@ const files = ref<ScriptFile[]>([
 // --- STATE ---
 const activeFileId = ref<string>('core')
 const searchQuery = ref('')
-
-// Refy do synchronizacji scrolla
-const textareaRef = ref<HTMLTextAreaElement | null>(null)
-const highlightRef = ref<HTMLElement | null>(null)
-const lineNumbersRef = ref<HTMLDivElement | null>(null)
+const editorRef = shallowRef() // Referencja do instancji edytora
 
 // --- COMPUTED ---
 const activeFile = computed(() => files.value.find((f) => f.id === activeFileId.value))
@@ -83,69 +74,9 @@ const filteredFiles = computed(() => {
   return files.value.filter((f) => f.name.toLowerCase().includes(searchQuery.value.toLowerCase()))
 })
 
-const lineCount = computed(() => {
-  if (!activeFile.value) return 1
-  return activeFile.value.content.split('\n').length
-})
-
-const cursorLine = ref(1)
-const cursorCol = ref(1)
-
-// --- SYNTAX HIGHLIGHTER (Naprawiony - One Pass) ---
-const highlightedCode = computed(() => {
-  if (!activeFile.value) return ''
-  let code = activeFile.value.content
-
-  // 1. Escape HTML (bezpieczeństwo + poprawne wyświetlanie < >)
-  // Robimy to PRZED kolorowaniem, żeby tekst wewnątrz tagów HTML też był bezpieczny
-  code = code.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-
-  // 2. DEFINICJA JEDNEGO GIGANTYCZNEGO REGEXA
-  // Kolejność grup (...) jest kluczowa dla argumentów w funkcji replace
-  const tokenRegex = new RegExp(
-    [
-      // GRUPA 1: Komentarze ( //... lub /*...*/ )
-      /((?:\/\/.*)|(?:\/\*[\s\S]*?\*\/))/.source,
-
-      // GRUPA 2: Stringi ( '...', "...", `...` )
-      /((?:'[^\r\n]*?')|(?:"[^\r\n]*?")|(?:`[\s\S]*?`))/.source,
-
-      // GRUPA 3: Słowa kluczowe (dodaję więcej dla pełniejszego JS)
-      /(\b(?:const|let|var|function|class|return|if|else|for|while|do|switch|case|break|continue|default|import|export|from|new|this|super|extends|try|catch|finally|async|await|throw|void|typeof|instanceof)\b)/
-        .source,
-
-      // GRUPA 4: Obiekty wbudowane i typy
-      /(\b(?:console|window|document|Math|Array|Object|String|Boolean|JSON|Promise|Date|Map|Set|Symbol)\b)/
-        .source,
-
-      // GRUPA 5: Funkcje (słowo przed nawiasem)
-      /(\b[a-zA-Z_$][a-zA-Z0-9_$]*(?=\())/.source,
-
-      // GRUPA 6: Liczby
-      /(\b\d+(?:\.\d+)?(?:x[0-9a-fA-F]+)?\b)/.source
-    ].join('|'),
-    'g'
-  )
-
-  // 3. JEDNOPRZEBIEGOWA ZAMIANA
-  return code.replace(tokenRegex, (match, comment, string, keyword, builtin, func, number) => {
-    if (comment) return `<span class="token-comment">${match}</span>`
-    if (string) return `<span class="token-string">${match}</span>`
-    if (keyword) return `<span class="token-keyword">${match}</span>`
-    if (builtin) return `<span class="token-builtin">${match}</span>`
-    if (func) return `<span class="token-function">${match}</span>`
-    if (number) return `<span class="token-number">${match}</span>`
-
-    return match // Fallback (nie powinno wystąpić dla dopasowań, ale dla bezpieczeństwa)
-  })
-})
-
 // --- ACTIONS ---
 const selectFile = (id: string): void => {
   activeFileId.value = id
-  nextTick(() => {
-    resetScroll()
-  })
 }
 
 const createNewFile = (): void => {
@@ -170,60 +101,257 @@ const deleteFile = (id: string): void => {
   }
 }
 
-// --- EDITOR LOGIC ---
-const handleTab = (e: KeyboardEvent): void => {
-  const el = e.target as HTMLTextAreaElement
-  const start = el.selectionStart
-  const end = el.selectionEnd
-  el.setRangeText('  ', start, end, 'end')
-  activeFile.value!.content = el.value
-  activeFile.value!.isUnsaved = true
-}
-
-// Synchronizacja Scrolla (Kluczowa dla techniki Overlay)
-const handleScroll = (): void => {
-  if (textareaRef.value) {
-    const scrollTop = textareaRef.value.scrollTop
-    const scrollLeft = textareaRef.value.scrollLeft
-
-    if (highlightRef.value) {
-      highlightRef.value.scrollTop = scrollTop
-      highlightRef.value.scrollLeft = scrollLeft
-    }
-    if (lineNumbersRef.value) {
-      lineNumbersRef.value.scrollTop = scrollTop
-    }
+const saveFile = () => {
+  if (activeFile.value) {
+    activeFile.value.isUnsaved = false
+    // Tutaj logika zapisu na backend/dysk
+    console.log('Saved:', activeFile.value.name)
   }
 }
 
-const resetScroll = (): void => {
-  if (textareaRef.value) textareaRef.value.scrollTop = 0
-  handleScroll()
+// --- MONACO CONFIGURATION ---
+const MONACO_OPTIONS = {
+  // Layout & Fonty
+  automaticLayout: true,
+  fontFamily: "'JetBrains Mono', 'Fira Code', monospace", // Upewnij się, że masz ten font
+  fontSize: 14, // Nieco większy tekst dla czytelności
+  lineHeight: 24, // Większy odstęp między liniami (oddychający kod)
+  fontLigatures: true, // <--- TO ROBI ROBOTĘ (np. strzałki =>)
+
+  // Zachowanie
+  formatOnType: true,
+  formatOnPaste: true,
+  tabSize: 2,
+
+  // Wygląd UI
+  minimap: {
+    enabled: true,
+    scale: 0.65,
+    renderCharacters: false // Bardziej abstrakcyjna, czystsza minimapa
+  },
+  cursorBlinking: 'smooth',
+  cursorSmoothCaretAnimation: 'on',
+  smoothScrolling: true,
+
+  // Profesjonalne dodatki
+  bracketPairColorization: { enabled: true }, // Kolorowe nawiasy zagnieżdżone
+  guides: {
+    indentation: true,
+    bracketPairs: true // Linie łączące pary nawiasów
+  },
+  renderLineHighlight: 'all', // Podświetla całą linię, a nie tylko pod tekstem
+  scrollBeyondLastLine: false,
+  padding: { top: 20, bottom: 20 },
+
+  // Ukrywanie zbędnych elementów dla czystszego looku
+  overviewRulerBorder: false,
+  hideCursorInOverviewRuler: true,
+  matchBrackets: 'always'
 }
 
-const updateCursor = (e: Event): void => {
-  const el = e.target as HTMLTextAreaElement
-  if (!el) return
-  const val = el.value.substring(0, el.selectionStart)
-  const lines = val.split('\n')
-  cursorLine.value = lines.length
-  cursorCol.value = lines[lines.length - 1].length + 1
+const handleMount = (editor: any, monaco: any) => {
+  editorRef.value = editor
+
+  monaco.languages.typescript.javascriptDefaults.setCompilerOptions({
+    target: monaco.languages.typescript.ScriptTarget.ES2020,
+    allowNonTsExtensions: true,
+    allowJs: true,
+    checkJs: true, // Włącza sprawdzanie błędów w JS na podstawie typów
+    noLib: false
+  })
+
+  console.log('--- Monaco Mount ---')
+  console.log('Z_ENGINE_TYPES length:', Z_ENGINE_TYPES?.length)
+  console.log('Z_ENGINE_TYPES snippet:', Z_ENGINE_TYPES?.substring(0, 200))
+
+  const libUri = 'file:///z-engine.d.ts'
+  const testUri = 'file:///test-global.d.ts'
+
+  // Eager sync helps worker pick up defaults faster
+  monaco.languages.typescript.javascriptDefaults.setEagerModelSync(true)
+  monaco.languages.typescript.typescriptDefaults.setEagerModelSync(true)
+
+  // Use setExtraLibs to ensure a clean slate and avoid duplicates on remount
+  const libs = [
+    {
+      content: Z_ENGINE_TYPES,
+      filePath: libUri
+    },
+    {
+      content: 'declare const MONACO_WORKS: string;',
+      filePath: testUri
+    }
+  ]
+
+  // Manual provider test - if this shows up, the UI is fine
+  if (!(window as any).monaco_completion_set) {
+    ;(window as any).monaco_completion_set = true
+    monaco.languages.registerCompletionItemProvider('javascript', {
+      provideCompletionItems: (model: any, position: any) => {
+        const word = model.getWordUntilPosition(position)
+        const range = {
+          startLineNumber: position.lineNumber,
+          endLineNumber: position.lineNumber,
+          startColumn: word.startColumn,
+          endColumn: word.endColumn
+        }
+        return {
+          suggestions: [
+            {
+              label: 'MONACO_MANUAL_TEST',
+              kind: monaco.languages.CompletionItemKind.Variable,
+              documentation: 'This is a manual test suggestion',
+              insertText: 'MONACO_MANUAL_TEST',
+              range: range
+            }
+          ]
+        }
+      }
+    })
+  }
+
+  monaco.languages.typescript.javascriptDefaults.setExtraLibs(libs)
+  monaco.languages.typescript.typescriptDefaults.setExtraLibs(libs)
+
+  monaco.languages.typescript.javascriptDefaults.setDiagnosticsOptions({
+    noSemanticValidation: false,
+    noSyntaxValidation: false
+  })
+
+  console.log(
+    'Extra libs set. Current libs:',
+    monaco.languages.typescript.javascriptDefaults.getExtraLibs()
+  )
+  console.log(
+    'Models:',
+    monaco.editor.getModels().map((m) => m.uri.toString())
+  )
+
+  monaco.languages.registerDocumentFormattingEditProvider('javascript', {
+    async provideDocumentFormattingEdits(model: any) {
+      const text = model.getValue()
+
+      try {
+        // Wywołanie Prettiera
+        const formatted = await prettier.format(text, {
+          parser: 'babel',
+          plugins: [parserBabel, parserEstree],
+
+          // --- KONFIGURACJA PRETTIERA ---
+          singleQuote: true, // Pojedyncze cudzysłowy
+          semi: true, // Średniki na końcu
+          tabWidth: 2, // Wcięcia 2 spacje
+          trailingComma: 'none', // Brak przecinków na końcu list
+          printWidth: 80, // Łamanie linii po 80 znakach
+          arrowParens: 'always' // (x) => ... zamiast x => ...
+        })
+
+        // Zwracamy edycję dla Monaco (podmieniamy cały tekst)
+        return [
+          {
+            range: model.getFullModelRange(),
+            text: formatted
+          }
+        ]
+      } catch (error) {
+        console.error('Prettier formatting failed:', error)
+        return [] // W razie błędu nie rób nic
+      }
+    }
+  })
+
+  // Definicja motywu "Tokyo Night Storm Pro"
+  monaco.editor.defineTheme('tokyo-night-pro', {
+    base: 'vs-dark',
+    inherit: true,
+    rules: [
+      // Podstawy
+      { token: 'comment', foreground: '565f89', fontStyle: 'italic' },
+      { token: 'delimiter', foreground: '89ddff' }, // Nawiasy, kropki
+      { token: 'delimiter.bracket', foreground: 'a9b1d6' },
+
+      // Słowa kluczowe i operatory
+      { token: 'keyword', foreground: 'bb9af7', fontStyle: 'bold' },
+      { token: 'operator', foreground: '89ddff' },
+      { token: 'storage', foreground: 'bb9af7' },
+
+      // Typy i Klasy
+      { token: 'type', foreground: '2ac3de' },
+      { token: 'class', foreground: 'c0caf5', fontStyle: 'bold' },
+      { token: 'constructor', foreground: 'c0caf5' },
+
+      // Zmienne i Funkcje
+      { token: 'identifier', foreground: 'c0caf5' },
+      { token: 'function', foreground: '7aa2f7', fontStyle: 'bold' },
+      { token: 'variable.predefined', foreground: 'ff757f' }, // np. this, super
+
+      // Wartości
+      { token: 'string', foreground: '9ece6a' },
+      { token: 'number', foreground: 'ff9e64' },
+      { token: 'regexp', foreground: 'b4f9f8' },
+      { token: 'constant', foreground: 'ff9e64' }
+    ],
+    colors: {
+      // Tło i ogólne
+      'editor.background': '#1a1b26', // Głęboki granat
+      'editor.foreground': '#a9b1d6',
+
+      // UI Edytora
+      'editorCursor.foreground': '#c0caf5',
+      'editorLineNumber.foreground': '#565f89',
+      'editorLineNumber.activeForeground': '#ff9e64', // Aktywna linia na pomarańczowo
+
+      // Selekcja i podświetlenia
+      'editor.selectionBackground': '#515c7e40',
+      'editor.inactiveSelectionBackground': '#515c7e20',
+      'editor.lineHighlightBackground': '#292e42', // Subtelne podświetlenie obecnej linii
+
+      // Scrollbary
+      'scrollbarSlider.background': '#565f8940',
+      'scrollbarSlider.hoverBackground': '#565f8980',
+      'scrollbarSlider.activeBackground': '#565f89cc',
+
+      // Widgety i dymki
+      // Używamy trochę ciemniejszego koloru niż tło edytora, żeby się "odbił"
+      'editorHoverWidget.background': '#16161e',
+      'editorHoverWidget.border': '#292e42', // Subtelna, ciemna ramka
+
+      // Tło paska statusu dymku (tam gdzie jest "View Problem")
+      'editorHoverWidget.statusBarBackground': '#1a1b26',
+
+      // Kolory linków w dymkach (np. "View Problem")
+      'textLink.foreground': '#7aa2f7', // Jasnoniebieski
+      'textLink.activeForeground': '#bb9af7', // Fioletowy po najechaniu
+
+      // Kolory błędów i ostrzeżeń w dymku
+      errorForeground: '#f7768e', // Czerwony/Różowy
+      warningForeground: '#e0af68', // Pomarańczowy
+
+      // Ogólne tło dla innych widgetów (np. "Find & Replace")
+      'editorWidget.background': '#16161e',
+      'editorWidget.border': '#292e42',
+      'editorWidget.resizeBorder': '#7aa2f7'
+    }
+  })
+
+  monaco.editor.setTheme('tokyo-night-pro')
+
+  // Skrót zapisu
+  editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
+    saveFile()
+  })
 }
 
-// Skrót Ctrl+S
-const handleKeydown = (e: KeyboardEvent): void => {
-  if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-    e.preventDefault()
-    if (activeFile.value) activeFile.value.isUnsaved = false
+const handleChange = (val: string) => {
+  if (activeFile.value) {
+    activeFile.value.content = val
+    activeFile.value.isUnsaved = true
   }
 }
 </script>
 
 <template>
-  <div
-    class="flex h-full w-full bg-[#f8f9fc] text-slate-800 font-sans overflow-hidden"
-    @keydown="handleKeydown"
-  >
+  <div class="flex h-full w-full bg-[#f8f9fc] text-slate-800 font-sans overflow-hidden">
     <aside
       class="w-72 bg-white border-r border-slate-100 flex flex-col z-20 shadow-[4px_0_24px_rgba(0,0,0,0.02)]"
     >
@@ -319,7 +447,7 @@ const handleKeydown = (e: KeyboardEvent): void => {
         <button
           :disabled="!activeFile"
           class="flex items-center gap-2 px-5 py-2.5 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-black hover:shadow-lg hover:shadow-slate-900/20 active:scale-95 transition-all disabled:opacity-50"
-          @click="activeFile && (activeFile.isUnsaved = false)"
+          @click="saveFile"
         >
           <IconDeviceFloppy :size="16" /> <span>Save</span>
         </button>
@@ -343,45 +471,28 @@ const handleKeydown = (e: KeyboardEvent): void => {
             </div>
           </div>
 
-          <div class="flex-1 relative overflow-hidden group">
-            <div
-              ref="lineNumbersRef"
-              class="absolute left-0 top-0 bottom-0 w-12 bg-[#1a1b26] text-[#565f89] text-right pr-4 pt-6 text-[13px] font-mono leading-[1.6] select-none z-20 overflow-hidden"
-            >
-              <div v-for="n in lineCount" :key="n">{{ n }}</div>
-            </div>
-
-            <pre
-              ref="highlightRef"
-              class="absolute inset-0 pl-12 pt-6 pr-6 pb-6 m-0 pointer-events-none text-[13px] font-mono leading-[1.6] whitespace-pre overflow-hidden text-[#a9b1d6]"
-              v-html="highlightedCode"
-            ></pre>
-
-            <textarea
-              ref="textareaRef"
-              v-model="activeFile.content"
-              spellcheck="false"
-              class="absolute inset-0 pl-12 pt-6 pr-6 pb-6 w-full h-full bg-transparent text-transparent caret-white text-[13px] font-mono leading-[1.6] outline-none resize-none border-none whitespace-pre overflow-auto vs-scrollbar z-10"
-              @keydown.tab.prevent="handleTab"
-              @scroll="handleScroll"
-              @keyup="updateCursor"
-              @click="updateCursor"
-              @input="activeFile.isUnsaved = true"
-            ></textarea>
+          <div class="flex-1 relative overflow-hidden">
+            <VueMonacoEditor
+              :key="activeFile.id"
+              :path="activeFile.name"
+              :value="activeFile.content"
+              language="javascript"
+              theme="tokyo-night-pro"
+              :options="MONACO_OPTIONS"
+              class="h-full w-full"
+              @mount="handleMount"
+              @change="handleChange"
+            />
           </div>
 
           <div
             class="h-8 bg-[#16161e] border-t border-[#1a1b26] flex items-center justify-between px-4 text-[10px] text-[#565f89] select-none font-medium uppercase tracking-wider shrink-0 z-10"
           >
             <div class="flex items-center gap-4">
-              <span class="flex items-center gap-1.5"
-                ><IconMenu2 :size="10" /> Ln {{ cursorLine }}, Col {{ cursorCol }}</span
-              >
+              <span>Monaco Editor Ready</span>
             </div>
             <div class="flex items-center gap-4">
-              <span class="text-emerald-400 flex items-center gap-1"
-                ><IconCheck :size="10" /> Syntax ON</span
-              >
+              <span>JavaScript</span>
               <span>UTF-8</span>
             </div>
           </div>
@@ -399,44 +510,15 @@ const handleKeydown = (e: KeyboardEvent): void => {
   </div>
 </template>
 
-<style>
-/* STYLE GLOBALNE DLA TOKENÓW (Tokyo Night Theme) */
-.token-keyword {
-  color: #bb9af7;
-  font-weight: bold;
-} /* Fiolet */
-.token-function {
-  color: #7aa2f7;
-} /* Niebieski */
-.token-string {
-  color: #9ece6a;
-} /* Zielony */
-.token-number {
-  color: #ff9e64;
-} /* Pomarańcz */
-.token-comment {
-  color: #565f89;
-  font-style: italic;
-} /* Szary */
-.token-builtin {
-  color: #2ac3de;
-} /* Cyan */
-</style>
-
 <style scoped>
-/* Fonty */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 .font-sans {
   font-family: 'Inter', sans-serif;
 }
-.font-mono,
-textarea,
-pre {
+.font-mono {
   font-family: 'JetBrains Mono', monospace;
-  font-variant-ligatures: none;
 }
 
-/* Scrollbary */
 .custom-scrollbar::-webkit-scrollbar {
   width: 4px;
 }
@@ -444,34 +526,127 @@ pre {
   background: #e2e8f0;
   border-radius: 10px;
 }
-.vs-scrollbar::-webkit-scrollbar {
-  width: 12px;
-  height: 12px;
-}
-.vs-scrollbar::-webkit-scrollbar-track {
-  background: #1a1b26;
-}
-.vs-scrollbar::-webkit-scrollbar-thumb {
-  background: #2f334d;
-  border: 4px solid #1a1b26;
-  border-radius: 8px;
-}
-.vs-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #414868;
-}
-.vs-scrollbar::-webkit-scrollbar-corner {
-  background: #1a1b26;
+
+.monaco-hover {
+  /* Zaokrąglone rogi - klucz do nowoczesnego wyglądu */
+  border-radius: 12px !important;
+
+  /* Nowoczesny, głęboki cień (pasujący do Tokyo Night) */
+  box-shadow:
+    0 8px 24px -6px rgba(0, 0, 0, 0.4),
+    0 0 0 1px rgba(65, 72, 104, 0.3) !important;
+
+  /* Usunięcie domyślnej, ostrej ramki Monaco (zastępujemy ją cieniem wyżej) */
+  border: none !important;
+
+  /* Trochę więcej "oddechu" wewnątrz */
+  padding: 4px !important;
+
+  /* Płynne pojawianie się */
+  transition:
+    opacity 0.1s ease-in-out,
+    transform 0.1s ease-in-out;
+  backdrop-filter: blur(8px); /* Opcjonalne: efekt rozmycia tła pod dymkiem */
 }
 
-/* WAŻNE: Wyrównanie Overlay */
-textarea,
-pre {
-  tab-size: 2;
-  /* Musi być identyczne dla obu warstw! */
-  letter-spacing: normal;
-  word-spacing: normal;
+/* 2. Wewnętrzna zawartość dymku */
+.monaco-editor-hover .monaco-editor-hover-content {
+  /* Ładniejsze odstępy dla tekstu błędu */
+  padding: 8px 12px !important;
+  border-radius: 8px !important;
 }
-textarea::selection {
-  background: rgba(118, 148, 208, 0.3);
+
+/* 3. Pasek statusu na dole ("View Problem...") */
+.monaco-editor-hover .hover-status-bar {
+  border-top: 1px solid rgba(65, 72, 104, 0.3) !important;
+  padding: 6px 12px !important;
+  border-bottom-left-radius: 12px !important;
+  border-bottom-right-radius: 12px !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* 4. Linki w dymku */
+.monaco-hover a {
+  text-decoration: none !important;
+}
+.monaco-hover a:hover {
+  text-decoration: underline !important;
+}
+
+/* 5. (Opcjonalnie) Stylizacja menu autouzupełniania (Suggest Widget) */
+/* Żeby pasowało stylem do dymków błędów */
+.monaco-editor .suggest-widget {
+  border-radius: 12px !important;
+  box-shadow:
+    0 8px 24px -6px rgba(0, 0, 0, 0.4),
+    0 0 0 1px rgba(65, 72, 104, 0.3) !important;
+  border: none !important;
+}
+.monaco-editor .suggest-widget .monaco-list-row.focused {
+  border-radius: 6px !important;
+}
+.monaco-hover {
+  /* Zaokrąglone rogi - klucz do nowoczesnego wyglądu */
+  border-radius: 12px !important;
+
+  /* Nowoczesny, głęboki cień (pasujący do Tokyo Night) */
+  box-shadow:
+    0 8px 24px -6px rgba(0, 0, 0, 0.4),
+    0 0 0 1px rgba(65, 72, 104, 0.3) !important;
+
+  /* Usunięcie domyślnej, ostrej ramki Monaco (zastępujemy ją cieniem wyżej) */
+  border: none !important;
+
+  /* Trochę więcej "oddechu" wewnątrz */
+  padding: 4px !important;
+
+  /* Płynne pojawianie się */
+  transition:
+    opacity 0.1s ease-in-out,
+    transform 0.1s ease-in-out;
+  backdrop-filter: blur(8px); /* Opcjonalne: efekt rozmycia tła pod dymkiem */
+}
+
+/* 2. Wewnętrzna zawartość dymku */
+.monaco-editor-hover .monaco-editor-hover-content {
+  /* Ładniejsze odstępy dla tekstu błędu */
+  padding: 8px 12px !important;
+  border-radius: 8px !important;
+}
+
+/* 3. Pasek statusu na dole ("View Problem...") */
+.monaco-editor-hover .hover-status-bar {
+  border-top: 1px solid rgba(65, 72, 104, 0.3) !important;
+  padding: 6px 12px !important;
+  border-bottom-left-radius: 12px !important;
+  border-bottom-right-radius: 12px !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* 4. Linki w dymku */
+.monaco-hover a {
+  text-decoration: none !important;
+}
+.monaco-hover a:hover {
+  text-decoration: underline !important;
+}
+
+/* 5. (Opcjonalnie) Stylizacja menu autouzupełniania (Suggest Widget) */
+/* Żeby pasowało stylem do dymków błędów */
+.monaco-editor .suggest-widget {
+  border-radius: 12px !important;
+  box-shadow:
+    0 8px 24px -6px rgba(0, 0, 0, 0.4),
+    0 0 0 1px rgba(65, 72, 104, 0.3) !important;
+  border: none !important;
+}
+.monaco-editor .suggest-widget .monaco-list-row.focused {
+  border-radius: 6px !important;
 }
 </style>

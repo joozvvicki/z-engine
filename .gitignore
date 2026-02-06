@@ -6,3 +6,4 @@ out
 *.log*
 docs/*
 landing-page/*
+scripts/
