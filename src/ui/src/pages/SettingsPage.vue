@@ -58,13 +58,12 @@ const getActorFacePos = (actorId: number): { x: number; y: number } => {
 const bgmFiles = ref<string[]>([])
 const seFiles = ref<string[]>([])
 
-const loadAudioFiles = async () => {
+const loadAudioFiles = async (): Promise<void> => {
   bgmFiles.value = await ProjectService.getProjectFiles('audio/bgm')
   seFiles.value = await ProjectService.getProjectFiles('audio/se')
 }
 
-const playPreview = (key: string, type: 'bgm' | 'se') => {
-  // @ts-ignore
+const playPreview = (key: string, type: 'bgm' | 'se'): void => {
   const sound = store.systemSounds[key]
   if (!sound?.name) return
   const folder = type === 'bgm' ? 'audio/bgm' : 'audio/se'
@@ -78,7 +77,7 @@ const playPreview = (key: string, type: 'bgm' | 'se') => {
 const dataSearch = ref('')
 const maxDataItems = ref(50)
 
-const ensureSize = (arr: string[]) => {
+const ensureSize = (arr: string[]): void => {
   if (arr.length < maxDataItems.value) {
     const originalLength = arr.length
     arr.length = maxDataItems.value
@@ -86,13 +85,13 @@ const ensureSize = (arr: string[]) => {
   }
 }
 
-const loadMoreData = () => {
+const loadMoreData = (): void => {
   maxDataItems.value += 20
   ensureSize(store.systemSwitches)
   ensureSize(store.systemVariables)
 }
 
-const filterList = (source: string[]) => {
+const filterList = (source: string[]): { name: string; idx: number }[] => {
   const query = dataSearch.value.toLowerCase()
   return source
     .map((name, idx) => ({ name, idx }))
@@ -584,7 +583,6 @@ onMounted(() => {
 </template>
 
 <style scoped>
-
 .input-base {
   @apply w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-bold text-slate-900 outline-none focus:bg-white focus:border-blue-400 transition-all;
 }

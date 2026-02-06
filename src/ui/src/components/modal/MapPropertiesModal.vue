@@ -442,6 +442,7 @@ const handleSave = (): void => {
 </template>
 
 <style scoped>
+@reference "@ui/assets/css/tailwind.css";
 
 .docs-input {
   @apply w-full bg-slate-50/50 border border-slate-200 rounded-2xl px-5 py-4 text-sm font-semibold text-slate-700 outline-none transition-all duration-300 focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/5 placeholder:text-slate-300;
