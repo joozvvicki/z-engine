@@ -172,6 +172,27 @@ const handleDelete = (): void => {
                 />
               </div>
 
+              <!-- Item Type -->
+              <div class="space-y-1.5">
+                <label
+                  class="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1"
+                >
+                  <IconPackage :size="12" /> Item Type
+                </label>
+                <div class="relative">
+                  <select
+                    v-model.number="selectedItem.itypeId"
+                    class="w-full bg-slate-50 border border-slate-200 text-slate-700 text-sm font-bold rounded-xl px-3 py-2.5 outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-50 transition-all appearance-none"
+                    @change="db.save('Items.json', db.items)"
+                  >
+                    <option :value="undefined">None</option>
+                    <option v-for="itype in db.terms.itemTypes" :key="itype.id" :value="itype.id">
+                      {{ itype.name }}
+                    </option>
+                  </select>
+                </div>
+              </div>
+
               <div class="col-span-2 space-y-1.5">
                 <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest"
                   >Description</label

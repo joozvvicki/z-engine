@@ -26,7 +26,8 @@ export const useDatabaseStore = defineStore('database', () => {
     elements: [],
     weaponTypes: [],
     armorTypes: [],
-    skillTypes: []
+    skillTypes: [],
+    itemTypes: []
   })
   const isLoaded = ref(false)
 
@@ -45,7 +46,8 @@ export const useDatabaseStore = defineStore('database', () => {
       elements: [],
       weaponTypes: [],
       armorTypes: [],
-      skillTypes: []
+      skillTypes: [],
+      itemTypes: []
     }
     isLoaded.value = true
   }
@@ -247,14 +249,14 @@ export const useDatabaseStore = defineStore('database', () => {
   type TermCategory = keyof ZTerms
 
   const addTerm = (category: TermCategory, name: string): void => {
-    const list = terms.value[category]
+    const list = terms.value[category] ?? []
     const newId = list.length > 0 ? Math.max(...list.map((t) => t.id)) + 1 : 1
     list.push({ id: newId, name })
     save('Terms.json', terms.value)
   }
 
   const deleteTerm = (category: TermCategory, id: number): void => {
-    const list = terms.value[category]
+    const list = terms.value[category] ?? []
     const idx = list.findIndex((t) => t.id === id)
     if (idx !== -1) {
       list.splice(idx, 1)
@@ -263,7 +265,7 @@ export const useDatabaseStore = defineStore('database', () => {
   }
 
   const updateTermName = (category: TermCategory, id: number, name: string): void => {
-    const list = terms.value[category]
+    const list = terms.value[category] ?? []
     const term = list.find((t) => t.id === id)
     if (term) {
       term.name = name

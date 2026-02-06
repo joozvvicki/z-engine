@@ -103,6 +103,7 @@ export interface ZItem extends ZDatabaseEntry {
   price: number
   consumable: boolean
   target: number
+  itypeId?: number // Item type (from Terms)
   effects: ZSkillEffect[]
 }
 
@@ -187,6 +188,7 @@ export interface ZTerms {
   weaponTypes: ZTerm[]
   armorTypes: ZTerm[]
   skillTypes: ZTerm[]
+  itemTypes: ZTerm[]
 }
 
 export interface ZCommonEvent extends ZDatabaseEntry {

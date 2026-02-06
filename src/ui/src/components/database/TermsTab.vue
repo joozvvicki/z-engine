@@ -13,7 +13,7 @@ import {
 
 const db = useDatabaseStore()
 
-type CategoryKey = 'elements' | 'weaponTypes' | 'armorTypes' | 'skillTypes'
+type CategoryKey = 'elements' | 'weaponTypes' | 'armorTypes' | 'skillTypes' | 'itemTypes'
 
 // Konfiguracja kategorii
 const categories: { id: CategoryKey; label: string; icon: any; color: string; bg: string }[] = [
@@ -44,6 +44,13 @@ const categories: { id: CategoryKey; label: string; icon: any; color: string; bg
     icon: IconShield,
     color: 'text-blue-600',
     bg: 'bg-blue-50'
+  },
+  {
+    id: 'itemTypes',
+    label: 'Item Types',
+    icon: IconSparkles,
+    color: 'text-purple-600',
+    bg: 'bg-purple-50'
   }
 ]
 
@@ -56,7 +63,7 @@ const currentList = computed(() => {
   let list = db.terms[activeCategory.value]
   if (searchQuery.value) {
     const q = searchQuery.value.toLowerCase()
-    list = list.filter((item) => item.name.toLowerCase().includes(q))
+    list = list.filter((item) => item.name.toLowerCase().includes(q)) ?? []
   }
   return list
 })
@@ -98,7 +105,7 @@ const handleUpdateName = (id: number, name: string): void => {
             <span class="text-sm font-bold">{{ cat.label }}</span>
 
             <span class="ml-auto text-[10px] font-bold opacity-60">
-              {{ db.terms[cat.id].length }}
+              {{ db.terms[cat.id]?.length || 0 }}
             </span>
           </button>
         </nav>
@@ -193,7 +200,7 @@ const handleUpdateName = (id: number, name: string): void => {
               </div>
             </div>
 
-            <div v-if="currentList.length === 0" class="p-12 text-center">
+            <div v-if="currentList?.length === 0" class="p-12 text-center">
               <p class="text-xs font-bold text-slate-400">No items found.</p>
             </div>
           </div>
