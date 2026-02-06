@@ -99,6 +99,14 @@ const selectFile = async (node: ProjectFileNode): Promise<void> => {
       isUnsaved: false,
       isReadOnly: node.path.startsWith('js/libs') && !node.path.includes('z-engine-source')
     }
+
+    // Auto-expand parent folders
+    const segments = node.path.split('/')
+    let currentPath = ''
+    for (let i = 0; i < segments.length - 1; i++) {
+      currentPath = currentPath ? `${currentPath}/${segments[i]}` : segments[i]
+      expandedFolders.value.add(currentPath)
+    }
   } catch (e) {
     console.error('Failed to read file:', e)
   } finally {
@@ -292,6 +300,13 @@ const handleMount = (editor: any, monaco: any): void => {
 
       // Add default Z_ENGINE_TYPES as well
       const pixiShim = `
+declare namespace PIXI {
+    interface Container {
+        label: string;
+        uid: number;
+        effects: any[];
+    }
+}
 declare module "pixi.js" {
     export import Application = PIXI.Application;
     export import Container = PIXI.Container;
@@ -326,6 +341,32 @@ declare module "pixi.js/unsafe-eval" {
       console.error('Failed to sync Monaco environment:', e)
     }
   }
+
+  // Handle "Go to Definition" and clicking on imports
+  monaco.editor.registerEditorOpener({
+    async openCodeEditor(_source: any, resource: any, _selectionOrPosition: any) {
+      const uri = resource.toString()
+      console.log('Editor requesting to open:', uri)
+
+      if (uri.startsWith('file:///')) {
+        const path = uri.replace('file:///', '')
+        // Selection of file in the UI
+        try {
+          // We need to find if this file exists in our "system"
+          // For now, let's just try to select it. selectFile handles errors.
+          await selectFile({
+            name: path.split('/').pop() || '',
+            path: path,
+            isDirectory: false
+          })
+          return true // Handled
+        } catch (e) {
+          console.warn('Failed to open file from editor:', e)
+        }
+      }
+      return false // Not handled
+    }
+  })
 
   syncMonacoEnvironment()
 
