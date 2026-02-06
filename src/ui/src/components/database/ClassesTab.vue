@@ -1,15 +1,9 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useDatabaseStore } from '@ui/stores/database'
-import {
-  IconPlus,
-  IconSearch,
-  IconTrash,
-  IconTypeface,
-  IconChartLine,
-  IconBook
-} from '@tabler/icons-vue'
+import { IconPlus, IconSearch, IconTrash, IconTypeface, IconChartLine } from '@tabler/icons-vue'
 import TraitsEditor from './common/TraitsEditor.vue'
+import SkillLearningsEditor from './common/SkillLearningsEditor.vue'
 
 const db = useDatabaseStore()
 const selectedId = ref<number>(db.classes[0]?.id || 0)
@@ -258,23 +252,10 @@ const updateParam = (index: number, value: number) => {
           </div>
 
           <div class="space-y-4 pt-4 border-t border-gray-100">
-            <div class="flex items-center gap-3">
-              <div class="p-1.5 bg-slate-100 text-slate-500 rounded-lg">
-                <IconBook :size="16" />
-              </div>
-              <h3 class="text-sm font-black text-slate-900 uppercase tracking-wide">
-                Skills to Learn
-              </h3>
-              <div class="flex-1 h-px bg-slate-200"></div>
-            </div>
-
-            <div
-              class="bg-slate-50/50 rounded-2xl border border-dashed border-slate-200 p-8 text-center opacity-80 hover:opacity-100 transition-opacity"
-            >
-              <p class="text-xs font-bold text-slate-400">
-                Skill learning table (Level required, Skill) will be available in the next update.
-              </p>
-            </div>
+            <SkillLearningsEditor
+              v-model="selectedClass.learnings"
+              @update:model-value="db.save('Classes.json', db.classes)"
+            />
           </div>
 
           <div class="space-y-4 pt-4 border-t border-gray-100">

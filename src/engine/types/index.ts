@@ -65,10 +65,16 @@ export interface ZTrait {
   value: number
 }
 
+export interface ZClassLearning {
+  level: number
+  skillId: number
+}
+
 export interface ZClass extends ZDatabaseEntry {
   nickname?: string
   params: number[] // [MHP, MMP, ATK, DEF, MAT, MDF, AGI, LUK]
   traits: ZTrait[]
+  learnings: ZClassLearning[]
 }
 
 export interface ZSkill extends ZDatabaseEntry {
