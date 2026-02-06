@@ -4,10 +4,12 @@ import { useDatabaseStore } from '@ui/stores/database'
 import { IconPlus, IconSearch, IconTrash, IconTypeface, IconChartLine } from '@tabler/icons-vue'
 import TraitsEditor from './common/TraitsEditor.vue'
 import SkillLearningsEditor from './common/SkillLearningsEditor.vue'
+import ExpCurveEditor from './common/ExpCurveEditor.vue'
 
 const db = useDatabaseStore()
 const selectedId = ref<number>(db.classes[0]?.id || 0)
 const searchQuery = ref('')
+const showExpCurveModal = ref(false)
 
 // --- COMPUTED ---
 const filteredClasses = computed(() => {
@@ -150,11 +152,18 @@ const updateParam = (index: number, value: number) => {
                     class="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1"
                     >EXP Curve</span
                   >
-                  <span class="text-white font-black text-lg">Standard</span>
+                  <span class="text-white font-black text-lg">{{
+                    selectedClass.expCurve === 5
+                      ? 'Custom'
+                      : ['Standard', 'Fast', 'Slow', 'Very Fast', 'Very Slow'][
+                          selectedClass.expCurve || 0
+                        ]
+                  }}</span>
                 </div>
 
                 <div
                   class="absolute inset-0 bg-slate-900/80 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer"
+                  @click="showExpCurveModal = true"
                 >
                   <span
                     class="px-3 py-1 bg-white rounded-full text-[9px] font-black uppercase tracking-widest text-slate-900 shadow-lg"
@@ -274,6 +283,21 @@ const updateParam = (index: number, value: number) => {
       </div>
       <span class="text-sm font-bold text-slate-400">No Class Selected</span>
     </div>
+
+    <!-- EXP Curve Editor -->
+    <ExpCurveEditor
+      v-if="showExpCurveModal && selectedClass"
+      :model-value="selectedClass"
+      @update:model-value="
+        (updated) => {
+          if (selectedClass) {
+            Object.assign(selectedClass, updated)
+            db.save('Classes.json', db.classes)
+          }
+        }
+      "
+      @close="showExpCurveModal = false"
+    />
   </div>
 </template>
 

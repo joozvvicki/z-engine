@@ -75,6 +75,8 @@ export interface ZClass extends ZDatabaseEntry {
   params: number[] // [MHP, MMP, ATK, DEF, MAT, MDF, AGI, LUK]
   traits: ZTrait[]
   learnings: ZClassLearning[]
+  expCurve: number // 0-4 = presets, 5 = custom
+  expParams?: { base: number; extra: number; acceleration: number } // For custom curve
 }
 
 export interface ZSkill extends ZDatabaseEntry {

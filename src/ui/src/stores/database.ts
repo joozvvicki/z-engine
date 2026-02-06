@@ -69,7 +69,8 @@ export const useDatabaseStore = defineStore('database', () => {
       description: '',
       params: [500, 100, 10, 10, 10, 10, 10, 10],
       traits: [],
-      learnings: []
+      learnings: [],
+      expCurve: 0
     })
     save('Classes.json', classes.value)
   }
