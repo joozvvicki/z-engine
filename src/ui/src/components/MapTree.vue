@@ -237,7 +237,6 @@ const onDropOnRoot = (e: DragEvent): void => {
 </template>
 
 <style scoped>
-@import 'tailwindcss';
 
 .menu-item {
   @apply w-full text-left px-3 py-1.5 text-xs font-medium text-slate-600 flex items-center gap-2 hover:bg-slate-50 hover:text-slate-900 transition-colors;

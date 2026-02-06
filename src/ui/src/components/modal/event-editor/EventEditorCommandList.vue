@@ -291,7 +291,6 @@ const getCommandColor = (code: number): string => {
 </template>
 
 <style scoped>
-@import 'tailwindcss';
 
 .custom-scrollbar::-webkit-scrollbar {
   width: 5px;

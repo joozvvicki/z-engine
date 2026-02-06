@@ -563,7 +563,6 @@ const variableOps = [
 </template>
 
 <style scoped>
-@import 'tailwindcss';
 
 .custom-scrollbar::-webkit-scrollbar {
   width: 4px;

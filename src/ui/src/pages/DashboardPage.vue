@@ -407,8 +407,6 @@ const welcomeMessage = computed(() => {
 </template>
 
 <style scoped>
-@import 'tailwindcss';
-
 .btn-primary {
   @apply bg-slate-900 text-white pl-5 pr-6 py-3 rounded-xl font-bold text-xs flex items-center gap-2 hover:shadow-xl hover:shadow-slate-900/20 hover:-translate-y-0.5 transition-all cursor-pointer overflow-hidden;
 }

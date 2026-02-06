@@ -254,7 +254,6 @@ const zoomOptions = [0.25, 0.5, 0.75, 1, 1.5, 2, 3, 4]
 </template>
 
 <style scoped>
-@import 'tailwindcss';
 
 .menu-popup {
   @apply absolute bottom-full mb-2 bg-white border border-slate-200 rounded-xl shadow-2xl overflow-hidden flex flex-col z-50;
