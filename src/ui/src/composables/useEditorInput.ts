@@ -1,13 +1,12 @@
 import { ref, watch, nextTick, type Ref } from 'vue'
 import type { FederatedPointerEvent } from '@engine/utils/pixi'
-import { ZEngine } from '@engine/core/ZEngine'
 import { useEditorStore } from '@ui/stores/editor'
 import { useViewport } from './useViewport'
 import { useEditorTools } from './useEditorTools'
-import { ZTool } from '@engine/types'
+import { ZTool, type IEngineContext } from '@engine/types'
 
 export const useEditorInput = (
-  engine: Ref<ZEngine | null>,
+  engine: Ref<IEngineContext | null>,
   canvasContainer: Ref<HTMLElement | null>
 ): {
   onPointerDown: (event: FederatedPointerEvent) => void
@@ -20,7 +19,7 @@ export const useEditorInput = (
   activeEventCoords: Ref<{ x: number; y: number } | null>
   activeEventId: Ref<string | null>
   clearEventSelection: () => void
-  deleteSelection: (engine: ZEngine) => void
+  deleteSelection: (engine: IEngineContext) => void
 } => {
   const store = useEditorStore()
   const isPointerDown = ref(false)

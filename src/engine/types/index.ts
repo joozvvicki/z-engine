@@ -6,7 +6,9 @@ import {
   MapManager,
   SceneManager,
   TextureManager,
-  TilesetManager
+  TilesetManager,
+  ToolManager,
+  HistoryManager
 } from '@engine/managers'
 import { AudioManager } from '@engine/managers/AudioManager'
 import type { SaveManager } from '@engine/managers/SaveManager'
@@ -558,6 +560,13 @@ export interface IEngineContext {
   transitions: TransitionSystem
   save: SaveManager
   config: { mode: 'play' | 'edit' }
+  init(container: HTMLElement, tileSize: number): Promise<void>
+  destroy(): void
+  resize(width: number, height: number): void
+  setMode(mode: 'edit' | 'play'): Promise<void>
+  setTool(tool: ZTool): void
+  tools: ToolManager
+  history: HistoryManager
 }
 
 export interface ZEventInterpreter {

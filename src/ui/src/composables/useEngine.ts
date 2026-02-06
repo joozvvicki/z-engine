@@ -3,7 +3,14 @@ import { ZEngine } from '@engine/core/ZEngine'
 import { useEditorStore } from '@ui/stores/editor'
 import { useDatabaseStore } from '@ui/stores/database'
 import { ProjectService } from '../services/ProjectService'
-import { ZLayer, ZTool, type TileSelection, type ZDataProvider, type ZMap } from '@engine/types'
+import {
+  ZLayer,
+  ZTool,
+  type TileSelection,
+  type ZDataProvider,
+  type ZMap,
+  type IEngineContext
+} from '@engine/types'
 
 import { SceneMap } from '@engine/scenes/SceneMap'
 import { nextTick } from 'vue'
@@ -13,14 +20,14 @@ export const useEngine = (
   canvasContainer: Ref<HTMLElement | null>,
   isEditorView: boolean = false
 ): {
-  engine: Ref<ZEngine | null>
+  engine: Ref<IEngineContext | null>
   isEngineReady: Ref<boolean>
   isLoading: Ref<boolean>
   initEngine: () => Promise<void>
 } => {
   const store = useEditorStore()
   const db = useDatabaseStore()
-  const engine = shallowRef<ZEngine | null>(null)
+  const engine = shallowRef<IEngineContext | null>(null)
   const isEngineReady = ref(false)
   const isLoading = ref(false)
 
@@ -196,7 +203,7 @@ export const useEngine = (
     }
   }
 
-  const syncCanvasSize = (eng: ZEngine, targetMapOverride?: ZMap): void => {
+  const syncCanvasSize = (eng: IEngineContext, targetMapOverride?: ZMap): void => {
     const map = targetMapOverride || store.activeMap
     if (!map || !canvasContainer.value) return
 
@@ -233,7 +240,7 @@ export const useEngine = (
     }
   }
 
-  const syncGridSize = (eng: ZEngine): void => {
+  const syncGridSize = (eng: IEngineContext): void => {
     if (!store.activeMap) return
     if (eng.grid) {
       const isVisible = store.currentTool === ZTool.event && isEditorView

@@ -1,8 +1,7 @@
 import { Ref, ref } from 'vue'
-import { ZEngine } from '@engine/core/ZEngine'
 import { useEditorStore } from '@ui/stores/editor'
 import { useDatabaseStore } from '@ui/stores/database'
-import { ZTool } from '@engine/types'
+import { ZTool, type IEngineContext } from '@engine/types'
 import type { FederatedPointerEvent } from '@engine/utils/pixi'
 
 export const useEditorTools = (): {
@@ -11,11 +10,11 @@ export const useEditorTools = (): {
   activeEventId: Ref<string | null>
   handleInteraction: (
     event: FederatedPointerEvent,
-    engine: ZEngine | null,
+    engine: IEngineContext | null,
     isCommit?: boolean
   ) => void
   clearEventSelection: () => void
-  deleteSelection: (engine: ZEngine) => void
+  deleteSelection: (engine: IEngineContext) => void
 } => {
   const store = useEditorStore()
   const shapeStartPos = ref<{ x: number; y: number } | null>(null)
@@ -30,7 +29,7 @@ export const useEditorTools = (): {
 
   const handleInteraction = (
     event: FederatedPointerEvent,
-    engine: ZEngine | null,
+    engine: IEngineContext | null,
     isCommit = false
   ): void => {
     if (!engine || !store.selection || !store.activeMap) return
@@ -202,7 +201,7 @@ export const useEditorTools = (): {
     activeEventId.value = null
   }
 
-  const deleteSelection = (engine: ZEngine): void => {
+  const deleteSelection = (engine: IEngineContext): void => {
     if (!store.selectionCoords || !store.activeMap) return
     const { x, y, w, h } = store.selectionCoords
     const layer = store.activeLayer
