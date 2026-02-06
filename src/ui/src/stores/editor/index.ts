@@ -94,6 +94,7 @@ export const useEditorStore = defineStore('editor', () => {
     battleBGM: { name: '', volume: 90, pitch: 100 }
   })
   const isProjectLoaded = ref(false)
+  const engineReloadSignal = ref(0)
 
   // Ensure initial size (default for new project or empty load)
   if (systemSwitches.value.length === 0) systemSwitches.value = new Array(20).fill('')
@@ -118,8 +119,11 @@ export const useEditorStore = defineStore('editor', () => {
     if (forceSelect) {
       const path = await ProjectService.selectProject()
       if (!path) return
+      await ProjectService.ensureFolderStructure()
     } else if (!ProjectService.isLoaded()) {
       return
+    } else {
+      await ProjectService.ensureFolderStructure()
     }
 
     // 1. Load System Data
@@ -389,6 +393,10 @@ export const useEditorStore = defineStore('editor', () => {
     systemSounds,
     isProjectLoaded,
     mapAlignment,
-    isEventEditorOpen
+    isEventEditorOpen,
+    engineReloadSignal,
+    triggerEngineReload: () => {
+      engineReloadSignal.value++
+    }
   }
 })

@@ -157,6 +157,10 @@ app.whenReady().then(() => {
     return filePaths[0]
   })
 
+  ipcMain.handle('app:getAppPath', () => {
+    return app.getAppPath()
+  })
+
   ipcMain.handle('fs:readFile', async (_, path) => {
     return await fs.readFile(path, 'utf-8')
   })
@@ -180,8 +184,11 @@ app.whenReady().then(() => {
 
   ipcMain.handle('fs:listDirectory', async (_, path) => {
     try {
-      // Return filenames only
-      return await fs.readdir(path)
+      const entries = await fs.readdir(path, { withFileTypes: true })
+      return entries.map((entry) => ({
+        name: entry.name,
+        isDirectory: entry.isDirectory()
+      }))
     } catch {
       return []
     }
@@ -189,6 +196,10 @@ app.whenReady().then(() => {
 
   ipcMain.handle('fs:copyFile', async (_, src, dest) => {
     await fs.copyFile(src, dest)
+  })
+
+  ipcMain.handle('fs:copyDir', async (_, src, dest) => {
+    await fs.cp(src, dest, { recursive: true })
   })
 
   ipcMain.handle('fs:deleteFile', async (_, path) => {

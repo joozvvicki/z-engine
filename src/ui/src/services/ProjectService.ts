@@ -1,6 +1,14 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type { ZMap, TilesetConfig, ZSystemData, TileSelection, GameSaveFile } from '@engine/types'
 import { VERSION } from 'pixi.js'
+import { GAME_DEFS } from '../assets/index'
+
+export interface ProjectFileNode {
+  name: string
+  path: string
+  isDirectory: boolean
+  children?: ProjectFileNode[]
+}
 
 export class ProjectService {
   private static projectPath: string | null = null
@@ -8,10 +16,17 @@ export class ProjectService {
   public static async selectProject(): Promise<string | null> {
     const path = await window.api.selectProjectFolder()
     if (path) {
+      // Ensure absolute path
       this.projectPath = path
       this.addToHistory(path)
     }
     return path
+  }
+
+  public static ensureProjectPath(): void {
+    if (!this.projectPath) {
+      this.loadLastProject()
+    }
   }
 
   public static get currentPath(): string | null {
@@ -288,12 +303,14 @@ export class ProjectService {
     return this.projectPath !== null
   }
 
-  public static async getProjectFiles(subpath: string): Promise<string[]> {
+  public static async getProjectFiles(
+    subpath: string
+  ): Promise<{ name: string; isDirectory: boolean }[]> {
     if (!this.projectPath) return []
     try {
       const fullDir = `${this.projectPath}/${subpath}`
-      const files = await window.api.listDirectory(fullDir)
-      return files
+      const entries = await window.api.listDirectory(fullDir)
+      return entries
     } catch {
       return []
     }
@@ -359,6 +376,190 @@ export class ProjectService {
       platform,
       gameName
     })
+  }
+
+  public static async listProjectFiles(
+    subpath: string
+  ): Promise<{ name: string; isDirectory: boolean }[]> {
+    if (!this.projectPath) return []
+    try {
+      const fullDir = `${this.projectPath}/${subpath}`
+      const exists = await window.api.checkFileExists(fullDir)
+      if (!exists) return []
+      return await window.api.listDirectory(fullDir)
+    } catch {
+      return []
+    }
+  }
+
+  public static async getDirectoryTree(subpath: string): Promise<ProjectFileNode> {
+    if (!this.projectPath) throw new Error('No project loaded')
+
+    const fullPath = subpath ? `${this.projectPath}/${subpath}` : this.projectPath
+    const name = subpath.split('/').pop() || (this.projectPath.split('/').pop() as string)
+
+    const node: ProjectFileNode = {
+      name,
+      path: subpath,
+      isDirectory: true,
+      children: []
+    }
+
+    const entries = await window.api.listDirectory(fullPath)
+    for (const entry of entries) {
+      const entryPath = subpath ? `${subpath}/${entry.name}` : entry.name
+      if (entry.isDirectory) {
+        node.children?.push(await this.getDirectoryTree(entryPath))
+      } else {
+        node.children?.push({
+          name: entry.name,
+          path: entryPath,
+          isDirectory: false
+        })
+      }
+    }
+
+    // Sort: directories first, then alphabetically
+    node.children?.sort((a, b) => {
+      if (a.isDirectory && !b.isDirectory) return -1
+      if (!a.isDirectory && b.isDirectory) return 1
+      return a.name.localeCompare(b.name)
+    })
+
+    return node
+  }
+
+  public static async getFlatFileTree(
+    subpath: string
+  ): Promise<{ path: string; content: string }[]> {
+    if (!this.projectPath) return []
+    const results: { path: string; content: string }[] = []
+
+    const traverse = async (currentPath: string): Promise<void> => {
+      const fullPath = `${this.projectPath}/${currentPath}`
+      const entries = await window.api.listDirectory(fullPath)
+
+      for (const entry of entries) {
+        const entryPath = currentPath ? `${currentPath}/${entry.name}` : entry.name
+        if (entry.isDirectory) {
+          await traverse(entryPath)
+        } else {
+          // Filter to only include source files for Monaco (ts, js, d.ts, json)
+          const ext = entry.name.split('.').pop()?.toLowerCase()
+          if (['ts', 'js', 'json'].includes(ext || '')) {
+            try {
+              const content = await ProjectService.readProjectFile(entryPath)
+              results.push({ path: entryPath, content })
+            } catch (e) {
+              console.warn(`Failed to read file for flat tree: ${entryPath}`, e)
+            }
+          }
+        }
+      }
+    }
+
+    await traverse(subpath)
+    return results
+  }
+
+  public static async readProjectFile(subpath: string): Promise<string> {
+    if (!this.projectPath) return ''
+    return await window.api.readProjectFile(`${this.projectPath}/${subpath}`)
+  }
+
+  public static async writeProjectFile(
+    subpath: string,
+    content: string | Uint8Array
+  ): Promise<void> {
+    if (!this.projectPath) return
+    const fullPath = `${this.projectPath}/${subpath}`
+    // Ensure directory exists
+    const dir = fullPath.substring(0, fullPath.lastIndexOf('/'))
+    const dirExists = await window.api.checkFileExists(dir)
+    if (!dirExists) {
+      await window.api.createDirectory(dir)
+    }
+    await window.api.writeProjectFile(fullPath, content)
+  }
+
+  public static async deleteProjectFile(subpath: string): Promise<void> {
+    if (!this.projectPath) return
+    await window.api.deleteFile(`${this.projectPath}/${subpath}`)
+  }
+
+  public static async ensureFolderStructure(): Promise<void> {
+    if (!this.projectPath) return
+    await window.api.createDirectory(`${this.projectPath}/js`)
+    await window.api.createDirectory(`${this.projectPath}/js/plugins`)
+    await window.api.createDirectory(`${this.projectPath}/js/libs`)
+    await this.syncEngineAssets()
+    await this.ensureSaveDirectory()
+  }
+
+  public static async syncEngineSource(): Promise<void> {
+    if (!this.projectPath) return
+    const appPath = await window.api.getAppPath()
+    const engineSrc = `${appPath}/src/engine`
+    const engineDest = `${this.projectPath}/js/libs/z-engine-source`
+
+    try {
+      console.log('Syncing engine source from:', engineSrc)
+      await window.api.copyDirectory(engineSrc, engineDest)
+      console.log('Engine source synced successfully.')
+    } catch (e) {
+      console.error('Failed to sync engine source:', e)
+    }
+  }
+
+  public static async syncEngineAssets(): Promise<void> {
+    if (!this.projectPath) return
+
+    try {
+      // 1. Write Engine & PIXI types for VS Code
+      // We wrap it in a proper d.ts structure if it's not already there
+      await this.writeProjectFile('js/libs/z-engine.d.ts', GAME_DEFS)
+
+      // 2. Copy PIXI library for runtime
+      const appPath = await window.api.getAppPath()
+      // Try multiple possible locations for pixi.min.js
+      const possiblePixiPaths = [
+        `${appPath}/node_modules/pixi.js/dist/pixi.min.js`,
+        `${appPath}/node_modules/pixi.js/dist/browser/pixi.min.js`,
+        `${appPath}/node_modules/pixi.js/dist/pixi.js`
+      ]
+
+      let pixiFound = false
+      for (const src of possiblePixiPaths) {
+        if (await window.api.checkFileExists(src)) {
+          await window.api.copyFile(src, `${this.projectPath}/js/libs/pixi.min.js`)
+          pixiFound = true
+          break
+        }
+      }
+
+      if (!pixiFound) {
+        console.warn('Could not find pixi.min.js in node_modules.')
+      }
+
+      // 3. Create jsconfig.json for root
+      const jsConfig = {
+        compilerOptions: {
+          target: 'ES2020',
+          module: 'ESNext',
+          checkJs: true,
+          baseUrl: '.',
+          paths: {
+            '*': ['js/libs/*', 'js/plugins/*'],
+            '@engine/*': ['js/libs/z-engine-source/*']
+          }
+        },
+        include: ['js/**/*']
+      }
+      await this.writeProjectFile('jsconfig.json', JSON.stringify(jsConfig, null, 2))
+      console.log('Project assets synced successfully.')
+    } catch (e) {
+      console.error('Failed to sync engine assets:', e)
+    }
   }
 
   private static async copyDefaultAssets(projectPath: string): Promise<void> {

@@ -23,7 +23,6 @@ export const useEngine = (
   const isEngineReady = ref(false)
   const isLoading = ref(false)
 
-  // ... (dataProvider remains same)
   const dataProvider: ZDataProvider = {
     getMap: async (id: number) => {
       return store.maps.find((m) => m.id === id) || null
@@ -71,6 +70,9 @@ export const useEngine = (
     },
     doesSaveExist: async (slotId) => {
       return await ProjectService.doesSaveExist(slotId)
+    },
+    getFileList: async (subpath) => {
+      return await ProjectService.listProjectFiles(subpath)
     }
   }
 
@@ -368,6 +370,15 @@ export const useEngine = (
       syncEditorVisualization()
     },
     { immediate: true }
+  )
+
+  watch(
+    () => store.engineReloadSignal,
+    () => {
+      if (engine.value) {
+        initEngine()
+      }
+    }
   )
 
   onUnmounted(() => {

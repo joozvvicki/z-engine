@@ -623,6 +623,7 @@ export interface ZDataProvider {
     layer: ZLayer
   ): void
   resolveAssetUrl(path: string): string
+  getFileList(subpath: string): Promise<string[]>
 
   // Persistence
   saveGame(slotId: number, data: GameSaveFile): Promise<void>

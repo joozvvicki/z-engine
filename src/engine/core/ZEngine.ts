@@ -14,6 +14,7 @@ import { MapManager } from '@engine/managers/MapManager'
 import { TilesetManager } from '@engine/managers/TilesetManager'
 import { AudioManager } from '@engine/managers/AudioManager'
 import { SaveManager } from '@engine/managers/SaveManager'
+import { PluginManager } from '@engine/managers/PluginManager'
 
 // Systems
 import { EntityRenderSystem } from '@engine/systems/EntityRenderSystem'
@@ -58,6 +59,7 @@ export class ZEngine implements IEngineContext {
   public tools: ToolManager
   public scenes: SceneManager // Implements IEngineContext
   public save: SaveManager
+  public plugins: PluginManager
 
   // 3. Logic Systems (Initialized in Constructor)
   public physics: PhysicsSystem
@@ -100,6 +102,7 @@ export class ZEngine implements IEngineContext {
     this.events = new EventSystem(this.physics, this.gameState, this.eventBus, this.map)
     this.tools = new ToolManager(this.map, this.history)
     this.save = new SaveManager(this.eventBus, this.gameState)
+    this.plugins = new PluginManager(this)
 
     // --- Phase 4: Scene Manager ---
     this.scenes = new SceneManager(this)
@@ -124,6 +127,9 @@ export class ZEngine implements IEngineContext {
 
     this.setupCanvas(container)
     this.setupStage()
+
+    // 2. Load Plugins & Libs before systems that might depend on them
+    await this.plugins.loadAll()
 
     try {
       this.renderer = new RenderSystem(
