@@ -24,10 +24,13 @@ const loadProjectCharacters = async (): Promise<void> => {
   isLoadingFiles.value = true
   try {
     const rawFiles = await ProjectService.getProjectFiles('img/characters')
-    files.value = rawFiles.map((filename) => ({
-      name: filename,
-      url: ProjectService.resolveAssetUrl(`img/characters/${filename}`)
-    }))
+    files.value = rawFiles.map((f: { name: string; isDirectory: boolean }) => {
+      const filename = typeof f === 'string' ? f : f.name
+      return {
+        name: filename,
+        url: ProjectService.resolveAssetUrl(`img/characters/${filename}`)
+      }
+    })
 
     if (props.initialTilesetId) {
       const targetName = props.initialTilesetId.split('/').pop()

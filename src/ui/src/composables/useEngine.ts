@@ -7,6 +7,7 @@ import { ZLayer, ZTool, type TileSelection, type ZDataProvider, type ZMap } from
 
 import { SceneMap } from '@engine/scenes/SceneMap'
 import { nextTick } from 'vue'
+import { SceneIntro } from '@engine/scenes'
 
 export const useEngine = (
   canvasContainer: Ref<HTMLElement | null>,
@@ -72,7 +73,8 @@ export const useEngine = (
       return await ProjectService.doesSaveExist(slotId)
     },
     getFileList: async (subpath) => {
-      return await ProjectService.listProjectFiles(subpath)
+      const files = await ProjectService.listProjectFiles(subpath)
+      return files.map((f) => f.name)
     }
   }
 
@@ -112,7 +114,9 @@ export const useEngine = (
       // Preload assets
       try {
         const charFiles = await ProjectService.getProjectFiles('img/characters')
-        const pngFiles = charFiles.filter((f) => f.endsWith('.png'))
+        const pngFiles = charFiles
+          .map((f) => (typeof f === 'string' ? f : f.name))
+          .filter((f) => f?.endsWith('.png'))
         await Promise.all(
           pngFiles.map((filename) => {
             const key = `img/characters/${filename}`
@@ -144,7 +148,6 @@ export const useEngine = (
         }
       } else {
         // PLAYTEST MODE: Start from Title directly or Boot
-        const { SceneIntro } = await import('@engine/scenes/SceneIntro')
         await newEngine.scenes.goto(SceneIntro, null, { fade: false })
       }
 

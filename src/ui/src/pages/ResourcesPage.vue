@@ -68,7 +68,8 @@ const loadFiles = async (): Promise<void> => {
   isLoading.value = true
   try {
     const config = categories[currentTab.value]
-    files.value = await ProjectService.getProjectFiles(config.folder)
+    const entries = await ProjectService.getProjectFiles(config.folder)
+    files.value = entries.map((e) => e.name)
   } catch (e) {
     console.error('Failed to load project files', e)
     files.value = []

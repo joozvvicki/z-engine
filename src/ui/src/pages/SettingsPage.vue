@@ -59,8 +59,10 @@ const bgmFiles = ref<string[]>([])
 const seFiles = ref<string[]>([])
 
 const loadAudioFiles = async (): Promise<void> => {
-  bgmFiles.value = await ProjectService.getProjectFiles('audio/bgm')
-  seFiles.value = await ProjectService.getProjectFiles('audio/se')
+  const bgmEntries = await ProjectService.getProjectFiles('audio/bgm')
+  bgmFiles.value = bgmEntries.map((e) => e.name)
+  const seEntries = await ProjectService.getProjectFiles('audio/se')
+  seFiles.value = seEntries.map((e) => e.name)
 }
 
 const playPreview = (key: string, type: 'bgm' | 'se'): void => {

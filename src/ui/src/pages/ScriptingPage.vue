@@ -3,164 +3,109 @@ import * as prettier from 'prettier/standalone'
 import * as parserBabel from 'prettier/plugins/babel'
 import * as parserEstree from 'prettier/plugins/estree'
 
-import { ref, shallowRef, onMounted } from 'vue'
+import { ref, computed, shallowRef } from 'vue'
 import { VueMonacoEditor } from '@guolao/vue-monaco-editor'
 import { GAME_DEFS as Z_ENGINE_TYPES } from '@ui/assets/index'
-import { ProjectService, type ProjectFileNode } from '../services/ProjectService'
-import FileTreeNode from '../components/FileTreeNode.vue'
-import { useEditorStore } from '@ui/stores/editor'
 import {
   IconSearch,
   IconPlus,
   IconFileCode,
   IconDeviceFloppy,
+  IconTrash,
   IconCode,
-  IconRefresh,
-  IconVariable
+  IconBrandJavascript
 } from '@tabler/icons-vue'
 
 // --- TYPY ---
 interface ScriptFile {
   id: string
   name: string
-  path: string // ścieżka relatywna od projectPath, np. 'js/plugins/MyPlugin.js'
   content: string
   isUnsaved: boolean
-  isReadOnly: boolean
 }
 
 // --- DANE ---
-const rootNode = ref<ProjectFileNode | null>(null)
-const expandedFolders = ref<Set<string>>(new Set(['js', 'js/libs', 'js/plugins']))
-const isLoadingFiles = ref(true)
+const files = ref<ScriptFile[]>([
+  {
+    id: 'core',
+    name: 'Game_Core.js',
+    isUnsaved: false,
+    content: `/*:
+ * @target MZ
+ * @plugindesc Core Engine Mechanics
+ * @author DevTeam
+ */
+
+(() => {
+    console.log("System booting...");
+
+    const _init = Game_System.prototype.initialize;
+    Game_System.prototype.initialize = function() {
+        _init.call(this);
+        this._version = "2.0.0";
+        // Monaco Editor wykryje tu błędy składniowe!
+        const maxLevel = 99;
+    };
+})();`
+  },
+  {
+    id: 'combat',
+    name: 'Battle_System.js',
+    isUnsaved: true,
+    content: `class BattleManager_Z extends BattleManager {
+    setup(troopId, canEscape, canLose) {
+        super.setup(troopId, canEscape, canLose);
+        this._atbGauge = 0;
+    }
+}`
+  }
+])
 
 // --- STATE ---
-const activeFileId = ref<string>('')
+const activeFileId = ref<string>('core')
 const searchQuery = ref('')
 const editorRef = shallowRef() // Referencja do instancji edytora
 
 // --- COMPUTED ---
-const activeFile = ref<ScriptFile | null>(null)
+const activeFile = computed(() => files.value.find((f) => f.id === activeFileId.value))
 
-const toggleFolder = (path: string): void => {
-  if (expandedFolders.value.has(path)) {
-    expandedFolders.value.delete(path)
-  } else {
-    expandedFolders.value.add(path)
-  }
-}
-
-// --- HELPERS ---
-const refreshFileList = async (): Promise<void> => {
-  ProjectService.ensureProjectPath()
-  isLoadingFiles.value = true
-  try {
-    const tree = await ProjectService.getDirectoryTree('js')
-    rootNode.value = tree
-  } catch (e) {
-    console.error('Failed to load project scripts:', e)
-  } finally {
-    isLoadingFiles.value = false
-  }
-}
-
-const syncSource = async (): Promise<void> => {
-  isLoadingFiles.value = true
-  try {
-    await ProjectService.syncEngineSource()
-    await refreshFileList()
-  } catch (e) {
-    alert('Failed to sync engine source: ' + e)
-  } finally {
-    isLoadingFiles.value = false
-  }
-}
-
-// --- Lifecycle ---
-onMounted(async () => {
-  ProjectService.ensureProjectPath()
-  await ProjectService.syncEngineAssets()
-  await refreshFileList()
+const filteredFiles = computed(() => {
+  if (!searchQuery.value) return files.value
+  return files.value.filter((f) => f.name.toLowerCase().includes(searchQuery.value.toLowerCase()))
 })
 
 // --- ACTIONS ---
-const selectFile = async (node: ProjectFileNode): Promise<void> => {
-  if (node.isDirectory) return
-
-  isLoadingFiles.value = true
-  try {
-    const content = await ProjectService.readProjectFile(node.path)
-    activeFileId.value = node.path
-    activeFile.value = {
-      id: node.path,
-      name: node.name,
-      path: node.path,
-      content,
-      isUnsaved: false,
-      isReadOnly: node.path.startsWith('js/libs') && !node.path.includes('z-engine-source')
-    }
-
-    // Auto-expand parent folders
-    const segments = node.path.split('/')
-    let currentPath = ''
-    for (let i = 0; i < segments.length - 1; i++) {
-      currentPath = currentPath ? `${currentPath}/${segments[i]}` : segments[i]
-      expandedFolders.value.add(currentPath)
-    }
-  } catch (e) {
-    console.error('Failed to read file:', e)
-  } finally {
-    isLoadingFiles.value = false
-  }
+const selectFile = (id: string): void => {
+  activeFileId.value = id
 }
 
-const createNewFile = async (): Promise<void> => {
+const createNewFile = (): void => {
   const name = prompt('Filename:', 'Untitled.js')
   if (name) {
-    const fileName = name.endsWith('.js') ? name : `${name}.js`
-    const path = `js/plugins/${fileName}`
-    const content = '// Start coding...\n'
-
-    try {
-      await ProjectService.writeProjectFile(path, content)
-      await refreshFileList()
-      await selectFile({
-        name: fileName,
-        path,
-        isDirectory: false
-      })
-    } catch (e) {
-      alert('Failed to create file: ' + e)
-    }
+    const id = Date.now().toString()
+    files.value.push({
+      id,
+      name: name.endsWith('.js') ? name : `${name}.js`,
+      content: '// Start coding...\n',
+      isUnsaved: true
+    })
+    selectFile(id)
   }
 }
 
-const deleteFile = async (node: ProjectFileNode): Promise<void> => {
-  if (confirm(`Delete ${node.name}?`)) {
-    try {
-      await ProjectService.deleteProjectFile(node.path)
-      if (activeFileId.value === node.path) {
-        activeFile.value = null
-        activeFileId.value = ''
-      }
-      await refreshFileList()
-    } catch (e) {
-      alert('Failed to delete file: ' + e)
-    }
+const deleteFile = (id: string): void => {
+  if (confirm('Delete this file?')) {
+    const idx = files.value.findIndex((f) => f.id === id)
+    files.value.splice(idx, 1)
+    if (activeFileId.value === id) activeFileId.value = ''
   }
 }
 
-const saveFile = async (): Promise<void> => {
+const saveFile = () => {
   if (activeFile.value) {
-    try {
-      await ProjectService.writeProjectFile(activeFile.value.path, activeFile.value.content)
-      activeFile.value.isUnsaved = false
-      const store = useEditorStore()
-      store.triggerEngineReload()
-      console.log('Saved:', activeFile.value.name)
-    } catch (e) {
-      alert('Failed to save file: ' + e)
-    }
+    activeFile.value.isUnsaved = false
+    // Tutaj logika zapisu na backend/dysk
+    console.log('Saved:', activeFile.value.name)
   }
 }
 
@@ -172,7 +117,6 @@ const MONACO_OPTIONS = {
   fontSize: 14, // Nieco większy tekst dla czytelności
   lineHeight: 24, // Większy odstęp między liniami (oddychający kod)
   fontLigatures: true, // <--- TO ROBI ROBOTĘ (np. strzałki =>)
-  readOnly: false,
 
   // Zachowanie
   formatOnType: true,
@@ -205,32 +149,15 @@ const MONACO_OPTIONS = {
   matchBrackets: 'always'
 }
 
-const handleMount = (editor: any, monaco: any): void => {
+const handleMount = (editor: any, monaco: any) => {
   editorRef.value = editor
 
   monaco.languages.typescript.javascriptDefaults.setCompilerOptions({
     target: monaco.languages.typescript.ScriptTarget.ES2020,
     allowNonTsExtensions: true,
     allowJs: true,
-    checkJs: true,
-    noLib: false,
-    moduleResolution: monaco.languages.typescript.ModuleResolutionKind.NodeJs,
-    module: monaco.languages.typescript.ModuleKind.ESNext,
-    baseUrl: 'file:///',
-    paths: {
-      '@engine/*': ['js/libs/z-engine-source/*']
-    }
-  })
-
-  monaco.languages.typescript.typescriptDefaults.setCompilerOptions({
-    target: monaco.languages.typescript.ScriptTarget.ES2020,
-    allowNonTsExtensions: true,
-    moduleResolution: monaco.languages.typescript.ModuleResolutionKind.NodeJs,
-    module: monaco.languages.typescript.ModuleKind.ESNext,
-    baseUrl: 'file:///',
-    paths: {
-      '@engine/*': ['js/libs/z-engine-source/*']
-    }
+    checkJs: true, // Włącza sprawdzanie błędów w JS na podstawie typów
+    noLib: false
   })
 
   console.log('--- Monaco Mount ---')
@@ -286,90 +213,6 @@ const handleMount = (editor: any, monaco: any): void => {
   monaco.languages.typescript.javascriptDefaults.setExtraLibs(libs)
   monaco.languages.typescript.typescriptDefaults.setExtraLibs(libs)
 
-  // Sync engine source files into Monaco environment
-  const syncMonacoEnvironment = async (): Promise<void> => {
-    ProjectService.ensureProjectPath()
-    try {
-      const sourceFiles = await ProjectService.getFlatFileTree('js/libs/z-engine-source')
-
-      // Use setExtraLibs to avoid duplicates and ensure clean slate
-      const extraLibs: { content: string; filePath: string }[] = sourceFiles.map((f) => ({
-        content: f.content,
-        filePath: `file:///${f.path}`
-      }))
-
-      // Add default Z_ENGINE_TYPES as well
-      const pixiShim = `
-declare namespace PIXI {
-    interface Container {
-        label: string;
-        uid: number;
-        effects: any[];
-    }
-}
-declare module "pixi.js" {
-    export import Application = PIXI.Application;
-    export import Container = PIXI.Container;
-    export import Graphics = PIXI.Graphics;
-    export import Sprite = PIXI.Sprite;
-    export import Text = PIXI.Text;
-    export import Texture = PIXI.Texture;
-    export import Assets = PIXI.Assets;
-    export import Point = PIXI.Point;
-    export import Rectangle = PIXI.Rectangle;
-    export import Matrix = PIXI.Matrix;
-    export import Ticker = PIXI.Ticker;
-    export import Color = PIXI.Color;
-    export import FederatedPointerEvent = PIXI.FederatedPointerEvent;
-    
-    export default PIXI;
-}
-declare module "pixi.js/unsafe-eval" {
-    export {};
-}
-`
-      extraLibs.push({
-        content: Z_ENGINE_TYPES + pixiShim,
-        filePath: 'file:///z-engine.d.ts'
-      })
-
-      monaco.languages.typescript.javascriptDefaults.setExtraLibs(extraLibs)
-      monaco.languages.typescript.typescriptDefaults.setExtraLibs(extraLibs)
-
-      console.log(`Monaco environment synced with ${sourceFiles.length} engine source files.`)
-    } catch (e) {
-      console.error('Failed to sync Monaco environment:', e)
-    }
-  }
-
-  // Handle "Go to Definition" and clicking on imports
-  monaco.editor.registerEditorOpener({
-    async openCodeEditor(_source: any, resource: any, _selectionOrPosition: any) {
-      const uri = resource.toString()
-      console.log('Editor requesting to open:', uri)
-
-      if (uri.startsWith('file:///')) {
-        const path = uri.replace('file:///', '')
-        // Selection of file in the UI
-        try {
-          // We need to find if this file exists in our "system"
-          // For now, let's just try to select it. selectFile handles errors.
-          await selectFile({
-            name: path.split('/').pop() || '',
-            path: path,
-            isDirectory: false
-          })
-          return true // Handled
-        } catch (e) {
-          console.warn('Failed to open file from editor:', e)
-        }
-      }
-      return false // Not handled
-    }
-  })
-
-  syncMonacoEnvironment()
-
   monaco.languages.typescript.javascriptDefaults.setDiagnosticsOptions({
     noSemanticValidation: false,
     noSyntaxValidation: false
@@ -381,11 +224,11 @@ declare module "pixi.js/unsafe-eval" {
   )
   console.log(
     'Models:',
-    monaco.editor.getModels().map((m: any) => m.uri.toString())
+    monaco.editor.getModels().map((m) => m.uri.toString())
   )
 
   monaco.languages.registerDocumentFormattingEditProvider('javascript', {
-    async provideDocumentFormattingEdits(model: any): Promise<any[]> {
+    async provideDocumentFormattingEdits(model: any) {
       const text = model.getValue()
 
       try {
@@ -499,8 +342,8 @@ declare module "pixi.js/unsafe-eval" {
   })
 }
 
-const handleChange = (val: string | undefined): void => {
-  if (activeFile.value && val !== undefined) {
+const handleChange = (val: string) => {
+  if (activeFile.value) {
     activeFile.value.content = val
     activeFile.value.isUnsaved = true
   }
@@ -520,29 +363,12 @@ const handleChange = (val: string | undefined): void => {
             </div>
             <span class="font-bold tracking-tight text-lg">CodeManager</span>
           </div>
-          <div class="flex gap-2">
-            <button
-              class="p-2 rounded-xl bg-slate-50 text-slate-500 hover:bg-orange-50 hover:text-orange-600 transition-colors"
-              title="Sync Engine Source"
-              @click="syncSource"
-            >
-              <IconVariable :size="18" />
-            </button>
-            <button
-              class="p-2 rounded-xl bg-slate-50 text-slate-500 hover:bg-indigo-50 hover:text-indigo-600 transition-colors"
-              title="Refresh"
-              @click="refreshFileList"
-            >
-              <IconRefresh :size="18" :class="{ 'animate-spin': isLoadingFiles }" />
-            </button>
-            <button
-              class="p-2 rounded-xl bg-slate-50 text-slate-500 hover:bg-indigo-50 hover:text-indigo-600 transition-colors"
-              title="New Script"
-              @click="createNewFile"
-            >
-              <IconPlus :size="18" />
-            </button>
-          </div>
+          <button
+            class="p-2 rounded-xl bg-slate-50 text-slate-500 hover:bg-indigo-50 hover:text-indigo-600 transition-colors"
+            @click="createNewFile"
+          >
+            <IconPlus :size="18" />
+          </button>
         </div>
 
         <div class="relative group">
@@ -559,41 +385,57 @@ const handleChange = (val: string | undefined): void => {
         </div>
       </div>
 
-      <div
-        v-if="isLoadingFiles"
-        class="flex-1 flex flex-col items-center justify-center text-slate-400"
-      >
-        <IconRefresh class="animate-spin mb-2" :size="24" />
-        <span class="text-xs font-bold uppercase tracking-widest">Loading...</span>
-      </div>
-
-      <div v-else class="flex-1 overflow-y-auto px-4 py-2 space-y-1 custom-scrollbar">
-        <template v-if="rootNode">
-          <FileTreeNode
-            v-for="child in rootNode.children"
-            :key="child.path"
-            :node="child"
-            :depth="0"
-            :active-id="activeFileId"
-            :expanded-folders="expandedFolders"
-            @select="selectFile"
-            @toggle="toggleFolder"
-            @delete="deleteFile"
-          />
-        </template>
+      <div class="flex-1 overflow-y-auto px-4 py-2 space-y-1 custom-scrollbar">
+        <div
+          v-for="file in filteredFiles"
+          :key="file.id"
+          class="group relative flex items-center gap-3 px-3 py-3 rounded-xl cursor-pointer transition-all duration-200 border border-transparent"
+          :class="
+            activeFileId === file.id
+              ? 'bg-white shadow-sm border-slate-100 ring-1 ring-black/5'
+              : 'hover:bg-slate-50 text-slate-500 hover:text-slate-700'
+          "
+          @click="selectFile(file.id)"
+        >
+          <div
+            class="p-2 rounded-lg transition-colors"
+            :class="
+              activeFileId === file.id
+                ? 'bg-indigo-50 text-indigo-600'
+                : 'bg-slate-100 text-slate-400'
+            "
+          >
+            <IconBrandJavascript :size="18" stroke-width="2" />
+          </div>
+          <div class="flex-1 min-w-0">
+            <h4
+              class="text-sm font-bold truncate leading-tight"
+              :class="activeFileId === file.id ? 'text-slate-800' : ''"
+            >
+              {{ file.name }}
+            </h4>
+          </div>
+          <div
+            v-if="file.isUnsaved"
+            class="w-2 h-2 rounded-full bg-amber-400 shadow-sm shrink-0"
+          ></div>
+          <button
+            class="opacity-0 group-hover:opacity-100 p-1.5 text-slate-400 hover:text-red-500 transition-all absolute right-2 bg-white shadow-sm rounded-lg"
+            @click.stop="deleteFile(file.id)"
+          >
+            <IconTrash :size="14" />
+          </button>
+        </div>
       </div>
     </aside>
 
     <main class="flex-1 flex flex-col min-w-0 relative">
       <header class="h-16 px-8 flex items-center justify-between shrink-0">
         <div v-if="activeFile" class="flex items-center gap-4">
-          <div class="flex flex-col">
-            <h2 class="text-lg font-bold text-slate-800 leading-none">{{ activeFile.name }}</h2>
-            <span class="text-[9px] text-slate-400 font-mono mt-1">{{ activeFile.path }}</span>
-          </div>
+          <h2 class="text-lg font-bold text-slate-800">{{ activeFile.name }}</h2>
           <span
             class="px-2 py-0.5 rounded-full bg-slate-200 text-slate-500 text-[10px] font-bold uppercase tracking-wide"
-            >{{ activeFile.isReadOnly ? 'Read Only' : 'JS' }}</span
+            >JS</span
           >
           <span
             v-if="activeFile.isUnsaved"
@@ -603,7 +445,7 @@ const handleChange = (val: string | undefined): void => {
         </div>
         <div v-else class="text-slate-400 font-medium">No file selected</div>
         <button
-          :disabled="!activeFile || activeFile.isReadOnly"
+          :disabled="!activeFile"
           class="flex items-center gap-2 px-5 py-2.5 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-black hover:shadow-lg hover:shadow-slate-900/20 active:scale-95 transition-all disabled:opacity-50"
           @click="saveFile"
         >
@@ -620,7 +462,7 @@ const handleChange = (val: string | undefined): void => {
             class="h-10 bg-[#16161e] border-b border-[#1a1b26] flex items-center justify-between px-4 select-none shrink-0 z-10"
           >
             <div class="flex items-center gap-2 opacity-50 text-white text-xs font-mono">
-              <IconFileCode :size="14" /> <span>{{ activeFile.path }}</span>
+              <IconFileCode :size="14" /> <span>src/scripts/{{ activeFile.name }}</span>
             </div>
             <div class="flex gap-1.5">
               <div class="w-2.5 h-2.5 rounded-full bg-[#ff5f56]"></div>
@@ -632,11 +474,11 @@ const handleChange = (val: string | undefined): void => {
           <div class="flex-1 relative overflow-hidden">
             <VueMonacoEditor
               :key="activeFile.id"
-              :path="activeFile.path"
+              :path="activeFile.name"
               :value="activeFile.content"
               language="javascript"
               theme="tokyo-night-pro"
-              :options="{ ...MONACO_OPTIONS, readOnly: activeFile.isReadOnly }"
+              :options="MONACO_OPTIONS"
               class="h-full w-full"
               @mount="handleMount"
               @change="handleChange"
@@ -647,8 +489,7 @@ const handleChange = (val: string | undefined): void => {
             class="h-8 bg-[#16161e] border-t border-[#1a1b26] flex items-center justify-between px-4 text-[10px] text-[#565f89] select-none font-medium uppercase tracking-wider shrink-0 z-10"
           >
             <div class="flex items-center gap-4">
-              <span v-if="activeFile.isReadOnly">Read Only Mode</span>
-              <span v-else>Monaco Editor Ready</span>
+              <span>Monaco Editor Ready</span>
             </div>
             <div class="flex items-center gap-4">
               <span>JavaScript</span>

@@ -1,8 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type { ZMap, TilesetConfig, ZSystemData, TileSelection, GameSaveFile } from '@engine/types'
 import { VERSION } from 'pixi.js'
-import { GAME_DEFS } from '../assets/index'
-
 export interface ProjectFileNode {
   name: string
   path: string
@@ -491,75 +489,7 @@ export class ProjectService {
     if (!this.projectPath) return
     await window.api.createDirectory(`${this.projectPath}/js`)
     await window.api.createDirectory(`${this.projectPath}/js/plugins`)
-    await window.api.createDirectory(`${this.projectPath}/js/libs`)
-    await this.syncEngineAssets()
     await this.ensureSaveDirectory()
-  }
-
-  public static async syncEngineSource(): Promise<void> {
-    if (!this.projectPath) return
-    const appPath = await window.api.getAppPath()
-    const engineSrc = `${appPath}/src/engine`
-    const engineDest = `${this.projectPath}/js/libs/z-engine-source`
-
-    try {
-      console.log('Syncing engine source from:', engineSrc)
-      await window.api.copyDirectory(engineSrc, engineDest)
-      console.log('Engine source synced successfully.')
-    } catch (e) {
-      console.error('Failed to sync engine source:', e)
-    }
-  }
-
-  public static async syncEngineAssets(): Promise<void> {
-    if (!this.projectPath) return
-
-    try {
-      // 1. Write Engine & PIXI types for VS Code
-      // We wrap it in a proper d.ts structure if it's not already there
-      await this.writeProjectFile('js/libs/z-engine.d.ts', GAME_DEFS)
-
-      // 2. Copy PIXI library for runtime
-      const appPath = await window.api.getAppPath()
-      // Try multiple possible locations for pixi.min.js
-      const possiblePixiPaths = [
-        `${appPath}/node_modules/pixi.js/dist/pixi.min.js`,
-        `${appPath}/node_modules/pixi.js/dist/browser/pixi.min.js`,
-        `${appPath}/node_modules/pixi.js/dist/pixi.js`
-      ]
-
-      let pixiFound = false
-      for (const src of possiblePixiPaths) {
-        if (await window.api.checkFileExists(src)) {
-          await window.api.copyFile(src, `${this.projectPath}/js/libs/pixi.min.js`)
-          pixiFound = true
-          break
-        }
-      }
-
-      if (!pixiFound) {
-        console.warn('Could not find pixi.min.js in node_modules.')
-      }
-
-      // 3. Create jsconfig.json for root
-      const jsConfig = {
-        compilerOptions: {
-          target: 'ES2020',
-          module: 'ESNext',
-          checkJs: true,
-          baseUrl: '.',
-          paths: {
-            '*': ['js/libs/*', 'js/plugins/*'],
-            '@engine/*': ['js/libs/z-engine-source/*']
-          }
-        },
-        include: ['js/**/*']
-      }
-      await this.writeProjectFile('jsconfig.json', JSON.stringify(jsConfig, null, 2))
-      console.log('Project assets synced successfully.')
-    } catch (e) {
-      console.error('Failed to sync engine assets:', e)
-    }
   }
 
   private static async copyDefaultAssets(projectPath: string): Promise<void> {

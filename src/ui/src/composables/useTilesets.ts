@@ -91,12 +91,12 @@ export const useTilesets = (
 
     try {
       // List files from project img/tilesets/
-      const files = await ProjectService.getProjectFiles('img/tilesets') // subpath
-      const fileNames = files
+      const entries = await ProjectService.getProjectFiles('img/tilesets')
+      const fileNames = entries.map((e) => e.name)
 
       // Filter for images and map to structure
       tilesetFiles.value = fileNames
-        .filter((f) => f.match(/\.(png|jpe?g)$/i))
+        .filter((name) => name.match(/\.(png|jpe?g)$/i))
         .map((name) => {
           const relativePath = `img/tilesets/${name}`
           return {

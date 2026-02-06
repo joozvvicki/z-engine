@@ -68,15 +68,15 @@ watch(
       store.refreshTilesetList() // Refresh file list from project
 
       // Fetch other asset lists
-      ProjectService.getProjectFiles('audio/bgm').then(
-        (files) => (bgmFiles.value = files.filter((f) => f.match(/\.(mp3|ogg|wav)$/i)))
-      )
-      ProjectService.getProjectFiles('audio/bgs').then(
-        (files) => (bgsFiles.value = files.filter((f) => f.match(/\.(mp3|ogg|wav)$/i)))
-      )
-      ProjectService.getProjectFiles('img/parallaxes').then(
-        (files) => (parallaxFiles.value = files.filter((f) => f.match(/\.(png|jpe?g)$/i)))
-      )
+      ProjectService.getProjectFiles('audio/bgm').then((entries) => {
+        bgmFiles.value = entries.map((e) => e.name).filter((f) => f.match(/\.(mp3|ogg|wav)$/i))
+      })
+      ProjectService.getProjectFiles('audio/bgs').then((entries) => {
+        bgsFiles.value = entries.map((e) => e.name).filter((f) => f.match(/\.(mp3|ogg|wav)$/i))
+      })
+      ProjectService.getProjectFiles('img/parallaxes').then((entries) => {
+        parallaxFiles.value = entries.map((e) => e.name).filter((f) => f.match(/\.(png|jpe?g)$/i))
+      })
 
       // Clear/Reset the config object with all slots
       const cleanConfig: Record<string, string> = {}
