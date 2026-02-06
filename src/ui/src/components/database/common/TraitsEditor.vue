@@ -12,14 +12,16 @@ import {
 } from '@tabler/icons-vue'
 
 interface Props {
-  modelValue: ZTrait[]
+  modelValue?: ZTrait[]
 }
 
 interface Emits {
   (e: 'update:modelValue', value: ZTrait[]): void
 }
 
-const props = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {
+  modelValue: () => []
+})
 const emit = defineEmits<Emits>()
 
 const showAddModal = ref(false)
@@ -127,14 +129,14 @@ const getTraitDescription = (trait: ZTrait): string => {
 }
 
 const addTrait = (): void => {
-  const traits = [...props.modelValue, { ...newTrait.value }]
+  const traits = [...(props.modelValue || []), { ...newTrait.value }]
   emit('update:modelValue', traits)
   showAddModal.value = false
   resetNewTrait()
 }
 
 const removeTrait = (index: number): void => {
-  const traits = props.modelValue.filter((_, i) => i !== index)
+  const traits = (props.modelValue || []).filter((_, i) => i !== index)
   emit('update:modelValue', traits)
 }
 
@@ -169,7 +171,7 @@ const openAddModal = (): void => {
     </div>
 
     <div
-      v-if="modelValue?.length === 0"
+      v-if="modelValue.length === 0"
       class="p-8 border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50/50 text-center"
     >
       <IconFlame :size="32" class="mx-auto mb-2 text-slate-300" />
