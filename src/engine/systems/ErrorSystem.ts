@@ -45,9 +45,34 @@ export class ErrorSystem {
     this.container.addChild(this.messageText)
   }
 
+  public setupGlobalHandlers(): void {
+    window.onerror = (message, source, lineno, colno, error) => {
+      this.show(error || `${message} at ${source}:${lineno}:${colno}`)
+      return false
+    }
+
+    window.onunhandledrejection = (event) => {
+      this.show(`Unhandled Promise Rejection: ${event.reason}`)
+    }
+
+    ZLogger.with('ErrorSystem').info('Global error handlers registered')
+  }
+
   public show(error: Error | string): void {
-    const message = error instanceof Error ? error.stack || error.message : error
-    this.messageText.text = message
+    if (this.isVisible && typeof error === 'string' && this.messageText.text.includes(error)) {
+      return // Don't spam same error
+    }
+
+    const message = error instanceof Error ? error.stack || error.message : String(error)
+
+    // Append if already showing? For now, let's just replace but log both.
+    if (this.isVisible) {
+      ZLogger.with('ErrorSystem').warn('Additional error occurring:', message)
+      this.messageText.text += '\n\n' + message
+    } else {
+      this.messageText.text = message
+    }
+
     this.container.visible = true
     this.isVisible = true
     this.updateLayout()

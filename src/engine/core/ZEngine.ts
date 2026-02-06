@@ -176,6 +176,9 @@ export class ZEngine implements IEngineContext {
 
       this.errors = new ErrorSystem()
 
+      // Setup global error handlers
+      this.errors.setupGlobalHandlers()
+
       this.globalLayer.addChild(this.transitions.container)
       this.globalLayer.addChild(this.messages.container)
       this.globalLayer.addChild(this.errors.container)
@@ -219,31 +222,36 @@ export class ZEngine implements IEngineContext {
   }
 
   private tick(delta: number): void {
-    // Explicit Update Order
+    try {
+      // Explicit Update Order
 
-    // 1. Update Input (Prepare for this frame)
-    this.input.update() // Note: Input usually updates at start or end of frame
+      // 1. Update Input (Prepare for this frame)
+      this.input.update() // Note: Input usually updates at start or end of frame
 
-    // 2. Logic Updates (Only in Play Mode usually, but handled inside systems)
-    if (this.config.mode === 'play') {
-      this.player.onUpdate(delta)
-      this.events.onUpdate(delta)
-    }
+      // 2. Logic Updates (Only in Play Mode usually, but handled inside systems)
+      if (this.config.mode === 'play') {
+        this.player.onUpdate(delta)
+        this.events.onUpdate(delta)
+      }
 
-    // 3. Scene Logic (Updates current scene)
-    this.scenes.update(delta)
+      // 3. Scene Logic (Updates current scene)
+      this.scenes.update(delta)
 
-    // 4. Visual Updates
-    this.renderer.onUpdate()
+      // 4. Visual Updates
+      this.renderer.onUpdate()
 
-    if (this.config.mode === 'play') {
-      this.entities.onUpdate(delta)
-      this.messages.onUpdate()
-      this.transitions.onUpdate(delta)
-    } else {
-      // Edit Mode Systems
-      this.ghost.onUpdate()
-      this.grid.onUpdate()
+      if (this.config.mode === 'play') {
+        this.entities.onUpdate(delta)
+        this.messages.onUpdate()
+        this.transitions.onUpdate(delta)
+      } else {
+        // Edit Mode Systems
+        this.ghost.onUpdate()
+        this.grid.onUpdate()
+      }
+    } catch (e) {
+      ZLogger.error('Error in game loop:', e)
+      this.errors?.show(e as Error)
     }
   }
 

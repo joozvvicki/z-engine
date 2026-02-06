@@ -26,10 +26,13 @@ export class Window_Base extends Container {
   private _opening: boolean = false
   private _closing: boolean = false
 
+  // Active State (for input handling)
+  public active: boolean = false
+
   // Standard RPG Maker MV skin metrics
   // Background Pattern: 0,0 64x64 (Tiled)
   // Frame: 64,0 64x64 (Corners 16, Edges 32, Corner 16)
-  private _cornerSize: number = 24 // Rendered size
+  private _cornerSize: number = 16 // Rendered size (matches source)
 
   constructor(x: number, y: number, width: number, height: number) {
     super()
@@ -77,69 +80,76 @@ export class Window_Base extends Container {
     this._tl = this._tr = this._bl = this._br = null
     this._top = this._bottom = this._left = this._right = null
 
-    // 1. Background (0,0, 64,64) Tiled
+    // 1. Background (0,0, 64,64) - Scaled to fill window
     const backRect = new Rectangle(0, 0, 64, 64)
     const backTex = new Texture({ source: texture.source, frame: backRect })
 
-    // Use Sprite if TilingSprite causes issues, or cast it.
-    // Ideally background is tiled.
-    // Casting to any to bypass strict Sprite vs TilingSprite check if needed,
-    // or better: update the type definition of _backSprite
-    this._backSprite = new TilingSprite({
-      texture: backTex,
-      width: this._width,
-      height: this._height
-    })
-    this._backSprite!.alpha = 0.8
-    this.addChildAt(this._backSprite!, 0)
+    // Use regular Sprite with scale instead of TilingSprite for stretched background
+    this._backSprite = new Sprite(backTex)
+    this._backSprite.width = this._width
+    this._backSprite.height = this._height
+    this._backSprite.alpha = 0.6
+    this.addChildAt(this._backSprite, 0)
 
-    // 2. Frame Construction (Source: 64,0, 64x64)
-    // Structure: 16(TL) 32(T) 16(TR)
-    //            ...
-    const fs = 64 // Frame Start X
+    // 2. Frame Construction - 128x128 format with frame at (64,0)
+    // Background: 0,0 → 64,64
+    // Frame: 64,0 → 128,64
+    // Standard structure: 16(TL) 32(T) 16(TR)
+    //                     32(L)  ...   32(R)
+    //                     16(BL) 32(B) 16(BR)
+    const fx = 64 // Frame Start X (right half of texture)
+    const fy = 0 // Frame Start Y
     const sc = 16 // Source Corner Size
     const se = 32 // Source Edge Size (Middle)
-    // Total 16+32+16 = 64
 
     // Top-Left (64, 0)
     this._tl = new Sprite(
-      new Texture({ source: texture.source, frame: new Rectangle(fs, 0, sc, sc) })
+      new Texture({ source: texture.source, frame: new Rectangle(fx, fy, sc, sc) })
     )
-    // Top-Right (64+48, 0) -> (112, 0)
+    // Top-Right (112, 0) = 64+16+32
     this._tr = new Sprite(
-      new Texture({ source: texture.source, frame: new Rectangle(fs + sc + se, 0, sc, sc) })
+      new Texture({ source: texture.source, frame: new Rectangle(fx + sc + se, fy, sc, sc) })
     )
-    // Bot-Left (64, 48)
+    // Bot-Left (64, 48) = 0+16+32
     this._bl = new Sprite(
-      new Texture({ source: texture.source, frame: new Rectangle(fs, sc + se, sc, sc) })
+      new Texture({ source: texture.source, frame: new Rectangle(fx, fy + sc + se, sc, sc) })
     )
     // Bot-Right (112, 48)
     this._br = new Sprite(
-      new Texture({ source: texture.source, frame: new Rectangle(fs + sc + se, sc + se, sc, sc) })
+      new Texture({
+        source: texture.source,
+        frame: new Rectangle(fx + sc + se, fy + sc + se, sc, sc)
+      })
     )
 
     this._frameContainer.addChild(this._tl, this._tr, this._bl, this._br)
 
     // Edges (Tiling)
-    // Top (80, 0)
-    const topTex = new Texture({ source: texture.source, frame: new Rectangle(fs + sc, 0, se, sc) })
+    // Top (80, 0) = 64+16, width 32px
+    const topTex = new Texture({
+      source: texture.source,
+      frame: new Rectangle(fx + sc, fy, se, sc)
+    })
     this._top = new TilingSprite({ texture: topTex, width: se, height: sc })
 
     // Bottom (80, 48)
     const botTex = new Texture({
       source: texture.source,
-      frame: new Rectangle(fs + sc, sc + se, se, sc)
+      frame: new Rectangle(fx + sc, fy + sc + se, se, sc)
     })
     this._bottom = new TilingSprite({ texture: botTex, width: se, height: sc })
 
-    // Left (64, 16)
-    const leftTex = new Texture({ source: texture.source, frame: new Rectangle(fs, sc, sc, se) })
+    // Left (64, 16) - height 32px
+    const leftTex = new Texture({
+      source: texture.source,
+      frame: new Rectangle(fx, fy + sc, sc, se)
+    })
     this._left = new TilingSprite({ texture: leftTex, width: sc, height: se })
 
     // Right (112, 16)
     const rightTex = new Texture({
       source: texture.source,
-      frame: new Rectangle(fs + sc + se, sc, sc, se)
+      frame: new Rectangle(fx + sc + se, fy + sc, sc, se)
     })
     this._right = new TilingSprite({ texture: rightTex, width: sc, height: se })
 
@@ -174,8 +184,14 @@ export class Window_Base extends Container {
       this._closing = false
       this.visible = true
     }
-    // Force reset opacity/scale just in case
-    if (this._openness <= 0) this.scale.y = 0
+  }
+
+  public openImmediate(): void {
+    this._openness = 255
+    this._opening = false
+    this._closing = false
+    this.scale.y = 1
+    this.visible = true
   }
 
   public close(): void {
@@ -195,6 +211,14 @@ export class Window_Base extends Container {
 
   public get contents(): Container {
     return this._contents
+  }
+
+  public get width(): number {
+    return this._width
+  }
+
+  public get height(): number {
+    return this._height
   }
 
   public get innerWidth(): number {
@@ -266,6 +290,14 @@ export class Window_Base extends Container {
     this._mask.clear()
     this._mask.rect(this._padding, this._padding, this.innerWidth, this.innerHeight)
     this._mask.fill(0xffffff)
+  }
+
+  public activate(): void {
+    this.active = true
+  }
+
+  public deactivate(): void {
+    this.active = false
   }
 
   public resize(width: number, height: number): void {

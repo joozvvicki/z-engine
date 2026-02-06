@@ -4,6 +4,7 @@ import { ZInputAction, ZMenuParams, IEngineContext, ZEngineSignal } from '@engin
 import { Window_MenuCommand } from '@engine/ui/Window_MenuCommand'
 import { Window_MenuStatus } from '@engine/ui/Window_MenuStatus'
 import { Window_Gold } from '@engine/ui/Window_Gold'
+import { SceneItem } from './SceneItem'
 
 /**
  * The main menu scene of the game.
@@ -108,7 +109,7 @@ export class SceneMenu extends ZScene {
     // ['Przedmioty', 'Status', 'Zapisz', 'Koniec Gry']
     switch (index) {
       case 0:
-        ZLogger.with('SceneMenu').info('Items selected (Not implemented)')
+        this.openItemScene()
         break
       case 1:
         ZLogger.with('SceneMenu').info('Status selected (Not implemented)')
@@ -121,6 +122,11 @@ export class SceneMenu extends ZScene {
         // Or go to Title
         break
     }
+  }
+
+  private async openItemScene(): Promise<void> {
+    ZLogger.with('SceneMenu').info('Opening item scene...')
+    await this.engine.scenes.push(SceneItem)
   }
 
   private async onSave(): Promise<void> {
