@@ -112,9 +112,11 @@ export const useDatabaseStore = defineStore('database', () => {
     items.value.push({
       id: newId,
       name: `Item ${newId}`,
+      description: '',
       price: 0,
       consumable: true,
-      target: 1
+      target: 1,
+      effects: []
     })
     save('Items.json', items.value)
   }

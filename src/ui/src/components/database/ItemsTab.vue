@@ -7,12 +7,10 @@ import {
   IconTrash,
   IconPackage,
   IconCoins,
-  IconSettings,
   IconClick,
-  IconClock,
-  IconTarget,
   IconFlask
 } from '@tabler/icons-vue'
+import SkillEffectsEditor from './common/SkillEffectsEditor.vue'
 
 const db = useDatabaseStore()
 const selectedId = ref<number>(db.items[0]?.id || 0)
@@ -40,11 +38,6 @@ const handleDelete = (): void => {
     if (db.items.length > 0) selectedId.value = db.items[0].id
   }
 }
-
-// --- MOCK DATA ---
-const itemTypes = ['Regular Item', 'Key Item', 'Hidden Item A', 'Hidden Item B']
-const scopes = ['1 Enemy', 'All Enemies', '1 Ally', 'All Allies', 'The User', 'None']
-const occasions = ['Always', 'Battle Screen', 'Menu Screen', 'Never']
 </script>
 
 <template>
@@ -169,39 +162,6 @@ const occasions = ['Always', 'Battle Screen', 'Menu Screen', 'Never']
                 <label
                   class="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1"
                 >
-                  <IconSettings :size="12" /> Item Type
-                </label>
-                <div class="relative">
-                  <select
-                    class="w-full bg-slate-50 border border-slate-200 text-slate-700 text-sm font-bold rounded-xl px-3 py-2.5 outline-none focus:border-amber-400 appearance-none cursor-pointer"
-                  >
-                    <option v-for="type in itemTypes" :key="type">{{ type }}</option>
-                  </select>
-                  <div
-                    class="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400"
-                  >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      class="h-4 w-4"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2"
-                        d="M19 9l-7 7-7-7"
-                      />
-                    </svg>
-                  </div>
-                </div>
-              </div>
-
-              <div class="space-y-1.5">
-                <label
-                  class="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1"
-                >
                   <IconCoins :size="12" /> Price
                 </label>
                 <input
@@ -243,32 +203,6 @@ const occasions = ['Always', 'Battle Screen', 'Menu Screen', 'Never']
                     >Consumable</span
                   >
                 </label>
-
-                <div class="space-y-1.5 pt-2 border-t border-slate-200/50">
-                  <label
-                    class="text-[9px] font-bold text-slate-400 uppercase flex items-center gap-1"
-                  >
-                    <IconTarget :size="10" /> Scope
-                  </label>
-                  <select
-                    class="w-full bg-white border border-slate-200 text-xs font-bold text-slate-700 rounded-lg px-2 py-2 outline-none focus:border-amber-400"
-                  >
-                    <option v-for="scope in scopes" :key="scope">{{ scope }}</option>
-                  </select>
-                </div>
-
-                <div class="space-y-1.5">
-                  <label
-                    class="text-[9px] font-bold text-slate-400 uppercase flex items-center gap-1"
-                  >
-                    <IconClock :size="10" /> Occasion
-                  </label>
-                  <select
-                    class="w-full bg-white border border-slate-200 text-xs font-bold text-slate-700 rounded-lg px-2 py-2 outline-none focus:border-amber-400"
-                  >
-                    <option v-for="occ in occasions" :key="occ">{{ occ }}</option>
-                  </select>
-                </div>
               </div>
             </div>
 
@@ -281,19 +215,23 @@ const occasions = ['Always', 'Battle Screen', 'Menu Screen', 'Never']
                 <div class="h-px bg-slate-200 flex-1"></div>
               </div>
 
-              <div
-                class="bg-slate-50 border-2 border-dashed border-slate-200 rounded-2xl p-10 flex flex-col items-center justify-center text-center group hover:border-amber-200 hover:bg-amber-50/30 transition-all cursor-pointer"
-              >
-                <div
-                  class="w-12 h-12 bg-white rounded-full shadow-sm flex items-center justify-center text-slate-300 mb-3 group-hover:scale-110 transition-transform"
-                >
-                  <IconPlus :size="24" />
-                </div>
-                <h4 class="text-sm font-bold text-slate-700">Add Effect</h4>
-                <p class="text-xs text-slate-400 mt-1 max-w-sm">
-                  Configure HP/MP recovery, state removal, and growth effects here.
-                </p>
-              </div>
+              <SkillEffectsEditor
+                v-if="selectedItem.effects !== undefined"
+                v-model="selectedItem.effects"
+                @update:model-value="db.save('Items.json', db.items)"
+              />
+              <SkillEffectsEditor
+                v-else
+                :model-value="[]"
+                @update:model-value="
+                  (updated) => {
+                    if (selectedItem) {
+                      selectedItem.effects = updated
+                      db.save('Items.json', db.items)
+                    }
+                  }
+                "
+              />
             </div>
           </div>
         </div>

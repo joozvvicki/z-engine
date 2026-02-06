@@ -101,6 +101,7 @@ export interface ZItem extends ZDatabaseEntry {
   price: number
   consumable: boolean
   target: number
+  effects: ZSkillEffect[]
 }
 
 export interface ZWeapon extends ZDatabaseEntry {
