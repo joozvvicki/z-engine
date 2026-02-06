@@ -40,13 +40,6 @@ const handleDelete = (): void => {
 
 // --- CONFIG ---
 const paramNames = ['MHP', 'MMP', 'ATK', 'DEF', 'MAT', 'MDF', 'AGI', 'LUK']
-const weaponTypes = [
-  { id: 1, name: 'Sword' },
-  { id: 2, name: 'Axe' },
-  { id: 3, name: 'Spear' },
-  { id: 4, name: 'Bow' },
-  { id: 5, name: 'Staff' }
-]
 
 const updateParam = (index: number, value: number): void => {
   if (selectedWeapon.value) {
@@ -117,7 +110,10 @@ const updateParam = (index: number, value: number): void => {
             </div>
             <div class="flex items-center gap-2 mt-0.5">
               <span class="text-[10px] text-slate-400 truncate">
-                {{ weaponTypes.find((t) => t.id === weapon.wtypeId)?.name || 'General Weapon' }}
+                {{
+                  db.terms.weaponTypes.find((t) => t.id === weapon.wtypeId)?.name ||
+                  'General Weapon'
+                }}
               </span>
               <span
                 v-if="weapon.price > 0"
@@ -188,7 +184,7 @@ const updateParam = (index: number, value: number): void => {
                     class="w-full bg-slate-50 border border-slate-200 text-slate-700 text-sm font-bold rounded-xl px-3 py-2.5 outline-none focus:border-rose-400 focus:ring-2 focus:ring-rose-50 transition-all appearance-none"
                     @change="db.save('Weapons.json', db.weapons)"
                   >
-                    <option v-for="type in weaponTypes" :key="type.id" :value="type.id">
+                    <option v-for="type in db.terms.weaponTypes" :key="type.id" :value="type.id">
                       {{ type.name }}
                     </option>
                   </select>

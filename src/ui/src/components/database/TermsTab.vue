@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { useDatabaseStore } from '@ui/stores/database'
 import {
   IconFlame, // Elements
   IconSword, // Weapon Types
@@ -10,45 +11,7 @@ import {
   IconSearch
 } from '@tabler/icons-vue'
 
-// --- MOCK STORE DATA (Dopóki nie ma w store) ---
-// W realnym store: db.elements, db.weaponTypes, etc.
-const localData = ref({
-  elements: [
-    { id: 1, name: 'Physical' },
-    { id: 2, name: 'Fire' },
-    { id: 3, name: 'Ice' },
-    { id: 4, name: 'Thunder' },
-    { id: 5, name: 'Water' },
-    { id: 6, name: 'Earth' },
-    { id: 7, name: 'Wind' },
-    { id: 8, name: 'Light' },
-    { id: 9, name: 'Darkness' }
-  ],
-  weaponTypes: [
-    { id: 1, name: 'Dagger' },
-    { id: 2, name: 'Sword' },
-    { id: 3, name: 'Flail' },
-    { id: 4, name: 'Axe' },
-    { id: 5, name: 'Whip' },
-    { id: 6, name: 'Staff' },
-    { id: 7, name: 'Bow' },
-    { id: 8, name: 'Crossbow' },
-    { id: 9, name: 'Gun' },
-    { id: 10, name: 'Claw' }
-  ],
-  armorTypes: [
-    { id: 1, name: 'General Armor' },
-    { id: 2, name: 'Magic Armor' },
-    { id: 3, name: 'Light Armor' },
-    { id: 4, name: 'Heavy Armor' },
-    { id: 5, name: 'Small Shield' },
-    { id: 6, name: 'Large Shield' }
-  ],
-  skillTypes: [
-    { id: 1, name: 'Magic' },
-    { id: 2, name: 'Special' }
-  ]
-})
+const db = useDatabaseStore()
 
 type CategoryKey = 'elements' | 'weaponTypes' | 'armorTypes' | 'skillTypes'
 
@@ -90,7 +53,7 @@ const searchQuery = ref('')
 const activeConfig = computed(() => categories.find((c) => c.id === activeCategory.value)!)
 
 const currentList = computed(() => {
-  let list = localData.value[activeCategory.value]
+  let list = db.terms[activeCategory.value]
   if (searchQuery.value) {
     const q = searchQuery.value.toLowerCase()
     list = list.filter((item) => item.name.toLowerCase().includes(q))
@@ -100,16 +63,15 @@ const currentList = computed(() => {
 
 // --- ACTIONS ---
 const handleAdd = (): void => {
-  const list = localData.value[activeCategory.value]
-  const newId = list.length > 0 ? Math.max(...list.map((i) => i.id)) + 1 : 1
-  list.push({ id: newId, name: '' })
-  // W realnym scenariuszu: db.addElement('New Element')
+  db.addTerm(activeCategory.value, '')
 }
 
 const handleDelete = (id: number): void => {
-  const list = localData.value[activeCategory.value]
-  const idx = list.findIndex((i) => i.id === id)
-  if (idx !== -1) list.splice(idx, 1)
+  db.deleteTerm(activeCategory.value, id)
+}
+
+const handleUpdateName = (id: number, name: string): void => {
+  db.updateTermName(activeCategory.value, id, name)
 }
 </script>
 
@@ -136,7 +98,7 @@ const handleDelete = (id: number): void => {
             <span class="text-sm font-bold">{{ cat.label }}</span>
 
             <span class="ml-auto text-[10px] font-bold opacity-60">
-              {{ localData[cat.id].length }}
+              {{ db.terms[cat.id].length }}
             </span>
           </button>
         </nav>
@@ -209,10 +171,11 @@ const handleDelete = (id: number): void => {
 
                 <div class="flex-1">
                   <input
-                    v-model="item.name"
+                    :value="item.name"
                     type="text"
                     class="w-full bg-transparent border-none outline-none text-sm font-bold text-slate-700 placeholder:text-slate-200 py-2 focus:text-slate-900 transition-colors"
                     placeholder="(Empty Name)"
+                    @input="handleUpdateName(item.id, ($event.target as HTMLInputElement).value)"
                   />
                 </div>
 

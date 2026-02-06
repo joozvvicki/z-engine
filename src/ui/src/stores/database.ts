@@ -1,6 +1,16 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import type { ZActor, ZClass, ZSkill, ZItem, ZWeapon, ZArmor, ZEnemy } from '@engine/types'
+import type {
+  ZActor,
+  ZClass,
+  ZSkill,
+  ZItem,
+  ZWeapon,
+  ZArmor,
+  ZEnemy,
+  ZCommonEvent,
+  ZTerms
+} from '@engine/types'
 import { ProjectService } from '../services/ProjectService'
 
 export const useDatabaseStore = defineStore('database', () => {
@@ -11,6 +21,13 @@ export const useDatabaseStore = defineStore('database', () => {
   const weapons = ref<ZWeapon[]>([])
   const armors = ref<ZArmor[]>([])
   const enemies = ref<ZEnemy[]>([])
+  const commonEvents = ref<ZCommonEvent[]>([])
+  const terms = ref<ZTerms>({
+    elements: [],
+    weaponTypes: [],
+    armorTypes: [],
+    skillTypes: []
+  })
   const isLoaded = ref(false)
 
   const loadAll = async (): Promise<void> => {
@@ -22,6 +39,14 @@ export const useDatabaseStore = defineStore('database', () => {
     weapons.value = (await ProjectService.loadDatabaseFile<ZWeapon[]>('Weapons.json')) || []
     armors.value = (await ProjectService.loadDatabaseFile<ZArmor[]>('Armors.json')) || []
     enemies.value = (await ProjectService.loadDatabaseFile<ZEnemy[]>('Enemies.json')) || []
+    commonEvents.value =
+      (await ProjectService.loadDatabaseFile<ZCommonEvent[]>('CommonEvents.json')) || []
+    terms.value = (await ProjectService.loadDatabaseFile<ZTerms>('Terms.json')) || {
+      elements: [],
+      weaponTypes: [],
+      armorTypes: [],
+      skillTypes: []
+    }
     isLoaded.value = true
   }
 
@@ -197,6 +222,55 @@ export const useDatabaseStore = defineStore('database', () => {
     }
   }
 
+  const addCommonEvent = (): void => {
+    const newId =
+      commonEvents.value.length > 0 ? Math.max(...commonEvents.value.map((e) => e.id)) + 1 : 1
+    commonEvents.value.push({
+      id: newId,
+      name: `Common Event ${newId}`,
+      description: '',
+      trigger: 0,
+      switchId: 0,
+      list: []
+    })
+    save('CommonEvents.json', commonEvents.value)
+  }
+
+  const deleteCommonEvent = (id: number): void => {
+    const idx = commonEvents.value.findIndex((e) => e.id === id)
+    if (idx !== -1) {
+      commonEvents.value.splice(idx, 1)
+      save('CommonEvents.json', commonEvents.value)
+    }
+  }
+
+  type TermCategory = keyof ZTerms
+
+  const addTerm = (category: TermCategory, name: string): void => {
+    const list = terms.value[category]
+    const newId = list.length > 0 ? Math.max(...list.map((t) => t.id)) + 1 : 1
+    list.push({ id: newId, name })
+    save('Terms.json', terms.value)
+  }
+
+  const deleteTerm = (category: TermCategory, id: number): void => {
+    const list = terms.value[category]
+    const idx = list.findIndex((t) => t.id === id)
+    if (idx !== -1) {
+      list.splice(idx, 1)
+      save('Terms.json', terms.value)
+    }
+  }
+
+  const updateTermName = (category: TermCategory, id: number, name: string): void => {
+    const list = terms.value[category]
+    const term = list.find((t) => t.id === id)
+    if (term) {
+      term.name = name
+      save('Terms.json', terms.value)
+    }
+  }
+
   return {
     actors,
     addActor,
@@ -219,6 +293,13 @@ export const useDatabaseStore = defineStore('database', () => {
     enemies,
     addEnemy,
     deleteEnemy,
+    commonEvents,
+    addCommonEvent,
+    deleteCommonEvent,
+    terms,
+    addTerm,
+    deleteTerm,
+    updateTermName,
     loadAll,
     save,
     isLoaded

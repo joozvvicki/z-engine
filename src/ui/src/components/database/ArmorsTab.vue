@@ -41,14 +41,6 @@ const handleDelete = (): void => {
 // --- STATS CONFIG ---
 const paramNames = ['MHP', 'MMP', 'ATK', 'DEF', 'MAT', 'MDF', 'AGI', 'LUK']
 
-// Typy ekwipunku (Hardcoded for UI demo, in real app likely from System store)
-const equipmentTypes = [
-  { id: 1, name: 'Shield' },
-  { id: 2, name: 'Head' },
-  { id: 3, name: 'Body' },
-  { id: 4, name: 'Accessory' }
-]
-
 const updateParam = (index: number, value: number): void => {
   if (selectedArmor.value) {
     selectedArmor.value.params[index] = value
@@ -118,7 +110,9 @@ const updateParam = (index: number, value: number): void => {
             </div>
             <div class="flex items-center gap-2 mt-0.5">
               <span class="text-[10px] text-slate-400 truncate">
-                {{ equipmentTypes.find((t) => t.id === armor.etypeId)?.name || 'General Armor' }}
+                {{
+                  db.terms.armorTypes.find((t) => t.id === armor.etypeId)?.name || 'General Armor'
+                }}
               </span>
               <span
                 v-if="armor.price > 0"
@@ -189,7 +183,7 @@ const updateParam = (index: number, value: number): void => {
                     class="w-full bg-slate-50 border border-slate-200 text-slate-700 text-sm font-bold rounded-xl px-3 py-2.5 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-50 transition-all appearance-none"
                     @change="db.save('Armors.json', db.armors)"
                   >
-                    <option v-for="type in equipmentTypes" :key="type.id" :value="type.id">
+                    <option v-for="type in db.terms.armorTypes" :key="type.id" :value="type.id">
                       {{ type.name }}
                     </option>
                   </select>

@@ -231,6 +231,48 @@ const handleDelete = (): void => {
                 </div>
               </div>
 
+              <!-- Element -->
+              <div class="space-y-1.5">
+                <label
+                  class="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1"
+                >
+                  <IconSparkles :size="12" /> Element
+                </label>
+                <div class="relative">
+                  <select
+                    v-model.number="selectedSkill.elementId"
+                    class="w-full bg-slate-50 border border-slate-200 text-slate-700 text-sm font-bold rounded-xl px-3 py-2.5 outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-50 transition-all appearance-none"
+                    @change="db.save('Skills.json', db.skills)"
+                  >
+                    <option :value="undefined">None</option>
+                    <option v-for="elem in db.terms.elements" :key="elem.id" :value="elem.id">
+                      {{ elem.name }}
+                    </option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Skill Type -->
+              <div class="space-y-1.5">
+                <label
+                  class="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1"
+                >
+                  <IconBolt :size="12" /> Skill Type
+                </label>
+                <div class="relative">
+                  <select
+                    v-model.number="selectedSkill.stypeId"
+                    class="w-full bg-slate-50 border border-slate-200 text-slate-700 text-sm font-bold rounded-xl px-3 py-2.5 outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-50 transition-all appearance-none"
+                    @change="db.save('Skills.json', db.skills)"
+                  >
+                    <option :value="undefined">None</option>
+                    <option v-for="stype in db.terms.skillTypes" :key="stype.id" :value="stype.id">
+                      {{ stype.name }}
+                    </option>
+                  </select>
+                </div>
+              </div>
+
               <div class="col-span-2 space-y-1.5">
                 <label
                   class="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1"

@@ -93,6 +93,8 @@ export interface ZSkill extends ZDatabaseEntry {
   scope: number // 0=None, 1=1 Enemy, 2=All Enemies, 7=1 Ally, 11=All Allies
   occasion: number // 0=Always, 1=Battle, 2=Menu, 3=Never
   hitType: number // 0=Certain, 1=Physical, 2=Magical
+  elementId?: number // Element type (from Terms)
+  stypeId?: number // Skill type (from Terms)
   effects: ZSkillEffect[]
 }
 
@@ -173,6 +175,24 @@ export interface ZActor extends ZDatabaseEntry {
   characterSrcH?: number
   baseParams: number[] // Level-independent bonuses
   traits: ZTrait[]
+}
+
+export interface ZTerm {
+  id: number
+  name: string
+}
+
+export interface ZTerms {
+  elements: ZTerm[]
+  weaponTypes: ZTerm[]
+  armorTypes: ZTerm[]
+  skillTypes: ZTerm[]
+}
+
+export interface ZCommonEvent extends ZDatabaseEntry {
+  trigger: number // 0=None, 1=Autorun, 2=Parallel
+  switchId: number // Condition switch (0 = none)
+  list: ZEventCommand[]
 }
 
 export interface ZAudioConfig {

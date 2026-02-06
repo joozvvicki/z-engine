@@ -1,103 +1,170 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { useDatabaseStore } from '@ui/stores/database'
 import {
   IconPlus,
   IconSearch,
   IconTrash,
   IconBolt,
   IconSettings,
-  IconToggleLeft,
-  IconPlayerPlay,
-  IconMenu2,
-  IconGhost
+  IconToggleLeft
 } from '@tabler/icons-vue'
+import EventEditorCommandList from '../modal/event-editor/EventEditorCommandList.vue'
+import EventEditorCommandSelector from '../modal/event-editor/EventEditorCommandSelector.vue'
+import { ZCommandCode, ZEventTrigger, type ZEventCommand, type ZEventPage } from '@engine/types'
 
-// --- MOCK DATA (Dopóki nie ma w store) ---
-// W prawdziwej aplikacji to powinno być w db.commonEvents
-const mockEvents = ref([
-  {
-    id: 1,
-    name: 'Day/Night Cycle',
-    trigger: 'Parallel',
-    switchId: 1,
-    list: [
-      { code: 201, indent: 0, text: 'Wait: 60 frames' },
-      { code: 101, indent: 0, text: 'Variable [001: Time] += 1' },
-      { code: 111, indent: 0, text: 'If Variable [001: Time] >= 24' },
-      { code: 101, indent: 1, text: 'Variable [001: Time] = 0' },
-      { code: 201, indent: 1, text: 'Show Text: "A new day begins..."' },
-      { code: 412, indent: 0, text: 'End' }
-    ]
-  },
-  {
-    id: 2,
-    name: 'Open Custom Menu',
-    trigger: 'None',
-    switchId: 0,
-    list: [
-      { code: 201, indent: 0, text: 'Play SE: "BookOpen", 90, 100' },
-      { code: 201, indent: 0, text: 'Show Picture: 1, "MenuBg", Upper Left (0,0)' }
-    ]
-  },
-  { id: 3, name: 'Game Over Logic', trigger: 'Autorun', switchId: 5, list: [] }
-])
-
-const selectedId = ref<number>(1)
+const db = useDatabaseStore()
+const selectedId = ref<number>(db.commonEvents[0]?.id || 0)
 const searchQuery = ref('')
 const selectedCommandIndex = ref<number | null>(null)
+const showCommandSelector = ref(false)
 
 // --- COMPUTED ---
 const filteredEvents = computed(() => {
-  if (!searchQuery.value) return mockEvents.value
+  if (!searchQuery.value) return db.commonEvents
   const query = searchQuery.value.toLowerCase()
-  return mockEvents.value.filter((e) => e.name.toLowerCase().includes(query))
+  return db.commonEvents.filter((e) => e.name.toLowerCase().includes(query))
 })
 
-const selectedEvent = computed(() => mockEvents.value.find((e) => e.id === selectedId.value))
+const selectedEvent = computed(() => db.commonEvents.find((e) => e.id === selectedId.value))
 
-const triggers = ['None (Call only)', 'Autorun', 'Parallel Process']
+// Build presentation list (same logic as EventEditor)
+const presentationList = computed(
+  (): { type: string; command?: ZEventCommand; index: number; indent: number }[] => {
+    if (!selectedEvent.value) return []
+    const list = selectedEvent.value.list
+    const result: { type: string; command?: ZEventCommand; index: number; indent: number }[] = []
+    let depth = 0
+
+    const addPlaceholder = (idx: number, d: number): void => {
+      result.push({ type: 'placeholder', index: idx, indent: d })
+    }
+
+    list.forEach((cmd, idx) => {
+      let lineIndent = depth
+      if (
+        [
+          ZCommandCode.EndBranch,
+          ZCommandCode.Else,
+          ZCommandCode.When,
+          ZCommandCode.EndChoices
+        ].includes(cmd.code)
+      ) {
+        lineIndent = Math.max(0, depth - 1)
+      }
+
+      addPlaceholder(idx, depth)
+      result.push({ type: 'command', command: cmd, index: idx, indent: lineIndent })
+
+      if (
+        [
+          ZCommandCode.ConditionalBranch,
+          ZCommandCode.Else,
+          ZCommandCode.ShowChoices,
+          ZCommandCode.When
+        ].includes(cmd.code)
+      ) {
+        depth++
+      }
+      if ([ZCommandCode.EndBranch, ZCommandCode.EndChoices].includes(cmd.code)) {
+        depth = Math.max(0, depth - 1)
+      }
+    })
+
+    addPlaceholder(list.length, depth)
+    return result
+  }
+)
+
+// Create mock ZEventPage for command selector
+const mockPage = computed((): ZEventPage | null => {
+  if (!selectedEvent.value) return null
+  return {
+    id: crypto.randomUUID(),
+    conditions: {
+      switch1Id: '',
+      switch2Id: '',
+      variableId: '',
+      variableValue: 0,
+      variableOp: 0,
+      selfSwitchCh: '',
+      item: '',
+      actor: ''
+    },
+    graphic: null,
+    trigger: ZEventTrigger.Action,
+    moveType: 'fixed',
+    moveSpeed: 3,
+    moveFrequency: 3,
+    moveRoute: [],
+    moveRouteRepeat: true,
+    moveRouteSkip: true,
+    options: {
+      walkAnim: true,
+      stepAnim: false,
+      directionFix: false,
+      through: false
+    },
+    list: selectedEvent.value.list
+  }
+})
+
+const triggers = [
+  { value: 0, label: 'None (Call only)' },
+  { value: 1, label: 'Autorun' },
+  { value: 2, label: 'Parallel Process' }
+]
 
 // --- ACTIONS ---
 const handleAdd = (): void => {
-  const newId = mockEvents.value.length > 0 ? Math.max(...mockEvents.value.map((e) => e.id)) + 1 : 1
-  mockEvents.value.push({
-    id: newId,
-    name: 'New Common Event',
-    trigger: 'None',
-    switchId: 0,
-    list: []
-  })
-  selectedId.value = newId
+  db.addCommonEvent()
+  const last = db.commonEvents[db.commonEvents.length - 1]
+  if (last) selectedId.value = last.id
 }
 
 const handleDelete = (): void => {
   if (confirm('Delete this common event?')) {
-    const idx = mockEvents.value.findIndex((e) => e.id === selectedId.value)
-    if (idx !== -1) {
-      mockEvents.value.splice(idx, 1)
-      if (mockEvents.value.length > 0) selectedId.value = mockEvents.value[0].id
-    }
+    db.deleteCommonEvent(selectedId.value)
+    if (db.commonEvents.length > 0) selectedId.value = db.commonEvents[0].id
   }
 }
 
-// Helpers for visual styling of commands
-// UPDATED: Using semantically compliant colors matching EventEditorCommandList
-const getCommandColor = (code: number): string => {
-  // Logic / Flow Control (Purple) -> e.g. If, Loops
-  if ([111, 412].includes(code))
-    return 'border-purple-400 bg-purple-50 text-purple-900 shadow-purple-100'
+const handleOpenEditor = (index: number | null): void => {
+  selectedCommandIndex.value = index
+  showCommandSelector.value = true
+}
 
-  // Game Data (Rose) -> e.g. Switches, Variables
-  if ([101].includes(code)) return 'border-rose-400 bg-rose-50 text-rose-900 shadow-rose-100'
+const handleDeleteCommand = (index: number): void => {
+  if (!selectedEvent.value) return
+  selectedEvent.value.list.splice(index, 1)
+  db.save('CommonEvents.json', db.commonEvents)
+}
 
-  // Audio/Visuals (Amber) -> e.g. Play SE, Show Picture
-  if ([201].includes(code)) return 'border-amber-400 bg-amber-50 text-amber-900 shadow-amber-100'
+const handleInsertCommand = (payload: { code: number; parameters: unknown[] }): void => {
+  if (!selectedEvent.value) return
 
-  // Movement (Emerald)
-  // Messages (Sky)
+  const command: ZEventCommand = {
+    code: payload.code,
+    parameters: payload.parameters,
+    indent: 0
+  }
 
-  // Default (Slate)
-  return 'border-slate-300 bg-white text-slate-700 shadow-slate-100'
+  if (selectedCommandIndex.value === null) {
+    // Add to end
+    selectedEvent.value.list.push(command)
+  } else {
+    // Insert at position
+    selectedEvent.value.list.splice(selectedCommandIndex.value + 1, 0, command)
+  }
+
+  db.save('CommonEvents.json', db.commonEvents)
+  showCommandSelector.value = false
+  selectedCommandIndex.value = null
+}
+
+const handleCloseSelector = (): void => {
+  showCommandSelector.value = false
+  selectedCommandIndex.value = null
 }
 </script>
 
@@ -165,12 +232,10 @@ const getCommandColor = (code: number): string => {
               <span
                 class="text-[9px] font-bold uppercase tracking-wider px-1.5 rounded-sm"
                 :class="
-                  event.trigger === 'None'
-                    ? 'text-slate-400 bg-slate-100'
-                    : 'text-amber-600 bg-amber-50'
+                  event.trigger === 0 ? 'text-slate-400 bg-slate-100' : 'text-amber-600 bg-amber-50'
                 "
               >
-                {{ event.trigger }}
+                {{ triggers.find((t) => t.value === event.trigger)?.label || 'None' }}
               </span>
             </div>
           </div>
@@ -201,6 +266,7 @@ const getCommandColor = (code: number): string => {
             type="text"
             class="w-full text-xl font-black text-slate-900 bg-transparent outline-none placeholder:text-slate-200"
             placeholder="Event Name"
+            @input="db.save('CommonEvents.json', db.commonEvents)"
           />
         </div>
 
@@ -214,10 +280,11 @@ const getCommandColor = (code: number): string => {
           </label>
           <div class="relative">
             <select
-              v-model="selectedEvent.trigger"
+              v-model.number="selectedEvent.trigger"
               class="w-full bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold rounded-lg px-3 py-2 outline-none focus:border-indigo-400 cursor-pointer"
+              @change="db.save('CommonEvents.json', db.commonEvents)"
             >
-              <option v-for="t in triggers" :key="t" :value="t">{{ t }}</option>
+              <option v-for="t in triggers" :key="t.value" :value="t.value">{{ t.label }}</option>
             </select>
           </div>
         </div>
@@ -230,9 +297,12 @@ const getCommandColor = (code: number): string => {
           </label>
           <div class="relative">
             <input
-              type="text"
-              placeholder="(None)"
+              v-model.number="selectedEvent.switchId"
+              type="number"
+              min="0"
+              placeholder="0 (None)"
               class="w-full bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold rounded-lg px-3 py-2 outline-none focus:border-indigo-400"
+              @input="db.save('CommonEvents.json', db.commonEvents)"
             />
           </div>
         </div>
@@ -240,93 +310,16 @@ const getCommandColor = (code: number): string => {
 
       <!-- Command List Area -->
       <div class="flex-1 flex flex-col overflow-hidden bg-slate-50/50 relative">
-        <!-- List Header -->
-        <div
-          class="px-6 py-4 border-b border-slate-200 flex justify-between items-center bg-white/80 backdrop-blur-sm sticky top-0 z-10 shrink-0"
-        >
-          <div class="flex items-center gap-3">
-            <h3 class="text-xs font-black uppercase tracking-widest text-slate-400">
-              Execution Content
-            </h3>
-            <!-- Run Test Button -->
-            <button
-              class="text-xs font-bold text-indigo-600 hover:bg-indigo-50 px-2 py-1 rounded transition-colors flex items-center gap-1 border border-transparent hover:border-indigo-100"
-            >
-              <IconPlayerPlay :size="12" /> Test
-            </button>
-          </div>
-        </div>
-
-        <!-- Scrollable List -->
-        <div class="flex-1 overflow-y-auto p-4 custom-scrollbar">
-          <!-- Empty State -->
-          <div
-            v-if="selectedEvent.list.length === 0"
-            class="flex flex-col items-center justify-center py-20 text-slate-300 select-none border-2 border-dashed border-slate-200 rounded-3xl m-4"
-          >
-            <div class="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center mb-3">
-              <IconGhost size="32" class="opacity-50" />
-            </div>
-            <p class="text-xs font-bold text-slate-400">No commands yet</p>
-            <p class="text-[10px] font-medium opacity-60 mt-1">Double click to insert (Mock)</p>
-          </div>
-
-          <div class="flex flex-col gap-1.5 pb-10">
-            <div
-              v-for="(cmd, idx) in selectedEvent.list"
-              :key="idx"
-              class="group relative flex items-center gap-3 py-2 pr-2 pl-3 rounded-lg border-l-[3px] shadow-sm transition-all duration-200 cursor-pointer select-none hover:translate-x-1"
-              :class="[
-                getCommandColor(cmd.code),
-                selectedCommandIndex === idx ? 'ring-2 ring-indigo-500 ring-offset-2 z-10' : ''
-              ]"
-              :style="{ marginLeft: `${cmd.indent * 24}px` }"
-              @click="selectedCommandIndex = idx"
-            >
-              <!-- Line Number (Mock) -->
-              <span class="text-[9px] font-mono opacity-40 w-5 text-right shrink-0 select-none">
-                {{ String(idx + 1).padStart(3, '0') }}
-              </span>
-
-              <!-- Drag Handle -->
-              <div
-                class="opacity-0 group-hover:opacity-100 transition-opacity text-current/50 cursor-grab active:cursor-grabbing"
-              >
-                <IconMenu2 size="14" />
-              </div>
-
-              <!-- Content text -->
-              <div class="flex-1 font-sans text-[11px] font-bold leading-relaxed truncate">
-                {{ cmd.text }}
-              </div>
-
-              <!-- Hover Actions -->
-              <div class="opacity-0 group-hover:opacity-100 flex gap-1">
-                <button
-                  class="p-1.5 rounded-md hover:bg-white/50 hover:shadow-sm text-current/60 hover:text-red-500 transition-all"
-                >
-                  <IconTrash size="14" />
-                </button>
-              </div>
-            </div>
-
-            <!-- Add Button at bottom of list -->
-            <div
-              v-if="selectedEvent.list.length > 0"
-              class="group flex items-center justify-center py-2 rounded-lg border-2 border-dashed border-slate-200 hover:border-indigo-300 hover:bg-indigo-50/30 cursor-pointer transition-all duration-200 mt-2"
-              :style="{
-                marginLeft: `${(selectedEvent.list.length > 0 ? selectedEvent.list[selectedEvent.list.length - 1].indent : 0) * 24}px`
-              }"
-            >
-              <div
-                class="flex items-center gap-2 text-slate-300 group-hover:text-indigo-500 transition-colors"
-              >
-                <IconPlus size="14" stroke-width="3" />
-                <span class="text-[10px] font-bold uppercase tracking-widest">Add Command</span>
-              </div>
-            </div>
-          </div>
-        </div>
+        <EventEditorCommandList
+          v-if="mockPage"
+          v-model:selected-command-index="selectedCommandIndex"
+          :page="mockPage"
+          :presentation-list="presentationList"
+          :active-page-index="0"
+          :get-choice-name="() => ''"
+          @open-editor="handleOpenEditor"
+          @delete-command="handleDeleteCommand"
+        />
       </div>
     </div>
 
@@ -337,6 +330,16 @@ const getCommandColor = (code: number): string => {
       </div>
       <span class="text-sm font-bold text-slate-400">No Common Event Selected</span>
     </div>
+
+    <!-- Command Selector Modal -->
+    <EventEditorCommandSelector
+      v-if="showCommandSelector && mockPage"
+      :show="showCommandSelector"
+      :page="mockPage"
+      :system-switches="[]"
+      @save="handleInsertCommand"
+      @close="handleCloseSelector"
+    />
   </div>
 </template>
 
