@@ -85,7 +85,17 @@ export const useDatabaseStore = defineStore('database', () => {
 
   const addSkill = (): void => {
     const newId = skills.value.length > 0 ? Math.max(...skills.value.map((s) => s.id)) + 1 : 1
-    skills.value.push({ id: newId, name: `Skill ${newId}` })
+    skills.value.push({
+      id: newId,
+      name: `Skill ${newId}`,
+      description: '',
+      mpCost: 0,
+      tpCost: 0,
+      scope: 1,
+      occasion: 0,
+      hitType: 0,
+      effects: []
+    })
     save('Skills.json', skills.value)
   }
 

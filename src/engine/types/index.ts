@@ -79,8 +79,21 @@ export interface ZClass extends ZDatabaseEntry {
   expParams?: { base: number; extra: number; acceleration: number } // For custom curve
 }
 
+export interface ZSkillEffect {
+  code: number // 11=HP Damage, 12=MP Damage, 13=HP Recover, 14=MP Recover, 21=Add State, 22=Remove State, 31=Add Buff, 32=Add Debuff
+  dataId: number // State ID or param ID
+  value1: number // Formula base or turns
+  value2: number // Variance or chance
+}
+
 export interface ZSkill extends ZDatabaseEntry {
   icon?: string
+  mpCost: number
+  tpCost: number
+  scope: number // 0=None, 1=1 Enemy, 2=All Enemies, 7=1 Ally, 11=All Allies
+  occasion: number // 0=Always, 1=Battle, 2=Menu, 3=Never
+  hitType: number // 0=Certain, 1=Physical, 2=Magical
+  effects: ZSkillEffect[]
 }
 
 export interface ZItem extends ZDatabaseEntry {

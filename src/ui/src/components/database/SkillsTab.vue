@@ -11,6 +11,7 @@ import {
   IconClock,
   IconMessage
 } from '@tabler/icons-vue'
+import SkillEffectsEditor from './common/SkillEffectsEditor.vue'
 
 const db = useDatabaseStore()
 const selectedId = ref<number>(db.skills[0]?.id || 0)
@@ -38,11 +39,6 @@ const handleDelete = (): void => {
     if (db.skills.length > 0) selectedId.value = db.skills[0].id
   }
 }
-
-// --- MOCK DATA FOR UI ---
-// W przyszłości te pola powinny być w modelu Skill w store
-const scopes = ['1 Enemy', 'All Enemies', '1 Random Enemy', '1 Ally', 'All Allies', 'The User']
-const occasions = ['Always', 'Battle Screen', 'Menu Screen', 'Never']
 </script>
 
 <template>
@@ -166,9 +162,12 @@ const occasions = ['Always', 'Battle Screen', 'Menu Screen', 'Never']
                 <div class="flex gap-2">
                   <div class="relative flex-1">
                     <input
+                      v-model.number="selectedSkill.mpCost"
                       type="number"
                       placeholder="0"
+                      min="0"
                       class="w-full bg-slate-50 border border-slate-200 text-slate-900 text-sm font-bold rounded-xl pl-3 pr-8 py-2.5 outline-none focus:border-cyan-400 transition-all"
+                      @input="db.save('Skills.json', db.skills)"
                     />
                     <span
                       class="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-400"
@@ -177,9 +176,12 @@ const occasions = ['Always', 'Battle Screen', 'Menu Screen', 'Never']
                   </div>
                   <div class="relative flex-1">
                     <input
+                      v-model.number="selectedSkill.tpCost"
                       type="number"
                       placeholder="0"
+                      min="0"
                       class="w-full bg-slate-50 border border-slate-200 text-slate-900 text-sm font-bold rounded-xl pl-3 pr-8 py-2.5 outline-none focus:border-cyan-400 transition-all"
+                      @input="db.save('Skills.json', db.skills)"
                     />
                     <span
                       class="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-400"
@@ -197,9 +199,16 @@ const occasions = ['Always', 'Battle Screen', 'Menu Screen', 'Never']
                 </label>
                 <div class="relative">
                   <select
+                    v-model.number="selectedSkill.scope"
                     class="w-full bg-slate-50 border border-slate-200 text-slate-700 text-sm font-bold rounded-xl px-3 py-2.5 outline-none focus:border-cyan-400 appearance-none cursor-pointer"
+                    @change="db.save('Skills.json', db.skills)"
                   >
-                    <option v-for="scope in scopes" :key="scope">{{ scope }}</option>
+                    <option :value="1">1 Enemy</option>
+                    <option :value="2">All Enemies</option>
+                    <option :value="3">1 Random Enemy</option>
+                    <option :value="7">1 Ally</option>
+                    <option :value="11">All Allies</option>
+                    <option :value="0">The User</option>
                   </select>
                   <div
                     class="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400"
@@ -248,9 +257,14 @@ const occasions = ['Always', 'Battle Screen', 'Menu Screen', 'Never']
                 </label>
                 <div class="relative">
                   <select
+                    v-model.number="selectedSkill.occasion"
                     class="w-full bg-white border border-slate-200 text-slate-700 text-sm font-bold rounded-xl px-3 py-2.5 outline-none focus:border-cyan-400 appearance-none cursor-pointer hover:border-slate-300 transition-colors"
+                    @change="db.save('Skills.json', db.skills)"
                   >
-                    <option v-for="occ in occasions" :key="occ">{{ occ }}</option>
+                    <option :value="0">Always</option>
+                    <option :value="1">Battle Screen</option>
+                    <option :value="2">Menu Screen</option>
+                    <option :value="3">Never</option>
                   </select>
                   <div
                     class="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400"
@@ -278,8 +292,12 @@ const occasions = ['Always', 'Battle Screen', 'Menu Screen', 'Never']
                 <div class="space-y-3">
                   <label class="flex items-center gap-3 cursor-pointer group">
                     <input
+                      v-model="selectedSkill.hitType"
                       type="checkbox"
-                      class="w-4 h-4 border-slate-300 text-cyan-600 focus:ring-cyan-500 -md bg-white"
+                      :true-value="0"
+                      :false-value="1"
+                      class="w-4 h-4 border-slate-300 text-cyan-600 focus:ring-cyan-500 rounded-md bg-white"
+                      @change="db.save('Skills.json', db.skills)"
                     />
                     <span class="text-xs font-medium text-slate-600 group-hover:text-slate-900"
                       >Hit Type: Certain Hit</span
@@ -309,19 +327,23 @@ const occasions = ['Always', 'Battle Screen', 'Menu Screen', 'Never']
                 <div class="h-px bg-slate-200 flex-1"></div>
               </div>
 
-              <div
-                class="bg-slate-50 border-2 border-dashed border-slate-200 rounded-2xl p-10 flex flex-col items-center justify-center text-center group hover:border-cyan-200 hover:bg-cyan-50/30 transition-all cursor-pointer"
-              >
-                <div
-                  class="w-12 h-12 bg-white rounded-full shadow-sm flex items-center justify-center text-slate-300 mb-3 group-hover:scale-110 transition-transform"
-                >
-                  <IconPlus :size="24" />
-                </div>
-                <h4 class="text-sm font-bold text-slate-700">Add Effect</h4>
-                <p class="text-xs text-slate-400 mt-1 max-w-sm">
-                  Damage formulas, state changes, and buffs will be configured here.
-                </p>
-              </div>
+              <SkillEffectsEditor
+                v-if="selectedSkill.effects !== undefined"
+                v-model="selectedSkill.effects"
+                @update:model-value="db.save('Skills.json', db.skills)"
+              />
+              <SkillEffectsEditor
+                v-else
+                :model-value="[]"
+                @update:model-value="
+                  (updated) => {
+                    if (selectedSkill) {
+                      selectedSkill.effects = updated
+                      db.save('Skills.json', db.skills)
+                    }
+                  }
+                "
+              />
             </div>
           </div>
         </div>
