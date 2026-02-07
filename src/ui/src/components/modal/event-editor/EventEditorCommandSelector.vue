@@ -14,6 +14,7 @@ import EffectParams from './params/EffectParams.vue'
 import PictureParams from './params/PictureParams.vue'
 import MapParams from './params/MapParams.vue'
 import ScreenParams from './params/ScreenParams.vue'
+import TimerParams from './params/TimerParams.vue'
 import { variableOps, directions, moveActions, commandCategories } from './params/config'
 
 const props = defineProps<{
@@ -243,6 +244,13 @@ const handleSave = (): void => {
               :variables="store.systemVariables"
             />
 
+            <!-- Control Timer -->
+            <TimerParams
+              v-else-if="selectedCommandType === ZCommandCode.ControlTimer"
+              ref="editorRef"
+              :initial-command="props.initialCommand"
+            />
+
             <!-- State Control -->
             <StateParams
               v-else-if="
@@ -303,7 +311,8 @@ const handleSave = (): void => {
             <EffectParams
               v-else-if="
                 selectedCommandType === ZCommandCode.ShowAnimation ||
-                selectedCommandType === ZCommandCode.ShowBalloonIcon
+                selectedCommandType === ZCommandCode.ShowBalloonIcon ||
+                selectedCommandType === ZCommandCode.EraseEvent
               "
               ref="editorRef"
               :initial-command="props.initialCommand"
@@ -344,12 +353,14 @@ const handleSave = (): void => {
             <MapParams
               v-else-if="
                 selectedCommandType === ZCommandCode.ScrollMap ||
-                selectedCommandType === ZCommandCode.GetLocationInfo
+                selectedCommandType === ZCommandCode.GetLocationInfo ||
+                selectedCommandType === ZCommandCode.SetEventLocation
               "
               ref="editorRef"
               :initial-command="props.initialCommand"
               :type="selectedCommandType!"
               :variables="store.systemVariables"
+              :events="store.activeMap?.events || []"
             />
 
             <!-- Default / Fallback for other commands -->

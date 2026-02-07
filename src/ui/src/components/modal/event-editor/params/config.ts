@@ -50,6 +50,26 @@ export const directions = [
   { label: 'Up', value: 8, icon: IconArrowUp }
 ]
 
+export const directionsList = directions.map((d) => ({ val: d.value, label: d.label }))
+
+export const speedsList = [
+  { val: 1, label: '1: Slowest' },
+  { val: 2, label: '2: Slower' },
+  { val: 3, label: '3: Slow' },
+  { val: 4, label: '4: Normal' },
+  { val: 5, label: '5: Fast' },
+  { val: 6, label: '6: Fastest' }
+]
+
+export const infoTypes = [
+  { val: 0, label: 'Terrain Tag' },
+  { val: 1, label: 'Event ID' },
+  { val: 2, label: 'Tile ID (Layer 1)' },
+  { val: 3, label: 'Tile ID (Layer 2)' },
+  { val: 4, label: 'Tile ID (Layer 3)' },
+  { val: 5, label: 'Region ID' }
+]
+
 export const moveActions = [
   // Movement
   { code: ZMoveCode.MOVE_DOWN, label: 'Move Down', icon: IconArrowDown },
@@ -141,7 +161,8 @@ export const commandCategories = [
       { code: ZCommandCode.ConditionalBranch, label: 'Conditional Branch', icon: IconSettings },
       { code: ZCommandCode.Loop, label: 'Loop', icon: IconRefresh },
       { code: ZCommandCode.BreakLoop, label: 'Break Loop', icon: IconX },
-      { code: ZCommandCode.Wait, label: 'Wait', icon: IconHourglass }
+      { code: ZCommandCode.Wait, label: 'Wait', icon: IconHourglass },
+      { code: ZCommandCode.ControlTimer, label: 'Control Timer', icon: IconClock }
     ]
   },
   {
@@ -158,6 +179,7 @@ export const commandCategories = [
     icon: IconMapPin,
     commands: [
       { code: ZCommandCode.TransferPlayer, label: 'Transfer Player', icon: IconMapPin },
+      { code: ZCommandCode.SetEventLocation, label: 'Set Event Location', icon: IconMapPin },
       { code: ZCommandCode.SetMoveRoute, label: 'Set Move Route', icon: IconMapPin },
       { code: ZCommandCode.SetEventDirection, label: 'Change Direction', icon: IconSettings }
     ]
@@ -168,7 +190,8 @@ export const commandCategories = [
     commands: [
       { code: ZCommandCode.SetEventGraphic, label: 'Change Graphic', icon: IconFlare },
       { code: ZCommandCode.ShowAnimation, label: 'Show Animation', icon: IconFlare },
-      { code: ZCommandCode.ShowBalloonIcon, label: 'Show Balloon', icon: IconFlare }
+      { code: ZCommandCode.ShowBalloonIcon, label: 'Show Balloon', icon: IconFlare },
+      { code: ZCommandCode.EraseEvent, label: 'Erase Event', icon: IconX }
     ]
   },
   {

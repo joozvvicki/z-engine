@@ -16,6 +16,7 @@ const branchType = ref(0) // 0: Switch, 1: Variable
 const switchId = ref('1')
 const switchVal = ref(1)
 const varId = ref('1')
+const varCompareOp = ref(0) // 0: =, 1: >=, 2: <=, 3: >, 4: <, 5: !=
 const varVal = ref(0)
 const selfSwitchCh = ref<'A' | 'B' | 'C' | 'D'>('A')
 const selfSwitchVal = ref(1)
@@ -37,7 +38,8 @@ const initialize = (): void => {
         switchVal.value = params[2] === 1 ? 1 : 0
       } else if (branchType.value === 1) {
         varId.value = String(params[1] || '1')
-        varVal.value = Number(params[2] || 0)
+        varCompareOp.value = Number(params[2] || 0)
+        varVal.value = Number(params[3] || 0)
       } else if (branchType.value === 2) {
         selfSwitchCh.value = (params[1] as 'A' | 'B' | 'C' | 'D') || 'A'
         selfSwitchVal.value = Number(params[2] ?? 1)
@@ -69,7 +71,7 @@ defineExpose({
       if (branchType.value === 0) {
         finalParams = [0, switchId.value, switchVal.value]
       } else if (branchType.value === 1) {
-        finalParams = [1, varId.value, varVal.value]
+        finalParams = [1, varId.value, varCompareOp.value, varVal.value]
       } else if (branchType.value === 2) {
         finalParams = [2, selfSwitchCh.value, selfSwitchVal.value]
       } else if (branchType.value === 3) {
@@ -184,8 +186,25 @@ defineExpose({
         </div>
         <div class="space-y-3">
           <label class="text-[10px] font-bold uppercase text-slate-400 block ml-1"
-            >Required Value (=)</label
+            >Comparison</label
           >
+          <div class="relative">
+            <select v-model.number="varCompareOp" class="docs-input appearance-none">
+              <option :value="0">Equal (=)</option>
+              <option :value="1">Greater than or Equal (>=)</option>
+              <option :value="2">Less than or Equal (&lt;=)</option>
+              <option :value="3">Greater than (&gt;)</option>
+              <option :value="4">Less than (&lt;)</option>
+              <option :value="5">Not Equal (!=)</option>
+            </select>
+            <IconArrowDown
+              size="14"
+              class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
+            />
+          </div>
+        </div>
+        <div class="space-y-3">
+          <label class="text-[10px] font-bold uppercase text-slate-400 block ml-1">Value</label>
           <input v-model.number="varVal" type="number" class="docs-input" />
         </div>
       </div>

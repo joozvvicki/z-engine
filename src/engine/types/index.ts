@@ -499,6 +499,7 @@ export enum ZCommandCode {
   ControlVariable = 122,
   ControlSelfSwitch = 123,
   TransferPlayer = 201,
+  SetEventLocation = 203,
   SetMoveRoute = 205,
   ShowAnimation = 212,
   Else = 411,
@@ -548,6 +549,41 @@ export enum ZCommandCode {
 }
 
 export type ZCommandResult = 'continue' | 'wait' | 'stop'
+
+// --- Visual Scripting Types ---
+export type ZSocketType = 'execution' | 'data'
+export type ZNodeType = 'event' | 'action' | 'condition' | 'variable' | 'math' | 'logic'
+
+export interface ZNodeSocket {
+  id: string
+  label: string
+  type: ZSocketType
+}
+
+export interface ZNode {
+  id: string
+  type: ZNodeType
+  title: string
+  x: number
+  y: number
+  inputs: ZNodeSocket[]
+  outputs: ZNodeSocket[]
+  values?: Record<string, unknown>
+  config?: Record<string, unknown>
+}
+
+export interface ZConnection {
+  id: string
+  fromNode: string
+  fromSocket: string
+  toNode: string
+  toSocket: string
+}
+
+export interface ZNodeGraph {
+  nodes: ZNode[]
+  connections: ZConnection[]
+}
 
 export interface IEngineContext {
   app: Application
