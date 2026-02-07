@@ -179,6 +179,7 @@ export const commandCategories = [
       { code: ZCommandCode.FadeOutBGM, label: 'Fadeout BGM', icon: IconVolume },
       { code: ZCommandCode.PlayBGS, label: 'Play BGS', icon: IconVolume },
       { code: ZCommandCode.FadeOutBGS, label: 'Fadeout BGS', icon: IconVolume },
+      { code: ZCommandCode.PlayME, label: 'Play ME', icon: IconMusic },
       { code: ZCommandCode.PlaySE, label: 'Play SE', icon: IconVolume },
       { code: ZCommandCode.StopSE, label: 'Stop SE', icon: IconVolume }
     ]

@@ -17,9 +17,12 @@ const initialize = (): void => {
   if (props.initialCommand) {
     const params = props.initialCommand.parameters
     if (
-      [ZCommandCode.PlayBGM, ZCommandCode.PlayBGS, ZCommandCode.PlaySE].includes(
-        props.initialCommand.code
-      )
+      [
+        ZCommandCode.PlayBGM,
+        ZCommandCode.PlayBGS,
+        ZCommandCode.PlayME,
+        ZCommandCode.PlaySE
+      ].includes(props.initialCommand.code)
     ) {
       const config = params[0] as { name: string; volume: number; pitch: number }
       audioFile.value = config.name
@@ -39,7 +42,14 @@ onMounted(initialize)
 defineExpose({
   getCommandData: () => {
     let finalParams: unknown[] = []
-    if ([ZCommandCode.PlayBGM, ZCommandCode.PlayBGS, ZCommandCode.PlaySE].includes(props.type)) {
+    if (
+      [
+        ZCommandCode.PlayBGM,
+        ZCommandCode.PlayBGS,
+        ZCommandCode.PlayME,
+        ZCommandCode.PlaySE
+      ].includes(props.type)
+    ) {
       finalParams = [{ name: audioFile.value, volume: audioVolume.value, pitch: audioPitch.value }]
     } else if ([ZCommandCode.FadeOutBGM, ZCommandCode.FadeOutBGS].includes(props.type)) {
       finalParams = [audioDuration.value]
@@ -58,7 +68,14 @@ defineExpose({
   <div class="space-y-6">
     <!-- Play BGM/BGS/SE -->
     <template
-      v-if="[ZCommandCode.PlayBGM, ZCommandCode.PlayBGS, ZCommandCode.PlaySE].includes(type)"
+      v-if="
+        [
+          ZCommandCode.PlayBGM,
+          ZCommandCode.PlayBGS,
+          ZCommandCode.PlayME,
+          ZCommandCode.PlaySE
+        ].includes(type)
+      "
     >
       <div class="space-y-3">
         <label class="text-[10px] font-bold uppercase text-slate-400 block ml-1">

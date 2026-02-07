@@ -349,6 +349,7 @@ const handleSave = (): void => {
               ref="editorRef"
               :initial-command="props.initialCommand"
               :type="selectedCommandType!"
+              :variables="store.systemVariables"
             />
 
             <!-- Default / Fallback for other commands -->
@@ -365,7 +366,9 @@ const handleSave = (): void => {
                   ZCommandCode.SetMoveRoute,
                   ZCommandCode.PlayBGM,
                   ZCommandCode.PlayBGS,
+                  ZCommandCode.PlayME,
                   ZCommandCode.PlaySE,
+                  ZCommandCode.StopSE,
                   ZCommandCode.FadeOutBGM,
                   ZCommandCode.FadeOutBGS,
                   ZCommandCode.ShowChoices,
