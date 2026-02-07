@@ -117,7 +117,8 @@ export const useEditorInput = (
           target.value.y,
           store.selection,
           tool,
-          store.activeLayer
+          store.activeLayer,
+          tool === ZTool.eraser ? store.eraserSize : 1
         )
       } else {
         engine.value.ghost.hide()
@@ -199,7 +200,8 @@ export const useEditorInput = (
           target.value.y,
           store.selection,
           store.currentTool,
-          store.activeLayer
+          store.activeLayer,
+          store.currentTool === ZTool.eraser ? store.eraserSize : 1
         )
       }
     },

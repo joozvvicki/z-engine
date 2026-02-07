@@ -191,7 +191,15 @@ export const useEditorTools = (): {
 
     // Default brush/eraser behavior
     if ((tool === ZTool.brush || tool === ZTool.eraser) && !shapeStartPos.value) {
-      engine.tools.brush(target, store.selection, layer, isStacking, tool === ZTool.eraser)
+      engine.tools.brush(
+        target,
+        store.selection,
+        layer,
+        isStacking,
+        tool === ZTool.eraser,
+        store.eraserSize,
+        store.eraseAllLayers
+      )
       return
     }
   }

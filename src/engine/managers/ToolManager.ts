@@ -118,12 +118,25 @@ export class ToolManager {
     selection: TileSelection,
     layer: ZLayer,
     isStacking: boolean,
-    isEraser: boolean = false
+    isEraser: boolean = false,
+    eraserSize: number = 1,
+    eraseAllLayers: boolean = false
   ): void {
     this.historyManager.beginEntry(isEraser ? 'Erase' : 'Brush')
 
     if (isEraser) {
-      this.applyTile(target.x, target.y, null, false, layer)
+      const offset = Math.floor(eraserSize / 2)
+      const layersToErase = eraseAllLayers ? (Object.values(ZLayer) as ZLayer[]) : [layer]
+
+      for (let dy = 0; dy < eraserSize; dy++) {
+        for (let dx = 0; dx < eraserSize; dx++) {
+          const tx = target.x + dx - offset
+          const ty = target.y + dy - offset
+          for (const l of layersToErase) {
+            this.applyTile(tx, ty, null, false, l)
+          }
+        }
+      }
       this.historyManager.commitEntry()
       return
     }

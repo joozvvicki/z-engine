@@ -15,6 +15,7 @@ import {
   IconPackage // Added IconPackage
 } from '@tabler/icons-vue'
 import BuildGameModal from './BuildGameModal.vue'
+import ToolbarEraserOptions from './ToolbarEraserOptions.vue'
 import PlaytestModal from './modal/PlaytestModal.vue'
 import { computed, onMounted, ref, watch, nextTick } from 'vue'
 import { ZLayer, ZTool } from '@engine/types'
@@ -243,31 +244,44 @@ onMounted(() => {
         :style="toolHighlightStyle"
       ></div>
 
-      <button
-        v-for="tool in tools"
-        :key="tool.tooltip"
-        ref="toolRefs"
-        class="group relative w-9 h-9 flex items-center justify-center rounded-lg transition-all duration-200 cursor-pointer z-10 disabled:opacity-30 disabled:cursor-not-allowed"
-        :class="
-          store.currentTool === tool.tool
-            ? 'text-white'
-            : 'text-slate-500 hover:text-slate-900 hover:bg-slate-900/5'
-        "
-        :disabled="store.isTestMode"
-        @click="store.setTool(tool.tool)"
-      >
-        <component :is="tool.icon" :size="18" stroke-width="2" />
-
-        <div
-          class="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 px-2 py-1 bg-slate-900 text-white text-[10px] font-bold uppercase tracking-widest rounded opacity-0 group-hover:opacity-100 transition-all pointer-events-none whitespace-nowrap shadow-xl z-50"
+      <div v-for="tool in tools" :key="tool.tooltip" ref="toolRefs" class="relative">
+        <button
+          class="group relative w-9 h-9 flex items-center justify-center rounded-lg transition-all duration-200 cursor-pointer z-10 disabled:opacity-30 disabled:cursor-not-allowed"
+          :class="
+            store.currentTool === tool.tool
+              ? 'text-white'
+              : 'text-slate-500 hover:text-slate-900 hover:bg-slate-900/5'
+          "
+          :disabled="store.isTestMode"
+          @click="store.setTool(tool.tool)"
         >
-          {{ tool.tooltip.split(' ')[0] }}
+          <component :is="tool.icon" :size="18" stroke-width="2" />
+
           <div
-            class="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-slate-900 rotate-45"
-          ></div>
-        </div>
-      </button>
+            class="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 px-2 py-1 bg-slate-900 text-white text-[10px] font-bold uppercase tracking-widest rounded opacity-0 group-hover:opacity-100 transition-all pointer-events-none whitespace-nowrap shadow-xl z-50"
+          >
+            {{ tool.tooltip.split(' ')[0] }}
+            <div
+              class="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-slate-900 rotate-45"
+            ></div>
+          </div>
+        </button>
+
+        <transition
+          enter-active-class="transition-all duration-300 ease-out"
+          enter-from-class="opacity-0 translate-y-2 scale-95"
+          enter-to-class="opacity-100 translate-y-0 scale-100"
+          leave-active-class="transition-all duration-200 ease-in"
+          leave-from-class="opacity-100 translate-y-0 scale-100"
+          leave-to-class="opacity-0 translate-y-2 scale-95"
+        >
+          <ToolbarEraserOptions
+            v-if="tool.tool === ZTool.eraser && store.currentTool === ZTool.eraser"
+          />
+        </transition>
+      </div>
     </div>
+    <div class="w-px h-5 bg-slate-200 mx-2"></div>
 
     <div class="w-px h-5 bg-slate-200 mx-2"></div>
 

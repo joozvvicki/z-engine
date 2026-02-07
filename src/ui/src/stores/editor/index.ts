@@ -22,6 +22,7 @@ import {
 import { useDatabaseStore } from '../database'
 
 export const useEditorStore = defineStore('editor', () => {
+  const db = useDatabaseStore()
   // ==========================================
   // 1. STATE & SETTINGS
   // ==========================================
@@ -41,6 +42,10 @@ export const useEditorStore = defineStore('editor', () => {
   const currentTool = useLocalStorage<ZTool>('ZTool', ZTool.brush)
   const mapAlignment = useLocalStorage<'top-left' | 'center'>('Z_MapAlignment', 'center')
   const lastTileTool = ref<ZTool>(ZTool.brush)
+
+  // Eraser Settings
+  const eraserSize = useLocalStorage('Z_EraserSize', 1)
+  const eraseAllLayers = useLocalStorage('Z_EraseAllLayers', false)
 
   // Aktualna selekcja (pędzel)
   const selection = useLocalStorage<TileSelection>('Z_Location', {
@@ -192,7 +197,6 @@ export const useEditorStore = defineStore('editor', () => {
     }
 
     // 4. Load Database
-    const db = useDatabaseStore()
     await db.loadAll()
 
     isProjectLoaded.value = true
@@ -218,7 +222,8 @@ export const useEditorStore = defineStore('editor', () => {
         screenHeight: systemScreenHeight.value,
         screenZoom: systemScreenZoom.value,
         startingParty: systemStartingParty.value,
-        sounds: systemSounds.value
+        sounds: systemSounds.value,
+        actors: db.actors || []
       })
 
       // 2. Save Tilesets
@@ -267,7 +272,8 @@ export const useEditorStore = defineStore('editor', () => {
           screenHeight: systemScreenHeight.value,
           screenZoom: systemScreenZoom.value,
           startingParty: systemStartingParty.value,
-          sounds: systemSounds.value
+          sounds: systemSounds.value,
+          actors: db.actors || []
         }
         ProjectService.saveSystemData(sysData).catch((err) =>
           console.error('Auto-save system failed', err)
@@ -342,6 +348,8 @@ export const useEditorStore = defineStore('editor', () => {
     renamingId,
     selectedEventId,
     eventClipboard,
+    eraserSize,
+    eraseAllLayers,
 
     // Viewport States
     mapViewportStates,

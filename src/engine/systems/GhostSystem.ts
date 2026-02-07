@@ -32,6 +32,7 @@ export class GhostSystem {
   private isShape: boolean = false
   private activeLayer: ZLayer = ZLayer.ground
   private draggingEventId: string | null = null
+  private eraserSize: number = 1
 
   private selectionBox: { x: number; y: number; w: number; h: number } | null = null
   private selectedEventPos: { x: number; y: number } | null = null
@@ -96,13 +97,21 @@ export class GhostSystem {
     }
   }
 
-  public update(x: number, y: number, sel: TileSelection | null, tool: ZTool, layer: ZLayer): void {
+  public update(
+    x: number,
+    y: number,
+    sel: TileSelection | null,
+    tool: ZTool,
+    layer: ZLayer,
+    eraserSize: number = 1
+  ): void {
     this.active = true
     this.isShape = false
     this.position = { x, y }
     this.selection = sel
     this.currentTool = tool
     this.activeLayer = layer
+    this.eraserSize = eraserSize
     this.dirty = true
   }
 
@@ -230,8 +239,10 @@ export class GhostSystem {
     }
 
     if (this.currentTool === ZTool.eraser) {
+      const size = this.eraserSize * this.tileSize
+      const offset = Math.floor(this.eraserSize / 2) * this.tileSize
       const g = new Graphics()
-        .rect(x, y, this.tileSize, this.tileSize)
+        .rect(x - offset, y - offset, size, size)
         .fill({ color: 0xff0000, alpha: 0.3 })
         .stroke({ width: 1, color: 0xff0000, alpha: 0.8 })
       this.contentContainer.addChild(g)
