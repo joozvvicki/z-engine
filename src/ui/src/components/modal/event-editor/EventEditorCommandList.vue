@@ -260,7 +260,8 @@ const getCommandColor = (code: number): string => {
                   ZCommandCode.Else,
                   ZCommandCode.EndBranch,
                   ZCommandCode.When,
-                  ZCommandCode.EndChoices
+                  ZCommandCode.EndChoices,
+                  ZCommandCode.EndLoop
                 ].includes(item.command!.code)
               "
               class="opacity-0 group-hover:opacity-100 transition-all p-1.5 rounded-md hover:bg-white/50 hover:text-red-500 hover:shadow-sm"
@@ -291,7 +292,6 @@ const getCommandColor = (code: number): string => {
 </template>
 
 <style scoped>
-
 .custom-scrollbar::-webkit-scrollbar {
   width: 5px;
 }

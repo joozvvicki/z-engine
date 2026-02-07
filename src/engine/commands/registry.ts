@@ -19,6 +19,8 @@ import {
   commandStopSE
 } from './audio/AudioCommands'
 
+import { commandLoop, commandEndLoop, commandBreakLoop } from './flow/Loop'
+
 export const CommandRegistry: Record<number, ZCommandProcessor> = {
   [ZCommandCode.ShowMessage]: commandShowMessage,
   [ZCommandCode.ShowChoices]: commandShowChoices,
@@ -33,6 +35,10 @@ export const CommandRegistry: Record<number, ZCommandProcessor> = {
   [ZCommandCode.Else]: commandElse,
   [ZCommandCode.EndBranch]: () => 'continue',
   [ZCommandCode.Wait]: commandWait,
+
+  [ZCommandCode.Loop]: commandLoop,
+  [ZCommandCode.EndLoop]: commandEndLoop,
+  [ZCommandCode.BreakLoop]: commandBreakLoop,
 
   [ZCommandCode.TransferPlayer]: commandTransferPlayer,
   [ZCommandCode.SetMoveRoute]: commandSetMoveRoute,

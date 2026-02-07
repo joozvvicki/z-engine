@@ -138,6 +138,8 @@ export const commandCategories = [
     icon: IconSettings,
     commands: [
       { code: ZCommandCode.ConditionalBranch, label: 'Conditional Branch', icon: IconSettings },
+      { code: ZCommandCode.Loop, label: 'Loop', icon: IconRefresh },
+      { code: ZCommandCode.BreakLoop, label: 'Break Loop', icon: IconX },
       { code: ZCommandCode.Wait, label: 'Wait', icon: IconHourglass }
     ]
   },

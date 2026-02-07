@@ -21,6 +21,9 @@ const selfSwitchCh = ref<'A' | 'B' | 'C' | 'D'>('A')
 const selfSwitchVal = ref(1)
 const scriptContent = ref('')
 const hasElse = ref(false)
+const loopMode = ref(0) // 0: Infinite, 1: Repeat
+const loopCount = ref(1)
+const loopVarId = ref('1')
 
 const initialize = (): void => {
   if (props.initialCommand) {
@@ -32,6 +35,7 @@ const initialize = (): void => {
       if (branchType.value === 0) {
         switchId.value = String(params[1] || '1')
         switchVal.value = params[2] === 1 ? 1 : 0
+      } else if (branchType.value === 1) {
         varId.value = String(params[1] || '1')
         varVal.value = Number(params[2] || 0)
       } else if (branchType.value === 2) {
@@ -42,6 +46,13 @@ const initialize = (): void => {
       }
       // Parameters for Conditional Branch: [type, id, val, hasElse]
       hasElse.value = params[3] === 1
+    } else if (props.initialCommand.code === ZCommandCode.Loop) {
+      loopMode.value = Number(params[0] || 0)
+      if (loopMode.value === 1) {
+        loopCount.value = Number(params[1] || 1)
+      } else if (loopMode.value === 2) {
+        loopVarId.value = String(params[1] || '1')
+      }
     }
   }
 }
@@ -65,6 +76,14 @@ defineExpose({
         finalParams = [3, scriptContent.value]
       }
       finalParams.push(hasElse.value ? 1 : 0)
+    } else if (props.type === ZCommandCode.Loop) {
+      if (loopMode.value === 0) {
+        finalParams = [0]
+      } else if (loopMode.value === 1) {
+        finalParams = [1, loopCount.value]
+      } else if (loopMode.value === 2) {
+        finalParams = [2, loopVarId.value]
+      }
     }
     return {
       code: props.type,
@@ -224,7 +243,6 @@ defineExpose({
         </div>
       </div>
 
-      <!-- Else Branch Toggle -->
       <div class="flex items-center gap-2 px-1 pt-4 border-t border-slate-100">
         <input
           v-model="hasElse"
@@ -236,6 +254,52 @@ defineExpose({
           @click="hasElse = !hasElse"
           >Create Else Branch</span
         >
+      </div>
+    </template>
+
+    <template v-else-if="type === ZCommandCode.Loop">
+      <div class="space-y-3">
+        <label class="text-[10px] font-bold uppercase text-slate-400 block ml-1">Loop Mode</label>
+        <div class="segmented-control">
+          <button
+            v-for="m in [
+              { val: 0, label: 'Infinite' },
+              { val: 1, label: 'Repeat Count' },
+              { val: 2, label: 'By Variable' }
+            ]"
+            :key="m.val"
+            :class="{ active: loopMode === m.val }"
+            @click="loopMode = m.val"
+          >
+            {{ m.label }}
+          </button>
+        </div>
+      </div>
+
+      <!-- Repeat Count -->
+      <div v-if="loopMode === 1" class="space-y-3 px-1 pt-2">
+        <label class="text-[10px] font-bold uppercase text-slate-400 block ml-1"
+          >Number of Repeats</label
+        >
+        <input v-model.number="loopCount" type="number" min="1" class="docs-input" />
+      </div>
+
+      <!-- Variable-based Count -->
+      <div v-else-if="loopMode === 2" class="space-y-3 px-1 pt-2">
+        <label class="text-[10px] font-bold uppercase text-slate-400 block ml-1"
+          >Repeat from Variable</label
+        >
+        <div class="relative">
+          <select v-model="loopVarId" class="docs-input appearance-none">
+            <option v-for="(v, idx) in variables" :key="idx" :value="String(idx + 1)">
+              #{{ String(idx + 1).padStart(3, '0') }}: {{ v || '(Untitled)' }}
+            </option>
+          </select>
+          <IconArrowDown
+            size="14"
+            class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
+          />
+        </div>
       </div>
     </template>
   </div>

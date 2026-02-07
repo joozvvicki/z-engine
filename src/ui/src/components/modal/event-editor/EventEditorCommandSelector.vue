@@ -75,6 +75,11 @@ const handleSave = (): void => {
   if (editorRef.value?.getCommandData) {
     const data = editorRef.value.getCommandData()
     emit('save', data)
+  } else if (selectedCommandType.value !== null) {
+    emit('save', {
+      code: selectedCommandType.value,
+      parameters: []
+    })
   }
 }
 </script>
@@ -227,7 +232,8 @@ const handleSave = (): void => {
             <FlowParams
               v-else-if="
                 selectedCommandType === ZCommandCode.Wait ||
-                selectedCommandType === ZCommandCode.ConditionalBranch
+                selectedCommandType === ZCommandCode.ConditionalBranch ||
+                selectedCommandType === ZCommandCode.Loop
               "
               ref="editorRef"
               :initial-command="props.initialCommand"
@@ -353,7 +359,8 @@ const handleSave = (): void => {
                   ZCommandCode.MovePicture,
                   ZCommandCode.ErasePicture,
                   ZCommandCode.ScrollMap,
-                  ZCommandCode.GetLocationInfo
+                  ZCommandCode.GetLocationInfo,
+                  ZCommandCode.Loop
                 ].includes(selectedCommandType || -1)
               "
               class="flex flex-col items-center justify-center flex-1 text-slate-300 gap-4"

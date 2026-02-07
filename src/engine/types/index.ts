@@ -505,6 +505,7 @@ export enum ZCommandCode {
   EndBranch = 412,
   When = 402,
   EndChoices = 404,
+  EndLoop = 413,
   SetEventDirection = 213,
   SetEventGraphic = 214,
   Wait = 230,
@@ -578,6 +579,7 @@ export interface ZEventInterpreter {
   waitingForMoveEventId?: string | null
   isWaitingForMessage?: boolean
   pendingChoice?: number
+  loopStates?: Record<number, { count: number }>
 }
 
 export interface ZCommandProcessor {

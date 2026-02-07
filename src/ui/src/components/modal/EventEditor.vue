@@ -99,7 +99,11 @@ const presentationList = computed(
     list.forEach((cmd, idx) => {
       // Commands that "reset" to parent indent before displaying themselves
       const isBranchMid = [ZCommandCode.Else, ZCommandCode.When].includes(cmd.code)
-      const isBlockEnd = [ZCommandCode.EndBranch, ZCommandCode.EndChoices].includes(cmd.code)
+      const isBlockEnd = [
+        ZCommandCode.EndBranch,
+        ZCommandCode.EndChoices,
+        ZCommandCode.EndLoop
+      ].includes(cmd.code)
 
       if (isBranchMid || isBlockEnd) {
         depth = Math.max(0, depth - 1)
@@ -114,7 +118,8 @@ const presentationList = computed(
           ZCommandCode.ConditionalBranch,
           ZCommandCode.Else,
           ZCommandCode.ShowChoices,
-          ZCommandCode.When
+          ZCommandCode.When,
+          ZCommandCode.Loop
         ].includes(cmd.code)
       ) {
         depth++
@@ -194,15 +199,36 @@ const deleteCommand = (index: number): void => {
   const cmd = activePage.value.list[index]
   if (!cmd) return
 
+  // Prevent individual deletion of hierarchical sub-commands
+  if (
+    [
+      ZCommandCode.Else,
+      ZCommandCode.EndBranch,
+      ZCommandCode.When,
+      ZCommandCode.EndChoices,
+      ZCommandCode.EndLoop
+    ].includes(cmd.code)
+  ) {
+    return
+  }
+
   // Cascaded deletion for hierarchical blocks
   let count = 1
-  if ([ZCommandCode.ShowChoices, ZCommandCode.ConditionalBranch].includes(cmd.code)) {
+  if (
+    [ZCommandCode.ShowChoices, ZCommandCode.ConditionalBranch, ZCommandCode.Loop].includes(cmd.code)
+  ) {
     let depth = 0
     for (let i = index; i < activePage.value.list.length; i++) {
       const c = activePage.value.list[i]
-      if ([ZCommandCode.ShowChoices, ZCommandCode.ConditionalBranch].includes(c.code)) {
+      if (
+        [ZCommandCode.ShowChoices, ZCommandCode.ConditionalBranch, ZCommandCode.Loop].includes(
+          c.code
+        )
+      ) {
         depth++
-      } else if ([ZCommandCode.EndChoices, ZCommandCode.EndBranch].includes(c.code)) {
+      } else if (
+        [ZCommandCode.EndChoices, ZCommandCode.EndBranch, ZCommandCode.EndLoop].includes(c.code)
+      ) {
         depth--
         if (depth === 0) {
           count = i - index + 1
@@ -329,6 +355,8 @@ const handleCommandSave = (cmd: { code: number; parameters: unknown[] }): void =
         commandsToInsert.push(createCommand(ZCommandCode.Else))
       }
       commandsToInsert.push(createCommand(ZCommandCode.EndBranch))
+    } else if (cmd.code === ZCommandCode.Loop) {
+      commandsToInsert.push(createCommand(ZCommandCode.EndLoop))
     }
   }
 
