@@ -24,6 +24,8 @@ export class MenuSystem {
   private callMenu(data: ZMenuParams): void {
     this.input.clearAction(ZInputAction.CANCEL)
 
-    this.scenes.push(SceneMenu, data, { fade: true })
+    const screenshot = this.scenes.captureScreenshot()
+
+    this.scenes.push(SceneMenu, { ...data, backgroundTexture: screenshot }, { fade: false })
   }
 }

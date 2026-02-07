@@ -26,6 +26,11 @@ export class Window_Base extends Container {
   private _opening: boolean = false
   private _closing: boolean = false
 
+  // Slide Animation State
+  private _slideDirection: 'left' | 'right' | 'top' | 'bottom' | null = null
+  private _slideTargetX: number = 0
+  private _slideTargetY: number = 0
+
   // Active State (for input handling)
   public active: boolean = false
 
@@ -159,25 +164,43 @@ export class Window_Base extends Container {
   }
 
   public update(): void {
+    // Handle opening/closing animations
     if (this._opening) {
-      this._openness += 32
+      this._openness += 32 // Speed of animation
       if (this._openness >= 255) {
         this._openness = 255
         this._opening = false
       }
-    } else if (this._closing) {
+      this.scale.y = this._openness / 255
+    }
+
+    if (this._closing) {
       this._openness -= 32
       if (this._openness <= 0) {
         this._openness = 0
         this._closing = false
         this.visible = false
       }
+      this.scale.y = this._openness / 255
     }
 
-    // Apply openness
-    this.scale.y = this._openness / 255
-  }
+    // Handle slide animations
+    if (this._slideDirection) {
+      const speed = 0.2 // Lerp factor (0.2 = smooth, 0.5 = faster)
+      const dx = this._slideTargetX - this.x
+      const dy = this._slideTargetY - this.y
 
+      this.x += dx * speed
+      this.y += dy * speed
+
+      // Check if reached target (within 1px)
+      if (Math.abs(dx) < 1 && Math.abs(dy) < 1) {
+        this.x = this._slideTargetX
+        this.y = this._slideTargetY
+        this._slideDirection = null
+      }
+    }
+  }
   public open(): void {
     if (!this.isOpen()) {
       this._opening = true
@@ -192,6 +215,37 @@ export class Window_Base extends Container {
     this._closing = false
     this.scale.y = 1
     this.visible = true
+  }
+
+  /**
+   * Opens window with slide-in animation from specified direction.
+   */
+  public openWithSlide(
+    direction: 'left' | 'right' | 'top' | 'bottom',
+    screenWidth: number = 816,
+    screenHeight: number = 624
+  ): void {
+    this._slideDirection = direction
+    this._slideTargetX = this.x
+    this._slideTargetY = this.y
+
+    // Set initial off-screen position
+    switch (direction) {
+      case 'left':
+        this.x = -this._width
+        break
+      case 'right':
+        this.x = screenWidth
+        break
+      case 'top':
+        this.y = -this._height
+        break
+      case 'bottom':
+        this.y = screenHeight
+        break
+    }
+
+    this.openImmediate() // Make visible immediately
   }
 
   public close(): void {

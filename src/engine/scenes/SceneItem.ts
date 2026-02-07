@@ -1,6 +1,7 @@
 import { ZScene } from '@engine/core/ZScene'
 import ZLogger from '@engine/utils/ZLogger'
 import { ZInputAction, IEngineContext } from '@engine/types'
+import { RenderTexture, Sprite } from '@engine/utils/pixi'
 import { Window_ItemCategory } from '@engine/ui/Window_ItemCategory'
 import { Window_ItemList } from '@engine/ui/Window_ItemList'
 import { Window_Help } from '@engine/ui/Window_Help'
@@ -13,6 +14,7 @@ export class SceneItem extends ZScene {
   private categoryWindow: Window_ItemCategory | null = null
   private itemWindow: Window_ItemList | null = null
   private helpWindow: Window_Help | null = null
+  private backgroundSprite: Sprite | null = null
 
   private _isClosing: boolean = false
 
@@ -20,9 +22,21 @@ export class SceneItem extends ZScene {
     super(engine)
   }
 
-  public async init(): Promise<void> {
+  public async init(params?: { backgroundTexture?: RenderTexture | null }): Promise<void> {
     try {
       ZLogger.with('SceneItem').info('Initializing item scene...')
+
+      if (params?.backgroundTexture) {
+        this.backgroundSprite = new Sprite(params.backgroundTexture)
+
+        this.backgroundSprite.width = this.engine.app.screen.width
+        this.backgroundSprite.height = this.engine.app.screen.height
+
+        this.backgroundSprite.alpha = 0.6
+        this.backgroundSprite.tint = 0x888888
+
+        this.container.addChild(this.backgroundSprite)
+      }
 
       await this.engine.textures.load('img/system/window.png')
     } catch (e) {
@@ -173,6 +187,6 @@ export class SceneItem extends ZScene {
     this.helpWindow?.close()
 
     await new Promise((resolve) => setTimeout(resolve, 150))
-    await this.engine.scenes.pop({ fade: true })
+    await this.engine.scenes.pop({ fade: false })
   }
 }

@@ -174,6 +174,5 @@ export class SceneMap extends ZScene {
 
   public stop(): void {
     ZLogger.with('SceneMap').log('Stopped & Unmounting Layers')
-    this.container.removeChildren()
   }
 }

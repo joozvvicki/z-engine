@@ -1,6 +1,7 @@
 import { ZScene } from '@engine/core/ZScene'
 import ZLogger from '@engine/utils/ZLogger'
 import { ZInputAction, ZMenuParams, IEngineContext, ZEngineSignal } from '@engine/types'
+import { BlurFilter, RenderTexture, Sprite } from '@engine/utils/pixi'
 import { Window_MenuCommand } from '@engine/ui/Window_MenuCommand'
 import { Window_MenuStatus } from '@engine/ui/Window_MenuStatus'
 import { Window_Gold } from '@engine/ui/Window_Gold'
@@ -15,6 +16,8 @@ export class SceneMenu extends ZScene {
   private commandWindow: Window_MenuCommand | null = null
   private statusWindow: Window_MenuStatus | null = null
   private goldWindow: Window_Gold | null = null
+  private backgroundSprite: Sprite | null = null
+  private backgroundTexture: RenderTexture | null = null // Store for passing to submenus
 
   private _isClosing: boolean = false
 
@@ -25,6 +28,29 @@ export class SceneMenu extends ZScene {
   public async init(params: ZMenuParams): Promise<void> {
     ZLogger.with('SceneMenu').info('Initialized with params:', params)
 
+    this.backgroundTexture = params.backgroundTexture || null
+
+    if (this.backgroundTexture) {
+      // Tworzymy sprite z przekazanej tekstury
+      this.backgroundSprite = new Sprite(this.backgroundTexture)
+
+      // Rozciągamy na cały ekran
+      this.backgroundSprite.width = this.engine.app.screen.width
+      this.backgroundSprite.height = this.engine.app.screen.height
+
+      // --- CLEAN UI: GLASSMORPHISM EFFECT ---
+      // 1. Przyciemnienie
+      this.backgroundSprite.tint = 0x666666
+
+      // 2. Blur (Rozmycie) - to daje ten efekt "premium"
+      const blur = new BlurFilter()
+      blur.blur = 5 // Moc rozmycia
+      this.backgroundSprite.filters = [blur]
+
+      // Dodajemy jako pierwszy element (pod okna)
+      this.container.addChild(this.backgroundSprite)
+    }
+
     // Preload window skin
     try {
       await this.engine.textures.load('img/system/window.png')
@@ -34,6 +60,11 @@ export class SceneMenu extends ZScene {
   }
 
   public start(): void {
+    if (this.commandWindow && this.statusWindow && this.goldWindow) {
+      this.commandWindow.setInput(this.engine.input)
+      return
+    }
+
     const skin = this.engine.textures.get('img/system/window.png')
 
     if (!skin) {
@@ -79,9 +110,10 @@ export class SceneMenu extends ZScene {
       this.goldWindow.setGold(gameState.party.gold)
     }
 
-    this.commandWindow?.open()
-    this.statusWindow?.open()
-    this.goldWindow?.open()
+    // Open windows with slide animations
+    this.commandWindow?.openWithSlide('left', screenW, screenH)
+    this.goldWindow?.openWithSlide('left', screenW, screenH)
+    this.statusWindow?.openWithSlide('right', screenW, screenH)
   }
 
   public update(delta: number): void {
@@ -106,7 +138,6 @@ export class SceneMenu extends ZScene {
     if (!this.commandWindow) return
     const index = this.commandWindow.index
 
-    // ['Przedmioty', 'Status', 'Zapisz', 'Koniec Gry']
     switch (index) {
       case 0:
         this.openItemScene()
@@ -118,7 +149,7 @@ export class SceneMenu extends ZScene {
         this.onSave()
         break
       case 3:
-        this.engine.scenes.pop()
+        this.engine.scenes.pop({ fade: false })
         // Or go to Title
         break
     }
@@ -126,7 +157,11 @@ export class SceneMenu extends ZScene {
 
   private async openItemScene(): Promise<void> {
     ZLogger.with('SceneMenu').info('Opening item scene...')
-    await this.engine.scenes.push(SceneItem)
+    await this.engine.scenes.push(
+      SceneItem,
+      { backgroundTexture: this.backgroundTexture },
+      { fade: false }
+    )
   }
 
   private async onSave(): Promise<void> {
@@ -152,8 +187,7 @@ export class SceneMenu extends ZScene {
 
     await new Promise((resolve) => setTimeout(resolve, 100))
 
-    // Pop scene via Engine Context
-    await this.engine.scenes.pop({ fade: true })
+    await this.engine.scenes.pop({ fade: false })
     this.engine.eventBus.emit(ZEngineSignal.MenuClosed, {})
   }
 }

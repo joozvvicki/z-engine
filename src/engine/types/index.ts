@@ -1,4 +1,4 @@
-import { Application } from '@engine/utils/pixi.js'
+import { Application, RenderTexture } from '@engine/utils/pixi.js'
 import { ZEventBus } from '@engine/core'
 import {
   GameStateManager,
@@ -678,6 +678,7 @@ export enum ZEngineSignal {
 }
 
 export interface ZMenuParams {
+  backgroundTexture?: RenderTexture | null
   mapOrId: ZMap | number
   playerX: number
   playerY: number

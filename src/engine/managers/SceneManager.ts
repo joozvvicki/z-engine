@@ -1,4 +1,4 @@
-import { Container } from '@engine/utils/pixi'
+import { Container, Matrix, RenderTexture } from '@engine/utils/pixi'
 import { ZScene } from '@engine/core/ZScene'
 import { TransitionSystem } from '@engine/systems/TransitionSystem'
 import { ZEngineSignal, IEngineContext } from '@engine/types'
@@ -48,6 +48,46 @@ export class SceneManager {
       return this.engine.transitions
     }
     return null
+  }
+
+  /**
+   * Przechwytuje aktualną scenę jako teksturę.
+   */
+  public captureScreenshot(): RenderTexture | null {
+    if (!this._currentScene?.container) return null
+
+    const renderer = this.engine.app.renderer
+    const screen = this.engine.app.screen
+    const container = this._currentScene.container
+
+    const scale = container.scale.x
+
+    try {
+      const renderTexture = RenderTexture.create({
+        width: screen.width,
+        height: screen.height
+      })
+
+      const matrix = new Matrix()
+
+      matrix.translate(-container.pivot.x, -container.pivot.y)
+
+      matrix.scale(scale, scale)
+
+      matrix.translate(screen.width / 2, screen.height / 2)
+
+      renderer.render({
+        container: container,
+        target: renderTexture,
+        transform: matrix,
+        clear: true
+      })
+
+      return renderTexture
+    } catch (e) {
+      ZLogger.with('SceneManager').error('Screenshot failed', e)
+      return null
+    }
   }
 
   /**
