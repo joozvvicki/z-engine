@@ -24,9 +24,10 @@ export const useViewport = (): {
   const lastPanPos = ref<{ x: number; y: number } | null>(null)
 
   const updateTransform = (container: HTMLElement | null): void => {
+    // CSS transforms are no longer needed as PIXI handles camera via SceneMap
+    // But we might still want to set some base styles or let it be
     if (container) {
-      container.style.transformOrigin = '0 0'
-      container.style.transform = `translate(${pan.value.x}px, ${pan.value.y}px) scale(${scale.value})`
+      container.style.transform = ''
     }
   }
 

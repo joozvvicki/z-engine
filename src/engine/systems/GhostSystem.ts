@@ -20,6 +20,8 @@ export class GhostSystem {
 
   // Internal State
   public container: Container
+  private contentContainer: Container
+  private maskGraphics: Graphics
   private active: boolean = false
   private dirty: boolean = false
   private position: { x: number; y: number } = { x: 0, y: 0 }
@@ -34,8 +36,16 @@ export class GhostSystem {
   private selectionBox: { x: number; y: number; w: number; h: number } | null = null
   private selectedEventPos: { x: number; y: number } | null = null
 
-  // System Mode is now external (EngineConfig), but GhostSystem only renders in EDIT mode
-  // or when explicitly active. We will control update calls from ZEngine.
+  // Player Start Dragging Support
+  private draggingPlayerStart: {
+    graphic: string
+    charX: number
+    charY: number
+    srcX?: number
+    srcY?: number
+    srcW?: number
+    srcH?: number
+  } | null = null
 
   constructor(
     stage: Container,
@@ -51,12 +61,20 @@ export class GhostSystem {
     this.tileSize = tileSize
 
     this.container = new Container()
-    this.container.label = 'GhostContainer'
+    this.container.label = 'GhostSystem'
     this.container.zIndex = 999
     this.container.visible = false
     this.container.eventMode = 'none'
 
-    // Init immediately or in separate call? Constructor is fine for creating container.
+    this.contentContainer = new Container()
+    this.contentContainer.label = 'GhostContent'
+    this.container.addChild(this.contentContainer)
+
+    this.maskGraphics = new Graphics()
+    this.container.addChild(this.maskGraphics)
+    this.contentContainer.mask = this.maskGraphics
+
+    // Add directly to the scene layer provided
     this.wrapper.addChild(this.container)
 
     this.setupListeners()
@@ -134,17 +152,6 @@ export class GhostSystem {
     this.dirty = true
   }
 
-  // Player Start Dragging Support
-  private draggingPlayerStart: {
-    graphic: string
-    charX: number
-    charY: number
-    srcX?: number
-    srcY?: number
-    srcW?: number
-    srcH?: number
-  } | null = null
-
   public setDraggingPlayerStart(
     info: {
       graphic: string
@@ -164,13 +171,7 @@ export class GhostSystem {
 
   public onUpdate(): void {
     if (!this.dirty) return
-    this.container.removeChildren()
-
-    // Visibility logic is now controlled by ZEngine or local state
-    // We assume if onUpdate is called, we should render something if active/edit mode.
-
-    this.container.x = 0
-    this.container.y = 0
+    this.contentContainer.removeChildren()
 
     if (this.active) {
       if (this.isShape && this.shapeStart && this.shapeEnd) {
@@ -180,7 +181,6 @@ export class GhostSystem {
       }
     }
 
-    // Always render placeholders for existing events if they exist (Editor Context)
     this.renderExistingEvents()
 
     if (this.selectedEventPos) {
@@ -191,6 +191,14 @@ export class GhostSystem {
     }
     if (this.draggingPlayerStart) {
       this.renderPlayerStartGhost()
+    }
+
+    const map = this.mapManager.currentMap
+    this.maskGraphics.clear()
+    if (map) {
+      this.maskGraphics
+        .rect(0, 0, map.width * this.tileSize, map.height * this.tileSize)
+        .fill({ color: 0xffffff, alpha: 1 })
     }
 
     this.dirty = false
@@ -216,7 +224,7 @@ export class GhostSystem {
           .rect(x, y, this.tileSize, this.tileSize)
           .stroke({ width: 1, color, alpha: 0.5 })
           .stroke({ width: 1, color: 0x000000, alpha: 0.2, alignment: 1 })
-        this.container.addChild(g)
+        this.contentContainer.addChild(g)
       }
       return
     }
@@ -226,13 +234,13 @@ export class GhostSystem {
         .rect(x, y, this.tileSize, this.tileSize)
         .fill({ color: 0xff0000, alpha: 0.3 })
         .stroke({ width: 1, color: 0xff0000, alpha: 0.8 })
-      this.container.addChild(g)
+      this.contentContainer.addChild(g)
     } else if (this.currentTool === ZTool.event) {
       const g = new Graphics()
         .rect(x, y, this.tileSize, this.tileSize)
         .fill({ color: 0x000000, alpha: 0.3 })
         .stroke({ width: 1, color: 0x000000, alpha: 0.6 })
-      this.container.addChild(g)
+      this.contentContainer.addChild(g)
 
       if (this.draggingEventId) {
         const event = this.mapManager.currentMap?.events.find((e) => e.id === this.draggingEventId)
@@ -255,7 +263,7 @@ export class GhostSystem {
             sprite.x = x + this.tileSize / 2
             sprite.y = y + this.tileSize
             sprite.alpha = 0.5
-            this.container.addChild(sprite)
+            this.contentContainer.addChild(sprite)
           }
         }
       }
@@ -341,7 +349,7 @@ export class GhostSystem {
       g.fill({ color: 0x0000ff, alpha: 0.1 }).stroke({ width: 2, color: 0x3399ff, alpha: 0.9 })
     }
 
-    this.container.addChild(g)
+    this.contentContainer.addChild(g)
   }
 
   private renderTileSelectionAt(mapX: number, mapY: number, sel: TileSelection): void {
@@ -474,7 +482,7 @@ export class GhostSystem {
         spr.x = absX + qx * (this.tileSize / 2)
         spr.y = absY + qy * (this.tileSize / 2)
         spr.alpha = 0.5
-        this.container.addChild(spr)
+        this.contentContainer.addChild(spr)
       }
     }
   }
@@ -537,7 +545,7 @@ export class GhostSystem {
     }
 
     sprite.alpha = 0.5
-    this.container.addChild(sprite)
+    this.contentContainer.addChild(sprite)
   }
 
   private renderSelectionBox(): void {
@@ -551,7 +559,7 @@ export class GhostSystem {
     g.stroke({ width: 2, color: 0xffffff, alpha: 0.9 })
     g.rect(x, y, w, h)
     g.stroke({ width: 2, color: 0x000000, alpha: 0.5, alignment: 1 })
-    this.container.addChild(g)
+    this.contentContainer.addChild(g)
   }
 
   public setDraggingEventId(id: string | null): void {
@@ -577,7 +585,7 @@ export class GhostSystem {
         .rect(x, y, this.tileSize, this.tileSize)
         .fill({ color: 0x000000, alpha: 0.3 })
         .stroke({ width: 2, color: 0x000000, alpha: 0.6 })
-      this.container.addChild(g)
+      this.contentContainer.addChild(g)
 
       const activePage = event.pages[0]
       if (activePage?.graphic) {
@@ -598,7 +606,7 @@ export class GhostSystem {
           sprite.x = x + this.tileSize / 2
           sprite.y = y + this.tileSize
           sprite.alpha = 0.3
-          this.container.addChild(sprite)
+          this.contentContainer.addChild(sprite)
         }
       }
     }
@@ -613,7 +621,7 @@ export class GhostSystem {
       .stroke({ width: 2, color: 0x000000, alpha: 0.8 })
       .rect(x - 2, y - 2, this.tileSize + 4, this.tileSize + 4)
       .stroke({ width: 1, color: 0x000000, alpha: 0.6 })
-    this.container.addChild(g)
+    this.contentContainer.addChild(g)
   }
 
   private renderPlayerStartGhost(): void {
@@ -627,7 +635,7 @@ export class GhostSystem {
       .rect(x, y, this.tileSize, this.tileSize)
       .fill({ color: 0x00ff00, alpha: 0.3 })
       .stroke({ width: 2, color: 0x00ff00, alpha: 0.8 })
-    this.container.addChild(g)
+    this.contentContainer.addChild(g)
 
     // 2. Draw Sprite
     const graphicData = {
@@ -668,7 +676,7 @@ export class GhostSystem {
       sprite.x = x + this.tileSize / 2
       sprite.y = y + this.tileSize
       sprite.alpha = 0.6
-      this.container.addChild(sprite)
+      this.contentContainer.addChild(sprite)
     }
 
     // 3. Label

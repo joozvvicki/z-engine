@@ -1,4 +1,4 @@
-import { ref, shallowRef, onUnmounted, watch, type Ref } from 'vue'
+import { ref, shallowRef, onUnmounted, watch, type Ref, onMounted } from 'vue'
 import { ZEngine } from '@engine/core/ZEngine'
 import { useEditorStore } from '@ui/stores/editor'
 import { useDatabaseStore } from '@ui/stores/database'
@@ -109,6 +109,11 @@ export const useEngine = (
       globalThis.__PIXI_APP__ = newEngine.app
 
       newEngine.setDataProvider(dataProvider)
+      newEngine.getViewportState = () => {
+        if (!store.activeMapID) return null
+        const state = store.mapViewportStates[store.activeMapID]
+        return state || null
+      }
       newEngine.setSystemData({
         projectName: store.systemProjectName,
         version: '1.0.0',
@@ -210,6 +215,22 @@ export const useEngine = (
     }
   }
 
+  let resizeObserver: ResizeObserver | null = null
+
+  onMounted(() => {
+    resizeObserver = new ResizeObserver((entries) => {
+      if (!engine.value) return
+      for (const entry of entries) {
+        const { width, height } = entry.contentRect
+        engine.value.resize(width, height)
+      }
+    })
+
+    if (canvasContainer.value?.parentElement) {
+      resizeObserver.observe(canvasContainer.value.parentElement)
+    }
+  })
+
   const syncCanvasSize = (eng: IEngineContext, targetMapOverride?: ZMap): void => {
     const map = targetMapOverride || store.activeMap
     if (!map || !canvasContainer.value) return
@@ -231,11 +252,10 @@ export const useEngine = (
       canvas.style.objectFit = 'contain'
       eng.resize(w, h)
     } else {
-      // EDITOR MAP-SIZE SCALING
-      const w = map.width * store.tileSize
-      const h = map.height * store.tileSize
-      canvasContainer.value.style.width = `${w}px`
-      canvasContainer.value.style.height = `${h}px`
+      // EDITOR WORLD-SPACE VIEWPORT
+      // Container fills parent, PIXI renderer handles scaling internally
+      canvasContainer.value.style.width = '100%'
+      canvasContainer.value.style.height = '100%'
       canvasContainer.value.style.display = 'block'
       canvasContainer.value.style.background = 'transparent'
 
@@ -243,17 +263,24 @@ export const useEngine = (
       canvas.style.width = '100%'
       canvas.style.height = '100%'
       canvas.style.objectFit = 'fill'
-      eng.resize(w, h)
+
+      // Initial resize based on parent
+      if (canvasContainer.value.parentElement) {
+        const rect = canvasContainer.value.parentElement.getBoundingClientRect()
+        eng.resize(rect.width, rect.height)
+      }
     }
   }
 
   const syncGridSize = (eng: IEngineContext): void => {
     if (!store.activeMap) return
     if (eng.grid) {
-      const isVisible = store.currentTool === ZTool.event && isEditorView
+      // Boundaries should always be visible in editor, so we always set full size
+      // We might want to add a proper "showGridLines" toggle to GridSystem later
+      const shouldShowSize = isEditorView
       eng.grid.setSize(
-        isVisible ? store.activeMap.width : 0,
-        isVisible ? store.activeMap.height : 0
+        shouldShowSize ? store.activeMap.width : 0,
+        shouldShowSize ? store.activeMap.height : 0
       )
     }
   }
@@ -401,6 +428,7 @@ export const useEngine = (
   onUnmounted(() => {
     engine.value?.destroy()
     if (isEditorView) window.$zEngine = null
+    resizeObserver?.disconnect()
   })
 
   return {

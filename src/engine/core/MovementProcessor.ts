@@ -1,6 +1,5 @@
-import { ZMoveCode, type ZMoveable } from '@engine/types'
+import { IPhysicsSystem, ZMoveCode, type ZMoveable } from '@engine/types'
 import ZLogger from '@engine/utils/ZLogger'
-import type { IPhysicsSystem } from '@engine/interfaces/IPhysicsSystem'
 import { MoveRouteRegistry } from '@engine/commands/movement/move-route/registry'
 
 export class MovementProcessor {

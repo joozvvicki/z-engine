@@ -76,6 +76,8 @@ export class ZEngine implements IEngineContext {
   public messages!: MessageSystem
   public errors!: ErrorSystem
 
+  public getViewportState?(): { scale: number; pan: { x: number; y: number } } | null
+
   private sceneLayer: Container
   private globalLayer: Container
   private isBooted: boolean = false
@@ -119,6 +121,7 @@ export class ZEngine implements IEngineContext {
     // 1. Init Pixi Application
     await this.app.init({
       backgroundColor: 0x000000,
+      backgroundAlpha: 0, // Enable transparency support
       autoDensity: true,
       resolution: window.devicePixelRatio || 1,
       eventMode: 'static',
@@ -262,11 +265,13 @@ export class ZEngine implements IEngineContext {
 
     // Visibility Toggles
     if (mode === 'play') {
+      this.app.renderer.background.alpha = 1
       this.entities.setVisible(true)
       this.ghost.setVisible(false)
       this.grid.setVisible(false)
       this.messages.resize(this.app.screen.width, this.app.screen.height)
     } else {
+      this.app.renderer.background.alpha = 0
       this.entities.setVisible(false)
       this.ghost.setVisible(true)
       this.grid.setVisible(true)

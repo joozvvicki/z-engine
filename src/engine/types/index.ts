@@ -697,6 +697,7 @@ export interface IEngineContext {
   setTool(tool: ZTool): void
   tools: ToolManager
   history: HistoryManager
+  getViewportState?(): { scale: number; pan: { x: number; y: number } } | null
 }
 
 export interface ZEventInterpreter {

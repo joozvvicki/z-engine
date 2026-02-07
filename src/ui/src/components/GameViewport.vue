@@ -34,13 +34,12 @@ const onContextMenu = (e: MouseEvent): void => {
   const rect = canvasContainer.value?.getBoundingClientRect()
   if (!rect || !store.activeMapID) return
 
-  const viewport = store.mapViewportStates[store.activeMapID] || { scale: 1 }
+  const viewport = store.mapViewportStates[store.activeMapID] || { scale: 1, pan: { x: 0, y: 0 } }
 
-  // Calculate tile coords from mouse pos
-  const gx = (e.clientX - rect.left) / store.tileSize / viewport.scale
-  const gy = (e.clientY - rect.top) / store.tileSize / viewport.scale
+  // Calculate tile coords from mouse pos accounting for PIXI viewport
+  const gx = (e.clientX - rect.left - viewport.pan.x) / (store.tileSize * viewport.scale)
+  const gy = (e.clientY - rect.top - viewport.pan.y) / (store.tileSize * viewport.scale)
 
-  // This is a bit rough, better use engine service if possible, but for simplicity:
   const tx = Math.floor(gx)
   const ty = Math.floor(gy)
 

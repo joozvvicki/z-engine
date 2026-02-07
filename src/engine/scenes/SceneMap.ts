@@ -8,6 +8,7 @@ export class SceneMap extends ZScene {
 
   constructor(engine: IEngineContext) {
     super(engine)
+    this.container.sortableChildren = true
   }
 
   public async init(params: {
@@ -165,10 +166,17 @@ export class SceneMap extends ZScene {
       this.container.x = screenW / 2
       this.container.y = screenH / 2
     } else {
-      // Reset scale in editor
-      this.container.scale.set(1)
+      // WORLD-SPACE VIEWPORT (Editor Mode)
+      // Read transformation from the UI Store (via engine context/provider)
+      const viewport = this.engine.getViewportState?.() || {
+        scale: 1,
+        pan: { x: 0, y: 0 }
+      }
+
+      this.container.scale.set(viewport.scale)
+      this.container.x = viewport.pan.x
+      this.container.y = viewport.pan.y
       this.container.pivot.set(0)
-      this.container.position.set(0)
     }
   }
 
