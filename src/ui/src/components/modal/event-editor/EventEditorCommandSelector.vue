@@ -13,6 +13,7 @@ import VisualParams from './params/VisualParams.vue'
 import EffectParams from './params/EffectParams.vue'
 import PictureParams from './params/PictureParams.vue'
 import MapParams from './params/MapParams.vue'
+import ScreenParams from './params/ScreenParams.vue'
 import { variableOps, directions, moveActions, commandCategories } from './params/config'
 
 const props = defineProps<{
@@ -310,6 +311,23 @@ const handleSave = (): void => {
               :events="store.activeMap?.events || []"
             />
 
+            <!-- Screen Control -->
+            <ScreenParams
+              v-else-if="
+                [
+                  ZCommandCode.FadeInScreen,
+                  ZCommandCode.FadeOutScreen,
+                  ZCommandCode.TintScreen,
+                  ZCommandCode.FlashScreen,
+                  ZCommandCode.ShakeScreen,
+                  ZCommandCode.SetWeather
+                ].includes(selectedCommandType || -1)
+              "
+              ref="editorRef"
+              :initial-command="props.initialCommand"
+              :type="selectedCommandType!"
+            />
+
             <!-- Picture Control -->
             <PictureParams
               v-else-if="
@@ -357,10 +375,18 @@ const handleSave = (): void => {
                   ZCommandCode.ShowBalloonIcon,
                   ZCommandCode.ShowPicture,
                   ZCommandCode.MovePicture,
+                  ZCommandCode.RotatePicture,
+                  ZCommandCode.TintPicture,
                   ZCommandCode.ErasePicture,
                   ZCommandCode.ScrollMap,
                   ZCommandCode.GetLocationInfo,
-                  ZCommandCode.Loop
+                  ZCommandCode.Loop,
+                  ZCommandCode.FadeInScreen,
+                  ZCommandCode.FadeOutScreen,
+                  ZCommandCode.TintScreen,
+                  ZCommandCode.FlashScreen,
+                  ZCommandCode.ShakeScreen,
+                  ZCommandCode.SetWeather
                 ].includes(selectedCommandType || -1)
               "
               class="flex flex-col items-center justify-center flex-1 text-slate-300 gap-4"

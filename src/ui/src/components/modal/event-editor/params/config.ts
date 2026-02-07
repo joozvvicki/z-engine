@@ -29,6 +29,7 @@ import {
   IconMapPin,
   IconFlare,
   IconMusic,
+  IconSun,
   IconX
 } from '@tabler/icons-vue'
 import { ZMoveCode, ZCommandCode } from '@engine/types'
@@ -188,6 +189,8 @@ export const commandCategories = [
     commands: [
       { code: ZCommandCode.ShowPicture, label: 'Show Picture', icon: IconPhoto },
       { code: ZCommandCode.MovePicture, label: 'Move Picture', icon: IconPhoto },
+      { code: ZCommandCode.RotatePicture, label: 'Rotate Picture', icon: IconRefresh },
+      { code: ZCommandCode.TintPicture, label: 'Tint Picture', icon: IconFlare },
       { code: ZCommandCode.ErasePicture, label: 'Erase Picture', icon: IconX }
     ]
   },
@@ -197,6 +200,18 @@ export const commandCategories = [
     commands: [
       { code: ZCommandCode.ScrollMap, label: 'Scroll Map', icon: IconMapPin },
       { code: ZCommandCode.GetLocationInfo, label: 'Get Location Info', icon: IconMapPin }
+    ]
+  },
+  {
+    id: 'Screen',
+    icon: IconSun,
+    commands: [
+      { code: ZCommandCode.FadeInScreen, label: 'Fade-in Screen', icon: IconEye },
+      { code: ZCommandCode.FadeOutScreen, label: 'Fade-out Screen', icon: IconEyeOff },
+      { code: ZCommandCode.TintScreen, label: 'Tint Screen', icon: IconFlare },
+      { code: ZCommandCode.FlashScreen, label: 'Flash Screen', icon: IconFlare },
+      { code: ZCommandCode.ShakeScreen, label: 'Shake Screen', icon: IconRefresh },
+      { code: ZCommandCode.SetWeather, label: 'Set Weather', icon: IconSun }
     ]
   }
 ]

@@ -517,6 +517,13 @@ export enum ZCommandCode {
   PlaySE = 250,
   StopSE = 251,
 
+  FadeOutScreen = 221,
+  FadeInScreen = 222,
+  TintScreen = 223,
+  FlashScreen = 224,
+  ShakeScreen = 225,
+  SetWeather = 226,
+
   // Message extension
   ShowMakeText = 1011,
   ShowScrollingText = 105,

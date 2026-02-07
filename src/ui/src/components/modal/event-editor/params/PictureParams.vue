@@ -21,6 +21,15 @@ const blendMode = ref(0) // 0: Normal, 1: Add, 2: Multiply, 3: Screen
 const duration = ref(60)
 const wait = ref(true)
 
+// Rotation state
+const rotationSpeed = ref(0)
+
+// Tint state
+const red = ref(255)
+const green = ref(255)
+const blue = ref(255)
+const gray = ref(0)
+
 const initialize = (): void => {
   if (props.initialCommand) {
     const params = props.initialCommand.parameters
@@ -45,6 +54,16 @@ const initialize = (): void => {
         duration.value = Number(params[10] ?? 60)
         wait.value = params[11] !== false
       }
+    } else if (props.type === ZCommandCode.RotatePicture) {
+      rotationSpeed.value = Number(params[1] ?? 0)
+    } else if (props.type === ZCommandCode.TintPicture) {
+      const color = (params[1] as number[]) || [255, 255, 255, 0]
+      red.value = color[0]
+      green.value = color[1]
+      blue.value = color[2]
+      gray.value = color[3]
+      duration.value = Number(params[2] ?? 60)
+      wait.value = params[3] !== false
     }
   }
 }
@@ -85,6 +104,15 @@ defineExpose({
       ]
     } else if (props.type === ZCommandCode.ErasePicture) {
       params = [pictureId.value]
+    } else if (props.type === ZCommandCode.RotatePicture) {
+      params = [pictureId.value, rotationSpeed.value]
+    } else if (props.type === ZCommandCode.TintPicture) {
+      params = [
+        pictureId.value,
+        [red.value, green.value, blue.value, gray.value],
+        duration.value,
+        wait.value
+      ]
     }
 
     return {
@@ -195,6 +223,112 @@ defineExpose({
               @click="wait = !wait"
               >Wait</span
             >
+          </div>
+        </div>
+      </div>
+    </template>
+
+    <!-- Rotate Picture -->
+    <template v-else-if="type === ZCommandCode.RotatePicture">
+      <div class="space-y-3">
+        <label class="text-[10px] font-bold uppercase text-slate-400 block ml-1"
+          >Rotation Speed</label
+        >
+        <div class="flex items-center gap-4">
+          <input
+            v-model.number="rotationSpeed"
+            type="range"
+            min="-90"
+            max="90"
+            class="w-full h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-indigo-500"
+          />
+          <span class="text-xs font-bold text-slate-600 w-10 text-right">{{ rotationSpeed }}</span>
+        </div>
+        <p class="text-[10px] text-slate-400">Negative values rotate counter-clockwise.</p>
+      </div>
+    </template>
+
+    <!-- Tint Picture -->
+    <template v-else-if="type === ZCommandCode.TintPicture">
+      <div class="space-y-4">
+        <label class="text-[10px] font-bold uppercase text-slate-400 block ml-1"
+          >Color Settings</label
+        >
+
+        <div class="grid grid-cols-2 gap-4">
+          <div class="space-y-2">
+            <div class="flex justify-between text-[10px] font-bold">
+              <span class="text-red-500">RED</span>
+              <span class="text-slate-400">{{ red }}</span>
+            </div>
+            <input
+              v-model.number="red"
+              type="range"
+              min="0"
+              max="255"
+              class="w-full h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-red-500"
+            />
+          </div>
+          <div class="space-y-2">
+            <div class="flex justify-between text-[10px] font-bold">
+              <span class="text-green-500">GREEN</span>
+              <span class="text-slate-400">{{ green }}</span>
+            </div>
+            <input
+              v-model.number="green"
+              type="range"
+              min="0"
+              max="255"
+              class="w-full h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-green-500"
+            />
+          </div>
+          <div class="space-y-2">
+            <div class="flex justify-between text-[10px] font-bold">
+              <span class="text-blue-500">BLUE</span>
+              <span class="text-slate-400">{{ blue }}</span>
+            </div>
+            <input
+              v-model.number="blue"
+              type="range"
+              min="0"
+              max="255"
+              class="w-full h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-blue-500"
+            />
+          </div>
+          <div class="space-y-2">
+            <div class="flex justify-between text-[10px] font-bold">
+              <span class="text-slate-500">GRAY</span>
+              <span class="text-slate-400">{{ gray }}</span>
+            </div>
+            <input
+              v-model.number="gray"
+              type="range"
+              min="0"
+              max="255"
+              class="w-full h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-slate-500"
+            />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-6 pt-4 border-t border-slate-100">
+          <div class="space-y-3">
+            <label class="text-[10px] font-bold uppercase text-slate-400 block ml-1"
+              >Duration (Frames)</label
+            >
+            <input v-model.number="duration" type="number" min="1" class="docs-input" />
+          </div>
+          <div class="flex items-end pb-3">
+            <label class="flex items-center gap-2 cursor-pointer group">
+              <input
+                v-model="wait"
+                type="checkbox"
+                class="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+              />
+              <span
+                class="text-[10px] font-bold uppercase text-slate-500 group-hover:text-slate-700 transition-colors"
+                >Wait</span
+              >
+            </label>
           </div>
         </div>
       </div>
