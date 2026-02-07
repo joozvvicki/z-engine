@@ -9,6 +9,8 @@ export const NODE_PADDING = 24
 export const SOCKET_SIZE = 12
 export const SOCKET_ROW_HEIGHT = 28
 export const SOCKET_OFFSET = 0
+export const NODE_BORDER_TOP = 4
+export const NODE_BORDER_SIDE = 2
 
 export const useNodeScriptStore = defineStore('nodeScript', () => {
   const nodes = ref<ZNode[]>([])

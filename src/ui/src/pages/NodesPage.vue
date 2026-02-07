@@ -1,18 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
-import {
-  IconSearch,
-  IconZoomIn,
-  IconZoomOut,
-  IconLayoutGrid,
-  IconPlus,
-  IconCode,
-  IconX
-} from '@tabler/icons-vue'
+import { IconSearch, IconLayoutGrid, IconPlus, IconCode } from '@tabler/icons-vue'
 import { useNodeScriptStore } from '@ui/stores/nodeScript'
-import VisualNode from '@ui/components/nodes/VisualNode.vue'
-import NodeConnection from '@ui/components/nodes/NodeConnection.vue'
-import NodeEditorPanel from '@ui/components/nodes/NodeEditorPanel.vue'
 import type {
   ZNodeType,
   ZNode,
@@ -21,30 +10,9 @@ import type {
   ZEventCommand
 } from '@engine/types'
 import { NodeRegistry, nodeCompiler } from '@engine/nodes'
-import {
-  NODE_WIDTH,
-  NODE_HEADER_HEIGHT,
-  NODE_PADDING,
-  SOCKET_ROW_HEIGHT,
-  SOCKET_OFFSET
-} from '@ui/stores/nodeScript'
+import NodeEditorBoard from '@ui/components/nodes/NodeEditorBoard.vue'
 
 const store = useNodeScriptStore()
-const canvasRef = ref<HTMLElement | null>(null)
-
-// --- VIEWPORT STATE (Local UI triggers) ---
-const isPanning = ref(false)
-const dragStart = ref({ x: 0, y: 0 })
-
-// --- DRAG NODE STATE ---
-const draggingNodeId = ref<string | null>(null)
-const dragNodeOffset = ref({ x: 0, y: 0 })
-
-// --- CONNECTION STATE ---
-const connectionSource = ref<{ nodeId: string; socketId: string; x: number; y: number } | null>(
-  null
-)
-const mousePos = ref({ x: 0, y: 0 })
 
 // --- COMPILE PREVIEW STATE ---
 const showCompilePreview = ref(false)
@@ -114,22 +82,6 @@ const initializeNodeValues = (schemas: ZNodeValueSchema[]): Record<string, unkno
   return values
 }
 
-// Get node schemas from registry
-const getNodeSchemas = (node: ZNode): ZNodeValueSchema[] => {
-  const key = node.config?.nodeKey as string
-  if (!key || !NodeRegistry[key]) return []
-  return NodeRegistry[key].values
-}
-
-// Update node value
-const updateNodeValue = (nodeId: string, key: string, value: unknown): void => {
-  const node = store.nodes.find((n) => n.id === nodeId)
-  if (node) {
-    if (!node.values) node.values = {}
-    node.values[key] = value
-  }
-}
-
 // --- INITIAL LOAD ---
 onMounted(async () => {
   await store.loadAll()
@@ -152,133 +104,6 @@ const compileNodeGraph = (): void => {
     alert(`Compilation failed: ${error}`)
   }
 }
-
-// --- HELPERS ---
-const getSocketGlobalPos = (
-  nodeId: string,
-  socketId: string,
-  isInput: boolean
-): { x: number; y: number } => {
-  const node = store.nodes.find((n) => n.id === nodeId)
-  if (!node) return { x: 0, y: 0 }
-
-  const list = isInput ? node.inputs : node.outputs
-  const index = list.findIndex((s) => s.id === socketId)
-
-  const relativeY =
-    NODE_HEADER_HEIGHT + NODE_PADDING + index * SOCKET_ROW_HEIGHT + SOCKET_ROW_HEIGHT / 2
-  const relativeX = isInput ? -SOCKET_OFFSET : NODE_WIDTH + SOCKET_OFFSET
-
-  return {
-    x: node.x + relativeX,
-    y: node.y + relativeY
-  }
-}
-
-// --- HANDLERS ---
-const handleWheel = (e: WheelEvent): void => {
-  if (e.ctrlKey) {
-    e.preventDefault()
-    const delta = e.deltaY > 0 ? 0.9 : 1.1
-    store.zoom = Math.min(Math.max(0.5, store.zoom * delta), 2)
-  } else {
-    store.pan.x -= e.deltaX
-    store.pan.y -= e.deltaY
-  }
-}
-
-const startPan = (e: MouseEvent): void => {
-  if (e.button === 1 || (e.button === 0 && e.altKey)) {
-    isPanning.value = true
-    dragStart.value = { x: e.clientX, y: e.clientY }
-    e.preventDefault()
-  }
-}
-
-const startDragNode = (e: MouseEvent, node: ZNode): void => {
-  if (e.button !== 0 || e.altKey) return
-  e.stopPropagation()
-  const rect = canvasRef.value?.getBoundingClientRect()
-  const mouseX = e.clientX - (rect?.left || 0)
-  const mouseY = e.clientY - (rect?.top || 0)
-
-  draggingNodeId.value = node.id
-  dragNodeOffset.value = {
-    x: mouseX / store.zoom - node.x,
-    y: mouseY / store.zoom - node.y
-  }
-}
-
-const handleMouseMove = (e: MouseEvent): void => {
-  mousePos.value = { x: e.clientX, y: e.clientY }
-
-  if (isPanning.value) {
-    const dx = e.clientX - dragStart.value.x
-    const dy = e.clientY - dragStart.value.y
-    store.pan.x += dx
-    store.pan.y += dy
-    dragStart.value = { x: e.clientX, y: e.clientY }
-  }
-
-  if (draggingNodeId.value) {
-    const rect = canvasRef.value?.getBoundingClientRect()
-    const mouseX = e.clientX - (rect?.left || 0)
-    const mouseY = e.clientY - (rect?.top || 0)
-
-    const x = mouseX / store.zoom - dragNodeOffset.value.x
-    const y = mouseY / store.zoom - dragNodeOffset.value.y
-    store.updateNodePosition(draggingNodeId.value, x, y)
-  }
-}
-
-const handleMouseUp = (): void => {
-  isPanning.value = false
-  draggingNodeId.value = null
-  connectionSource.value = null
-}
-
-const handleSocketDragStart = (
-  nodeId: string,
-  socketId: string,
-  pos: { x: number; y: number }
-): void => {
-  connectionSource.value = { nodeId, socketId, x: pos.x, y: pos.y }
-}
-
-const handleSocketDrop = (toNodeId: string, toSocketId: string): void => {
-  if (!connectionSource.value) return
-
-  store.addConnection({
-    id: `c-${Date.now()}`,
-    fromNode: connectionSource.value.nodeId,
-    fromSocket: connectionSource.value.socketId,
-    toNode: toNodeId,
-    toSocket: toSocketId
-  })
-  connectionSource.value = null
-}
-
-const activeDragPath = computed((): string => {
-  if (!connectionSource.value) return ''
-  const start = getSocketGlobalPos(
-    connectionSource.value.nodeId,
-    connectionSource.value.socketId,
-    false
-  )
-
-  // Convert current mouse to board coordinates
-  const rect = canvasRef.value?.getBoundingClientRect()
-  const mouseX = mousePos.value.x - (rect?.left || 0)
-  const mouseY = mousePos.value.y - (rect?.top || 0)
-
-  const endX = (mouseX - store.pan.x) / store.zoom
-  const endY = (mouseY - store.pan.y) / store.zoom
-
-  const dist = Math.abs(endX - start.x)
-  const controlOffset = Math.max(dist * 0.5, 50)
-
-  return `M ${start.x} ${start.y} C ${start.x + controlOffset} ${start.y}, ${endX - controlOffset} ${endY}, ${endX} ${endY}`
-})
 
 const addNewNode = (key: string, def: ZNodeDefinition): void => {
   const id = `node-${Date.now()}`
@@ -349,161 +174,55 @@ const addNewNode = (key: string, def: ZNodeDefinition): void => {
           </div>
         </div>
       </div>
-
-      <div class="p-4 border-t border-slate-50 bg-slate-50/30">
-        <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm">
-          <div class="flex items-center justify-between mb-2">
-            <span class="text-[9px] font-black uppercase text-slate-400">Viewport Stats</span>
-            <div class="flex gap-1">
-              <div class="w-1 h-1 rounded-full bg-emerald-400"></div>
-              <div class="w-1 h-1 rounded-full bg-emerald-400 animate-pulse"></div>
-            </div>
-          </div>
-          <div class="grid grid-cols-2 gap-2 text-[10px] font-bold text-slate-500">
-            <span class="opacity-60">Nodes:</span> <span>{{ store.nodes.length }}</span>
-            <span class="opacity-60">Wires:</span> <span>{{ store.connections.length }}</span>
-          </div>
-        </div>
-      </div>
     </aside>
 
-    <!-- Canvas -->
-    <main
-      ref="canvasRef"
-      class="flex-1 relative overflow-hidden bg-[#f8f9fc] cursor-grab active:cursor-grabbing"
-      @mousedown="startPan"
-      @mousemove="handleMouseMove"
-      @mouseup="handleMouseUp"
-      @wheel="handleWheel"
-    >
-      <!-- Grid Background -->
-      <div
-        class="absolute inset-0 pointer-events-none opacity-40"
-        :style="{
-          transform: `translate(${store.pan.x}px, ${store.pan.y}px) scale(${store.zoom})`,
-          backgroundImage: 'radial-gradient(#94a3b8 1px, transparent 1px)',
-          backgroundSize: '24px 24px'
-        }"
-      ></div>
-
-      <!-- Zoom/Pan Wrapper -->
-      <div
-        class="absolute left-0 top-0 w-full h-full origin-top-left"
-        :style="{ transform: `translate(${store.pan.x}px, ${store.pan.y}px) scale(${store.zoom})` }"
+    <!-- Unified Board -->
+    <main class="flex-1 relative overflow-hidden">
+      <NodeEditorBoard
+        v-model:nodes="store.nodes"
+        v-model:connections="store.connections"
+        v-model:pan="store.pan"
+        v-model:zoom="store.zoom"
+        @connection-add="store.addConnection"
+        @connection-delete="store.removeConnection"
+        @node-delete="store.removeNode"
+        @node-move="store.updateNodePosition"
       >
-        <!-- Wires (Connections) -->
-        <svg
-          class="absolute left-0 top-0 w-[10000px] h-[10000px] pointer-events-none overflow-visible z-0"
-        >
-          <g>
-            <NodeConnection
-              v-for="c in store.connections"
-              :key="c.id"
-              :connection="c"
-              :from-node="store.nodes.find((n) => n.id === c.fromNode)!"
-              :to-node="store.nodes.find((n) => n.id === c.toNode)!"
-              :scale="store.zoom"
-              @delete="store.removeConnection(c.id)"
-            />
-            <!-- Currently dragging wire -->
-            <path
-              v-if="connectionSource"
-              :d="activeDragPath"
-              fill="none"
-              stroke="#6366f1"
-              stroke-width="3"
-              stroke-dasharray="8 4"
-              opacity="0.6"
-            />
-          </g>
-        </svg>
-
-        <!-- Nodes -->
-        <div class="relative z-10">
-          <VisualNode
-            v-for="node in store.nodes"
-            :key="node.id"
-            :node="node"
-            :scale="store.zoom"
-            @drag-start="(e) => startDragNode(e, node)"
-            @delete="store.removeNode(node.id)"
-            @socket-drag-start="(id, pos) => handleSocketDragStart(node.id, id, pos)"
-            @socket-drop="(id) => handleSocketDrop(node.id, id)"
-          >
-            <template #content>
-              <!-- Dynamic node value editor based on registry schemas -->
-              <div class="space-y-2.5">
-                <NodeEditorPanel
-                  v-for="schema in getNodeSchemas(node)"
-                  :key="schema.key"
-                  :schema="schema"
-                  :model-value="node.values?.[schema.key]"
-                  @update:model-value="updateNodeValue(node.id, schema.key, $event)"
-                />
-              </div>
-            </template>
-          </VisualNode>
-        </div>
-      </div>
-
-      <!-- Overlays -->
-      <div class="absolute bottom-6 right-6 flex gap-2">
-        <div
-          class="bg-white border border-slate-200 rounded-xl flex items-center p-1 shadow-lg shadow-slate-200/50"
-        >
+        <template #toolbar>
           <button
-            class="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-800 transition-colors"
-            @click="store.zoom = Math.max(0.5, store.zoom - 0.1)"
+            class="bg-white hover:bg-slate-50 text-slate-700 px-5 py-2.5 rounded-2xl shadow-xl shadow-slate-200/20 flex items-center gap-2.5 text-xs font-black uppercase tracking-wider transition-all active:scale-95 border border-slate-200"
+            @click="store.saveAll"
           >
-            <IconZoomOut :size="18" />
+            Save Graph
           </button>
-          <span class="text-xs font-black text-slate-600 w-12 text-center tracking-tighter"
-            >{{ Math.round(store.zoom * 100) }}%</span
-          >
           <button
-            class="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-800 transition-colors"
-            @click="store.zoom = Math.min(2, store.zoom + 0.1)"
+            class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-2xl shadow-xl shadow-indigo-600/20 flex items-center gap-2.5 text-xs font-black uppercase tracking-wider transition-all active:scale-95 border border-indigo-500/50"
+            @click="compileNodeGraph"
           >
-            <IconZoomIn :size="18" />
+            <IconCode :size="14" />
+            Compile
           </button>
-        </div>
-      </div>
+        </template>
 
-      <div class="absolute top-6 right-6 flex gap-3">
-        <button
-          class="bg-white hover:bg-slate-50 text-slate-700 px-5 py-2.5 rounded-2xl shadow-xl shadow-slate-200/20 flex items-center gap-2.5 text-xs font-black uppercase tracking-wider transition-all active:scale-95 border border-slate-200"
-          @click="store.saveAll"
-        >
-          Save Graph
-        </button>
-        <button
-          class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-2xl shadow-xl shadow-indigo-600/20 flex items-center gap-2.5 text-xs font-black uppercase tracking-wider transition-all active:scale-95 border border-indigo-500/50"
-          @click="compileNodeGraph"
-        >
-          <IconCode :size="14" />
-          Compile
-        </button>
-      </div>
-
-      <!-- Instructions Overlay -->
-      <div class="absolute top-6 left-6 pointer-events-none">
-        <div
-          class="bg-slate-900/80 backdrop-blur-md text-white/70 px-4 py-3 rounded-2xl border border-white/10 text-[10px] font-bold space-y-1 shadow-2xl"
-        >
-          <div class="flex items-center gap-2">
-            <div class="w-1 h-1 rounded-full bg-indigo-400"></div>
-            <span>Left Click drag to move nodes</span>
+        <template #hud>
+          <div
+            class="bg-slate-900/80 backdrop-blur-md text-white/70 px-4 py-3 rounded-2xl border border-white/10 text-[10px] font-bold space-y-1 shadow-2xl"
+          >
+            <div class="flex items-center gap-2">
+              <div class="w-1 h-1 rounded-full bg-indigo-400"></div>
+              <span>Left Click drag to move nodes</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <div class="w-1 h-1 rounded-full bg-indigo-400"></div>
+              <span>Middle Click / Alt+Drag to pan</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <div class="w-1 h-1 rounded-full bg-indigo-400"></div>
+              <span>Ctrl + Scroll to zoom</span>
+            </div>
           </div>
-          <div class="flex items-center gap-2">
-            <div class="w-1 h-1 rounded-full bg-indigo-400"></div>
-            <span>Right Click / Alt+Drag to pan</span>
-          </div>
-          <div class="flex items-center gap-2">
-            <div class="w-1 h-1 rounded-full bg-indigo-400"></div>
-            <span>Ctrl + Scroll to zoom</span>
-          </div>
-        </div>
-      </div>
+        </template>
+      </NodeEditorBoard>
     </main>
   </div>
 </template>

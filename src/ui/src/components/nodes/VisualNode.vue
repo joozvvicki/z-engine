@@ -29,6 +29,7 @@ const emit = defineEmits<{
   (e: 'socket-drag-start', socketId: string, pos: { x: number; y: number }): void
   (e: 'socket-drag-over', socketId: string): void
   (e: 'socket-drop', socketId: string): void
+  (e: 'click'): void
 }>()
 
 const borderClass = computed(() => {
@@ -107,6 +108,19 @@ const getIcon = computed(() => {
   }
 })
 
+const totalHeight = computed(() => {
+  const inputHeight = Math.max(props.node.inputs.length, 1) * SOCKET_ROW_HEIGHT
+  const outputHeight = Math.max(props.node.outputs.length, 1) * SOCKET_ROW_HEIGHT
+  const maxSocketsHeight = Math.max(inputHeight, outputHeight)
+  return NODE_HEADER_HEIGHT + maxSocketsHeight + NODE_PADDING * 2
+})
+
+const positionStyle = computed(() => {
+  return {
+    transform: `translate(${props.node.x}px, ${props.node.y}px)`
+  }
+})
+
 const socketContainerStyle = {
   top: NODE_HEADER_HEIGHT + NODE_PADDING + 'px'
 }
@@ -114,13 +128,12 @@ const socketContainerStyle = {
 
 <template>
   <div
-    class="absolute bg-white/95 backdrop-blur-sm rounded-2xl shadow-xl shadow-slate-200/40 border border-slate-200 border-t-[3px] select-none group hover:shadow-2xl hover:shadow-indigo-500/10 hover:-translate-y-0.5 transition-[shadow,transform,border-color] duration-200"
+    class="absolute bg-white border-2 border-slate-200 rounded-lg shadow-lg border-t-4"
     :class="borderClass"
     :style="{
-      left: node.x + 'px',
-      top: node.y + 'px',
-      width: NODE_WIDTH + 'px',
-      minHeight: NODE_HEADER_HEIGHT + 'px'
+      ...positionStyle,
+      width: `${NODE_WIDTH}px`,
+      minHeight: `${totalHeight}px`
     }"
     @mousedown="(e) => emit('drag-start', e)"
   >
@@ -135,7 +148,7 @@ const socketContainerStyle = {
         <span class="text-[10px] font-black uppercase tracking-wider">{{ node.title }}</span>
       </div>
       <button
-        class="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-500 transition-opacity p-1 hover:bg-red-50 rounded"
+        class="group-hover:opacity-100 text-slate-400 hover:text-red-500 transition-opacity p-1 hover:bg-red-50 rounded"
         @click.stop="emit('delete')"
       >
         <IconX :size="12" />

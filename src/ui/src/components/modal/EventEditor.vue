@@ -13,6 +13,9 @@ import EventEditorCommandList from './event-editor/EventEditorCommandList.vue'
 import EventEditorCommandSelector from './event-editor/EventEditorCommandSelector.vue'
 import { useEventCommands } from '@ui/composables/useEventCommands'
 import EventEditorSidebar from './event-editor/EventEditorSidebar.vue'
+import NodeEditorEmbedded from '@ui/components/nodes/NodeEditorEmbedded.vue'
+import { nodeCompiler } from '@engine/nodes/nodeCompiler'
+import { nodeDecompiler } from '@engine/nodes/nodeDecompiler'
 
 const props = defineProps<{
   x: number
@@ -30,6 +33,7 @@ const activePageIndex = ref(0)
 const selectedCommandIndex = ref<number | null>(null)
 const editingCommandIndex = ref<number | null>(null)
 const isAutonomousRouteMode = ref(false)
+const editorMode = ref<'code' | 'visual'>('code')
 
 const eventName = ref('')
 const pages = ref<ZEventPage[]>([])
@@ -87,6 +91,10 @@ const initialize = async (): Promise<void> => {
     eventName.value = 'New Event'
     pages.value = [createDefaultPage()]
   }
+  // Set initial mode based on first page
+  if (pages.value[0]?.useNodeGraph) {
+    editorMode.value = 'visual'
+  }
 }
 
 // --- Actions ---
@@ -130,9 +138,98 @@ const handleCommandSave = (cmd: { code: number; parameters: unknown[] }): void =
   showCommandSelector.value = false
 }
 
-watch(activePageIndex, () => {
+// --- Watchers ---
+watch(activePageIndex, (newIndex) => {
   selectedCommandIndex.value = null
+  // Sync editor mode with newly selected page
+  if (pages.value[newIndex]?.useNodeGraph) {
+    editorMode.value = 'visual'
+  } else {
+    editorMode.value = 'code'
+  }
 })
+
+// Sync Sidebar Trigger <-> Entry Node
+watch(
+  () => activePage.value?.trigger,
+  (newTrigger) => {
+    if (editorMode.value === 'visual' && activePage.value?.nodeGraph && newTrigger !== undefined) {
+      const entryNode = activePage.value.nodeGraph.nodes.find((n) => n.config?.isEntry)
+      if (entryNode) {
+        const triggerMapping: Record<number, { key: string; title: string }> = {
+          0: { key: 'event.action', title: 'On Action Button' },
+          1: { key: 'event.player_touch', title: 'On Player Touch' },
+          2: { key: 'event.event_touch', title: 'On Event Touch' },
+          3: { key: 'event.autorun', title: 'On Autorun' },
+          4: { key: 'event.parallel', title: 'On Parallel' }
+        }
+        const info = triggerMapping[newTrigger] || triggerMapping[0]
+        if (entryNode.config && entryNode.config.nodeKey !== info.key) {
+          entryNode.config.nodeKey = info.key
+          entryNode.title = info.title
+        }
+      }
+    }
+  }
+)
+
+watch(
+  () => activePage.value?.nodeGraph?.nodes,
+  (newNodes) => {
+    if (editorMode.value === 'visual' && newNodes && activePage.value) {
+      const entryNode = newNodes.find((n) => n.config?.isEntry)
+      if (entryNode && entryNode.config?.nodeKey) {
+        const key = entryNode.config.nodeKey as string
+        const triggerMapping: Record<string, number> = {
+          'event.action': 0,
+          'event.player_touch': 1,
+          'event.event_touch': 2,
+          'event.autorun': 3,
+          'event.parallel': 4
+        }
+        if (triggerMapping[key] !== undefined && activePage.value.trigger !== triggerMapping[key]) {
+          activePage.value.trigger = triggerMapping[key] as ZEventTrigger
+        }
+      }
+    }
+  },
+  { deep: true }
+)
+
+// --- Visual Mode Sync ---
+const handleModeUpdate = (newMode: 'code' | 'visual'): void => {
+  if (!activePage.value) return
+
+  if (newMode === 'visual') {
+    // Code -> Visual
+    console.log('[EventEditor] Switching to Visual mode...')
+    try {
+      // If we don't have a graph yet or want to refresh from code
+      const currentList = activePage.value.list || []
+      const graph = nodeDecompiler.decompile(currentList, activePage.value.trigger)
+      activePage.value.nodeGraph = graph
+      activePage.value.useNodeGraph = true
+      editorMode.value = 'visual'
+    } catch (error) {
+      console.error('[EventEditor] Decompilation failed:', error)
+      alert(`Could not convert to Visual: ${error}`)
+    }
+  } else {
+    // Visual -> Code
+    console.log('[EventEditor] Switching to Code mode...')
+    try {
+      if (activePage.value.nodeGraph) {
+        const commands = nodeCompiler.compile(activePage.value.nodeGraph)
+        activePage.value.list = commands
+      }
+      activePage.value.useNodeGraph = false
+      editorMode.value = 'code'
+    } catch (error) {
+      console.error('[EventEditor] Compilation failed:', error)
+      alert(`Could not convert to Code: ${error}`)
+    }
+  }
+}
 
 const save = (): void => {
   const eventData = {
@@ -257,14 +354,17 @@ onUnmounted(() => {
     @wheel.stop
   >
     <div
-      class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl h-[85vh] flex flex-col overflow-hidden text-slate-800 font-sans border border-white/20 animate-in fade-in zoom-in-95 duration-200"
+      class="bg-white rounded-2xl shadow-2xl w-full h-[85vh] flex flex-col overflow-hidden text-slate-800 font-sans border border-white/20 animate-in fade-in zoom-in-95 duration-200 transition-all"
+      :class="editorMode === 'visual' ? 'max-w-[1600px]' : 'max-w-5xl'"
     >
       <EventEditorHeader
         v-model:event-name="eventName"
+        v-model:mode="editorMode"
         :event-id="props.eventId"
         @save="save"
         @remove="remove"
         @close="emit('close')"
+        @update:mode="handleModeUpdate"
       />
 
       <div class="flex-1 flex overflow-hidden min-h-0 bg-slate-50/50">
@@ -288,7 +388,7 @@ onUnmounted(() => {
         />
 
         <EventEditorCommandList
-          v-if="activePage"
+          v-if="activePage && editorMode === 'code'"
           v-model:selected-command-index="selectedCommandIndex"
           :page="activePage"
           :presentation-list="presentationList"
@@ -299,6 +399,10 @@ onUnmounted(() => {
           "
           @delete-command="deleteCommand"
         />
+
+        <div v-if="activePage && editorMode === 'visual'" class="flex-1 overflow-hidden">
+          <NodeEditorEmbedded v-model:node-graph="activePage.nodeGraph" />
+        </div>
       </div>
     </div>
 

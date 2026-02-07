@@ -1,4 +1,5 @@
-import type { ZNodeRegistry, ZCommandCode } from '@engine/types'
+import type { ZNodeRegistry, ZCommandCode, ZEventCommand } from '@engine/types'
+import { compileNodeBranch } from './nodeCompiler'
 
 /**
  * Visual Scripting Node Registry
@@ -85,7 +86,64 @@ export const MessageNodes: ZNodeRegistry = {
         default: -1
       }
     ],
-    commandCode: 102 as ZCommandCode // ShowChoices
+    commandCode: 102 as ZCommandCode, // ShowChoices
+    compileHandler: (node, graph, visited, baseIndent) => {
+      const commands: ZEventCommand[] = []
+      const choicesStr = node.values?.choices?.toString() || ''
+      const choices = choicesStr
+        .split(',')
+        .map((c: string) => c.trim())
+        .filter((c: string) => c.length > 0)
+      const cancelType = node.values?.cancelType ?? -1
+
+      // Helper: compile nodes connected to specific output socket
+      const compileOutputBranch = (outputId: string): ZEventCommand[] => {
+        return compileNodeBranch(node.id, outputId, graph, visited, baseIndent + 1)
+      }
+
+      // Setup command (code 102)
+      commands.push({
+        code: 102,
+        indent: baseIndent,
+        parameters: [choices, cancelType]
+      })
+
+      // Generate branch commands for each choice
+      for (let i = 0; i < choices.length && i < 4; i++) {
+        // When choice N (standard RPG Maker uses 402 for all when markers)
+        commands.push({
+          code: 402 as ZCommandCode,
+          indent: baseIndent + 1,
+          parameters: [i, choices[i]]
+        })
+
+        // Compile connected nodes from this choice
+        const branchCommands = compileOutputBranch(`choice_${i}`)
+        commands.push(...branchCommands)
+      }
+
+      // Cancel branch if enabled
+      if ((cancelType as number) >= 0) {
+        commands.push({
+          code: 406 as ZCommandCode,
+          indent: baseIndent + 1,
+          parameters: []
+        })
+
+        // Compile cancel branch
+        const cancelCommands = compileOutputBranch('cancel')
+        commands.push(...cancelCommands)
+      }
+
+      // Branch end (code 404)
+      commands.push({
+        code: 404 as ZCommandCode,
+        indent: baseIndent,
+        parameters: []
+      })
+
+      return commands
+    }
   }
 }
 

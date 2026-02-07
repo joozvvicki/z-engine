@@ -35,6 +35,40 @@ export const nodeCompiler: ZNodeCompiler = {
 }
 
 /**
+ * Helper function for compileHandlers to compile a specific branch
+ * Finds node connected to given output socket and compiles it recursively
+ */
+export function compileNodeBranch(
+  fromNodeId: string,
+  outputSocketId: string,
+  graph: ZNodeGraph,
+  visited: Set<string>,
+  indent: number
+): ZEventCommand[] {
+  const commands: ZEventCommand[] = []
+
+  // Find connection from this output
+  const connection = graph.connections.find(
+    (c) => c.fromNode === fromNodeId && c.fromSocket === outputSocketId
+  )
+
+  if (!connection) {
+    return commands // No connection, empty branch
+  }
+
+  // Find connected node
+  const nextNode = graph.nodes.find((n) => n.id === connection.toNode)
+  if (!nextNode) {
+    return commands
+  }
+
+  // Compile the branch recursively
+  traverseNode(nextNode, graph, commands, visited, indent)
+
+  return commands
+}
+
+/**
  * Recursively traverse nodes and build command list
  */
 function traverseNode(
@@ -51,6 +85,24 @@ function traverseNode(
   }
   visited.add(node.id)
 
+  // Skip entry nodes - they don't generate commands
+  if (node.config?.isEntry || node.type === 'event') {
+    // Continue traversing from outputs but don't generate command
+    const executionOutputs = node.outputs.filter((o) => o.type === 'execution')
+    for (const output of executionOutputs) {
+      const connection = graph.connections.find(
+        (c) => c.fromNode === node.id && c.fromSocket === output.id
+      )
+      if (connection) {
+        const nextNode = graph.nodes.find((n) => n.id === connection.toNode)
+        if (nextNode) {
+          traverseNode(nextNode, graph, commands, visited, indent)
+        }
+      }
+    }
+    return
+  }
+
   const key = node.config?.nodeKey as string
   if (!key || !NodeRegistry[key]) {
     console.warn(`[NodeCompiler] Unknown node key: ${key}`)
@@ -59,16 +111,14 @@ function traverseNode(
 
   const definition = NodeRegistry[key]
 
-  // Skip event nodes (they're just entry points)
-  if (node.type === 'event') {
-    // Continue to next node without generating commands
-  }
   // Use custom compile handler if available
-  else if (definition.compileHandler) {
-    const nodeCommands = definition.compileHandler(node)
+  if (definition.compileHandler) {
+    const nodeCommands = definition.compileHandler(node, graph, visited, indent)
     nodeCommands.forEach((cmd) => {
-      commands.push({ ...cmd, indent })
+      commands.push(cmd)
     })
+    // CompileHandler manages its own branching - skip auto-traversal
+    return
   }
   // Use default commandCode
   else if (definition.commandCode) {

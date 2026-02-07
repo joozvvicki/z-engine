@@ -6,7 +6,8 @@ import {
   NODE_HEADER_HEIGHT,
   NODE_PADDING,
   SOCKET_ROW_HEIGHT,
-  SOCKET_OFFSET
+  NODE_BORDER_TOP,
+  NODE_BORDER_SIDE
 } from '@ui/stores/nodeScript'
 
 const props = defineProps<{
@@ -20,33 +21,48 @@ const emit = defineEmits<{
   (e: 'delete'): void
 }>()
 
-const getSocketPosition = (
-  node: ZNode,
-  socketId: string,
-  isInput: boolean
-): { x: number; y: number } => {
-  const list = isInput ? node.inputs : node.outputs
-  const index = list.findIndex((s) => s.id === socketId)
-
-  // Use unified constants
-  const relativeY =
-    NODE_HEADER_HEIGHT + NODE_PADDING + index * SOCKET_ROW_HEIGHT + SOCKET_ROW_HEIGHT / 2
-  const relativeX = isInput ? -SOCKET_OFFSET : NODE_WIDTH + SOCKET_OFFSET
-
-  return {
-    x: node.x + relativeX,
-    y: node.y + relativeY
-  }
-}
-
 const path = computed(() => {
-  const start = getSocketPosition(props.fromNode, props.connection.fromSocket, false)
-  const end = getSocketPosition(props.toNode, props.connection.toSocket, true)
+  // Find socket positions
+  const fromSocket = props.fromNode.outputs.find((s) => s.id === props.connection.fromSocket)
+  const toSocket = props.toNode.inputs.find((s) => s.id === props.connection.toSocket)
 
-  const dist = Math.abs(end.x - start.x)
-  const controlOffset = Math.max(dist * 0.4 + 20, 40)
+  if (!fromSocket || !toSocket) return ''
 
-  return `M ${start.x} ${start.y} C ${start.x + controlOffset} ${start.y}, ${end.x - controlOffset} ${end.y}, ${end.x} ${end.y}`
+  const fromIdx = props.fromNode.outputs.indexOf(fromSocket)
+  const toIdx = props.toNode.inputs.indexOf(toSocket)
+
+  // Calculate socket positions in board space
+  // Output is on the right edge: width - border
+  const fromLocalX = NODE_WIDTH - NODE_BORDER_SIDE
+  const fromLocalY =
+    NODE_BORDER_TOP +
+    NODE_HEADER_HEIGHT +
+    NODE_PADDING +
+    fromIdx * SOCKET_ROW_HEIGHT +
+    SOCKET_ROW_HEIGHT / 2
+
+  // Input is on the left edge: border
+  const toLocalX = NODE_BORDER_SIDE
+  const toLocalY =
+    NODE_BORDER_TOP +
+    NODE_HEADER_HEIGHT +
+    NODE_PADDING +
+    toIdx * SOCKET_ROW_HEIGHT +
+    SOCKET_ROW_HEIGHT / 2
+
+  const startX = props.fromNode.x + fromLocalX
+  const startY = props.fromNode.y + fromLocalY
+  const endX = props.toNode.x + toLocalX
+  const endY = props.toNode.y + toLocalY
+
+  // Bezier curve control points
+  const controlOffset = Math.min(Math.abs(endX - startX) / 2, 100)
+  const cp1X = startX + controlOffset
+  const cp1Y = startY
+  const cp2X = endX - controlOffset
+  const cp2Y = endY
+
+  return `M ${startX} ${startY} C ${cp1X} ${cp1Y}, ${cp2X} ${cp2Y}, ${endX} ${endY}`
 })
 
 const isExecution = computed(() => {

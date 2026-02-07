@@ -1,13 +1,20 @@
 <script setup lang="ts">
-import { IconDeviceFloppy, IconTrash, IconSettings } from '@tabler/icons-vue'
+import {
+  IconDeviceFloppy,
+  IconTrash,
+  IconSettings,
+  IconCode,
+  IconHierarchy2
+} from '@tabler/icons-vue'
 
 const props = defineProps<{
   eventId?: string | null
+  mode: 'code' | 'visual'
 }>()
 
 const eventName = defineModel<string>('eventName')
 
-const emit = defineEmits(['save', 'remove', 'close'])
+const emit = defineEmits(['save', 'remove', 'close', 'update:mode'])
 </script>
 
 <template>
@@ -52,6 +59,34 @@ const emit = defineEmits(['save', 'remove', 'close'])
 
     <!-- Actions -->
     <div class="flex items-center gap-3">
+      <!-- Mode Toggle -->
+      <div class="flex bg-slate-50 border border-slate-200 p-1 rounded-xl mr-4">
+        <button
+          class="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center gap-2 transition-all"
+          :class="
+            mode === 'code'
+              ? 'bg-white text-indigo-600 shadow-sm'
+              : 'text-slate-400 hover:text-slate-600'
+          "
+          @click="emit('update:mode', 'code')"
+        >
+          <IconCode size="14" />
+          Code
+        </button>
+        <button
+          class="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center gap-2 transition-all"
+          :class="
+            mode === 'visual'
+              ? 'bg-white text-indigo-600 shadow-sm'
+              : 'text-slate-400 hover:text-slate-600'
+          "
+          @click="emit('update:mode', 'visual')"
+        >
+          <IconHierarchy2 size="14" />
+          Visual
+        </button>
+      </div>
+
       <button
         v-if="props.eventId"
         class="w-10 h-10 rounded-xl flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all active:scale-95 group"

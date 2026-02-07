@@ -634,7 +634,12 @@ export interface ZNodeDefinition {
   outputs: ZNodeSocket[]
   values: ZNodeValueSchema[]
   commandCode?: ZCommandCode
-  compileHandler?: (node: ZNode) => ZEventCommand[]
+  compileHandler?: (
+    node: ZNode,
+    graph: ZNodeGraph,
+    visited: Set<string>,
+    indent: number
+  ) => ZEventCommand[]
 }
 
 export type ZNodeRegistry = Record<string, ZNodeDefinition>

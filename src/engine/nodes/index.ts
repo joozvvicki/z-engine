@@ -8,5 +8,6 @@ export {
   SceneNodes,
   ScreenNodes
 } from './nodeRegistry'
-export { nodeCompiler } from './nodeCompiler'
+export { nodeCompiler, compileNodeBranch } from './nodeCompiler'
+export { nodeDecompiler } from './nodeDecompiler'
 export type { ZNodeRegistry } from '@engine/types'
