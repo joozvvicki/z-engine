@@ -196,13 +196,24 @@ const handleSocketDrop = (targetNodeId: string, targetSocketId: string): void =>
 const updateNodeValue = (nodeId: string, key: string, value: unknown): void => {
   const nodeIndex = props.nodes.findIndex((n) => n.id === nodeId)
   if (nodeIndex !== -1) {
+    const node = props.nodes[nodeIndex]
+    const nodeKey = (node.config?.nodeKey as string) || ''
     const newNodes = [...props.nodes]
+    const currentValues = { ...(newNodes[nodeIndex].values || {}) }
+
+    // Special Case: Move Route Quick Add
+    if (nodeKey === 'action.move_route' && key === 'addCommand' && value) {
+      const currentCommands = (currentValues['commands'] || '').toString().trim()
+      const toAdd = value.toString()
+      currentValues['commands'] = currentCommands ? `${currentCommands}, ${toAdd}` : toAdd
+      currentValues['addCommand'] = '' // Reset the dropdown
+    } else {
+      currentValues[key] = value
+    }
+
     newNodes[nodeIndex] = {
       ...newNodes[nodeIndex],
-      values: {
-        ...(newNodes[nodeIndex].values || {}),
-        [key]: value
-      }
+      values: currentValues
     }
     emit('update:nodes', newNodes)
   }

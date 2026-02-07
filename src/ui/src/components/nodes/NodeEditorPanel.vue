@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import type { ZNodeValueSchema } from '@engine/types'
+import type { ZNodeValueSchema, ZMoveCommand } from '@engine/types'
 import { useEditorStore } from '@ui/stores/editor'
 import { computed } from 'vue'
+import MoveRouteEditor from './MoveRouteEditor.vue'
 
 const editorStore = useEditorStore()
 
@@ -29,7 +30,6 @@ const getVariableName = (id: number): string => {
     : `#${String(id).padStart(3, '0')} - (Unnamed)`
 }
 
-// Create lists for switches/variables
 const switchOptions = computed(() => {
   return Array.from({ length: Math.max(50, editorStore.systemSwitches.length) }, (_, i) => ({
     id: i + 1,
@@ -230,6 +230,13 @@ const variableOptions = computed(() => {
         "
       />
     </div>
+
+    <!-- Move Route List Editor -->
+    <MoveRouteEditor
+      v-else-if="schema.type === 'move_route'"
+      :model-value="modelValue as ZMoveCommand[]"
+      @update:model-value="emit('update:modelValue', $event)"
+    />
 
     <!-- Fallback for unknown types -->
     <div

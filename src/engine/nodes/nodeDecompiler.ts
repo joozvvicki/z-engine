@@ -4,7 +4,9 @@ import type {
   ZEventCommand,
   ZConnection,
   ZNodeDefinition,
-  ZEventTrigger
+  ZEventTrigger,
+  ZMoveCommand,
+  ZMoveCommandItem
 } from '@engine/types'
 import { NodeRegistry } from './nodeRegistry'
 
@@ -112,6 +114,26 @@ function processCommands(ctx: DecompileContext): {
     // 111: Conditional Branch
     if (cmd.code === 111) {
       const result = handleConditionalBranch({
+        ...ctx,
+        startIndex: i,
+        x: currentX,
+        y: currentY,
+        parentNodeId: currentParentId,
+        parentSocketId: currentSocketId
+      })
+      if (result) {
+        currentX = result.nextX
+        currentY = result.nextY
+        currentParentId = result.lastNodeId
+        currentSocketId = 'exec'
+        i = result.consumedCount
+        continue
+      }
+    }
+
+    // 205: Set Move Route
+    if (cmd.code === 205) {
+      const result = handleSetMoveRoute({
         ...ctx,
         startIndex: i,
         x: currentX,
@@ -393,6 +415,152 @@ function handleConditionalBranch(
   }
 
   return { lastNodeId: node.id, nextX: ctx.x + 500, nextY: ctx.y, consumedCount: endIndex + 1 }
+}
+
+/**
+ * Handle Set Move Route (205)
+ */
+function handleSetMoveRoute(
+  ctx: DecompileContext
+): { lastNodeId: string; nextX: number; nextY: number; consumedCount: number } | null {
+  const { commands, startIndex, nodes, connections, parentNodeId, parentSocketId } = ctx
+  const cmd = commands[startIndex]
+
+  // parameters[0]: characterId (target)
+  // parameters[1]: list (array of commands)
+  // parameters[2]: wait
+  // parameters[3]: repeat
+  // parameters[4]: through
+  const params = cmd.parameters || []
+  const characterIdRaw = params[0] as number | undefined
+  const moveListRaw = params[1] as ZMoveCommandItem[] | undefined
+
+  // Some versions might still use the object-based routeData
+  const routeData =
+    typeof params[1] === 'object' && !Array.isArray(params[1])
+      ? (params[1] as {
+          list?: ZMoveCommandItem[]
+          wait?: boolean
+          repeat?: boolean
+          through?: boolean
+          skippable?: boolean
+        })
+      : {
+          list: moveListRaw || [],
+          wait: !!params[2],
+          repeat: !!params[3],
+          through: !!params[4]
+        }
+
+  // 1. Create the node
+  const nodeInfo = { key: 'action.move_route', definition: NodeRegistry['action.move_route'] }
+  const node = createNodeFromCommand(cmd, nodeInfo, ctx.x, ctx.y, startIndex)
+
+  // 2. Map data to values
+  // Map characterId back to target selector
+  const characterId = Number(characterIdRaw ?? 0)
+  let target = 0
+  let actualCharId = 1
+
+  if (characterId === -1) target = -1
+  else if (characterId === 0) target = 0
+  else {
+    target = 1
+    actualCharId = characterId
+  }
+
+  // Move Code Mapping (Numeric -> String)
+  const MOVE_CODE_MAP: Record<number, string> = {
+    1: 'MOVE_DOWN',
+    2: 'MOVE_LEFT',
+    3: 'MOVE_RIGHT',
+    4: 'MOVE_UP',
+    5: 'MOVE_LOWER_LEFT',
+    6: 'MOVE_LOWER_RIGHT',
+    7: 'MOVE_UPPER_LEFT',
+    8: 'MOVE_UPPER_RIGHT',
+    9: 'MOVE_RANDOM',
+    10: 'MOVE_TOWARD_PLAYER',
+    11: 'MOVE_AWAY_PLAYER',
+    12: 'STEP_FORWARD',
+    13: 'STEP_BACKWARD',
+    14: 'JUMP',
+    15: 'WAIT',
+    16: 'TURN_DOWN',
+    17: 'TURN_LEFT',
+    18: 'TURN_RIGHT',
+    19: 'TURN_UP',
+    20: 'TURN_90_RIGHT',
+    21: 'TURN_90_LEFT',
+    22: 'TURN_180',
+    23: 'TURN_90_RIGHT_LEFT',
+    24: 'TURN_RANDOM',
+    25: 'TURN_TOWARD_PLAYER',
+    26: 'TURN_AWAY_PLAYER',
+    27: 'SPEED',
+    28: 'FREQUENCY',
+    29: 'WALK_ANIM_ON',
+    30: 'WALK_ANIM_OFF',
+    31: 'STEP_ANIM_ON',
+    32: 'STEP_ANIM_OFF',
+    33: 'DIR_FIX_ON',
+    34: 'DIR_FIX_OFF',
+    35: 'THROUGH_ON',
+    36: 'THROUGH_OFF',
+    37: 'TRANSPARENT_ON',
+    38: 'TRANSPARENT_OFF',
+    44: 'PLAY_SE',
+    45: 'SCRIPT'
+  }
+
+  // Filter out END (0) commands from the list for the UI
+  // RPG Maker uses structured list { code, parameters } or { code, params }
+  const moveList = routeData?.list || []
+  const moveCommands: ZMoveCommand[] = moveList
+    .map((m: ZMoveCommandItem) => {
+      if (!m) return null
+
+      let code = m.code
+      if (typeof code === 'number') {
+        code = MOVE_CODE_MAP[code] || code.toString()
+      }
+
+      if (!code || code === '0') return null
+
+      // Handle parameters (support both 'params' and 'parameters')
+      const pRaw = m.params || m.parameters || []
+      const p = Array.isArray(pRaw) ? pRaw : []
+
+      return {
+        code: code as string,
+        params: p
+      } as ZMoveCommand
+    })
+    .filter((cmd): cmd is ZMoveCommand => cmd !== null)
+
+  node.values = {
+    target,
+    characterId: actualCharId,
+    repeat: !!routeData?.repeat,
+    wait: !!routeData?.wait,
+    through: !!routeData?.through,
+    commands: moveCommands
+  }
+
+  nodes.push(node)
+
+  // Connect to parent
+  if (parentNodeId && parentSocketId) {
+    connections.push({
+      id: `conn-move-${Date.now()}`,
+      fromNode: parentNodeId,
+      fromSocket: parentSocketId,
+      toNode: node.id,
+      toSocket: 'exec'
+    })
+  }
+
+  return { lastNodeId: node.id, nextX: ctx.x + 500, nextY: ctx.y, consumedCount: startIndex + 1 }
 }
 
 // --- Helpers ---

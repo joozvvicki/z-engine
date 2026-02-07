@@ -378,6 +378,12 @@ export interface ZMoveCommand {
   params?: unknown[]
 }
 
+export interface ZMoveCommandItem {
+  code: string | number
+  params?: unknown[]
+  parameters?: unknown[]
+}
+
 export interface ZMoveable {
   id: string
   x: number
@@ -584,6 +590,7 @@ export type ZNodeValueType =
   | 'color'
   | 'position'
   | 'select'
+  | 'move_route'
 
 export interface ZNodeValueSchema {
   key: string

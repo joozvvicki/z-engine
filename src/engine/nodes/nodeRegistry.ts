@@ -1,4 +1,4 @@
-import type { ZNodeRegistry, ZCommandCode, ZEventCommand } from '@engine/types'
+import type { ZNodeRegistry, ZCommandCode, ZEventCommand, ZMoveCommand } from '@engine/types'
 import { compileNodeBranch } from './nodeCompiler'
 
 /**
@@ -193,6 +193,73 @@ export const MessageNodes: ZNodeRegistry = {
       commands.push(...followUpCommands)
 
       return commands
+    }
+  },
+  'action.move_route': {
+    title: 'Set Move Route',
+    category: 'action',
+    commandCode: 205 as ZCommandCode,
+    inputs: [{ id: 'exec', label: '', type: 'execution' }],
+    outputs: [{ id: 'exec', label: 'Finish', type: 'execution' }],
+    values: [
+      {
+        key: 'target',
+        label: 'Target Character',
+        type: 'select',
+        options: [
+          { value: -1, label: 'Player' },
+          { value: 0, label: 'This Event' },
+          { value: 1, label: 'Specific Event ID' }
+        ],
+        default: 0
+      },
+      {
+        key: 'characterId',
+        label: 'Event ID',
+        type: 'number',
+        default: 1,
+        visible: (v) => v['target'] === 1
+      },
+      { key: 'repeat', label: 'Repeat', type: 'boolean', default: false },
+      { key: 'wait', label: 'Wait for Completion', type: 'boolean', default: true },
+      { key: 'through', label: 'Through Mode', type: 'boolean', default: false },
+      {
+        key: 'commands',
+        label: 'Move Commands (List)',
+        type: 'move_route',
+        default: []
+      }
+    ],
+    compileHandler: (node, graph, visited, baseIndent) => {
+      const target = Number(node.values?.target ?? 0)
+      const charId = target === 1 ? Number(node.values?.characterId ?? 1) : target
+      const repeat = !!node.values?.repeat
+      const wait = !!node.values?.wait
+      const through = !!node.values?.through
+      const moveList = (node.values?.commands as ZMoveCommand[]) || []
+
+      // Prepare commands for the engine.
+      // Ensure they all have at least empty params if undefined.
+      const processedMoveList = moveList.map((m) => ({
+        code: m.code,
+        params: m.params || []
+      }))
+
+      // RPG Maker move routes usually end with a code 0 command
+      processedMoveList.push({ code: '0', params: [] })
+
+      // RPG Maker 205 structure (from MovementParams.vue):
+      // [target, list, wait, repeat, through]
+      const command: ZEventCommand = {
+        code: 205,
+        indent: baseIndent,
+        parameters: [charId, processedMoveList, wait, repeat, through]
+      }
+
+      const nextIndent = baseIndent
+      const branchCommands = compileNodeBranch(node.id, 'exec', graph, visited, nextIndent)
+
+      return [command, ...branchCommands]
     }
   }
 }

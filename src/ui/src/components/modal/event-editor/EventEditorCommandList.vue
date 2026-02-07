@@ -244,6 +244,28 @@ const getCommandColor = (code: number): string => {
                 Wait: <span class="font-black">{{ item.command!.parameters[0] }}</span> frames
               </template>
 
+              <!-- Set Move Route -->
+              <template v-else-if="item.command!.code === ZCommandCode.SetMoveRoute">
+                <span class="text-emerald-600">Set Move Route:</span>
+                <span class="opacity-80 ml-1">
+                  {{
+                    item.command!.parameters[0] === 0
+                      ? 'This Event'
+                      : item.command!.parameters[0] === -1
+                        ? 'Player'
+                        : `Event #${item.command!.parameters[0]}`
+                  }}
+                  [
+                  {{
+                    (item.command!.parameters[1] as any[])
+                      .filter((m) => m && m.code !== '0' && m.code !== 0)
+                      .map((m) => m.code)
+                      .join(', ')
+                  }}
+                  ]
+                </span>
+              </template>
+
               <!-- Generic Fallback -->
               <template v-else>
                 {{ ZCommandCode[item.command!.code] || `Unknown (${item.command!.code})` }}
