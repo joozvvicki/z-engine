@@ -97,21 +97,18 @@ const presentationList = computed(
     }
 
     list.forEach((cmd, idx) => {
-      let lineIndent = depth
-      if (
-        [
-          ZCommandCode.EndBranch,
-          ZCommandCode.Else,
-          ZCommandCode.When,
-          ZCommandCode.EndChoices
-        ].includes(cmd.code)
-      ) {
-        lineIndent = Math.max(0, depth - 1)
+      // Commands that "reset" to parent indent before displaying themselves
+      const isBranchMid = [ZCommandCode.Else, ZCommandCode.When].includes(cmd.code)
+      const isBlockEnd = [ZCommandCode.EndBranch, ZCommandCode.EndChoices].includes(cmd.code)
+
+      if (isBranchMid || isBlockEnd) {
+        depth = Math.max(0, depth - 1)
       }
 
       addPlaceholder(idx, depth)
-      result.push({ type: 'command', command: cmd, index: idx, indent: lineIndent })
+      result.push({ type: 'command', command: cmd, index: idx, indent: depth })
 
+      // Commands that increase indent for FOLLOWING commands
       if (
         [
           ZCommandCode.ConditionalBranch,
@@ -121,9 +118,6 @@ const presentationList = computed(
         ].includes(cmd.code)
       ) {
         depth++
-      }
-      if ([ZCommandCode.EndBranch, ZCommandCode.EndChoices].includes(cmd.code)) {
-        depth = Math.max(0, depth - 1)
       }
     })
 
@@ -196,7 +190,29 @@ const remove = (): void => {
 
 const deleteCommand = (index: number): void => {
   if (!activePage.value) return
-  activePage.value.list.splice(index, 1)
+
+  const cmd = activePage.value.list[index]
+  if (!cmd) return
+
+  // Cascaded deletion for hierarchical blocks
+  let count = 1
+  if ([ZCommandCode.ShowChoices, ZCommandCode.ConditionalBranch].includes(cmd.code)) {
+    let depth = 0
+    for (let i = index; i < activePage.value.list.length; i++) {
+      const c = activePage.value.list[i]
+      if ([ZCommandCode.ShowChoices, ZCommandCode.ConditionalBranch].includes(c.code)) {
+        depth++
+      } else if ([ZCommandCode.EndChoices, ZCommandCode.EndBranch].includes(c.code)) {
+        depth--
+        if (depth === 0) {
+          count = i - index + 1
+          break
+        }
+      }
+    }
+  }
+
+  activePage.value.list.splice(index, count)
   selectedCommandIndex.value = null
 }
 
@@ -246,7 +262,21 @@ const setGraphicFromSelection = (): void => {
 
 const getCharacterUrl = (filename: string): string => ProjectService.resolveAssetUrl(filename)
 
-const getChoiceName = (_itemIndex: number, choiceIndex: number): string => {
+const getChoiceName = (itemIndex: number, choiceIndex: number): string => {
+  if (choiceIndex === -1) return 'Cancel'
+
+  // Try to find labels from the most recent ShowChoices command BEFORE this index
+  const page = activePage.value
+  if (page) {
+    for (let i = itemIndex - 1; i >= 0; i--) {
+      const cmd = page.list[i]
+      if (cmd.code === ZCommandCode.ShowChoices) {
+        const labels = cmd.parameters[0] as string[]
+        return labels[choiceIndex] || `Choice ${choiceIndex + 1}`
+      }
+    }
+  }
+
   return `Choice ${choiceIndex + 1}`
 }
 
@@ -267,13 +297,44 @@ const handleAddCommand = (index: number): void => {
 
 const handleCommandSave = (cmd: { code: number; parameters: unknown[] }): void => {
   if (!activePage.value) return
-  if (editingCommandIndex.value !== null) {
-    activePage.value.list[editingCommandIndex.value] = {
-      code: cmd.code,
-      parameters: cmd.parameters
+
+  const createCommand = (code: number, params: unknown[] = []): ZEventCommand => ({
+    code,
+    parameters: params
+  })
+
+  // Prepare commands to insert
+  const commandsToInsert: ZEventCommand[] = [createCommand(cmd.code, cmd.parameters)]
+
+  // Expansion logic for NEW commands only
+  if (editingCommandIndex.value === null) {
+    if (cmd.code === ZCommandCode.ShowChoices) {
+      const labels = cmd.parameters[0] as string[]
+      const cancelType = cmd.parameters[1] as number
+
+      // Add regular choices
+      labels.forEach((_, idx) => {
+        commandsToInsert.push(createCommand(ZCommandCode.When, [idx]))
+      })
+
+      // Add cancel branch if enabled (cancelType === 1 is "Branch")
+      if (cancelType === 1) {
+        commandsToInsert.push(createCommand(ZCommandCode.When, [-1])) // -1 for Cancel
+      }
+
+      commandsToInsert.push(createCommand(ZCommandCode.EndChoices))
+    } else if (cmd.code === ZCommandCode.ConditionalBranch) {
+      const hasElse = cmd.parameters[3] === 1
+      if (hasElse) {
+        commandsToInsert.push(createCommand(ZCommandCode.Else))
+      }
+      commandsToInsert.push(createCommand(ZCommandCode.EndBranch))
     }
+  }
+
+  if (editingCommandIndex.value !== null) {
+    activePage.value.list[editingCommandIndex.value] = commandsToInsert[0]
   } else {
-    // If we have an explicit insertion index, use it. Otherwise append or insert after selection.
     let index = activePage.value.list.length
 
     if (insertionIndex.value !== null) {
@@ -282,10 +343,7 @@ const handleCommandSave = (cmd: { code: number; parameters: unknown[] }): void =
       index = selectedCommandIndex.value + 1
     }
 
-    activePage.value.list.splice(index, 0, {
-      code: cmd.code,
-      parameters: cmd.parameters
-    })
+    activePage.value.list.splice(index, 0, ...commandsToInsert)
   }
 
   insertionIndex.value = null

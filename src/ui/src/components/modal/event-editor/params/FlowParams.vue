@@ -20,6 +20,7 @@ const varVal = ref(0)
 const selfSwitchCh = ref<'A' | 'B' | 'C' | 'D'>('A')
 const selfSwitchVal = ref(1)
 const scriptContent = ref('')
+const hasElse = ref(false)
 
 const initialize = (): void => {
   if (props.initialCommand) {
@@ -39,6 +40,8 @@ const initialize = (): void => {
       } else if (branchType.value === 3) {
         scriptContent.value = String(params[1] || '')
       }
+      // Parameters for Conditional Branch: [type, id, val, hasElse]
+      hasElse.value = params[3] === 1
     }
   }
 }
@@ -61,6 +64,7 @@ defineExpose({
       } else if (branchType.value === 3) {
         finalParams = [3, scriptContent.value]
       }
+      finalParams.push(hasElse.value ? 1 : 0)
     }
     return {
       code: props.type,
@@ -218,6 +222,20 @@ defineExpose({
             placeholder="return $gameSwitches.value(1) === true;"
           ></textarea>
         </div>
+      </div>
+
+      <!-- Else Branch Toggle -->
+      <div class="flex items-center gap-2 px-1 pt-4 border-t border-slate-100">
+        <input
+          v-model="hasElse"
+          type="checkbox"
+          class="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+        />
+        <span
+          class="text-[10px] font-bold uppercase text-slate-500 cursor-pointer select-none"
+          @click="hasElse = !hasElse"
+          >Create Else Branch</span
+        >
       </div>
     </template>
   </div>
