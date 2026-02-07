@@ -1,18 +1,62 @@
 <script setup lang="ts">
+import { ref, onMounted } from 'vue'
 import { IconArrowDown } from '@tabler/icons-vue'
+import { ZCommandCode, type ZEventCommand } from '@engine/types'
 
-defineProps<{
+const props = defineProps<{
   type: number // 201 (Wait) or 111 (Conditional)
   switches: string[]
   variables: string[]
+  initialCommand?: ZEventCommand | null
 }>()
 
-const waitFrames = defineModel<number>('waitFrames')
-const branchType = defineModel<number>('branchType') // 0: Switch, 1: Variable
-const switchId = defineModel<string>('switchId')
-const switchVal = defineModel<number>('switchVal')
-const varId = defineModel<string>('varId')
-const varVal = defineModel<number>('varVal')
+// Internal state
+const waitFrames = ref(60)
+const branchType = ref(0) // 0: Switch, 1: Variable
+const switchId = ref('1')
+const switchVal = ref(1)
+const varId = ref('1')
+const varVal = ref(0)
+
+const initialize = (): void => {
+  if (props.initialCommand) {
+    const params = props.initialCommand.parameters
+    if (props.initialCommand.code === ZCommandCode.Wait) {
+      waitFrames.value = Number(params[0] || 60)
+    } else if (props.initialCommand.code === ZCommandCode.ConditionalBranch) {
+      branchType.value = Number(params[0] || 0)
+      if (branchType.value === 0) {
+        switchId.value = String(params[1] || '1')
+        switchVal.value = params[2] === 1 ? 1 : 0
+      } else {
+        varId.value = String(params[1] || '1')
+        varVal.value = Number(params[2] || 0)
+      }
+    }
+  }
+}
+
+onMounted(initialize)
+
+// Expose data for parent
+defineExpose({
+  getCommandData: () => {
+    let finalParams: unknown[] = []
+    if (props.type === ZCommandCode.Wait) {
+      finalParams = [waitFrames.value]
+    } else if (props.type === ZCommandCode.ConditionalBranch) {
+      if (branchType.value === 0) {
+        finalParams = [0, switchId.value, switchVal.value]
+      } else {
+        finalParams = [1, varId.value, varVal.value]
+      }
+    }
+    return {
+      code: props.type,
+      parameters: finalParams
+    }
+  }
+})
 </script>
 
 <template>

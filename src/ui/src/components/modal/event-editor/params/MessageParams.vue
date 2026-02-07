@@ -1,28 +1,68 @@
 <script setup lang="ts">
+import { ref, onMounted } from 'vue'
 import { IconArrowDown, IconTrash } from '@tabler/icons-vue'
-import type { ZEvent } from '@engine/types'
+import { ZCommandCode, type ZEvent, type ZEventCommand } from '@engine/types'
 
-defineProps<{
+const props = defineProps<{
   type: number // 101 or 102
   events: ZEvent[]
+  initialCommand?: ZEventCommand | null
 }>()
 
-const text = defineModel<string>('text')
-const style = defineModel<number>('style')
-const target = defineModel<number>('target')
-const choices = defineModel<string[]>('choices')
+// Internal state
+const text = ref('')
+const style = ref(0) // 0: Window, 1: Bubble
+const target = ref(0) // 0: This Event, -1: Player, >0: Event ID
+const choices = ref<string[]>(['Yes', 'No'])
+
+const initialize = (): void => {
+  if (
+    props.initialCommand &&
+    (props.initialCommand.code === ZCommandCode.ShowMessage ||
+      props.initialCommand.code === ZCommandCode.ShowChoices)
+  ) {
+    const params = props.initialCommand.parameters
+    if (props.initialCommand.code === ZCommandCode.ShowMessage) {
+      text.value = String(params[0] || '')
+      style.value = Number(params[1] || 0)
+      target.value = Number(params[2] ?? 0)
+    } else {
+      choices.value = JSON.parse(JSON.stringify(params[0] || ['Yes', 'No']))
+      style.value = Number(params[1] || 0)
+      target.value = Number(params[2] ?? 0)
+    }
+  }
+}
+
+onMounted(initialize)
 
 const addChoice = (): void => {
-  if (choices.value && choices.value.length < 6) {
+  if (choices.value.length < 6) {
     choices.value.push('New Choice')
   }
 }
 
 const removeChoice = (index: number): void => {
-  if (choices.value && choices.value.length > 1) {
+  if (choices.value.length > 1) {
     choices.value.splice(index, 1)
   }
 }
+
+// Expose data for parent
+defineExpose({
+  getCommandData: () => {
+    let finalParams: unknown[] = []
+    if (props.type === ZCommandCode.ShowMessage) {
+      finalParams = [text.value, style.value, target.value]
+    } else if (props.type === ZCommandCode.ShowChoices) {
+      finalParams = [[...choices.value], style.value, target.value]
+    }
+    return {
+      code: props.type,
+      parameters: finalParams
+    }
+  }
+})
 </script>
 
 <template>

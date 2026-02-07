@@ -1,9 +1,42 @@
 <script setup lang="ts">
-defineProps<{
+import { ref, onMounted } from 'vue'
+import { ZCommandCode, type ZEventCommand } from '@engine/types'
+
+const props = defineProps<{
   type: number // 206 (Event Graphic)
+  initialCommand?: ZEventCommand | null
 }>()
 
-const graphicAssetId = defineModel<string>('graphicAssetId')
+// Internal state
+const graphicAssetId = ref('')
+
+const initialize = (): void => {
+  if (props.initialCommand && props.initialCommand.code === ZCommandCode.SetEventGraphic) {
+    const g = props.initialCommand.parameters[0] as { assetId?: string }
+    graphicAssetId.value = g?.assetId || ''
+  }
+}
+
+onMounted(initialize)
+
+// Expose data for parent
+defineExpose({
+  getCommandData: () => {
+    return {
+      code: props.type,
+      parameters: [
+        {
+          assetId: graphicAssetId.value,
+          group: 'character', // Default for this command version
+          x: 0,
+          y: 0,
+          w: 1,
+          h: 1
+        }
+      ]
+    }
+  }
+})
 </script>
 
 <template>

@@ -1,19 +1,60 @@
 <script setup lang="ts">
+import { ref, onMounted } from 'vue'
 import { IconArrowDown } from '@tabler/icons-vue'
+import { ZCommandCode, type ZEventCommand } from '@engine/types'
 
-defineProps<{
+const props = defineProps<{
   type: number // 121 (SelfSwitch), 122 (Switch), 123 (Variable)
   switches: string[]
   variables: string[]
   variableOps: { label: string; value: number }[]
+  initialCommand?: ZEventCommand | null
 }>()
 
-const selfSwitchCh = defineModel<string>('selfSwitchCh')
-const switchId = defineModel<string>('switchId')
-const switchState = defineModel<number>('switchState')
-const varId = defineModel<string>('varId')
-const varOp = defineModel<number>('varOp')
-const varVal = defineModel<number>('varVal')
+// Internal state
+const selfSwitchCh = ref<'A' | 'B' | 'C' | 'D'>('A')
+const switchId = ref('1')
+const switchState = ref(1) // 1: ON, 0: OFF
+const varId = ref('1')
+const varOp = ref(0)
+const varVal = ref(0)
+
+const initialize = (): void => {
+  if (props.initialCommand) {
+    const params = props.initialCommand.parameters
+    if (props.initialCommand.code === ZCommandCode.ControlSelfSwitch) {
+      selfSwitchCh.value = (params[0] as 'A' | 'B' | 'C' | 'D') || 'A'
+      switchState.value = Number(params[1] ?? 1)
+    } else if (props.initialCommand.code === ZCommandCode.ControlSwitch) {
+      switchId.value = String(params[0] || '1')
+      switchState.value = Number(params[1] ?? 1)
+    } else if (props.initialCommand.code === ZCommandCode.ControlVariable) {
+      varId.value = String(params[0] || '1')
+      varOp.value = Number(params[1] || 0)
+      varVal.value = Number(params[2] || 0)
+    }
+  }
+}
+
+onMounted(initialize)
+
+// Expose data for parent
+defineExpose({
+  getCommandData: () => {
+    let finalParams: unknown[] = []
+    if (props.type === ZCommandCode.ControlSelfSwitch) {
+      finalParams = [selfSwitchCh.value, switchState.value]
+    } else if (props.type === ZCommandCode.ControlSwitch) {
+      finalParams = [switchId.value, switchState.value]
+    } else if (props.type === ZCommandCode.ControlVariable) {
+      finalParams = [varId.value, varOp.value, varVal.value]
+    }
+    return {
+      code: props.type,
+      parameters: finalParams
+    }
+  }
+})
 </script>
 
 <template>

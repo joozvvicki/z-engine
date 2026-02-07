@@ -1,12 +1,57 @@
 <script setup lang="ts">
-defineProps<{
+import { ref, onMounted } from 'vue'
+import { ZCommandCode, type ZEventCommand } from '@engine/types'
+
+const props = defineProps<{
   type: number // 241 (BGM), 250 (SE), 242 (FadeOut) etc.
+  initialCommand?: ZEventCommand | null
 }>()
 
-const audioFile = defineModel<string>('audioFile')
-const audioVolume = defineModel<number>('audioVolume')
-const audioPitch = defineModel<number>('audioPitch')
-const audioDuration = defineModel<number>('audioDuration')
+// Internal state
+const audioFile = ref('')
+const audioVolume = ref(90)
+const audioPitch = ref(100)
+const audioDuration = ref(1)
+
+const initialize = (): void => {
+  if (props.initialCommand) {
+    const params = props.initialCommand.parameters
+    if (
+      [ZCommandCode.PlayBGM, ZCommandCode.PlayBGS, ZCommandCode.PlaySE].includes(
+        props.initialCommand.code
+      )
+    ) {
+      const config = params[0] as { name: string; volume: number; pitch: number }
+      audioFile.value = config.name
+      audioVolume.value = config.volume
+      audioPitch.value = config.pitch
+    } else if (
+      [ZCommandCode.FadeOutBGM, ZCommandCode.FadeOutBGS].includes(props.initialCommand.code)
+    ) {
+      audioDuration.value = Number(params[0] || 1)
+    }
+  }
+}
+
+onMounted(initialize)
+
+// Expose data for parent
+defineExpose({
+  getCommandData: () => {
+    let finalParams: unknown[] = []
+    if ([ZCommandCode.PlayBGM, ZCommandCode.PlayBGS, ZCommandCode.PlaySE].includes(props.type)) {
+      finalParams = [{ name: audioFile.value, volume: audioVolume.value, pitch: audioPitch.value }]
+    } else if ([ZCommandCode.FadeOutBGM, ZCommandCode.FadeOutBGS].includes(props.type)) {
+      finalParams = [audioDuration.value]
+    } else if (props.type === ZCommandCode.StopSE) {
+      finalParams = []
+    }
+    return {
+      code: props.type,
+      parameters: finalParams
+    }
+  }
+})
 </script>
 
 <template>

@@ -1,5 +1,5 @@
-<!-- eslint-disable @typescript-eslint/no-explicit-any -->
 <script setup lang="ts">
+import { ref, onMounted } from 'vue'
 import {
   IconArrowDown,
   IconRobot,
@@ -8,35 +8,118 @@ import {
   IconTrash,
   IconGhost
 } from '@tabler/icons-vue'
-import { ZMoveCode, type ZMoveCommand } from '@engine/types'
-import type { ZMap } from '@engine/types'
+import {
+  ZCommandCode,
+  ZMoveCode,
+  type ZMoveCommand,
+  type ZMap,
+  type ZEventCommand
+} from '@engine/types'
+import type { Component } from 'vue'
 
-defineProps<{
+const props = defineProps<{
   type: number // 201 (Transfer), 205 (Move Route), 203 (Direction)
   maps: ZMap[]
   isAutonomousMode?: boolean
-  moveActions: any[]
-  directions: any[]
+  moveActions: { code: string | number; label: string; icon: Component; paramNames?: string[] }[]
+  directions: { label: string; value: number; icon: Component }[]
+  initialCommand?: ZEventCommand | null
 }>()
 
-const transferMapId = defineModel<number>('transferMapId')
-const transferX = defineModel<number>('transferX')
-const transferY = defineModel<number>('transferY')
-const transferDirection = defineModel<number>('transferDirection')
-const selectedDirection = defineModel<number>('selectedDirection')
+// Internal state
+const transferMapId = ref(1)
+const transferX = ref(0)
+const transferY = ref(0)
+const transferDirection = ref(2)
+const selectedDirection = ref(2)
 
-// Move Route Props
-const moveRouteTarget = defineModel<string | number>('moveRouteTarget')
-const moveRouteWait = defineModel<boolean>('moveRouteWait')
-const moveRouteRepeat = defineModel<boolean>('moveRouteRepeat')
-const moveRouteThrough = defineModel<boolean>('moveRouteThrough')
-const moveRouteCommands = defineModel<ZMoveCommand[]>('moveRouteCommands', { default: () => [] })
-const selectedMoveCommandIndex = defineModel<number | null>('selectedMoveCommandIndex')
+// Move Route state
+const moveRouteTarget = ref<string | number>(0)
+const moveRouteWait = ref(true)
+const moveRouteRepeat = ref(false)
+const moveRouteThrough = ref(false)
+const moveRouteCommands = ref<ZMoveCommand[]>([])
+const selectedMoveCommandIndex = ref<number | null>(null)
 
-const emit = defineEmits<{
-  (e: 'add-move-command', code: string | ZMoveCode): void
-  (e: 'remove-move-command', index: number): void
-}>()
+const initialize = (): void => {
+  if (props.isAutonomousMode) {
+    // Logic for autonomous move route (from page prop, but here we use initialCommand for consistency if available)
+    // Actually, EventEditor passes moveRoute to initialCommand as well if in autonomous mode.
+    if (props.initialCommand) {
+      moveRouteCommands.value = JSON.parse(JSON.stringify(props.initialCommand.parameters[1] || []))
+    }
+    moveRouteTarget.value = 0
+    moveRouteWait.value = false
+    moveRouteThrough.value = false
+    moveRouteRepeat.value = true
+  } else if (props.initialCommand) {
+    const params = props.initialCommand.parameters
+    if (props.initialCommand.code === ZCommandCode.SetEventDirection) {
+      selectedDirection.value = Number(params[0] || 2)
+    } else if (props.initialCommand.code === ZCommandCode.TransferPlayer) {
+      transferMapId.value = Number(params[0] || 1)
+      transferX.value = Number(params[1] || 0)
+      transferY.value = Number(params[2] || 0)
+      transferDirection.value = Number(params[3] || 2)
+    } else if (props.initialCommand.code === ZCommandCode.SetMoveRoute) {
+      moveRouteTarget.value = (params[0] as string | number) ?? 0
+      moveRouteCommands.value = JSON.parse(JSON.stringify(params[1] || []))
+      moveRouteWait.value = Boolean(params[2] ?? true)
+      moveRouteRepeat.value = Boolean(params[3] ?? false)
+      moveRouteThrough.value = Boolean(params[4] ?? false)
+    }
+  }
+}
+
+onMounted(initialize)
+
+const addMoveCommand = (code: string | ZMoveCode): void => {
+  const cmd: ZMoveCommand = { code }
+  const meta = props.moveActions.find((a) => a.code === code)
+  if (meta?.paramNames) {
+    if (code === ZMoveCode.WAIT) cmd.params = [60]
+    else if (code === ZMoveCode.JUMP) cmd.params = [0, 0]
+    else if (code === ZMoveCode.SPEED) cmd.params = [4]
+    else if (code === ZMoveCode.FREQUENCY) cmd.params = [3]
+    else if (code === ZMoveCode.CHANGE_OPACITY) cmd.params = [255]
+    else cmd.params = meta.paramNames.map(() => '')
+  }
+  moveRouteCommands.value.push(cmd)
+  selectedMoveCommandIndex.value = moveRouteCommands.value.length - 1
+}
+
+const removeMoveCommand = (index: number): void => {
+  moveRouteCommands.value.splice(index, 1)
+  selectedMoveCommandIndex.value = null
+}
+
+// Expose data for parent
+defineExpose({
+  getCommandData: () => {
+    let finalParams: unknown[] = []
+    if (props.type === ZCommandCode.TransferPlayer) {
+      finalParams = [transferMapId.value, transferX.value, transferY.value, transferDirection.value]
+    } else if (props.type === ZCommandCode.SetMoveRoute) {
+      finalParams = [
+        moveRouteTarget.value,
+        [...moveRouteCommands.value],
+        moveRouteWait.value,
+        moveRouteRepeat.value,
+        moveRouteThrough.value
+      ]
+    } else if (props.type === ZCommandCode.SetEventDirection) {
+      finalParams = [selectedDirection.value]
+    }
+    return {
+      code: props.type,
+      parameters: finalParams
+    }
+  },
+  // Specialized for autonomous route
+  getMoveRoute: () => {
+    return JSON.parse(JSON.stringify(moveRouteCommands.value))
+  }
+})
 </script>
 
 <template>
@@ -229,7 +312,7 @@ const emit = defineEmits<{
                 }}</span>
                 <button
                   class="opacity-0 group-hover:opacity-100 hover:text-red-600 transition-all p-1"
-                  @click.stop="emit('remove-move-command', idx)"
+                  @click.stop="removeMoveCommand(idx)"
                 >
                   <IconTrash size="14" />
                 </button>
@@ -307,7 +390,7 @@ const emit = defineEmits<{
             v-for="action in moveActions"
             :key="action.code"
             class="flex items-center gap-2.5 px-3 py-2 text-left bg-white border border-slate-100 rounded-xl hover:border-slate-300 hover:shadow-sm transition-all group active:scale-95"
-            @click="emit('add-move-command', action.code)"
+            @click="addMoveCommand(action.code.toString())"
           >
             <component
               :is="action.icon"
