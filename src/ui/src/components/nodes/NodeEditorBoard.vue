@@ -142,6 +142,9 @@ const handleMouseUp = (): void => {
 }
 
 const handleWheel = (e: WheelEvent): void => {
+  // Only pan it the target is actually the canvas
+  if (e.target !== canvasRef.value && !canvasRef.value?.contains(e.target as Node)) return
+
   if (e.ctrlKey) {
     e.preventDefault()
     const delta = e.deltaY > 0 ? 0.9 : 1.1

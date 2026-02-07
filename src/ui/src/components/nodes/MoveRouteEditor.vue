@@ -2,7 +2,7 @@
 import { IconTrash, IconSettings, IconPlus } from '@tabler/icons-vue'
 import { ZMoveCode, type ZMoveCommand } from '@engine/types'
 import { moveActions } from '../modal/event-editor/params/config'
-import { ref } from 'vue'
+import { ref, type Component } from 'vue'
 
 const props = defineProps<{
   modelValue: ZMoveCommand[]
@@ -41,11 +41,13 @@ const removeCommand = (index: number): void => {
 }
 
 const getActionLabel = (code: string | number): string => {
-  return moveActions.find((a) => a.code === code)?.label || code.toString()
+  const codeStr = code.toString()
+  return moveActions.find((a) => a.code.toString() === codeStr)?.label || codeStr
 }
 
-const getActionIcon = (code: string | number): any => {
-  return moveActions.find((a) => a.code === code)?.icon || IconSettings
+const getActionIcon = (code: string | number): Component => {
+  const codeStr = code.toString()
+  return moveActions.find((a) => a.code.toString() === codeStr)?.icon || IconSettings
 }
 
 const updateParam = (cmdIdx: number, paramIdx: number, value: unknown): void => {
@@ -58,47 +60,57 @@ const updateParam = (cmdIdx: number, paramIdx: number, value: unknown): void => 
 </script>
 
 <template>
-  <div class="flex flex-col gap-3">
+  <div class="flex flex-col gap-2.5">
     <!-- List of Steps -->
-    <div class="flex flex-col gap-1.5 max-h-64 overflow-y-auto pr-1 custom-scrollbar">
+    <div class="flex flex-col gap-1 max-h-56 overflow-y-auto pr-1 custom-scrollbar" @wheel.stop>
       <div
         v-for="(cmd, idx) in modelValue"
         :key="idx"
-        class="group flex flex-col gap-2 p-2.5 bg-white border border-slate-200 rounded-xl shadow-sm hover:border-slate-300 transition-all"
+        class="group flex flex-col gap-1.5 p-2 bg-white border border-slate-100 rounded-xl shadow-sm hover:border-slate-200 transition-all"
       >
-        <div class="flex items-center gap-2.5">
-          <span class="text-[9px] font-mono text-slate-300 w-4 font-bold">
-            {{ String(idx + 1).padStart(2, '0') }}
+        <div class="flex items-center gap-2">
+          <span class="text-[8px] font-mono text-slate-300 w-3 font-bold opacity-60">
+            {{ idx + 1 }}
           </span>
-          <div class="w-6 h-6 rounded bg-slate-50 flex items-center justify-center text-slate-400">
-            <component :is="getActionIcon(cmd.code)" size="12" />
+          <div
+            class="w-5 h-5 rounded-lg bg-slate-50 flex items-center justify-center text-slate-400"
+          >
+            <component :is="getActionIcon(cmd.code)" size="10" />
           </div>
-          <span class="text-[10px] font-bold text-slate-700 flex-1 truncate">
+          <span
+            class="text-[9px] font-black uppercase text-slate-600 flex-1 truncate tracking-tight"
+          >
             {{ getActionLabel(cmd.code) }}
           </span>
           <button
-            class="opacity-0 group-hover:opacity-100 p-1 text-slate-300 hover:text-red-500 transition-all"
+            class="opacity-0 group-hover:opacity-100 p-1 text-slate-300 hover:text-red-500 transition-all hover:scale-110"
             @click="removeCommand(idx)"
           >
-            <IconTrash size="12" />
+            <IconTrash size="10" />
           </button>
         </div>
 
         <!-- Inline Params if applicable -->
         <div
-          v-if="moveActions.find((a) => a.code === cmd.code)?.paramNames"
-          class="ml-6 pt-2 border-t border-slate-50 flex flex-col gap-2"
+          v-if="moveActions.find((a) => a.code.toString() === cmd.code.toString())?.paramNames"
+          class="ml-5 pt-1.5 border-t border-slate-50 flex flex-col gap-1.5"
         >
           <div
-            v-for="(pName, pIdx) in moveActions.find((a) => a.code === cmd.code)?.paramNames"
+            v-for="(pName, pIdx) in moveActions.find(
+              (a) => a.code.toString() === cmd.code.toString()
+            )?.paramNames"
             :key="pIdx"
             class="flex items-center gap-2"
           >
-            <span class="text-[8px] font-black uppercase text-slate-400 min-w-16">{{ pName }}</span>
+            <span
+              class="text-[7px] font-black uppercase tracking-tighter text-slate-400 min-w-[48px] truncate"
+            >
+              {{ pName }}
+            </span>
             <input
               :value="cmd.params?.[pIdx]"
               type="text"
-              class="flex-1 bg-slate-50 text-[10px] font-bold px-2 py-1 border border-slate-100 rounded focus:border-indigo-300 outline-none"
+              class="flex-1 max-w-16 bg-slate-50/50 text-[10px] text-slate-800 font-bold px-2 py-1 border border-slate-100 rounded-md focus:border-indigo-500 focus:bg-white focus:shadow-sm outline-none transition-all placeholder:text-slate-200"
               @input="updateParam(idx, pIdx, ($event.target as HTMLInputElement).value)"
             />
           </div>
