@@ -157,6 +157,40 @@ const handleUpdateNodePosition = (id: string, x: number, y: number): void => {
     node.y = y
   }
 }
+
+// --- Dynamic Socket Syncing ---
+watch(
+  nodes,
+  (newNodes) => {
+    newNodes.forEach((node) => {
+      const nodeKey = (node.config?.nodeKey as string) || ''
+      const definition = NodeRegistry[nodeKey]
+
+      if (definition?.getOutputs) {
+        // 1. Build desired outputs using registry helper
+        const newOutputs = definition.getOutputs(node.values || {})
+
+        // 2. Compare and Update if needed
+        const currentOutputsStr = JSON.stringify(node.outputs)
+        const newOutputsStr = JSON.stringify(newOutputs)
+
+        if (currentOutputsStr !== newOutputsStr) {
+          node.outputs = newOutputs
+
+          // 3. Prune connections from removed sockets
+          const validSocketIds = new Set(newOutputs.map((o) => o.id))
+          connections.value = connections.value.filter((conn) => {
+            if (conn.fromNode === node.id) {
+              return validSocketIds.has(conn.fromSocket)
+            }
+            return true
+          })
+        }
+      }
+    })
+  },
+  { deep: true, immediate: true }
+)
 </script>
 
 <template>

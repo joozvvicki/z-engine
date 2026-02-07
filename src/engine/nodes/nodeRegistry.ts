@@ -65,28 +65,66 @@ export const MessageNodes: ZNodeRegistry = {
   'action.show_choices': {
     title: 'Show Choices',
     category: 'action',
+    commandCode: 102 as ZCommandCode, // ShowChoices
     inputs: [{ id: 'exec', label: '', type: 'execution' }],
-    outputs: [
-      { id: 'choice_0', label: 'Choice 1', type: 'execution' },
-      { id: 'choice_1', label: 'Choice 2', type: 'execution' },
-      { id: 'choice_2', label: 'Choice 3', type: 'execution' },
-      { id: 'choice_3', label: 'Choice 4', type: 'execution' },
-      { id: 'cancel', label: 'Cancel', type: 'execution' }
-    ],
+    outputs: [{ id: 'exec', label: 'Finish', type: 'execution' }],
     values: [
       { key: 'choices', label: 'Choices (comma separated)', type: 'string', required: true },
       {
         key: 'cancelType',
-        label: 'Cancel Type',
-        type: 'select',
-        options: [
-          { value: -1, label: 'Disallow' },
-          { value: 0, label: 'Branch' }
-        ],
+        label: 'Cancel Type (-1: Disallow, 0+: Choice Index, 6: Branch)',
+        type: 'number',
         default: -1
+      },
+      {
+        key: 'defaultType',
+        label: 'Default Choice Index (-1: None)',
+        type: 'number',
+        default: 0
+      },
+      {
+        key: 'positionType',
+        label: 'Position (0: Left, 1: Mid, 2: Right)',
+        type: 'number',
+        default: 2
+      },
+      {
+        key: 'background',
+        label: 'Background (0: Win, 1: Dim, 2: Trans)',
+        type: 'number',
+        default: 0
       }
     ],
-    commandCode: 102 as ZCommandCode, // ShowChoices
+    getOutputs: (values: Record<string, unknown>) => {
+      const choicesStr = values.choices?.toString() || ''
+      const choices = choicesStr
+        .split(',')
+        .map((c: string) => c.trim())
+        .filter((c: string) => c.length > 0)
+      const cancelType = Number(values.cancelType ?? -1)
+
+      const outputs = choices.map((choice: string, idx: number) => ({
+        id: `choice_${idx}`,
+        label: choice,
+        type: 'execution' as const
+      }))
+
+      if (cancelType === 6) {
+        outputs.push({
+          id: 'cancel',
+          label: 'When Cancel',
+          type: 'execution' as const
+        })
+      }
+
+      outputs.push({
+        id: 'exec',
+        label: 'Finish',
+        type: 'execution' as const
+      })
+
+      return outputs
+    },
     compileHandler: (node, graph, visited, baseIndent) => {
       const commands: ZEventCommand[] = []
       const choicesStr = node.values?.choices?.toString() || ''
@@ -94,26 +132,34 @@ export const MessageNodes: ZNodeRegistry = {
         .split(',')
         .map((c: string) => c.trim())
         .filter((c: string) => c.length > 0)
-      const cancelType = node.values?.cancelType ?? -1
+
+      const cancelType = Number(node.values?.cancelType ?? -1)
+      const defaultType = Number(node.values?.defaultType ?? 0)
+      const positionType = Number(node.values?.positionType ?? 2)
+      const background = Number(node.values?.background ?? 0)
+
+      // RPG Maker expects cancelType to be choices.length if it's a branch
+      // We keep 6 as our "Magic Branch Number" in UI for now for backward compatibility with my recent edit,
+      // but we should ideally use choices.length.
+      const finalCancelType = cancelType === 6 ? choices.length : cancelType
 
       // Helper: compile nodes connected to specific output socket
-      const compileOutputBranch = (outputId: string): ZEventCommand[] => {
-        return compileNodeBranch(node.id, outputId, graph, visited, baseIndent + 1)
+      const compileOutputBranch = (outputId: string, indentInc: number = 1): ZEventCommand[] => {
+        return compileNodeBranch(node.id, outputId, graph, visited, baseIndent + indentInc)
       }
 
-      // Setup command (code 102)
+      // 1. Setup command (code 102)
       commands.push({
         code: 102,
         indent: baseIndent,
-        parameters: [choices, cancelType]
+        parameters: [choices, finalCancelType, defaultType, positionType, background]
       })
 
-      // Generate branch commands for each choice
-      for (let i = 0; i < choices.length && i < 4; i++) {
-        // When choice N (standard RPG Maker uses 402 for all when markers)
+      // 2. Generate branch commands for each choice
+      for (let i = 0; i < choices.length; i++) {
         commands.push({
           code: 402 as ZCommandCode,
-          indent: baseIndent + 1,
+          indent: baseIndent,
           parameters: [i, choices[i]]
         })
 
@@ -122,11 +168,11 @@ export const MessageNodes: ZNodeRegistry = {
         commands.push(...branchCommands)
       }
 
-      // Cancel branch if enabled
-      if ((cancelType as number) >= 0) {
+      // 3. Cancel branch if enabled
+      if (cancelType === 6) {
         commands.push({
-          code: 406 as ZCommandCode,
-          indent: baseIndent + 1,
+          code: 403 as ZCommandCode, // When Cancel
+          indent: baseIndent,
           parameters: []
         })
 
@@ -135,12 +181,16 @@ export const MessageNodes: ZNodeRegistry = {
         commands.push(...cancelCommands)
       }
 
-      // Branch end (code 404)
+      // 4. Branch end (code 404)
       commands.push({
         code: 404 as ZCommandCode,
         indent: baseIndent,
         parameters: []
       })
+
+      // 5. Continuation flow (Then)
+      const followUpCommands = compileOutputBranch('exec', 0)
+      commands.push(...followUpCommands)
 
       return commands
     }
@@ -153,10 +203,12 @@ export const FlowNodes: ZNodeRegistry = {
   'flow.if': {
     title: 'If Condition',
     category: 'flow',
+    commandCode: 111 as ZCommandCode, // ConditionalBranch
     inputs: [{ id: 'exec', label: '', type: 'execution' }],
     outputs: [
       { id: 'true', label: 'True', type: 'execution' },
-      { id: 'false', label: 'False', type: 'execution' }
+      { id: 'false', label: 'False', type: 'execution' },
+      { id: 'exec', label: 'Finish', type: 'execution' }
     ],
     values: [
       {
@@ -171,6 +223,7 @@ export const FlowNodes: ZNodeRegistry = {
         required: true
       },
       { key: 'switchId', label: 'Switch', type: 'switch' },
+      { key: 'value', label: 'Value', type: 'boolean', default: true },
       { key: 'variableId', label: 'Variable', type: 'variable' },
       {
         key: 'variableOp',
@@ -188,7 +241,62 @@ export const FlowNodes: ZNodeRegistry = {
       },
       { key: 'variableValue', label: 'Value', type: 'number', default: 0 }
     ],
-    commandCode: 111 as ZCommandCode // ConditionalBranch
+    compileHandler: (node, graph, visited, baseIndent) => {
+      const commands: ZEventCommand[] = []
+
+      // 1. Build parameters
+      const conditionType = node.values?.conditionType || 'switch'
+      let params: unknown[] = []
+
+      if (conditionType === 'switch') {
+        const switchId = Number(node.values?.switchId ?? 1)
+        const value = node.values?.value === false ? 1 : 0 // 0: ON, 1: OFF
+        params = [0, switchId, value]
+      } else {
+        const varId = Number(node.values?.variableId ?? 1)
+        const op = Number(node.values?.variableOp ?? 0)
+        const val = Number(node.values?.variableValue ?? 0)
+        params = [1, varId, 0, val, op]
+      }
+
+      // 2. Add header
+      commands.push({
+        code: 111,
+        indent: baseIndent,
+        parameters: params
+      })
+
+      // 3. Compile True branch
+      const trueCommands = compileNodeBranch(node.id, 'true', graph, visited, baseIndent + 1)
+      commands.push(...trueCommands)
+
+      // 4. Add Else marker (411) if False output is connected
+      const hasElse = graph.connections.some(
+        (c) => c.fromNode === node.id && c.fromSocket === 'false'
+      )
+      if (hasElse) {
+        commands.push({
+          code: 411 as ZCommandCode,
+          indent: baseIndent,
+          parameters: []
+        })
+        const falseCommands = compileNodeBranch(node.id, 'false', graph, visited, baseIndent + 1)
+        commands.push(...falseCommands)
+      }
+
+      // 5. Add End marker (412)
+      commands.push({
+        code: 412 as ZCommandCode,
+        indent: baseIndent,
+        parameters: []
+      })
+
+      // 6. Continuation flow (Then)
+      const followUpCommands = compileNodeBranch(node.id, 'exec', graph, visited, baseIndent)
+      commands.push(...followUpCommands)
+
+      return commands
+    }
   },
   'flow.loop': {
     title: 'Loop',

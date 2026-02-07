@@ -174,15 +174,29 @@ function handleShowChoices(
 ): { lastNodeId: string; nextX: number; nextY: number; consumedCount: number } | null {
   const { commands, startIndex, nodes, connections, parentNodeId, parentSocketId } = ctx
   const cmd = commands[startIndex]
-  const [choicesRaw = [], cancelType = -1] = cmd.parameters as [string[], number]
+  const [choicesRaw = [], cancelTypeRaw = -1, defaultType = 0, positionType = 2, background = 0] =
+    cmd.parameters as [string[], number, number, number, number]
 
   const choices = Array.isArray(choicesRaw) ? choicesRaw : []
   const indent = cmd.indent || 0
 
+  // Map engine cancelType back to registry value
+  // In RPG Maker, if cancelType === choices.length, it's a branch
+  let cancelType = cancelTypeRaw
+  if (cancelTypeRaw === choices.length && choices.length > 0) {
+    cancelType = 6 // Branch
+  }
+
   // 1. Create the node
   const nodeInfo = { key: 'action.show_choices', definition: NodeRegistry['action.show_choices'] }
   const node = createNodeFromCommand(cmd, nodeInfo, ctx.x, ctx.y, startIndex)
-  node.values = { choices: choices.join(', '), cancelType }
+  node.values = {
+    choices: choices.join(', '),
+    cancelType,
+    defaultType,
+    positionType,
+    background
+  }
   nodes.push(node)
 
   // Connect to parent
@@ -208,13 +222,17 @@ function handleShowChoices(
       break
     }
 
-    // RPG Maker uses 402 for all choices
+    // Standard Choice (402)
     if ((current.indent || 0) === indent && current.code === 402) {
       // Find end of this branch body
       let branchEnd = i + 1
       while (branchEnd < commands.length) {
         const next = commands[branchEnd]
-        if ((next.indent || 0) === indent && (next.code === 402 || next.code === 404)) break
+        if (
+          (next.indent || 0) === indent &&
+          (next.code === 402 || next.code === 403 || next.code === 404)
+        )
+          break
         branchEnd++
       }
 
@@ -231,6 +249,31 @@ function handleShowChoices(
       })
 
       branchIndex++
+      i = branchEnd
+      continue
+    }
+
+    // Cancel/Else Choice (403)
+    if ((current.indent || 0) === indent && current.code === 403) {
+      // Find end of cancel branch
+      let branchEnd = i + 1
+      while (branchEnd < commands.length) {
+        const next = commands[branchEnd]
+        if ((next.indent || 0) === indent && next.code === 404) break
+        branchEnd++
+      }
+
+      processCommands({
+        ...ctx,
+        startIndex: i + 1,
+        endIndex: branchEnd,
+        indent: indent + 1,
+        x: ctx.x + 400,
+        y: ctx.y + branchIndex * 150,
+        parentNodeId: node.id,
+        parentSocketId: 'cancel'
+      })
+
       i = branchEnd
       continue
     }
@@ -254,6 +297,26 @@ function handleConditionalBranch(
   // 1. Create the node
   const nodeInfo = { key: 'flow.if', definition: NodeRegistry['flow.if'] }
   const node = createNodeFromCommand(cmd, nodeInfo, ctx.x, ctx.y, startIndex)
+
+  // 2. Parse parameters
+  const [type, p1, p2, p3, p4] = cmd.parameters as [number, number, number, number, number]
+  if (type === 0) {
+    // Switch
+    node.values = {
+      conditionType: 'switch',
+      switchId: p1,
+      value: p2 === 0 // 0: ON, 1: OFF
+    }
+  } else if (type === 1) {
+    // Variable
+    node.values = {
+      conditionType: 'variable',
+      variableId: p1,
+      variableOp: p4,
+      variableValue: p3
+    }
+  }
+
   nodes.push(node)
 
   // Connect to parent
@@ -267,7 +330,7 @@ function handleConditionalBranch(
     })
   }
 
-  // 2. Process True/False branches
+  // 3. Process True/False branches
   let elseIndex = -1
   let endIndex = -1
 
@@ -374,7 +437,9 @@ function createNodeFromCommand(
     x,
     y,
     inputs: JSON.parse(JSON.stringify(info.definition.inputs)),
-    outputs: JSON.parse(JSON.stringify(info.definition.outputs)),
+    outputs: info.definition.getOutputs
+      ? info.definition.getOutputs(values)
+      : JSON.parse(JSON.stringify(info.definition.outputs)),
     values,
     config: { nodeKey: info.key }
   }

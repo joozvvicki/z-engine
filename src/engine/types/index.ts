@@ -640,6 +640,7 @@ export interface ZNodeDefinition {
     visited: Set<string>,
     indent: number
   ) => ZEventCommand[]
+  getOutputs?: (values: Record<string, unknown>) => ZNodeSocket[]
 }
 
 export type ZNodeRegistry = Record<string, ZNodeDefinition>
