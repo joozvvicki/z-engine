@@ -217,14 +217,62 @@ export const FlowNodes: ZNodeRegistry = {
         type: 'select',
         options: [
           { value: 'switch', label: 'Switch' },
-          { value: 'variable', label: 'Variable' }
+          { value: 'variable', label: 'Variable' },
+          { value: 'selfSwitch', label: 'Self Switch' }
         ],
         default: 'switch',
         required: true
       },
-      { key: 'switchId', label: 'Switch', type: 'switch' },
-      { key: 'value', label: 'Value', type: 'boolean', default: true },
-      { key: 'variableId', label: 'Variable', type: 'variable' },
+      // Switch fields
+      {
+        key: 'switchId',
+        label: 'Switch',
+        type: 'switch',
+        visible: (v) => v['conditionType'] === 'switch'
+      },
+      {
+        key: 'switchValue',
+        label: 'Switch Value',
+        type: 'select',
+        options: [
+          { value: 0, label: 'ON' },
+          { value: 1, label: 'OFF' }
+        ],
+        default: 0,
+        visible: (v) => v['conditionType'] === 'switch'
+      },
+      // Self Switch fields
+      {
+        key: 'selfSwitchId',
+        label: 'Self Switch',
+        type: 'select',
+        options: [
+          { value: 'A', label: 'A' },
+          { value: 'B', label: 'B' },
+          { value: 'C', label: 'C' },
+          { value: 'D', label: 'D' }
+        ],
+        default: 'A',
+        visible: (v) => v['conditionType'] === 'selfSwitch'
+      },
+      {
+        key: 'selfSwitchValue',
+        label: 'Self Switch Value',
+        type: 'select',
+        options: [
+          { value: 0, label: 'ON' },
+          { value: 1, label: 'OFF' }
+        ],
+        default: 0,
+        visible: (v) => v['conditionType'] === 'selfSwitch'
+      },
+      // Variable fields
+      {
+        key: 'variableId',
+        label: 'Variable',
+        type: 'variable',
+        visible: (v) => v['conditionType'] === 'variable'
+      },
       {
         key: 'variableOp',
         label: 'Operator',
@@ -237,9 +285,38 @@ export const FlowNodes: ZNodeRegistry = {
           { value: 4, label: '<' },
           { value: 5, label: '≠' }
         ],
-        default: 0
+        default: 0,
+        visible: (v) => v['conditionType'] === 'variable'
       },
-      { key: 'variableValue', label: 'Value', type: 'number', default: 0 }
+      {
+        key: 'operandType',
+        label: 'Operand',
+        type: 'select',
+        options: [
+          { value: 0, label: 'Constant' },
+          { value: 1, label: 'Variable' }
+        ],
+        default: 0,
+        visible: (v) => v['conditionType'] === 'variable'
+      },
+      {
+        key: 'variableValue',
+        label: 'Constant Value',
+        type: 'number',
+        default: 0,
+        visible: (v) => v['conditionType'] === 'variable' && v['operandType'] === 0
+      },
+      {
+        key: 'compareVariableId',
+        label: 'Compare with Variable',
+        type: 'variable',
+        visible: (v) => v['conditionType'] === 'variable' && v['operandType'] === 1
+      }
+    ],
+    getOutputs: () => [
+      { id: 'true', label: 'True', type: 'execution' as const },
+      { id: 'false', label: 'False', type: 'execution' as const },
+      { id: 'exec', label: 'Finish', type: 'execution' as const }
     ],
     compileHandler: (node, graph, visited, baseIndent) => {
       const commands: ZEventCommand[] = []
@@ -250,13 +327,24 @@ export const FlowNodes: ZNodeRegistry = {
 
       if (conditionType === 'switch') {
         const switchId = Number(node.values?.switchId ?? 1)
-        const value = node.values?.value === false ? 1 : 0 // 0: ON, 1: OFF
+        const value = Number(node.values?.switchValue ?? 0) // 0: ON, 1: OFF
         params = [0, switchId, value]
-      } else {
+      } else if (conditionType === 'selfSwitch') {
+        const selfSwitchId = node.values?.selfSwitchId || 'A'
+        const value = Number(node.values?.selfSwitchValue ?? 0) // 0: ON, 1: OFF
+        params = [2, selfSwitchId, value]
+      } else if (conditionType === 'variable') {
         const varId = Number(node.values?.variableId ?? 1)
         const op = Number(node.values?.variableOp ?? 0)
-        const val = Number(node.values?.variableValue ?? 0)
-        params = [1, varId, 0, val, op]
+        const operandType = Number(node.values?.operandType ?? 0) // 0: Constant, 1: Variable
+        const val =
+          operandType === 0
+            ? Number(node.values?.variableValue ?? 0)
+            : Number(node.values?.compareVariableId ?? 1)
+        params = [1, varId, operandType, val, op]
+      } else {
+        // Fallback for other types
+        params = [0, 1, 0]
       }
 
       // 2. Add header

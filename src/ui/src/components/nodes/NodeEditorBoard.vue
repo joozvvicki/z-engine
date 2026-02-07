@@ -50,7 +50,8 @@ const mousePos = ref({ x: 0, y: 0 })
 const getNodeSchemas = (node: ZNode): ZNodeValueSchema[] => {
   const key = node.config?.nodeKey as string
   if (!key || !NodeRegistry[key]) return []
-  return NodeRegistry[key].values
+  const schemas = NodeRegistry[key].values
+  return schemas.filter((s) => (s.visible ? s.visible(node.values || {}) : true))
 }
 
 const getSocketGlobalPos = (
@@ -193,11 +194,16 @@ const handleSocketDrop = (targetNodeId: string, targetSocketId: string): void =>
 }
 
 const updateNodeValue = (nodeId: string, key: string, value: unknown): void => {
-  const newNodes = [...props.nodes]
-  const node = newNodes.find((n) => n.id === nodeId)
-  if (node) {
-    if (!node.values) node.values = {}
-    node.values[key] = value
+  const nodeIndex = props.nodes.findIndex((n) => n.id === nodeId)
+  if (nodeIndex !== -1) {
+    const newNodes = [...props.nodes]
+    newNodes[nodeIndex] = {
+      ...newNodes[nodeIndex],
+      values: {
+        ...(newNodes[nodeIndex].values || {}),
+        [key]: value
+      }
+    }
     emit('update:nodes', newNodes)
   }
 }

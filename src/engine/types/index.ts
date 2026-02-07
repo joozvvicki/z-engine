@@ -594,6 +594,7 @@ export interface ZNodeValueSchema {
   max?: number
   options?: { value: unknown; label: string }[]
   required?: boolean
+  visible?: (values: Record<string, unknown>) => boolean
 }
 
 export interface ZNodeSocket {

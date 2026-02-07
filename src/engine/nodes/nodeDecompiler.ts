@@ -299,21 +299,31 @@ function handleConditionalBranch(
   const node = createNodeFromCommand(cmd, nodeInfo, ctx.x, ctx.y, startIndex)
 
   // 2. Parse parameters
-  const [type, p1, p2, p3, p4] = cmd.parameters as [number, number, number, number, number]
+  const [type, p1, p2, p3, p4] = cmd.parameters as [number, unknown, number, unknown, number]
   if (type === 0) {
     // Switch
     node.values = {
       conditionType: 'switch',
       switchId: p1,
-      value: p2 === 0 // 0: ON, 1: OFF
+      switchValue: p2 // 0: ON, 1: OFF
     }
   } else if (type === 1) {
     // Variable
+    const operandType = p2 // 0: Constant, 1: Variable
     node.values = {
       conditionType: 'variable',
       variableId: p1,
+      operandType,
       variableOp: p4,
-      variableValue: p3
+      variableValue: operandType === 0 ? p3 : 0,
+      compareVariableId: operandType === 1 ? p3 : 1
+    }
+  } else if (type === 2) {
+    // Self Switch
+    node.values = {
+      conditionType: 'selfSwitch',
+      selfSwitchId: p1, // 'A', 'B', 'C', 'D'
+      selfSwitchValue: p2 // 0: ON, 1: OFF
     }
   }
 

@@ -95,7 +95,14 @@ const variableOptions = computed(() => {
       v-else-if="schema.type === 'select' && schema.options"
       :value="modelValue"
       class="w-full bg-slate-50 text-[11px] text-slate-800 border border-slate-200 rounded-lg px-2 py-1.5 font-bold cursor-pointer focus:border-indigo-500 focus:ring-2 focus:ring-indigo-50 transition-all appearance-none"
-      @change="emit('update:modelValue', ($event.target as HTMLSelectElement).value)"
+      @change="
+        emit(
+          'update:modelValue',
+          typeof modelValue === 'number'
+            ? Number(($event.target as HTMLSelectElement).value)
+            : ($event.target as HTMLSelectElement).value
+        )
+      "
     >
       <option v-for="opt in schema.options" :key="String(opt.value)" :value="opt.value">
         {{ opt.label }}
