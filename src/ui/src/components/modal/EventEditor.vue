@@ -2,23 +2,16 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useScrollLock } from '@vueuse/core'
 import { useEditorStore } from '@ui/stores/editor'
-import {
-  ZCommandCode,
-  ZEventTrigger,
-  ZEngineSignal,
-  type ZEventPage,
-  type ZEventCommand,
-  type ZMoveCommand
-} from '@engine/types'
+import { ZEngineSignal, ZEventTrigger, type ZEventPage, type ZMoveCommand } from '@engine/types'
 import { ProjectService } from '@ui/services/ProjectService'
 import CharacterSelector from '@ui/components/modal/CharacterSelector.vue'
 
 // Sub-components
 import EventEditorHeader from './event-editor/EventEditorHeader.vue'
 import EventEditorPageTabs from './event-editor/EventEditorPageTabs.vue'
-import EventEditorSidebar from './event-editor/EventEditorSidebar.vue'
 import EventEditorCommandList from './event-editor/EventEditorCommandList.vue'
 import EventEditorCommandSelector from './event-editor/EventEditorCommandSelector.vue'
+import { useEventCommands } from '@ui/composables/useEventCommands'
 
 const props = defineProps<{
   x: number
@@ -41,6 +34,17 @@ const eventName = ref('')
 const pages = ref<ZEventPage[]>([])
 
 const activePage = computed(() => pages.value[activePageIndex.value])
+
+// --- Command Management (Composable) ---
+const commandList = computed({
+  get: () => activePage.value?.list || [],
+  set: (val) => {
+    if (activePage.value) activePage.value.list = val
+  }
+})
+
+const { presentationList, deleteCommand, saveCommand, getChoiceName } =
+  useEventCommands(commandList)
 
 const createDefaultPage = (): ZEventPage => ({
   id: crypto.randomUUID(),
@@ -84,53 +88,6 @@ const initialize = async (): Promise<void> => {
   }
 }
 
-// --- Presentation List Computation ---
-const presentationList = computed(
-  (): { type: string; command?: ZEventCommand; index: number; indent: number }[] => {
-    if (!activePage.value) return []
-    const list = activePage.value.list
-    const result: { type: string; command?: ZEventCommand; index: number; indent: number }[] = []
-    let depth = 0
-
-    const addPlaceholder = (idx: number, d: number): void => {
-      result.push({ type: 'placeholder', index: idx, indent: d })
-    }
-
-    list.forEach((cmd, idx) => {
-      // Commands that "reset" to parent indent before displaying themselves
-      const isBranchMid = [ZCommandCode.Else, ZCommandCode.When].includes(cmd.code)
-      const isBlockEnd = [
-        ZCommandCode.EndBranch,
-        ZCommandCode.EndChoices,
-        ZCommandCode.EndLoop
-      ].includes(cmd.code)
-
-      if (isBranchMid || isBlockEnd) {
-        depth = Math.max(0, depth - 1)
-      }
-
-      addPlaceholder(idx, depth)
-      result.push({ type: 'command', command: cmd, index: idx, indent: depth })
-
-      // Commands that increase indent for FOLLOWING commands
-      if (
-        [
-          ZCommandCode.ConditionalBranch,
-          ZCommandCode.Else,
-          ZCommandCode.ShowChoices,
-          ZCommandCode.When,
-          ZCommandCode.Loop
-        ].includes(cmd.code)
-      ) {
-        depth++
-      }
-    })
-
-    addPlaceholder(list.length, depth)
-    return result
-  }
-)
-
 // --- Actions ---
 const addPage = (): void => {
   pages.value.push(createDefaultPage())
@@ -149,6 +106,27 @@ const copyPage = (): void => {
   copy.id = crypto.randomUUID()
   pages.value.splice(activePageIndex.value + 1, 0, copy)
   activePageIndex.value++
+}
+
+const insertionIndex = ref<number | null>(null)
+
+const handleEditCommand = (index: number): void => {
+  editingCommandIndex.value = index
+  insertionIndex.value = null
+  showCommandSelector.value = true
+}
+
+const handleAddCommand = (index: number): void => {
+  editingCommandIndex.value = null
+  insertionIndex.value = index
+  selectedCommandIndex.value = index
+  showCommandSelector.value = true
+}
+
+const handleCommandSave = (cmd: { code: number; parameters: unknown[] }): void => {
+  saveCommand(cmd, editingCommandIndex.value, insertionIndex.value, selectedCommandIndex.value)
+  insertionIndex.value = null
+  showCommandSelector.value = false
 }
 
 watch(activePageIndex, () => {
@@ -191,55 +169,6 @@ const remove = (): void => {
     store.deleteEvent(props.eventId)
     emit('close')
   }
-}
-
-const deleteCommand = (index: number): void => {
-  if (!activePage.value) return
-
-  const cmd = activePage.value.list[index]
-  if (!cmd) return
-
-  // Prevent individual deletion of hierarchical sub-commands
-  if (
-    [
-      ZCommandCode.Else,
-      ZCommandCode.EndBranch,
-      ZCommandCode.When,
-      ZCommandCode.EndChoices,
-      ZCommandCode.EndLoop
-    ].includes(cmd.code)
-  ) {
-    return
-  }
-
-  // Cascaded deletion for hierarchical blocks
-  let count = 1
-  if (
-    [ZCommandCode.ShowChoices, ZCommandCode.ConditionalBranch, ZCommandCode.Loop].includes(cmd.code)
-  ) {
-    let depth = 0
-    for (let i = index; i < activePage.value.list.length; i++) {
-      const c = activePage.value.list[i]
-      if (
-        [ZCommandCode.ShowChoices, ZCommandCode.ConditionalBranch, ZCommandCode.Loop].includes(
-          c.code
-        )
-      ) {
-        depth++
-      } else if (
-        [ZCommandCode.EndChoices, ZCommandCode.EndBranch, ZCommandCode.EndLoop].includes(c.code)
-      ) {
-        depth--
-        if (depth === 0) {
-          count = i - index + 1
-          break
-        }
-      }
-    }
-  }
-
-  activePage.value.list.splice(index, count)
-  selectedCommandIndex.value = null
 }
 
 const onSelectGraphic = (selection: {
@@ -287,96 +216,6 @@ const setGraphicFromSelection = (): void => {
 }
 
 const getCharacterUrl = (filename: string): string => ProjectService.resolveAssetUrl(filename)
-
-const getChoiceName = (itemIndex: number, choiceIndex: number): string => {
-  if (choiceIndex === -1) return 'Cancel'
-
-  // Try to find labels from the most recent ShowChoices command BEFORE this index
-  const page = activePage.value
-  if (page) {
-    for (let i = itemIndex - 1; i >= 0; i--) {
-      const cmd = page.list[i]
-      if (cmd.code === ZCommandCode.ShowChoices) {
-        const labels = cmd.parameters[0] as string[]
-        return labels[choiceIndex] || `Choice ${choiceIndex + 1}`
-      }
-    }
-  }
-
-  return `Choice ${choiceIndex + 1}`
-}
-
-const insertionIndex = ref<number | null>(null)
-
-const handleEditCommand = (index: number): void => {
-  editingCommandIndex.value = index
-  insertionIndex.value = null
-  showCommandSelector.value = true
-}
-
-const handleAddCommand = (index: number): void => {
-  editingCommandIndex.value = null
-  insertionIndex.value = index // Explicit insertion index
-  selectedCommandIndex.value = index
-  showCommandSelector.value = true
-}
-
-const handleCommandSave = (cmd: { code: number; parameters: unknown[] }): void => {
-  if (!activePage.value) return
-
-  const createCommand = (code: number, params: unknown[] = []): ZEventCommand => ({
-    code,
-    parameters: params
-  })
-
-  // Prepare commands to insert
-  const commandsToInsert: ZEventCommand[] = [createCommand(cmd.code, cmd.parameters)]
-
-  // Expansion logic for NEW commands only
-  if (editingCommandIndex.value === null) {
-    if (cmd.code === ZCommandCode.ShowChoices) {
-      const labels = cmd.parameters[0] as string[]
-      const cancelType = cmd.parameters[1] as number
-
-      // Add regular choices
-      labels.forEach((_, idx) => {
-        commandsToInsert.push(createCommand(ZCommandCode.When, [idx]))
-      })
-
-      // Add cancel branch if enabled (cancelType === 1 is "Branch")
-      if (cancelType === 1) {
-        commandsToInsert.push(createCommand(ZCommandCode.When, [-1])) // -1 for Cancel
-      }
-
-      commandsToInsert.push(createCommand(ZCommandCode.EndChoices))
-    } else if (cmd.code === ZCommandCode.ConditionalBranch) {
-      const hasElse = cmd.parameters[3] === 1
-      if (hasElse) {
-        commandsToInsert.push(createCommand(ZCommandCode.Else))
-      }
-      commandsToInsert.push(createCommand(ZCommandCode.EndBranch))
-    } else if (cmd.code === ZCommandCode.Loop) {
-      commandsToInsert.push(createCommand(ZCommandCode.EndLoop))
-    }
-  }
-
-  if (editingCommandIndex.value !== null) {
-    activePage.value.list[editingCommandIndex.value] = commandsToInsert[0]
-  } else {
-    let index = activePage.value.list.length
-
-    if (insertionIndex.value !== null) {
-      index = insertionIndex.value
-    } else if (selectedCommandIndex.value !== null) {
-      index = selectedCommandIndex.value + 1
-    }
-
-    activePage.value.list.splice(index, 0, ...commandsToInsert)
-  }
-
-  insertionIndex.value = null
-  showCommandSelector.value = false
-}
 
 const handleEditMoveRoute = (): void => {
   isAutonomousRouteMode.value = true

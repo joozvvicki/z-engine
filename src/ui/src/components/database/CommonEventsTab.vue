@@ -11,12 +11,17 @@ import {
 } from '@tabler/icons-vue'
 import EventEditorCommandList from '../modal/event-editor/EventEditorCommandList.vue'
 import EventEditorCommandSelector from '../modal/event-editor/EventEditorCommandSelector.vue'
-import { ZCommandCode, ZEventTrigger, type ZEventCommand, type ZEventPage } from '@engine/types'
+import { useEventCommands } from '@ui/composables/useEventCommands'
+import { useEditorStore } from '@ui/stores/editor'
+import { ZEventTrigger, type ZEventPage } from '@engine/types'
 
 const db = useDatabaseStore()
+const editor = useEditorStore()
 const selectedId = ref<number>(db.commonEvents[0]?.id || 0)
 const searchQuery = ref('')
 const selectedCommandIndex = ref<number | null>(null)
+const editingCommandIndex = ref<number | null>(null)
+const insertionIndex = ref<number | null>(null)
 const showCommandSelector = ref(false)
 
 // --- COMPUTED ---
@@ -28,53 +33,16 @@ const filteredEvents = computed(() => {
 
 const selectedEvent = computed(() => db.commonEvents.find((e) => e.id === selectedId.value))
 
-// Build presentation list (same logic as EventEditor)
-const presentationList = computed(
-  (): { type: string; command?: ZEventCommand; index: number; indent: number }[] => {
-    if (!selectedEvent.value) return []
-    const list = selectedEvent.value.list
-    const result: { type: string; command?: ZEventCommand; index: number; indent: number }[] = []
-    let depth = 0
-
-    const addPlaceholder = (idx: number, d: number): void => {
-      result.push({ type: 'placeholder', index: idx, indent: d })
-    }
-
-    list.forEach((cmd, idx) => {
-      let lineIndent = depth
-      if (
-        [
-          ZCommandCode.EndBranch,
-          ZCommandCode.Else,
-          ZCommandCode.When,
-          ZCommandCode.EndChoices
-        ].includes(cmd.code)
-      ) {
-        lineIndent = Math.max(0, depth - 1)
-      }
-
-      addPlaceholder(idx, depth)
-      result.push({ type: 'command', command: cmd, index: idx, indent: lineIndent })
-
-      if (
-        [
-          ZCommandCode.ConditionalBranch,
-          ZCommandCode.Else,
-          ZCommandCode.ShowChoices,
-          ZCommandCode.When
-        ].includes(cmd.code)
-      ) {
-        depth++
-      }
-      if ([ZCommandCode.EndBranch, ZCommandCode.EndChoices].includes(cmd.code)) {
-        depth = Math.max(0, depth - 1)
-      }
-    })
-
-    addPlaceholder(list.length, depth)
-    return result
+// --- Command Management (Composable) ---
+const commandList = computed({
+  get: () => selectedEvent.value?.list || [],
+  set: (val) => {
+    if (selectedEvent.value) selectedEvent.value.list = val
   }
-)
+})
+
+const { presentationList, deleteCommand, saveCommand, getChoiceName } =
+  useEventCommands(commandList)
 
 // Create mock ZEventPage for command selector
 const mockPage = computed((): ZEventPage | null => {
@@ -129,37 +97,29 @@ const handleDelete = (): void => {
   }
 }
 
-const handleOpenEditor = (index: number | null): void => {
+const handleOpenEditor = (index: number | null, isInsertion = false): void => {
+  if (isInsertion) {
+    editingCommandIndex.value = null
+    insertionIndex.value = index
+  } else {
+    editingCommandIndex.value = index
+    insertionIndex.value = null
+  }
   selectedCommandIndex.value = index
   showCommandSelector.value = true
 }
 
 const handleDeleteCommand = (index: number): void => {
-  if (!selectedEvent.value) return
-  selectedEvent.value.list.splice(index, 1)
+  deleteCommand(index)
   db.save('CommonEvents.json', db.commonEvents)
 }
 
-const handleInsertCommand = (payload: { code: number; parameters: unknown[] }): void => {
-  if (!selectedEvent.value) return
-
-  const command: ZEventCommand = {
-    code: payload.code,
-    parameters: payload.parameters,
-    indent: 0
-  }
-
-  if (selectedCommandIndex.value === null) {
-    // Add to end
-    selectedEvent.value.list.push(command)
-  } else {
-    // Insert at position
-    selectedEvent.value.list.splice(selectedCommandIndex.value + 1, 0, command)
-  }
-
+const handleCommandSave = (cmd: { code: number; parameters: unknown[] }): void => {
+  saveCommand(cmd, editingCommandIndex.value, insertionIndex.value, selectedCommandIndex.value)
   db.save('CommonEvents.json', db.commonEvents)
   showCommandSelector.value = false
-  selectedCommandIndex.value = null
+  insertionIndex.value = null
+  editingCommandIndex.value = null
 }
 
 const handleCloseSelector = (): void => {
@@ -316,7 +276,7 @@ const handleCloseSelector = (): void => {
           :page="mockPage"
           :presentation-list="presentationList"
           :active-page-index="0"
-          :get-choice-name="() => ''"
+          :get-choice-name="getChoiceName"
           @open-editor="handleOpenEditor"
           @delete-command="handleDeleteCommand"
         />
@@ -336,8 +296,11 @@ const handleCloseSelector = (): void => {
       v-if="showCommandSelector && mockPage"
       :show="showCommandSelector"
       :page="mockPage"
-      :system-switches="[]"
-      @save="handleInsertCommand"
+      :system-switches="editor.systemSwitches"
+      :initial-command="
+        editingCommandIndex !== null ? selectedEvent!.list[editingCommandIndex] : null
+      "
+      @save="handleCommandSave"
       @close="handleCloseSelector"
     />
   </div>
