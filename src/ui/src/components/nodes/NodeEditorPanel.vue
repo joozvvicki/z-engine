@@ -1,7 +1,11 @@
 <script setup lang="ts">
 import type { ZNodeValueSchema } from '@engine/types'
+import { useEditorStore } from '@ui/stores/editor'
+import { computed } from 'vue'
 
-const props = defineProps<{
+const editorStore = useEditorStore()
+
+defineProps<{
   schema: ZNodeValueSchema
   modelValue: unknown
 }>()
@@ -9,6 +13,36 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'update:modelValue', value: unknown): void
 }>()
+
+// Helper to get switch/variable name
+const getSwitchName = (id: number): string => {
+  const name = editorStore.systemSwitches[id - 1]
+  return name
+    ? `#${String(id).padStart(3, '0')} - ${name}`
+    : `#${String(id).padStart(3, '0')} - (Unnamed)`
+}
+
+const getVariableName = (id: number): string => {
+  const name = editorStore.systemVariables[id - 1]
+  return name
+    ? `#${String(id).padStart(3, '0')} - ${name}`
+    : `#${String(id).padStart(3, '0')} - (Unnamed)`
+}
+
+// Create lists for switches/variables
+const switchOptions = computed(() => {
+  return Array.from({ length: Math.max(50, editorStore.systemSwitches.length) }, (_, i) => ({
+    id: i + 1,
+    name: getSwitchName(i + 1)
+  }))
+})
+
+const variableOptions = computed(() => {
+  return Array.from({ length: Math.max(50, editorStore.systemVariables.length) }, (_, i) => ({
+    id: i + 1,
+    name: getVariableName(i + 1)
+  }))
+})
 </script>
 
 <template>
@@ -76,7 +110,9 @@ const emit = defineEmits<{
       @change="emit('update:modelValue', Number(($event.target as HTMLSelectElement).value))"
     >
       <option :value="0">None</option>
-      <option v-for="i in 100" :key="i" :value="i">Switch #{{ String(i).padStart(4, '0') }}</option>
+      <option v-for="opt in switchOptions" :key="opt.id" :value="opt.id">
+        {{ opt.name }}
+      </option>
     </select>
 
     <!-- Variable Selector -->
@@ -87,8 +123,8 @@ const emit = defineEmits<{
       @change="emit('update:modelValue', Number(($event.target as HTMLSelectElement).value))"
     >
       <option :value="0">None</option>
-      <option v-for="i in 100" :key="i" :value="i">
-        Variable #{{ String(i).padStart(4, '0') }}
+      <option v-for="opt in variableOptions" :key="opt.id" :value="opt.id">
+        {{ opt.name }}
       </option>
     </select>
 
