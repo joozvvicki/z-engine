@@ -591,6 +591,7 @@ export type ZNodeValueType =
   | 'position'
   | 'select'
   | 'move_route'
+  | 'choices'
 
 export interface ZNodeValueSchema {
   key: string
@@ -602,6 +603,9 @@ export interface ZNodeValueSchema {
   options?: { value: unknown; label: string }[]
   required?: boolean
   visible?: (values: Record<string, unknown>) => boolean
+  multiLine?: boolean
+  rows?: number
+  compact?: boolean
 }
 
 export interface ZNodeSocket {

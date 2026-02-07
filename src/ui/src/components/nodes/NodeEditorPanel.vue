@@ -3,6 +3,7 @@ import type { ZNodeValueSchema, ZMoveCommand } from '@engine/types'
 import { useEditorStore } from '@ui/stores/editor'
 import { computed } from 'vue'
 import MoveRouteEditor from './MoveRouteEditor.vue'
+import ChoiceEditor from './ChoiceEditor.vue'
 
 const editorStore = useEditorStore()
 
@@ -48,20 +49,32 @@ const variableOptions = computed(() => {
 <template>
   <div class="space-y-1.5">
     <label
-      class="text-[9px] text-slate-400 font-black uppercase tracking-wider flex items-center gap-1"
+      v-if="schema.label"
+      class="text-[9px] text-slate-400 font-black uppercase tracking-wider flex items-center gap-1 mb-1"
+      :class="{ 'text-[7px] opacity-60': schema.compact }"
     >
       {{ schema.label }}
       <span v-if="schema.required" class="text-red-400">*</span>
     </label>
 
-    <!-- String Input -->
-    <input
-      v-if="schema.type === 'string'"
-      :value="modelValue"
-      type="text"
-      class="w-full bg-slate-50 text-[11px] text-slate-800 outline-none border border-slate-200 rounded-lg px-3 py-2 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-50 transition-all font-medium"
-      @input="emit('update:modelValue', ($event.target as HTMLInputElement).value)"
-    />
+    <!-- String Input (Multiline vs Single) -->
+    <template v-if="schema.type === 'string'">
+      <textarea
+        v-if="schema.multiLine"
+        :value="modelValue as string"
+        :rows="schema.rows || 3"
+        class="w-full bg-slate-50 text-[11px] text-slate-800 outline-none border border-slate-200 rounded-lg px-3 py-2 focus:border-indigo-500 focus:bg-white focus:shadow-sm transition-all font-medium resize-none leading-relaxed placeholder:text-slate-300"
+        placeholder="Enter message text..."
+        @input="emit('update:modelValue', ($event.target as HTMLTextAreaElement).value)"
+      ></textarea>
+      <input
+        v-else
+        :value="modelValue"
+        type="text"
+        class="w-full bg-slate-50 text-[11px] text-slate-800 outline-none border border-slate-200 rounded-lg px-3 py-2 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-50 transition-all font-medium"
+        @input="emit('update:modelValue', ($event.target as HTMLInputElement).value)"
+      />
+    </template>
 
     <!-- Number Input -->
     <input
@@ -145,15 +158,28 @@ const variableOptions = computed(() => {
       @input="emit('update:modelValue', ($event.target as HTMLInputElement).value)"
     />
 
-    <!-- Graphic Input -->
-    <input
-      v-else-if="schema.type === 'graphic'"
-      :value="modelValue"
-      type="text"
-      placeholder="faces/actor1"
-      class="w-full bg-slate-50 text-[11px] text-slate-800 outline-none border border-slate-200 rounded-lg px-3 py-2 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-50 font-medium"
-      @input="emit('update:modelValue', ($event.target as HTMLInputElement).value)"
-    />
+    <!-- Graphic Input with Preview -->
+    <div v-else-if="schema.type === 'graphic'" class="flex flex-col gap-2">
+      <div class="flex items-center gap-3">
+        <div
+          class="w-12 h-12 rounded-xl bg-slate-100 border-2 border-slate-200 overflow-hidden flex items-center justify-center shrink-0 shadow-inner"
+        >
+          <img
+            v-if="modelValue"
+            :src="`https://placehold.co/144x144/f8fafc/6366f1?text=${String(modelValue).split('/').pop()?.slice(0, 2)}`"
+            class="w-full h-full object-cover"
+          />
+          <span v-else class="text-[8px] font-black text-slate-300 uppercase">None</span>
+        </div>
+        <input
+          :value="modelValue"
+          type="text"
+          placeholder="faces/Actor1"
+          class="flex-1 bg-slate-50 text-[11px] text-slate-800 outline-none border border-slate-200 rounded-lg px-3 py-2 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-50 font-medium h-fit"
+          @input="emit('update:modelValue', ($event.target as HTMLInputElement).value)"
+        />
+      </div>
+    </div>
 
     <!-- Event Selector -->
     <input
@@ -235,6 +261,13 @@ const variableOptions = computed(() => {
     <MoveRouteEditor
       v-else-if="schema.type === 'move_route'"
       :model-value="modelValue as ZMoveCommand[]"
+      @update:model-value="emit('update:modelValue', $event)"
+    />
+
+    <!-- Choice List Editor -->
+    <ChoiceEditor
+      v-else-if="schema.type === 'choices'"
+      :model-value="(modelValue as string[]) || []"
       @update:model-value="emit('update:modelValue', $event)"
     />
 

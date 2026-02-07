@@ -242,7 +242,7 @@ function handleShowChoices(
   const nodeInfo = { key: 'action.show_choices', definition: NodeRegistry['action.show_choices'] }
   const node = createNodeFromCommand(cmd, nodeInfo, ctx.x, ctx.y, startIndex)
   node.values = {
-    choices: choices.join(', '),
+    choices,
     cancelType,
     defaultType,
     positionType,
@@ -680,10 +680,6 @@ function createUnknownNode(cmd: ZEventCommand, x: number, y: number, index: numb
     config: { nodeKey: 'unknown', code: cmd.code },
     width: DEFAULT_WIDTH
   }
-}
-
-function isBranchMarker(code: number): boolean {
-  return [402, 403, 404, 405, 406, 411, 412].includes(code)
 }
 
 export default nodeDecompiler

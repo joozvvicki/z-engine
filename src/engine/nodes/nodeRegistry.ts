@@ -56,7 +56,14 @@ export const MessageNodes: ZNodeRegistry = {
     inputs: [{ id: 'exec', label: '', type: 'execution' }],
     outputs: [{ id: 'exec', label: '', type: 'execution' }],
     values: [
-      { key: 'text', label: 'Message Text', type: 'string', required: true },
+      {
+        key: 'text',
+        label: 'Message Text',
+        type: 'string',
+        required: true,
+        multiLine: true,
+        rows: 3
+      },
       { key: 'face', label: 'Face Graphic', type: 'graphic' },
       { key: 'faceIndex', label: 'Face Index', type: 'number', default: 0, min: 0 }
     ],
@@ -69,7 +76,7 @@ export const MessageNodes: ZNodeRegistry = {
     inputs: [{ id: 'exec', label: '', type: 'execution' }],
     outputs: [{ id: 'exec', label: 'Finish', type: 'execution' }],
     values: [
-      { key: 'choices', label: 'Choices (comma separated)', type: 'string', required: true },
+      { key: 'choices', label: 'Choices List', type: 'choices', required: true, default: [] },
       {
         key: 'cancelType',
         label: 'Cancel Type (-1: Disallow, 0+: Choice Index, 6: Branch)',
@@ -96,16 +103,12 @@ export const MessageNodes: ZNodeRegistry = {
       }
     ],
     getOutputs: (values: Record<string, unknown>) => {
-      const choicesStr = values.choices?.toString() || ''
-      const choices = choicesStr
-        .split(',')
-        .map((c: string) => c.trim())
-        .filter((c: string) => c.length > 0)
+      const choices = (values.choices as string[]) || []
       const cancelType = Number(values.cancelType ?? -1)
 
       const outputs = choices.map((choice: string, idx: number) => ({
         id: `choice_${idx}`,
-        label: choice,
+        label: choice || `Choice ${idx + 1}`,
         type: 'execution' as const
       }))
 
@@ -127,11 +130,7 @@ export const MessageNodes: ZNodeRegistry = {
     },
     compileHandler: (node, graph, visited, baseIndent) => {
       const commands: ZEventCommand[] = []
-      const choicesStr = node.values?.choices?.toString() || ''
-      const choices = choicesStr
-        .split(',')
-        .map((c: string) => c.trim())
-        .filter((c: string) => c.length > 0)
+      const choices = (node.values?.choices as string[]) || []
 
       const cancelType = Number(node.values?.cancelType ?? -1)
       const defaultType = Number(node.values?.defaultType ?? 0)
@@ -296,17 +295,19 @@ export const FlowNodes: ZNodeRegistry = {
         key: 'switchId',
         label: 'Switch',
         type: 'switch',
+        compact: true,
         visible: (v) => v['conditionType'] === 'switch'
       },
       {
         key: 'switchValue',
-        label: 'Switch Value',
+        label: 'Is',
         type: 'select',
         options: [
           { value: 0, label: 'ON' },
           { value: 1, label: 'OFF' }
         ],
         default: 0,
+        compact: true,
         visible: (v) => v['conditionType'] === 'switch'
       },
       // Self Switch fields
@@ -321,17 +322,19 @@ export const FlowNodes: ZNodeRegistry = {
           { value: 'D', label: 'D' }
         ],
         default: 'A',
+        compact: true,
         visible: (v) => v['conditionType'] === 'selfSwitch'
       },
       {
         key: 'selfSwitchValue',
-        label: 'Self Switch Value',
+        label: 'Is',
         type: 'select',
         options: [
           { value: 0, label: 'ON' },
           { value: 1, label: 'OFF' }
         ],
         default: 0,
+        compact: true,
         visible: (v) => v['conditionType'] === 'selfSwitch'
       },
       // Variable fields
@@ -339,11 +342,12 @@ export const FlowNodes: ZNodeRegistry = {
         key: 'variableId',
         label: 'Variable',
         type: 'variable',
+        compact: true,
         visible: (v) => v['conditionType'] === 'variable'
       },
       {
         key: 'variableOp',
-        label: 'Operator',
+        label: 'Op',
         type: 'select',
         options: [
           { value: 0, label: '==' },
@@ -354,30 +358,34 @@ export const FlowNodes: ZNodeRegistry = {
           { value: 5, label: '≠' }
         ],
         default: 0,
+        compact: true,
         visible: (v) => v['conditionType'] === 'variable'
       },
       {
         key: 'operandType',
-        label: 'Operand',
+        label: 'Type',
         type: 'select',
         options: [
-          { value: 0, label: 'Constant' },
-          { value: 1, label: 'Variable' }
+          { value: 0, label: 'Const' },
+          { value: 1, label: 'Var' }
         ],
         default: 0,
+        compact: true,
         visible: (v) => v['conditionType'] === 'variable'
       },
       {
         key: 'variableValue',
-        label: 'Constant Value',
+        label: 'Value',
         type: 'number',
         default: 0,
+        compact: true,
         visible: (v) => v['conditionType'] === 'variable' && v['operandType'] === 0
       },
       {
         key: 'compareVariableId',
-        label: 'Compare with Variable',
+        label: 'Compare',
         type: 'variable',
+        compact: true,
         visible: (v) => v['conditionType'] === 'variable' && v['operandType'] === 1
       }
     ],
@@ -484,16 +492,17 @@ export const DataNodes: ZNodeRegistry = {
     inputs: [{ id: 'exec', label: '', type: 'execution' }],
     outputs: [{ id: 'exec', label: '', type: 'execution' }],
     values: [
-      { key: 'switchId', label: 'Switch', type: 'switch', required: true },
+      { key: 'switchId', label: 'Switch', type: 'switch', required: true, compact: true },
       {
         key: 'value',
-        label: 'Value',
+        label: 'Set To',
         type: 'select',
         options: [
           { value: true, label: 'ON' },
           { value: false, label: 'OFF' }
         ],
-        default: true
+        default: true,
+        compact: true
       }
     ],
     commandCode: 121 as ZCommandCode // ControlSwitch
@@ -504,7 +513,7 @@ export const DataNodes: ZNodeRegistry = {
     inputs: [{ id: 'exec', label: '', type: 'execution' }],
     outputs: [{ id: 'exec', label: '', type: 'execution' }],
     values: [
-      { key: 'variableId', label: 'Variable', type: 'variable', required: true },
+      { key: 'variableId', label: 'Variable', type: 'variable', required: true, compact: true },
       {
         key: 'operation',
         label: 'Operation',
@@ -517,19 +526,21 @@ export const DataNodes: ZNodeRegistry = {
           { value: 4, label: 'Div' },
           { value: 5, label: 'Mod' }
         ],
-        default: 0
+        default: 0,
+        compact: true
       },
       {
         key: 'operandType',
-        label: 'Operand',
+        label: 'Type',
         type: 'select',
         options: [
-          { value: 0, label: 'Constant' },
-          { value: 1, label: 'Variable' }
+          { value: 0, label: 'Const' },
+          { value: 1, label: 'Var' }
         ],
-        default: 0
+        default: 0,
+        compact: true
       },
-      { key: 'value', label: 'Value', type: 'number', default: 0 }
+      { key: 'value', label: 'Value', type: 'number', default: 0, compact: true }
     ],
     commandCode: 122 as ZCommandCode // ControlVariable
   },
@@ -577,8 +588,16 @@ export const AudioNodes: ZNodeRegistry = {
     outputs: [{ id: 'exec', label: '', type: 'execution' }],
     values: [
       { key: 'name', label: 'Audio File', type: 'audio', required: true },
-      { key: 'volume', label: 'Volume', type: 'number', default: 90, min: 0, max: 100 },
-      { key: 'pitch', label: 'Pitch', type: 'number', default: 100, min: 50, max: 150 }
+      { key: 'volume', label: 'Vol', type: 'number', default: 90, min: 0, max: 100, compact: true },
+      {
+        key: 'pitch',
+        label: 'Pitch',
+        type: 'number',
+        default: 100,
+        min: 50,
+        max: 150,
+        compact: true
+      }
     ],
     commandCode: 241 as ZCommandCode // PlayBGM
   },
@@ -599,8 +618,16 @@ export const AudioNodes: ZNodeRegistry = {
     outputs: [{ id: 'exec', label: '', type: 'execution' }],
     values: [
       { key: 'name', label: 'Audio File', type: 'audio', required: true },
-      { key: 'volume', label: 'Volume', type: 'number', default: 90, min: 0, max: 100 },
-      { key: 'pitch', label: 'Pitch', type: 'number', default: 100, min: 50, max: 150 }
+      { key: 'volume', label: 'Vol', type: 'number', default: 90, min: 0, max: 100, compact: true },
+      {
+        key: 'pitch',
+        label: 'Pitch',
+        type: 'number',
+        default: 100,
+        min: 50,
+        max: 150,
+        compact: true
+      }
     ],
     commandCode: 245 as ZCommandCode // PlayBGS
   },
@@ -621,8 +648,16 @@ export const AudioNodes: ZNodeRegistry = {
     outputs: [{ id: 'exec', label: '', type: 'execution' }],
     values: [
       { key: 'name', label: 'Audio File', type: 'audio', required: true },
-      { key: 'volume', label: 'Volume', type: 'number', default: 90, min: 0, max: 100 },
-      { key: 'pitch', label: 'Pitch', type: 'number', default: 100, min: 50, max: 150 }
+      { key: 'volume', label: 'Vol', type: 'number', default: 90, min: 0, max: 100, compact: true },
+      {
+        key: 'pitch',
+        label: 'Pitch',
+        type: 'number',
+        default: 100,
+        min: 50,
+        max: 150,
+        compact: true
+      }
     ],
     commandCode: 249 as ZCommandCode // PlayME
   },
@@ -633,8 +668,16 @@ export const AudioNodes: ZNodeRegistry = {
     outputs: [{ id: 'exec', label: '', type: 'execution' }],
     values: [
       { key: 'name', label: 'Sound File', type: 'audio', required: true },
-      { key: 'volume', label: 'Volume', type: 'number', default: 90, min: 0, max: 100 },
-      { key: 'pitch', label: 'Pitch', type: 'number', default: 100, min: 50, max: 150 }
+      { key: 'volume', label: 'Vol', type: 'number', default: 90, min: 0, max: 100, compact: true },
+      {
+        key: 'pitch',
+        label: 'Pitch',
+        type: 'number',
+        default: 100,
+        min: 50,
+        max: 150,
+        compact: true
+      }
     ],
     commandCode: 250 as ZCommandCode // PlaySE
   },
@@ -760,41 +803,49 @@ export const ScreenNodes: ZNodeRegistry = {
   },
   'screen.tint': {
     title: 'Tint Screen',
-    category: 'action',
+    category: 'screen',
     inputs: [{ id: 'exec', label: '', type: 'execution' }],
     outputs: [{ id: 'exec', label: '', type: 'execution' }],
     values: [
-      { key: 'red', label: 'Red', type: 'number', default: 0, min: -255, max: 255 },
-      { key: 'green', label: 'Green', type: 'number', default: 0, min: -255, max: 255 },
-      { key: 'blue', label: 'Blue', type: 'number', default: 0, min: -255, max: 255 },
-      { key: 'gray', label: 'Gray', type: 'number', default: 0, min: 0, max: 255 },
-      { key: 'duration', label: 'Duration (frames)', type: 'number', default: 60, min: 1 }
+      { key: 'red', label: 'R', type: 'number', default: 0, min: -255, max: 255, compact: true },
+      { key: 'green', label: 'G', type: 'number', default: 0, min: -255, max: 255, compact: true },
+      { key: 'blue', label: 'B', type: 'number', default: 0, min: -255, max: 255, compact: true },
+      { key: 'gray', label: 'Gray', type: 'number', default: 0, min: 0, max: 255, compact: true },
+      { key: 'duration', label: 'Wait (frames)', type: 'number', default: 60, min: 1 }
     ],
     commandCode: 223 as ZCommandCode // TintScreen
   },
   'screen.flash': {
     title: 'Flash Screen',
-    category: 'action',
+    category: 'screen',
     inputs: [{ id: 'exec', label: '', type: 'execution' }],
     outputs: [{ id: 'exec', label: '', type: 'execution' }],
     values: [
-      { key: 'red', label: 'Red', type: 'number', default: 255, min: 0, max: 255 },
-      { key: 'green', label: 'Green', type: 'number', default: 255, min: 0, max: 255 },
-      { key: 'blue', label: 'Blue', type: 'number', default: 255, min: 0, max: 255 },
-      { key: 'strength', label: 'Strength', type: 'number', default: 170, min: 0, max: 255 },
-      { key: 'duration', label: 'Duration (frames)', type: 'number', default: 60, min: 1 }
+      { key: 'red', label: 'R', type: 'number', default: 255, min: 0, max: 255, compact: true },
+      { key: 'green', label: 'G', type: 'number', default: 255, min: 0, max: 255, compact: true },
+      { key: 'blue', label: 'B', type: 'number', default: 255, min: 0, max: 255, compact: true },
+      {
+        key: 'strength',
+        label: 'Str',
+        type: 'number',
+        default: 170,
+        min: 0,
+        max: 255,
+        compact: true
+      },
+      { key: 'duration', label: 'Wait (frames)', type: 'number', default: 60, min: 1 }
     ],
     commandCode: 224 as ZCommandCode // FlashScreen
   },
   'screen.shake': {
     title: 'Shake Screen',
-    category: 'action',
+    category: 'screen',
     inputs: [{ id: 'exec', label: '', type: 'execution' }],
     outputs: [{ id: 'exec', label: '', type: 'execution' }],
     values: [
-      { key: 'power', label: 'Power', type: 'number', default: 5, min: 1, max: 9 },
-      { key: 'speed', label: 'Speed', type: 'number', default: 5, min: 1, max: 9 },
-      { key: 'duration', label: 'Duration (frames)', type: 'number', default: 60, min: 1 }
+      { key: 'power', label: 'Pow', type: 'number', default: 5, min: 1, max: 9, compact: true },
+      { key: 'speed', label: 'Spd', type: 'number', default: 5, min: 1, max: 9, compact: true },
+      { key: 'duration', label: 'Wait (frames)', type: 'number', default: 60, min: 1 }
     ],
     commandCode: 225 as ZCommandCode // ShakeScreen
   }

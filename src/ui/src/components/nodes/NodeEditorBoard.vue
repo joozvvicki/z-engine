@@ -54,6 +54,30 @@ const getNodeSchemas = (node: ZNode): ZNodeValueSchema[] => {
   return schemas.filter((s) => (s.visible ? s.visible(node.values || {}) : true))
 }
 
+const getGroupedSchemas = (node: ZNode): ZNodeValueSchema[][] => {
+  const schemas = getNodeSchemas(node)
+  const groups: ZNodeValueSchema[][] = []
+  let currentGroup: ZNodeValueSchema[] = []
+
+  for (const schema of schemas) {
+    if (schema.compact) {
+      currentGroup.push(schema)
+    } else {
+      if (currentGroup.length > 0) {
+        groups.push(currentGroup)
+        currentGroup = []
+      }
+      groups.push([schema])
+    }
+  }
+
+  if (currentGroup.length > 0) {
+    groups.push(currentGroup)
+  }
+
+  return groups
+}
+
 const getSocketGlobalPos = (
   nodeId: string,
   socketId: string,
@@ -296,14 +320,27 @@ onUnmounted(() => {
           @delete="emit('node-delete', node.id)"
         >
           <template #content>
-            <div class="space-y-2.5">
-              <NodeEditorPanel
-                v-for="schema in getNodeSchemas(node)"
-                :key="schema.key"
-                :schema="schema"
-                :model-value="node.values?.[schema.key]"
-                @update:model-value="updateNodeValue(node.id, schema.key, $event)"
-              />
+            <div class="space-y-4">
+              <template v-for="(group, gIdx) in getGroupedSchemas(node)" :key="gIdx">
+                <!-- Compact Row -->
+                <div v-if="group.length > 1" class="flex items-end gap-2.5">
+                  <NodeEditorPanel
+                    v-for="schema in group"
+                    :key="schema.key"
+                    :schema="schema"
+                    :model-value="node.values?.[schema.key]"
+                    class="flex-1 min-w-0"
+                    @update:model-value="updateNodeValue(node.id, schema.key, $event)"
+                  />
+                </div>
+                <!-- Single (Normal or single compact) -->
+                <NodeEditorPanel
+                  v-else
+                  :schema="group[0]"
+                  :model-value="node.values?.[group[0].key]"
+                  @update:model-value="updateNodeValue(node.id, group[0].key, $event)"
+                />
+              </template>
             </div>
           </template>
         </VisualNode>
