@@ -552,7 +552,43 @@ export type ZCommandResult = 'continue' | 'wait' | 'stop'
 
 // --- Visual Scripting Types ---
 export type ZSocketType = 'execution' | 'data'
-export type ZNodeType = 'event' | 'action' | 'condition' | 'variable' | 'math' | 'logic'
+export type ZNodeType =
+  | 'event'
+  | 'action'
+  | 'condition'
+  | 'variable'
+  | 'math'
+  | 'logic'
+  | 'audio'
+  | 'picture'
+  | 'flow'
+  | 'scene'
+
+export type ZNodeValueType =
+  | 'string'
+  | 'number'
+  | 'boolean'
+  | 'switch'
+  | 'variable'
+  | 'audio'
+  | 'graphic'
+  | 'event'
+  | 'map'
+  | 'actor'
+  | 'color'
+  | 'position'
+  | 'select'
+
+export interface ZNodeValueSchema {
+  key: string
+  label: string
+  type: ZNodeValueType
+  default?: unknown
+  min?: number
+  max?: number
+  options?: { value: unknown; label: string }[]
+  required?: boolean
+}
 
 export interface ZNodeSocket {
   id: string
@@ -583,6 +619,29 @@ export interface ZConnection {
 export interface ZNodeGraph {
   nodes: ZNode[]
   connections: ZConnection[]
+}
+
+export interface ZNodeDefinition {
+  title: string
+  category: ZNodeType
+  inputs: ZNodeSocket[]
+  outputs: ZNodeSocket[]
+  values: ZNodeValueSchema[]
+  commandCode?: ZCommandCode
+  compileHandler?: (node: ZNode) => ZEventCommand[]
+}
+
+export type ZNodeRegistry = Record<string, ZNodeDefinition>
+
+export interface ZNodeCompiler {
+  compile(graph: ZNodeGraph, startNodeId?: string): ZEventCommand[]
+}
+
+export interface ZNodeExecutionContext {
+  startNode: string
+  visitedNodes: Set<string>
+  commandStack: ZEventCommand[]
+  indentLevel: number
 }
 
 export interface IEngineContext {

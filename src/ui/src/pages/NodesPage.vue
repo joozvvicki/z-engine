@@ -11,7 +11,9 @@ import {
 import { useNodeScriptStore } from '@ui/stores/nodeScript'
 import VisualNode from '@ui/components/nodes/VisualNode.vue'
 import NodeConnection from '@ui/components/nodes/NodeConnection.vue'
-import type { ZNodeType, ZNode, ZNodeSocket } from '@engine/types'
+import NodeEditorPanel from '@ui/components/nodes/NodeEditorPanel.vue'
+import type { ZNodeType, ZNode, ZNodeDefinition, ZNodeValueSchema } from '@engine/types'
+import { NodeRegistry } from '@engine/nodes'
 import {
   NODE_WIDTH,
   NODE_HEADER_HEIGHT,
@@ -37,76 +39,85 @@ const connectionSource = ref<{ nodeId: string; socketId: string; x: number; y: n
 )
 const mousePos = ref({ x: 0, y: 0 })
 
-// --- MOCK NODE DEFINITIONS FOR SIDEBAR ---
-const nodeTemplates: {
-  type: ZNodeType
-  title: string
-  color: string
-  inputs?: ZNodeSocket[]
-  outputs?: ZNodeSocket[]
-  values?: Record<string, unknown>
-}[] = [
-  {
-    type: 'event',
-    title: 'Game Start',
-    color: 'bg-purple-500',
-    inputs: [],
-    outputs: [{ id: 'out-1', label: 'Start', type: 'execution' }],
-    values: { trigger: 'onSceneStart' }
-  },
-  {
-    type: 'action',
-    title: 'Show Message',
-    color: 'bg-emerald-500',
-    inputs: [{ id: 'in-1', label: 'In', type: 'execution' }],
-    outputs: [{ id: 'out-next', label: 'Next', type: 'execution' }],
-    values: { text: 'Hello World!' }
-  },
-  {
-    type: 'variable',
-    title: 'Set Variable',
-    color: 'bg-amber-500',
-    inputs: [{ id: 'in-1', label: 'In', type: 'execution' }],
-    outputs: [{ id: 'out-1', label: 'Next', type: 'execution' }],
-    values: { name: 'score', op: 'set', value: '10' }
-  },
-  {
-    type: 'math',
-    title: 'Math',
-    color: 'bg-pink-500',
-    inputs: [
-      { id: 'a', label: 'A', type: 'data' },
-      { id: 'b', label: 'B', type: 'data' }
-    ],
-    outputs: [{ id: 'res', label: 'Res', type: 'data' }],
-    values: { op: '+' }
-  },
-  {
-    type: 'condition',
-    title: 'Branch (If)',
-    color: 'bg-blue-500',
-    inputs: [
-      { id: 'in-1', label: 'In', type: 'execution' },
-      { id: 'val', label: 'Check', type: 'data' }
-    ],
-    outputs: [
-      { id: 'true', label: 'True', type: 'execution' },
-      { id: 'false', label: 'False', type: 'execution' }
-    ],
-    values: { op: '==' }
-  },
-  {
-    type: 'logic',
-    title: 'Logic',
-    color: 'bg-indigo-500',
-    inputs: [
-      { id: 'a', label: 'A', type: 'data' },
-      { id: 'b', label: 'B', type: 'data' }
-    ],
-    outputs: [{ id: 'res', label: 'Res', type: 'data' }],
-    values: { op: 'AND' }
+// --- HELPER FUNCTIONS ---
+const getCategoryColor = (category: ZNodeType): string => {
+  const colors: Record<ZNodeType, string> = {
+    event: 'bg-purple-500',
+    action: 'bg-emerald-500',
+    condition: 'bg-blue-500',
+    variable: 'bg-amber-500',
+    math: 'bg-pink-500',
+    logic: 'bg-indigo-500',
+    audio: 'bg-rose-500',
+    picture: 'bg-cyan-500',
+    flow: 'bg-blue-500',
+    scene: 'bg-teal-500'
   }
-]
+  return colors[category] || 'bg-slate-500'
+}
+
+const getCategoryLabel = (category: string): string => {
+  const labels: Record<string, string> = {
+    event: '🎯 Events',
+    action: '💬 Actions',
+    flow: '🌊 Flow Control',
+    variable: '📊 Data',
+    audio: '🔊 Audio',
+    scene: '🗺️ Scene',
+    condition: '❓ Conditions',
+    math: '🔢 Math',
+    logic: '🔧 Logic',
+    picture: '🖼️ Pictures'
+  }
+  return labels[category] || category
+}
+
+// --- NODE TEMPLATES FROM REGISTRY ---
+const nodeTemplates = computed(() => {
+  return Object.entries(NodeRegistry).map(([key, def]) => ({
+    key,
+    definition: def,
+    category: def.category,
+    color: getCategoryColor(def.category)
+  }))
+})
+
+// Group by category for sidebar
+const nodesByCategory = computed(() => {
+  const grouped: Record<string, typeof nodeTemplates.value> = {}
+  nodeTemplates.value.forEach((t) => {
+    if (!grouped[t.category]) {
+      grouped[t.category] = []
+    }
+    grouped[t.category].push(t)
+  })
+  return grouped
+})
+
+// Initialize node values with defaults from schemas
+const initializeNodeValues = (schemas: ZNodeValueSchema[]): Record<string, unknown> => {
+  const values: Record<string, unknown> = {}
+  schemas.forEach((schema) => {
+    values[schema.key] = schema.default ?? null
+  })
+  return values
+}
+
+// Get node schemas from registry
+const getNodeSchemas = (node: ZNode): ZNodeValueSchema[] => {
+  const key = node.config?.nodeKey as string
+  if (!key || !NodeRegistry[key]) return []
+  return NodeRegistry[key].values
+}
+
+// Update node value
+const updateNodeValue = (nodeId: string, key: string, value: unknown): void => {
+  const node = store.nodes.find((n) => n.id === nodeId)
+  if (node) {
+    if (!node.values) node.values = {}
+    node.values[key] = value
+  }
+}
 
 // --- INITIAL LOAD ---
 onMounted(async () => {
@@ -269,25 +280,19 @@ const activeDragPath = computed((): string => {
   return `M ${start.x} ${start.y} C ${start.x + controlOffset} ${start.y}, ${endX - controlOffset} ${endY}, ${endX} ${endY}`
 })
 
-const addNewNode = (template: {
-  type: ZNodeType
-  title: string
-  color: string
-  inputs?: ZNodeSocket[]
-  outputs?: ZNodeSocket[]
-  values?: Record<string, unknown>
-}): void => {
+const addNewNode = (key: string, def: ZNodeDefinition): void => {
   const id = `node-${Date.now()}`
 
   store.addNode({
     id,
-    type: template.type,
-    title: template.title,
+    type: def.category,
+    title: def.title,
     x: (400 - store.pan.x) / store.zoom,
     y: (300 - store.pan.y) / store.zoom,
-    inputs: template.inputs ? JSON.parse(JSON.stringify(template.inputs)) : [],
-    outputs: template.outputs ? JSON.parse(JSON.stringify(template.outputs)) : [],
-    values: template.values ? JSON.parse(JSON.stringify(template.values)) : {}
+    inputs: JSON.parse(JSON.stringify(def.inputs)),
+    outputs: JSON.parse(JSON.stringify(def.outputs)),
+    values: initializeNodeValues(def.values),
+    config: { nodeKey: key }
   } as ZNode)
 }
 </script>
@@ -321,20 +326,20 @@ const addNewNode = (template: {
       </div>
 
       <div class="flex-1 overflow-y-auto p-4 space-y-6 custom-scrollbar">
-        <div>
-          <h3 class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">
-            Nodes Palette
+        <div v-for="(nodes, category) in nodesByCategory" :key="category" class="space-y-3">
+          <h3 class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+            {{ getCategoryLabel(category) }}
           </h3>
           <div class="space-y-2">
             <button
-              v-for="t in nodeTemplates"
-              :key="t.type"
+              v-for="item in nodes"
+              :key="item.key"
               class="w-full flex items-center gap-3 p-2.5 rounded-xl bg-slate-50 border border-slate-200/50 hover:bg-white hover:border-indigo-200 hover:shadow-md hover:-translate-y-0.5 transition-all text-left group"
-              @click="addNewNode(t)"
+              @click="addNewNode(item.key, item.definition)"
             >
-              <div class="w-2.5 h-2.5 rounded-full" :class="t.color"></div>
+              <div class="w-2.5 h-2.5 rounded-full" :class="item.color"></div>
               <span class="text-xs font-bold text-slate-600 group-hover:text-slate-900">{{
-                t.title
+                item.definition.title
               }}</span>
               <IconPlus
                 size="12"
@@ -426,111 +431,15 @@ const addNewNode = (template: {
             @socket-drop="(id) => handleSocketDrop(node.id, id)"
           >
             <template #content>
-              <!-- Specific node controls -->
-              <div class="space-y-3">
-                <!-- Message Action -->
-                <div v-if="node.type === 'action' && node.values && node.values.text !== undefined">
-                  <p class="text-[9px] text-slate-400 font-black uppercase mb-1.5 tracking-wider">
-                    Message
-                  </p>
-                  <input
-                    v-model="node.values.text"
-                    type="text"
-                    class="w-full bg-slate-50 text-[11px] text-slate-800 outline-none border border-slate-200 rounded-lg px-3 py-2 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all font-medium"
-                  />
-                </div>
-
-                <!-- Event Node -->
-                <div v-if="node.type === 'event' && node.values">
-                  <p class="text-[9px] text-slate-400 font-black uppercase mb-1.5 tracking-wider">
-                    Trigger
-                  </p>
-                  <select
-                    v-model="node.values.trigger"
-                    class="w-full bg-slate-50 text-[11px] text-slate-800 outline-none border border-slate-200 rounded-lg px-2 py-1.5 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all font-bold appearance-none cursor-pointer"
-                  >
-                    <option value="onSceneStart">On Scene Start</option>
-                    <option value="onInteraction">On Interaction</option>
-                    <option value="onTimer">On Timer</option>
-                  </select>
-                </div>
-
-                <!-- Variable Node -->
-                <div v-if="node.type === 'variable' && node.values" class="space-y-2">
-                  <div>
-                    <p class="text-[9px] text-slate-400 font-black uppercase mb-1.5 tracking-wider">
-                      Var Name
-                    </p>
-                    <input
-                      v-model="node.values.name"
-                      type="text"
-                      class="w-full bg-slate-50 text-[11px] text-slate-800 outline-none border border-slate-200 rounded-lg px-3 py-1.5 focus:border-indigo-500 font-bold"
-                    />
-                  </div>
-                  <div class="flex gap-2">
-                    <select
-                      v-model="node.values.op"
-                      class="flex-1 bg-slate-50 text-[11px] text-slate-800 border border-slate-200 rounded-lg px-2 py-1.5 font-bold"
-                    >
-                      <option value="set">=</option>
-                      <option value="add">+</option>
-                      <option value="sub">-</option>
-                    </select>
-                    <input
-                      v-model="node.values.value"
-                      type="text"
-                      placeholder="Val"
-                      class="w-16 bg-slate-50 text-[11px] text-slate-800 border border-slate-200 rounded-lg px-2 py-1.5 font-bold"
-                    />
-                  </div>
-                </div>
-
-                <!-- Math Node -->
-                <div v-if="node.type === 'math' && node.values">
-                  <p class="text-[9px] text-slate-400 font-black uppercase mb-1.5 tracking-wider">
-                    Operation
-                  </p>
-                  <select
-                    v-model="node.values.op"
-                    class="w-full bg-slate-50 text-[11px] text-slate-800 border border-slate-200 rounded-lg px-2 py-1.5 font-bold text-center"
-                  >
-                    <option value="+">ADD (+)</option>
-                    <option value="-">SUB (-)</option>
-                    <option value="*">MUL (*)</option>
-                    <option value="/">DIV (/)</option>
-                  </select>
-                </div>
-
-                <!-- Condition Node -->
-                <div v-if="node.type === 'condition' && node.values">
-                  <p class="text-[9px] text-slate-400 font-black uppercase mb-1.5 tracking-wider">
-                    Compare
-                  </p>
-                  <select
-                    v-model="node.values.op"
-                    class="w-full bg-slate-50 text-[11px] text-slate-800 border border-slate-200 rounded-lg px-2 py-1.5 font-bold text-center"
-                  >
-                    <option value="==">EQUAL (==)</option>
-                    <option value="!=">NOT EQUAL (!=)</option>
-                    <option value="&gt;">GREATER THAN (&gt;)</option>
-                    <option value="&lt;">LESS THAN (&lt;)</option>
-                  </select>
-                </div>
-
-                <!-- Logic Node -->
-                <div v-if="node.type === 'logic' && node.values">
-                  <p class="text-[9px] text-slate-400 font-black uppercase mb-1.5 tracking-wider">
-                    Gate
-                  </p>
-                  <select
-                    v-model="node.values.op"
-                    class="w-full bg-slate-50 text-[11px] text-slate-800 border border-slate-200 rounded-lg px-2 py-1.5 font-bold text-center"
-                  >
-                    <option value="AND">AND</option>
-                    <option value="OR">OR</option>
-                    <option value="NOT">NOT (A only)</option>
-                  </select>
-                </div>
+              <!-- Dynamic node value editor based on registry schemas -->
+              <div class="space-y-2.5">
+                <NodeEditorPanel
+                  v-for="schema in getNodeSchemas(node)"
+                  :key="schema.key"
+                  :schema="schema"
+                  :model-value="node.values?.[schema.key]"
+                  @update:model-value="updateNodeValue(node.id, schema.key, $event)"
+                />
               </div>
             </template>
           </VisualNode>
