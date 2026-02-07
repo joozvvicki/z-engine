@@ -3,7 +3,7 @@ import { ref } from 'vue'
 import type { ZNode, ZConnection, ZNodeGraph } from '@engine/types'
 import { ProjectService } from '../services/ProjectService'
 
-export const NODE_WIDTH = 240
+export const NODE_WIDTH = 280
 export const NODE_HEADER_HEIGHT = 40
 export const NODE_PADDING = 24
 export const SOCKET_SIZE = 12
@@ -11,6 +11,8 @@ export const SOCKET_ROW_HEIGHT = 28
 export const SOCKET_OFFSET = 0
 export const NODE_BORDER_TOP = 4
 export const NODE_BORDER_SIDE = 2
+export const NODE_GAP_X = 60
+export const NODE_GAP_Y = 100
 
 export const useNodeScriptStore = defineStore('nodeScript', () => {
   const nodes = ref<ZNode[]>([])

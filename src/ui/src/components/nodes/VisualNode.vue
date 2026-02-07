@@ -201,7 +201,7 @@ const socketContainerStyle = {
     </div>
 
     <!-- Content (Normal flow with padding) -->
-    <div class="px-8 pb-6" :style="{ paddingTop: NODE_PADDING + 6 + 'px' }">
+    <div class="px-5 pb-6" :style="{ paddingTop: NODE_PADDING + 6 + 'px' }">
       <slot name="content"></slot>
     </div>
   </div>

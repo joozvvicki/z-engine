@@ -33,7 +33,7 @@ export const nodeDecompiler = {
       startIndex: 0,
       endIndex: commands.length,
       indent: 0,
-      x: 450,
+      x: 100 + DX,
       y: 150,
       nodes,
       connections,
@@ -60,6 +60,17 @@ interface DecompileContext {
   parentNodeId: string | null
   parentSocketId: string | null
 }
+
+export type DecompileResult = {
+  lastNodeId: string
+  nextX: number
+  nextY: number
+  consumedCount: number
+} | null
+
+// Layout constants
+const DX = 340 // NODE_WIDTH (280) + NODE_GAP_X (60)
+const DY = 160 // Vertical branch offset
 
 /**
  * Process a range of commands and build nodes/connections
@@ -264,8 +275,8 @@ function handleShowChoices(
         startIndex: i + 1,
         endIndex: branchEnd,
         indent: indent + 1,
-        x: ctx.x + 400,
-        y: ctx.y + branchIndex * 150,
+        x: ctx.x + DX,
+        y: ctx.y + branchIndex * DY,
         parentNodeId: node.id,
         parentSocketId: `choice_${branchIndex}`
       })
@@ -290,8 +301,8 @@ function handleShowChoices(
         startIndex: i + 1,
         endIndex: branchEnd,
         indent: indent + 1,
-        x: ctx.x + 400,
-        y: ctx.y + branchIndex * 150,
+        x: ctx.x + DX,
+        y: ctx.y + branchIndex * DY,
         parentNodeId: node.id,
         parentSocketId: 'cancel'
       })
@@ -303,7 +314,7 @@ function handleShowChoices(
     i++
   }
 
-  return { lastNodeId: node.id, nextX: ctx.x + 500, nextY: ctx.y, consumedCount }
+  return { lastNodeId: node.id, nextX: ctx.x + DX, nextY: ctx.y, consumedCount }
 }
 
 /**
@@ -394,7 +405,7 @@ function handleConditionalBranch(
     startIndex: startIndex + 1,
     endIndex: elseIndex !== -1 ? elseIndex : endIndex,
     indent: indent + 1,
-    x: ctx.x + 400,
+    x: ctx.x + DX,
     y: ctx.y,
     parentNodeId: node.id,
     parentSocketId: 'true'
@@ -407,22 +418,20 @@ function handleConditionalBranch(
       startIndex: elseIndex + 1,
       endIndex: endIndex,
       indent: indent + 1,
-      x: ctx.x + 400,
-      y: ctx.y + 150,
+      x: ctx.x + DX,
+      y: ctx.y + DY,
       parentNodeId: node.id,
       parentSocketId: 'false'
     })
   }
 
-  return { lastNodeId: node.id, nextX: ctx.x + 500, nextY: ctx.y, consumedCount: endIndex + 1 }
+  return { lastNodeId: node.id, nextX: ctx.x + DX, nextY: ctx.y, consumedCount: endIndex + 1 }
 }
 
 /**
  * Handle Set Move Route (205)
  */
-function handleSetMoveRoute(
-  ctx: DecompileContext
-): { lastNodeId: string; nextX: number; nextY: number; consumedCount: number } | null {
+export function handleSetMoveRoute(ctx: DecompileContext): DecompileResult {
   const { commands, startIndex, nodes, connections, parentNodeId, parentSocketId } = ctx
   const cmd = commands[startIndex]
 
@@ -560,7 +569,7 @@ function handleSetMoveRoute(
     })
   }
 
-  return { lastNodeId: node.id, nextX: ctx.x + 500, nextY: ctx.y, consumedCount: startIndex + 1 }
+  return { lastNodeId: node.id, nextX: ctx.x + DX, nextY: ctx.y, consumedCount: startIndex + 1 }
 }
 
 // --- Helpers ---
