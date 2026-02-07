@@ -4,9 +4,10 @@ import {
   ZEventTrigger,
   IEngineContext,
   type ZEventRuntimeState,
-  ZEventPage
+  ZEventPage,
+  IObstacleProvider,
+  IPhysicsSystem
 } from '@engine/types'
-import type { IPhysicsSystem, IObstacleProvider } from '@engine/interfaces/IPhysicsSystem'
 import { ZEventBus } from '@engine/core/ZEventBus'
 import { MapManager } from '@engine/managers/MapManager'
 import { GameStateManager } from '@engine/managers/GameStateManager'

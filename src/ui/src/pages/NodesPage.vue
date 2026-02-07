@@ -2,18 +2,25 @@
 import { ref, onMounted, computed } from 'vue'
 import {
   IconSearch,
-  IconPlayerPlay,
   IconZoomIn,
   IconZoomOut,
   IconLayoutGrid,
-  IconPlus
+  IconPlus,
+  IconCode,
+  IconX
 } from '@tabler/icons-vue'
 import { useNodeScriptStore } from '@ui/stores/nodeScript'
 import VisualNode from '@ui/components/nodes/VisualNode.vue'
 import NodeConnection from '@ui/components/nodes/NodeConnection.vue'
 import NodeEditorPanel from '@ui/components/nodes/NodeEditorPanel.vue'
-import type { ZNodeType, ZNode, ZNodeDefinition, ZNodeValueSchema } from '@engine/types'
-import { NodeRegistry } from '@engine/nodes'
+import type {
+  ZNodeType,
+  ZNode,
+  ZNodeDefinition,
+  ZNodeValueSchema,
+  ZEventCommand
+} from '@engine/types'
+import { NodeRegistry, nodeCompiler } from '@engine/nodes'
 import {
   NODE_WIDTH,
   NODE_HEADER_HEIGHT,
@@ -38,6 +45,10 @@ const connectionSource = ref<{ nodeId: string; socketId: string; x: number; y: n
   null
 )
 const mousePos = ref({ x: 0, y: 0 })
+
+// --- COMPILE PREVIEW STATE ---
+const showCompilePreview = ref(false)
+const compiledCommands = ref<ZEventCommand[]>([])
 
 // --- HELPER FUNCTIONS ---
 const getCategoryColor = (category: ZNodeType): string => {
@@ -122,36 +133,25 @@ const updateNodeValue = (nodeId: string, key: string, value: unknown): void => {
 // --- INITIAL LOAD ---
 onMounted(async () => {
   await store.loadAll()
-  if (store.nodes.length === 0) {
-    // Initial example graph
-    store.addNode({
-      id: 'node-1',
-      type: 'event',
-      title: 'Game Start',
-      x: 100,
-      y: 150,
-      inputs: [],
-      outputs: [{ id: 'out-1', label: 'Start', type: 'execution' }]
-    })
-    store.addNode({
-      id: 'node-2',
-      type: 'action',
-      title: 'Show Message',
-      x: 400,
-      y: 150,
-      inputs: [{ id: 'in-1', label: 'In', type: 'execution' }],
-      outputs: [{ id: 'out-next', label: 'Next', type: 'execution' }],
-      values: { text: 'Hello World!' }
-    })
-    store.addConnection({
-      id: 'c1',
-      fromNode: 'node-1',
-      fromSocket: 'out-1',
-      toNode: 'node-2',
-      toSocket: 'in-1'
-    })
-  }
 })
+
+// --- COMPILE FUNCTIONALITY ---
+const compileNodeGraph = (): void => {
+  try {
+    const graph = {
+      nodes: store.nodes,
+      connections: store.connections
+    }
+
+    compiledCommands.value = nodeCompiler.compile(graph)
+    showCompilePreview.value = true
+
+    console.log('[NodesPage] Compiled commands:', compiledCommands.value)
+  } catch (error) {
+    console.error('[NodesPage] Compilation error:', error)
+    alert(`Compilation failed: ${error}`)
+  }
+}
 
 // --- HELPERS ---
 const getSocketGlobalPos = (
@@ -478,8 +478,9 @@ const addNewNode = (key: string, def: ZNodeDefinition): void => {
         </button>
         <button
           class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-2xl shadow-xl shadow-indigo-600/20 flex items-center gap-2.5 text-xs font-black uppercase tracking-wider transition-all active:scale-95 border border-indigo-500/50"
+          @click="compileNodeGraph"
         >
-          <IconPlayerPlay :size="14" class="fill-current" />
+          <IconCode :size="14" />
           Compile
         </button>
       </div>

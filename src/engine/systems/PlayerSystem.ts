@@ -1,7 +1,12 @@
-import { ZEngineSignal, type ZMoveCommand, ZInputAction, type ZMoveable } from '@engine/types'
-import { type IObstacleProvider } from '@engine/interfaces/IPhysicsSystem'
+import {
+  ZEngineSignal,
+  type ZMoveCommand,
+  type ZMoveable,
+  ZInputAction,
+  IObstacleProvider,
+  IPhysicsSystem
+} from '@engine/types'
 import ZLogger from '@engine/utils/ZLogger'
-import type { IPhysicsSystem } from '@engine/interfaces/IPhysicsSystem'
 import { MovementProcessor } from '@engine/core/MovementProcessor'
 import { InputManager } from '@engine/managers/InputManager'
 import { MapManager } from '@engine/managers/MapManager'

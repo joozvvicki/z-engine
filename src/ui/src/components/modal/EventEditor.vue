@@ -12,6 +12,7 @@ import EventEditorPageTabs from './event-editor/EventEditorPageTabs.vue'
 import EventEditorCommandList from './event-editor/EventEditorCommandList.vue'
 import EventEditorCommandSelector from './event-editor/EventEditorCommandSelector.vue'
 import { useEventCommands } from '@ui/composables/useEventCommands'
+import EventEditorSidebar from './event-editor/EventEditorSidebar.vue'
 
 const props = defineProps<{
   x: number

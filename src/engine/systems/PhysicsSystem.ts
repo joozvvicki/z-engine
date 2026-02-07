@@ -1,5 +1,4 @@
-import { ZLayer } from '@engine/types'
-import type { IPhysicsSystem, IObstacleProvider } from '@engine/interfaces/IPhysicsSystem'
+import { IObstacleProvider, IPhysicsSystem, ZLayer } from '@engine/types'
 import { MapManager } from '@engine/managers/MapManager'
 import { TilesetManager } from '@engine/managers/TilesetManager'
 
