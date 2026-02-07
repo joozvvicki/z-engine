@@ -4,7 +4,7 @@ import { IconArrowDown } from '@tabler/icons-vue'
 import { ZCommandCode, type ZEventCommand } from '@engine/types'
 
 const props = defineProps<{
-  type: number // 201 (Wait) or 111 (Conditional)
+  type: number // 230 (Wait) or 111 (Conditional)
   switches: string[]
   variables: string[]
   initialCommand?: ZEventCommand | null
@@ -17,6 +17,9 @@ const switchId = ref('1')
 const switchVal = ref(1)
 const varId = ref('1')
 const varVal = ref(0)
+const selfSwitchCh = ref<'A' | 'B' | 'C' | 'D'>('A')
+const selfSwitchVal = ref(1)
+const scriptContent = ref('')
 
 const initialize = (): void => {
   if (props.initialCommand) {
@@ -28,9 +31,13 @@ const initialize = (): void => {
       if (branchType.value === 0) {
         switchId.value = String(params[1] || '1')
         switchVal.value = params[2] === 1 ? 1 : 0
-      } else {
         varId.value = String(params[1] || '1')
         varVal.value = Number(params[2] || 0)
+      } else if (branchType.value === 2) {
+        selfSwitchCh.value = (params[1] as 'A' | 'B' | 'C' | 'D') || 'A'
+        selfSwitchVal.value = Number(params[2] ?? 1)
+      } else if (branchType.value === 3) {
+        scriptContent.value = String(params[1] || '')
       }
     }
   }
@@ -47,8 +54,12 @@ defineExpose({
     } else if (props.type === ZCommandCode.ConditionalBranch) {
       if (branchType.value === 0) {
         finalParams = [0, switchId.value, switchVal.value]
-      } else {
+      } else if (branchType.value === 1) {
         finalParams = [1, varId.value, varVal.value]
+      } else if (branchType.value === 2) {
+        finalParams = [2, selfSwitchCh.value, selfSwitchVal.value]
+      } else if (branchType.value === 3) {
+        finalParams = [3, scriptContent.value]
       }
     }
     return {
@@ -61,8 +72,7 @@ defineExpose({
 
 <template>
   <div class="space-y-6">
-    <!-- Wait -->
-    <template v-if="type === 201">
+    <template v-if="type === ZCommandCode.Wait">
       <div class="space-y-3">
         <label class="text-[10px] font-bold uppercase text-slate-400 block ml-1"
           >Wait Duration (Frames)</label
@@ -76,13 +86,14 @@ defineExpose({
       </div>
     </template>
 
-    <!-- Conditional Branch -->
-    <template v-else-if="type === 111">
+    <template v-else-if="type === ZCommandCode.ConditionalBranch">
       <div class="segmented-control">
         <button
           v-for="bt in [
             { val: 0, label: 'Switch' },
-            { val: 1, label: 'Variable' }
+            { val: 1, label: 'Variable' },
+            { val: 2, label: 'Self Switch' },
+            { val: 3, label: 'Script' }
           ]"
           :key="bt.val"
           :class="{ active: branchType === bt.val }"
@@ -153,6 +164,59 @@ defineExpose({
             >Required Value (=)</label
           >
           <input v-model.number="varVal" type="number" class="docs-input" />
+        </div>
+      </div>
+
+      <!-- Self Switch Condition -->
+      <div v-else-if="branchType === 2" class="space-y-5 px-1 pt-4">
+        <div class="space-y-3">
+          <label class="text-[10px] font-bold uppercase text-slate-400 block ml-1"
+            >Self Switch</label
+          >
+          <div class="flex rounded-xl overflow-hidden border border-slate-200 bg-white shadow-sm">
+            <button
+              v-for="ch in ['A', 'B', 'C', 'D']"
+              :key="ch"
+              class="flex-1 py-3 text-xs font-black transition-all"
+              :class="
+                selfSwitchCh === ch ? 'bg-slate-900 text-white' : 'text-slate-400 hover:bg-slate-50'
+              "
+              @click="selfSwitchCh = ch as any"
+            >
+              {{ ch }}
+            </button>
+          </div>
+        </div>
+        <div class="space-y-3">
+          <label class="text-[10px] font-bold uppercase text-slate-400 block ml-1">State</label>
+          <div class="segmented-control">
+            <button
+              v-for="s in [
+                { val: 1, label: 'ON' },
+                { val: 0, label: 'OFF' }
+              ]"
+              :key="s.val"
+              :class="{ active: selfSwitchVal === s.val }"
+              @click="selfSwitchVal = s.val"
+            >
+              {{ s.label }}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Script Condition -->
+      <div v-else-if="branchType === 3" class="space-y-5 px-1 pt-4">
+        <div class="space-y-3">
+          <label class="text-[10px] font-bold uppercase text-slate-400 block ml-1"
+            >JavaScript Condition</label
+          >
+          <textarea
+            v-model="scriptContent"
+            rows="3"
+            class="docs-input font-mono"
+            placeholder="return $gameSwitches.value(1) === true;"
+          ></textarea>
         </div>
       </div>
     </template>

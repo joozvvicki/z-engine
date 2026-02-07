@@ -18,7 +18,7 @@ import {
 import type { Component } from 'vue'
 
 const props = defineProps<{
-  type: number // 201 (Transfer), 205 (Move Route), 203 (Direction)
+  type: number // 201 (Transfer), 205 (Move Route), 213 (Direction)
   maps: ZMap[]
   isAutonomousMode?: boolean
   moveActions: { code: string | number; label: string; icon: Component; paramNames?: string[] }[]
@@ -31,6 +31,7 @@ const transferMapId = ref(1)
 const transferX = ref(0)
 const transferY = ref(0)
 const transferDirection = ref(2)
+const transferFade = ref(0) // 0: Black, 1: White, 2: None
 const selectedDirection = ref(2)
 
 // Move Route state
@@ -61,6 +62,7 @@ const initialize = (): void => {
       transferX.value = Number(params[1] || 0)
       transferY.value = Number(params[2] || 0)
       transferDirection.value = Number(params[3] || 2)
+      transferFade.value = Number(params[4] || 0)
     } else if (props.initialCommand.code === ZCommandCode.SetMoveRoute) {
       moveRouteTarget.value = (params[0] as string | number) ?? 0
       moveRouteCommands.value = JSON.parse(JSON.stringify(params[1] || []))
@@ -98,7 +100,13 @@ defineExpose({
   getCommandData: () => {
     let finalParams: unknown[] = []
     if (props.type === ZCommandCode.TransferPlayer) {
-      finalParams = [transferMapId.value, transferX.value, transferY.value, transferDirection.value]
+      finalParams = [
+        transferMapId.value,
+        transferX.value,
+        transferY.value,
+        transferDirection.value,
+        transferFade.value
+      ]
     } else if (props.type === ZCommandCode.SetMoveRoute) {
       finalParams = [
         moveRouteTarget.value,
@@ -124,8 +132,7 @@ defineExpose({
 
 <template>
   <div class="h-full">
-    <!-- Set Event Direction -->
-    <template v-if="type === 203">
+    <template v-if="type === ZCommandCode.SetEventDirection">
       <div class="space-y-4">
         <label class="text-[10px] font-bold uppercase text-slate-400 block ml-1">Direction</label>
         <div class="grid grid-cols-2 gap-3">
@@ -147,8 +154,7 @@ defineExpose({
       </div>
     </template>
 
-    <!-- Transfer Player -->
-    <template v-else-if="type === 201">
+    <template v-else-if="type === ZCommandCode.TransferPlayer">
       <div class="space-y-5">
         <div class="space-y-3">
           <label class="text-[10px] font-bold uppercase text-slate-400 block ml-1"
@@ -197,11 +203,27 @@ defineExpose({
             </button>
           </div>
         </div>
+        <div class="space-y-3">
+          <label class="text-[10px] font-bold uppercase text-slate-400 block ml-1">Fade Type</label>
+          <div class="segmented-control">
+            <button
+              v-for="s in [
+                { val: 0, label: 'Black' },
+                { val: 1, label: 'White' },
+                { val: 2, label: 'None' }
+              ]"
+              :key="s.val"
+              :class="{ active: transferFade === s.val }"
+              @click="transferFade = s.val"
+            >
+              {{ s.label }}
+            </button>
+          </div>
+        </div>
       </div>
     </template>
 
-    <!-- Set Move Route -->
-    <template v-else-if="type === 205">
+    <template v-else-if="type === ZCommandCode.SetMoveRoute">
       <div class="flex gap-6 h-full overflow-hidden">
         <!-- Left Side: Config -->
         <div class="w-64 flex flex-col gap-5 shrink-0">

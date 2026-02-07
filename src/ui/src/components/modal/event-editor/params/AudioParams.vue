@@ -58,9 +58,7 @@ defineExpose({
   <div class="space-y-6">
     <!-- Play BGM/BGS/SE -->
     <template
-      v-if="
-        [241, 245, 250].includes(type) // 241=BGM, 245=BGS, 250=SE
-      "
+      v-if="[ZCommandCode.PlayBGM, ZCommandCode.PlayBGS, ZCommandCode.PlaySE].includes(type)"
     >
       <div class="space-y-3">
         <label class="text-[10px] font-bold uppercase text-slate-400 block ml-1">
@@ -97,7 +95,7 @@ defineExpose({
     </template>
 
     <!-- Fadeout BGM/BGS -->
-    <template v-else-if="[242, 246].includes(type)">
+    <template v-else-if="[ZCommandCode.FadeOutBGM, ZCommandCode.FadeOutBGS].includes(type)">
       <div class="space-y-3">
         <label class="text-[10px] font-bold uppercase text-slate-400 block ml-1">
           Duration (Seconds)

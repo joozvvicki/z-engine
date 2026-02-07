@@ -3,7 +3,7 @@ import { ref, onMounted } from 'vue'
 import { ZCommandCode, type ZEventCommand } from '@engine/types'
 
 const props = defineProps<{
-  type: number // 206 (Event Graphic)
+  type: number // 214 (Event Graphic)
   initialCommand?: ZEventCommand | null
 }>()
 
@@ -41,8 +41,7 @@ defineExpose({
 
 <template>
   <div class="space-y-6">
-    <!-- Set Event Graphic -->
-    <template v-if="type === 206">
+    <template v-if="type === ZCommandCode.SetEventGraphic">
       <div class="space-y-3">
         <label class="text-[10px] font-bold uppercase text-slate-400 block ml-1"
           >Asset Filename</label

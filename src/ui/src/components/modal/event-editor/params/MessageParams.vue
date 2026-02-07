@@ -12,8 +12,11 @@ const props = defineProps<{
 // Internal state
 const text = ref('')
 const style = ref(0) // 0: Window, 1: Bubble
+const background = ref(0) // 0: Window, 1: Dim, 2: Transparent
+const position = ref(2) // 0: Top, 1: Middle, 2: Bottom
 const target = ref(0) // 0: This Event, -1: Player, >0: Event ID
 const choices = ref<string[]>(['Yes', 'No'])
+const cancelType = ref(-1) // -1: Disallow, -2: Branch, 0-5: Choice Index
 
 const initialize = (): void => {
   if (
@@ -25,11 +28,14 @@ const initialize = (): void => {
     if (props.initialCommand.code === ZCommandCode.ShowMessage) {
       text.value = String(params[0] || '')
       style.value = Number(params[1] || 0)
-      target.value = Number(params[2] ?? 0)
+      background.value = Number(params[2] || 0)
+      position.value = Number(params[3] ?? 2)
+      target.value = Number(params[4] ?? 0)
     } else {
       choices.value = JSON.parse(JSON.stringify(params[0] || ['Yes', 'No']))
-      style.value = Number(params[1] || 0)
-      target.value = Number(params[2] ?? 0)
+      cancelType.value = Number(params[1] ?? -1)
+      style.value = Number(params[2] || 0)
+      target.value = Number(params[3] ?? 0)
     }
   }
 }
@@ -53,9 +59,9 @@ defineExpose({
   getCommandData: () => {
     let finalParams: unknown[] = []
     if (props.type === ZCommandCode.ShowMessage) {
-      finalParams = [text.value, style.value, target.value]
+      finalParams = [text.value, style.value, background.value, position.value, target.value]
     } else if (props.type === ZCommandCode.ShowChoices) {
-      finalParams = [[...choices.value], style.value, target.value]
+      finalParams = [[...choices.value], cancelType.value, style.value, target.value]
     }
     return {
       code: props.type,
@@ -67,8 +73,7 @@ defineExpose({
 
 <template>
   <div class="space-y-6">
-    <!-- Show Message -->
-    <template v-if="type === 101">
+    <template v-if="type === ZCommandCode.ShowMessage">
       <div class="space-y-3">
         <label class="text-[10px] font-bold uppercase text-slate-400 block ml-1"
           >Message Text</label
@@ -100,6 +105,42 @@ defineExpose({
         </div>
       </div>
 
+      <div
+        v-if="style === 0"
+        class="grid grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-1 duration-200"
+      >
+        <div class="space-y-3">
+          <label class="text-[10px] font-bold uppercase text-slate-400 block ml-1"
+            >Background</label
+          >
+          <div class="relative">
+            <select v-model.number="background" class="docs-input appearance-none">
+              <option :value="0">Window</option>
+              <option :value="1">Dim</option>
+              <option :value="2">Transparent</option>
+            </select>
+            <IconArrowDown
+              size="14"
+              class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
+            />
+          </div>
+        </div>
+        <div class="space-y-3">
+          <label class="text-[10px] font-bold uppercase text-slate-400 block ml-1">Position</label>
+          <div class="relative">
+            <select v-model.number="position" class="docs-input appearance-none">
+              <option :value="0">Top</option>
+              <option :value="1">Middle</option>
+              <option :value="2">Bottom</option>
+            </select>
+            <IconArrowDown
+              size="14"
+              class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
+            />
+          </div>
+        </div>
+      </div>
+
       <div v-if="style === 1" class="space-y-3 animate-in fade-in slide-in-from-top-1 duration-200">
         <label class="text-[10px] font-bold uppercase text-slate-400 block ml-1">Target</label>
         <div class="relative">
@@ -123,8 +164,7 @@ defineExpose({
       </div>
     </template>
 
-    <!-- Show Choices -->
-    <template v-else-if="type === 102">
+    <template v-else-if="type === ZCommandCode.ShowChoices">
       <label class="text-[10px] font-bold uppercase text-slate-400 block ml-1">Choice List</label>
       <div class="space-y-3">
         <div
@@ -162,6 +202,24 @@ defineExpose({
           </div>
           Add Another Choice
         </button>
+      </div>
+
+      <div class="space-y-3 pt-4 border-t border-slate-100">
+        <label class="text-[10px] font-bold uppercase text-slate-400 block ml-1">When Cancel</label>
+        <div class="relative">
+          <select v-model.number="cancelType" class="docs-input appearance-none">
+            <option :value="-1">Disallow</option>
+            <option :value="-2">Branch</option>
+            <option disabled>--- Choice Index ---</option>
+            <option v-for="(_, idx) in choices" :key="idx" :value="idx">
+              Choice #{{ idx + 1 }}
+            </option>
+          </select>
+          <IconArrowDown
+            size="14"
+            class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
+          />
+        </div>
       </div>
 
       <div class="space-y-3 pt-4 border-t border-slate-100">
