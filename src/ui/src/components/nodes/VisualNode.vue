@@ -132,7 +132,7 @@ const socketContainerStyle = {
     :class="borderClass"
     :style="{
       ...positionStyle,
-      width: `${NODE_WIDTH}px`,
+      width: `${node.width || NODE_WIDTH}px`,
       minHeight: `${totalHeight}px`
     }"
     @mousedown="(e) => emit('drag-start', e)"

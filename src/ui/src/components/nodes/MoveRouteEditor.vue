@@ -1,5 +1,17 @@
 <script setup lang="ts">
-import { IconTrash, IconSettings, IconPlus } from '@tabler/icons-vue'
+import {
+  IconTrash,
+  IconPlus,
+  IconArrowUp,
+  IconArrowDown,
+  IconArrowLeft,
+  IconArrowRight,
+  IconHourglass,
+  IconChevronUp,
+  IconChevronDown,
+  IconSettings,
+  IconGhost
+} from '@tabler/icons-vue'
 import { ZMoveCode, type ZMoveCommand } from '@engine/types'
 import { moveActions } from '../modal/event-editor/params/config'
 import { ref, type Component } from 'vue'
@@ -40,6 +52,24 @@ const removeCommand = (index: number): void => {
   emit('update:modelValue', commands)
 }
 
+const moveCommand = (index: number, direction: 'up' | 'down'): void => {
+  const commands = [...props.modelValue]
+  if (direction === 'up' && index > 0) {
+    ;[commands[index], commands[index - 1]] = [commands[index - 1], commands[index]]
+  } else if (direction === 'down' && index < commands.length - 1) {
+    ;[commands[index], commands[index + 1]] = [commands[index + 1], commands[index]]
+  }
+  emit('update:modelValue', commands)
+}
+
+const getActionColor = (code: string | number): string => {
+  const c = code.toString()
+  if (c.includes('MOVE') || c.includes('STEP')) return 'bg-blue-50 text-blue-600'
+  if (c.includes('TURN')) return 'bg-amber-50 text-amber-600'
+  if (c.includes('WAIT')) return 'bg-slate-50 text-slate-600'
+  return 'bg-emerald-50 text-emerald-600'
+}
+
 const getActionLabel = (code: string | number): string => {
   const codeStr = code.toString()
   return moveActions.find((a) => a.code.toString() === codeStr)?.label || codeStr
@@ -66,54 +96,73 @@ const updateParam = (cmdIdx: number, paramIdx: number, value: unknown): void => 
       <div
         v-for="(cmd, idx) in modelValue"
         :key="idx"
-        class="group flex flex-col gap-2 p-2.5 bg-white border border-slate-100 rounded-xl shadow-sm hover:border-slate-200 transition-all"
+        class="group flex flex-col gap-2 p-2.5 bg-white border border-slate-100 rounded-xl shadow-sm hover:border-slate-300 transition-all"
       >
-        <div class="flex items-center gap-2.5">
-          <span class="text-[9px] font-mono text-slate-300 w-4 font-bold opacity-80">
-            {{ idx + 1 }}
-          </span>
-          <div
-            class="w-6 h-6 rounded-lg bg-slate-50 flex items-center justify-center text-slate-400"
-          >
-            <component :is="getActionIcon(cmd.code)" size="11" />
+        <div class="flex items-center gap-2">
+          <div class="flex flex-col gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+            <button
+              class="p-0.5 text-slate-300 hover:text-indigo-500 disabled:opacity-20"
+              :disabled="idx === 0"
+              @click="moveCommand(idx, 'up')"
+            >
+              <IconChevronUp size="10" stroke-width="3" />
+            </button>
+            <button
+              class="p-0.5 text-slate-300 hover:text-indigo-500 disabled:opacity-20"
+              :disabled="idx === modelValue.length - 1"
+              @click="moveCommand(idx, 'down')"
+            >
+              <IconChevronDown size="10" stroke-width="3" />
+            </button>
           </div>
-          <span
-            class="text-[10px] font-black uppercase text-slate-700 flex-1 truncate tracking-tight"
+          <div
+            class="w-7 h-7 rounded-lg flex items-center justify-center"
+            :class="getActionColor(cmd.code)"
           >
-            {{ getActionLabel(cmd.code) }}
-          </span>
+            <component :is="getActionIcon(cmd.code)" size="13" stroke-width="2.5" />
+          </div>
+
+          <div class="flex flex-1 items-center gap-3 min-w-0">
+            <span
+              class="text-[10px] font-black uppercase text-slate-800 truncate tracking-tight px-1"
+            >
+              {{ getActionLabel(cmd.code) }}
+            </span>
+
+            <!-- Inline Params for simple commands -->
+            <div
+              v-if="moveActions.find((a) => a.code.toString() === cmd.code.toString())?.paramNames"
+              class="flex items-center gap-3 overflow-hidden"
+            >
+              <div
+                v-for="(pName, pIdx) in moveActions.find(
+                  (a) => a.code.toString() === cmd.code.toString()
+                )?.paramNames"
+                :key="pIdx"
+                class="flex items-center gap-1.5"
+              >
+                <span
+                  class="text-[8px] font-black uppercase tracking-widest text-slate-400 whitespace-nowrap"
+                >
+                  {{ pName }}
+                </span>
+                <input
+                  :value="cmd.params?.[pIdx]"
+                  type="text"
+                  class="w-12 bg-slate-50/70 text-[10px] text-slate-900 font-bold px-1.5 py-0.5 border border-slate-100 rounded-md focus:border-indigo-400 focus:bg-white focus:shadow-sm outline-none transition-all"
+                  @input="updateParam(idx, pIdx, ($event.target as HTMLInputElement).value)"
+                  @mousedown.stop
+                />
+              </div>
+            </div>
+          </div>
+
           <button
-            class="opacity-0 group-hover:opacity-100 p-1 text-slate-300 hover:text-red-500 transition-all hover:scale-110"
+            class="opacity-0 group-hover:opacity-100 p-1.5 text-slate-300 hover:text-red-500 transition-all hover:bg-red-50 rounded-lg"
             @click="removeCommand(idx)"
           >
-            <IconTrash size="11" />
+            <IconTrash size="12" />
           </button>
-        </div>
-
-        <!-- Inline Params if applicable -->
-        <div
-          v-if="moveActions.find((a) => a.code.toString() === cmd.code.toString())?.paramNames"
-          class="ml-6 pt-2 border-t border-slate-50 flex flex-col gap-2"
-        >
-          <div
-            v-for="(pName, pIdx) in moveActions.find(
-              (a) => a.code.toString() === cmd.code.toString()
-            )?.paramNames"
-            :key="pIdx"
-            class="flex items-center gap-2.5"
-          >
-            <span
-              class="text-[8px] font-black uppercase tracking-tight text-slate-400 min-w-[80px] truncate"
-            >
-              {{ pName }}
-            </span>
-            <input
-              :value="cmd.params?.[pIdx]"
-              type="text"
-              class="flex-1 max-w-[100px] bg-slate-50/70 text-[11px] text-slate-800 font-bold px-2 py-1 border border-slate-100 rounded-md focus:border-indigo-500 focus:bg-white focus:shadow-sm outline-none transition-all placeholder:text-slate-200"
-              @input="updateParam(idx, pIdx, ($event.target as HTMLInputElement).value)"
-            />
-          </div>
         </div>
       </div>
 
@@ -126,23 +175,43 @@ const updateParam = (cmdIdx: number, paramIdx: number, value: unknown): void => 
       </div>
     </div>
 
-    <!-- Quick Add Dropdown -->
-    <div class="pt-2 border-t border-slate-100">
-      <div class="relative">
+    <!-- Dynamic Controls & Actions -->
+    <div class="flex flex-col gap-2 pt-2 border-t border-slate-100">
+      <!-- Quick D-Pad -->
+      <div class="grid grid-cols-5 gap-1">
+        <button
+          v-for="btn in [
+            { code: ZMoveCode.MOVE_UP, icon: IconArrowUp },
+            { code: ZMoveCode.MOVE_DOWN, icon: IconArrowDown },
+            { code: ZMoveCode.MOVE_LEFT, icon: IconArrowLeft },
+            { code: ZMoveCode.MOVE_RIGHT, icon: IconArrowRight },
+            { code: ZMoveCode.WAIT, icon: IconHourglass }
+          ]"
+          :key="btn.code"
+          class="flex flex-col items-center justify-center p-2 bg-slate-50 hover:bg-slate-900 hover:text-white rounded-xl transition-all group/btn"
+          @click="addCommand(btn.code)"
+        >
+          <component :is="btn.icon" size="14" stroke-width="2.5" />
+        </button>
+      </div>
+
+      <!-- Full Dropdown -->
+      <div class="relative group/select">
         <select
           v-model="selectedAction"
-          class="w-full bg-slate-900 text-white text-[10px] font-black uppercase tracking-wider rounded-xl px-3 py-2.5 appearance-none cursor-pointer hover:bg-black transition-colors"
+          class="w-full bg-slate-50 text-slate-900 border border-slate-100 text-[10px] font-black uppercase tracking-wider rounded-xl px-3 py-2 appearance-none cursor-pointer hover:border-slate-300 transition-all outline-none pr-8"
           @change="addCommand(selectedAction)"
         >
-          <option value="" disabled>+ Add Movement Step</option>
+          <option value="" disabled>Library...</option>
           <option v-for="action in moveActions" :key="action.code" :value="action.code">
             {{ action.label }}
           </option>
         </select>
-        <IconPlus
-          size="14"
-          class="absolute right-3 top-1/2 -translate-y-1/2 text-white/50 pointer-events-none"
-        />
+        <div
+          class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none flex items-center gap-1"
+        >
+          <IconPlus size="12" stroke-width="3" />
+        </div>
       </div>
     </div>
   </div>

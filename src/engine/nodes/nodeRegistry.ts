@@ -230,6 +230,7 @@ export const MessageNodes: ZNodeRegistry = {
         default: []
       }
     ],
+    width: 340,
     compileHandler: (node, graph, visited, baseIndent) => {
       const target = Number(node.values?.target ?? 0)
       const charId = target === 1 ? Number(node.values?.characterId ?? 1) : target

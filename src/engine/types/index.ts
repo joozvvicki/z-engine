@@ -620,6 +620,7 @@ export interface ZNode {
   outputs: ZNodeSocket[]
   values?: Record<string, unknown>
   config?: Record<string, unknown>
+  width?: number
 }
 
 export interface ZConnection {
@@ -649,6 +650,7 @@ export interface ZNodeDefinition {
     indent: number
   ) => ZEventCommand[]
   getOutputs?: (values: Record<string, unknown>) => ZNodeSocket[]
+  width?: number
 }
 
 export type ZNodeRegistry = Record<string, ZNodeDefinition>

@@ -33,7 +33,7 @@ export const nodeDecompiler = {
       startIndex: 0,
       endIndex: commands.length,
       indent: 0,
-      x: 100 + DX,
+      x: 100 + getDX(entryNode.width),
       y: 150,
       nodes,
       connections,
@@ -69,8 +69,13 @@ export type DecompileResult = {
 } | null
 
 // Layout constants
-const DX = 340 // NODE_WIDTH (280) + NODE_GAP_X (60)
+const DEFAULT_WIDTH = 280
+const GAP_X = 60
 const DY = 160 // Vertical branch offset
+
+function getDX(width?: number): number {
+  return (width || DEFAULT_WIDTH) + GAP_X
+}
 
 /**
  * Process a range of commands and build nodes/connections
@@ -162,27 +167,36 @@ function processCommands(ctx: DecompileContext): {
       }
     }
 
-    // --- Standard Node Handler ---
-    const nodeInfo = findNodeByCommandCode(cmd.code)
-    let node: ZNode
+    // Default Action Nodes
+    const info = findNodeByCommandCode(cmd.code)
+    if (info) {
+      const node = createNodeFromCommand(cmd, info, currentX, currentY, i)
+      nodes.push(node)
 
-    if (nodeInfo) {
-      node = createNodeFromCommand(cmd, nodeInfo, currentX, currentY, i)
-    } else {
-      // Fallback for unknown commands
-      if (isBranchMarker(cmd.code)) {
-        i++
-        continue
+      if (currentParentId && currentSocketId) {
+        connections.push({
+          id: `conn-${i}-${Date.now()}`,
+          fromNode: currentParentId,
+          fromSocket: currentSocketId,
+          toNode: node.id,
+          toSocket: 'exec'
+        })
       }
-      node = createUnknownNode(cmd, currentX, currentY, i)
+
+      currentX += getDX(node.width)
+      currentParentId = node.id
+      currentSocketId = 'exec'
+      i++
+      continue
     }
 
+    // Default: Placeholder for unknown commands
+    const node = createUnknownNode(cmd, currentX, currentY, i)
     nodes.push(node)
 
-    // Connect to parent
     if (currentParentId && currentSocketId) {
       connections.push({
-        id: `conn-${nodes.length}-${Date.now()}`,
+        id: `conn-${i}-${Date.now()}`,
         fromNode: currentParentId,
         fromSocket: currentSocketId,
         toNode: node.id,
@@ -190,13 +204,17 @@ function processCommands(ctx: DecompileContext): {
       })
     }
 
+    currentX += getDX(node.width)
     currentParentId = node.id
     currentSocketId = 'exec'
-    currentX += 350
     i++
   }
 
-  return { lastNodeId: currentParentId || '', lastX: currentX, lastY: currentY }
+  return {
+    lastNodeId: currentParentId || '',
+    lastX: currentX,
+    lastY: currentY
+  }
 }
 
 /**
@@ -275,7 +293,7 @@ function handleShowChoices(
         startIndex: i + 1,
         endIndex: branchEnd,
         indent: indent + 1,
-        x: ctx.x + DX,
+        x: ctx.x + getDX(node.width),
         y: ctx.y + branchIndex * DY,
         parentNodeId: node.id,
         parentSocketId: `choice_${branchIndex}`
@@ -301,7 +319,7 @@ function handleShowChoices(
         startIndex: i + 1,
         endIndex: branchEnd,
         indent: indent + 1,
-        x: ctx.x + DX,
+        x: ctx.x + getDX(node.width),
         y: ctx.y + branchIndex * DY,
         parentNodeId: node.id,
         parentSocketId: 'cancel'
@@ -314,7 +332,12 @@ function handleShowChoices(
     i++
   }
 
-  return { lastNodeId: node.id, nextX: ctx.x + DX, nextY: ctx.y, consumedCount }
+  return {
+    lastNodeId: node.id,
+    nextX: ctx.x + getDX(node.width),
+    nextY: ctx.y,
+    consumedCount
+  }
 }
 
 /**
@@ -405,7 +428,7 @@ function handleConditionalBranch(
     startIndex: startIndex + 1,
     endIndex: elseIndex !== -1 ? elseIndex : endIndex,
     indent: indent + 1,
-    x: ctx.x + DX,
+    x: ctx.x + getDX(node.width),
     y: ctx.y,
     parentNodeId: node.id,
     parentSocketId: 'true'
@@ -418,14 +441,19 @@ function handleConditionalBranch(
       startIndex: elseIndex + 1,
       endIndex: endIndex,
       indent: indent + 1,
-      x: ctx.x + DX,
+      x: ctx.x + getDX(node.width),
       y: ctx.y + DY,
       parentNodeId: node.id,
       parentSocketId: 'false'
     })
   }
 
-  return { lastNodeId: node.id, nextX: ctx.x + DX, nextY: ctx.y, consumedCount: endIndex + 1 }
+  return {
+    lastNodeId: node.id,
+    nextX: ctx.x + getDX(node.width),
+    nextY: ctx.y,
+    consumedCount: endIndex + 1
+  }
 }
 
 /**
@@ -569,7 +597,12 @@ export function handleSetMoveRoute(ctx: DecompileContext): DecompileResult {
     })
   }
 
-  return { lastNodeId: node.id, nextX: ctx.x + DX, nextY: ctx.y, consumedCount: startIndex + 1 }
+  return {
+    lastNodeId: node.id,
+    nextX: ctx.x + getDX(node.width),
+    nextY: ctx.y,
+    consumedCount: startIndex + 1
+  }
 }
 
 // --- Helpers ---
@@ -594,7 +627,8 @@ function createEntryNode(trigger: ZEventTrigger = 0): ZNode {
     inputs: [],
     outputs: [{ id: 'exec', label: 'Execute', type: 'execution' }],
     values: {},
-    config: { nodeKey: info.key, isEntry: true }
+    config: { nodeKey: info.key, isEntry: true },
+    width: DEFAULT_WIDTH
   }
 }
 
@@ -628,7 +662,8 @@ function createNodeFromCommand(
       ? info.definition.getOutputs(values)
       : JSON.parse(JSON.stringify(info.definition.outputs)),
     values,
-    config: { nodeKey: info.key }
+    config: { nodeKey: info.key },
+    width: info.definition.width || DEFAULT_WIDTH
   }
 }
 
@@ -642,7 +677,8 @@ function createUnknownNode(cmd: ZEventCommand, x: number, y: number, index: numb
     inputs: [{ id: 'exec', label: '', type: 'execution' }],
     outputs: [{ id: 'exec', label: '', type: 'execution' }],
     values: { parameters: cmd.parameters },
-    config: { nodeKey: 'unknown', code: cmd.code }
+    config: { nodeKey: 'unknown', code: cmd.code },
+    width: DEFAULT_WIDTH
   }
 }
 
