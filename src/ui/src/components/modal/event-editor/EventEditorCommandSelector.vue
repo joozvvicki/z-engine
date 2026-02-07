@@ -10,6 +10,9 @@ import StateParams from './params/StateParams.vue'
 import MovementParams from './params/MovementParams.vue'
 import AudioParams from './params/AudioParams.vue'
 import VisualParams from './params/VisualParams.vue'
+import EffectParams from './params/EffectParams.vue'
+import PictureParams from './params/PictureParams.vue'
+import MapParams from './params/MapParams.vue'
 import { variableOps, directions, moveActions, commandCategories } from './params/config'
 
 const props = defineProps<{
@@ -32,7 +35,10 @@ const commandSelectorStep = ref<'grid' | 'params'>('grid')
 const commandCategory = ref('Messages')
 const selectedCommandType = ref<number | null>(null)
 
-const editorRef = ref<{ getCommandData?: () => any; getMoveRoute?: () => any } | null>(null)
+const editorRef = ref<{
+  getCommandData?: () => { code: number; parameters: unknown[] }
+  getMoveRoute?: () => ZMoveCommand[]
+} | null>(null)
 
 const selectGridCommand = (code: number): void => {
   selectedCommandType.value = code
@@ -286,6 +292,41 @@ const handleSave = (): void => {
               :type="selectedCommandType!"
             />
 
+            <!-- Effect Control -->
+            <EffectParams
+              v-else-if="
+                selectedCommandType === ZCommandCode.ShowAnimation ||
+                selectedCommandType === ZCommandCode.ShowBalloonIcon
+              "
+              ref="editorRef"
+              :initial-command="props.initialCommand"
+              :type="selectedCommandType!"
+              :events="store.activeMap?.events || []"
+            />
+
+            <!-- Picture Control -->
+            <PictureParams
+              v-else-if="
+                selectedCommandType === ZCommandCode.ShowPicture ||
+                selectedCommandType === ZCommandCode.MovePicture ||
+                selectedCommandType === ZCommandCode.ErasePicture
+              "
+              ref="editorRef"
+              :initial-command="props.initialCommand"
+              :type="selectedCommandType!"
+            />
+
+            <!-- Map Control -->
+            <MapParams
+              v-else-if="
+                selectedCommandType === ZCommandCode.ScrollMap ||
+                selectedCommandType === ZCommandCode.GetLocationInfo
+              "
+              ref="editorRef"
+              :initial-command="props.initialCommand"
+              :type="selectedCommandType!"
+            />
+
             <!-- Default / Fallback for other commands -->
             <div
               v-else-if="
@@ -305,7 +346,14 @@ const handleSave = (): void => {
                   ZCommandCode.FadeOutBGS,
                   ZCommandCode.ShowChoices,
                   ZCommandCode.ConditionalBranch,
-                  ZCommandCode.SetEventGraphic
+                  ZCommandCode.SetEventGraphic,
+                  ZCommandCode.ShowAnimation,
+                  ZCommandCode.ShowBalloonIcon,
+                  ZCommandCode.ShowPicture,
+                  ZCommandCode.MovePicture,
+                  ZCommandCode.ErasePicture,
+                  ZCommandCode.ScrollMap,
+                  ZCommandCode.GetLocationInfo
                 ].includes(selectedCommandType || -1)
               "
               class="flex flex-col items-center justify-center flex-1 text-slate-300 gap-4"

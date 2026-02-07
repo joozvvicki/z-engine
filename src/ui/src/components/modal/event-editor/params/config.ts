@@ -28,7 +28,8 @@ import {
   IconVariable,
   IconMapPin,
   IconFlare,
-  IconMusic
+  IconMusic,
+  IconX
 } from '@tabler/icons-vue'
 import { ZMoveCode, ZCommandCode } from '@engine/types'
 
@@ -161,7 +162,11 @@ export const commandCategories = [
   {
     id: 'Visuals',
     icon: IconFlare,
-    commands: [{ code: ZCommandCode.SetEventGraphic, label: 'Change Graphic', icon: IconFlare }]
+    commands: [
+      { code: ZCommandCode.SetEventGraphic, label: 'Change Graphic', icon: IconFlare },
+      { code: ZCommandCode.ShowAnimation, label: 'Show Animation', icon: IconFlare },
+      { code: ZCommandCode.ShowBalloonIcon, label: 'Show Balloon', icon: IconFlare }
+    ]
   },
   {
     id: 'Audio',
@@ -173,6 +178,23 @@ export const commandCategories = [
       { code: ZCommandCode.FadeOutBGS, label: 'Fadeout BGS', icon: IconVolume },
       { code: ZCommandCode.PlaySE, label: 'Play SE', icon: IconVolume },
       { code: ZCommandCode.StopSE, label: 'Stop SE', icon: IconVolume }
+    ]
+  },
+  {
+    id: 'Pictures',
+    icon: IconPhoto,
+    commands: [
+      { code: ZCommandCode.ShowPicture, label: 'Show Picture', icon: IconPhoto },
+      { code: ZCommandCode.MovePicture, label: 'Move Picture', icon: IconPhoto },
+      { code: ZCommandCode.ErasePicture, label: 'Erase Picture', icon: IconX }
+    ]
+  },
+  {
+    id: 'Map',
+    icon: IconMapPin,
+    commands: [
+      { code: ZCommandCode.ScrollMap, label: 'Scroll Map', icon: IconMapPin },
+      { code: ZCommandCode.GetLocationInfo, label: 'Get Location Info', icon: IconMapPin }
     ]
   }
 ]
